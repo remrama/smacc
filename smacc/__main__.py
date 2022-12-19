@@ -1,9 +1,6 @@
 """Run the app."""
 import sys
 
-
-
-
 if len(sys.argv) == 1:
     # Run main window.
     from PyQt5.QtWidgets import QApplication
