@@ -13,8 +13,8 @@ import webbrowser
 from psychopy import parallel
 from PyQt5 import QtWidgets, QtGui, QtCore, QtMultimedia
 
-from config import *
-import utils
+from smacc import utils
+from .config import *
 
 
 # Define directories.
@@ -37,7 +37,7 @@ class BorderWidget(QtWidgets.QFrame):
         super(BorderWidget, self).__init__(*args)
         self.setStyleSheet("background-color: rgb(0,0,0,0); margin:0px; border:4px solid rgb(0, 0, 0); border-radius: 25px; ")
 
-class InputDialog(QtWidgets.QDialog):
+class SubjectSessionRequest(QtWidgets.QDialog):
     """A popup window that pops up once during initialization
     to get subject and session IDs from the user.
     """
@@ -853,33 +853,3 @@ class SmaccWindow(QtWidgets.QMainWindow):
             # sys.exit()
         else:
             event.ignore()
-
-
-# run the app
-if __name__ == "__main__":
-    app = QtWidgets.QApplication(sys.argv)
-
-    inbox = InputDialog()
-    inbox.exec_()
-    if inbox.result(): # 1 if they hit Ok, 0 if cancel
-        subject_id, session_id = inbox.getInputs()
-
-        # open thread where the <worker> will be placed
-        # thread = QtCore.QThread()
-
-        win = SmaccWindow(subject_id, session_id)
-
-        # ####################### audio stuff
-        # import livespec
-        # w = livespec.SpectrogramWidget()
-        # w.read_collected.connect(w.update)
-        # mic = livespec.MicrophoneRecorder(w.read_collected)
-        # # time (seconds) between reads
-        # interval = livespec.FS/livespec.CHUNKSZ
-        # t = QtCore.QTimer()
-        # t.timeout.connect(mic.read)
-        # t.start(1000/interval) #QTimer takes ms
-        # win.spect_layout.addWidget(w, 2, 0, 2, 1)
-        # ####################### audio stuff
-
-        sys.exit(app.exec_())

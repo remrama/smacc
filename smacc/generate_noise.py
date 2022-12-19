@@ -5,7 +5,7 @@ https://stackoverflow.com/a/67127726
 import numpy as np
 from scipy.io.wavfile import write
 
-import utils
+from smacc import utils
 
 
 def noise_psd(N, psd = lambda f: 1):

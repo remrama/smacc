@@ -4,7 +4,7 @@ https://stackoverflow.com/q/11570942
 import numpy as np
 from scipy.io.wavfile import write
 
-import utils
+from smacc import utils
 
 
 def note(freq, duration, amp, rate):
