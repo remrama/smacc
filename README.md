@@ -25,18 +25,28 @@ Download either [Anaconda](https://www.anaconda.com/products/distribution) or [M
 
 ## Usage
 
-### Before opening SMACC
+### Optional setup
 
-* Place any sound files in the `stimuli` folder (**must be .wav files!**).
-* Optional: Insert dream report questionnaire link in `config.json`.
+**These steps must be done _before_ running SMACC.**
 
-### Open SMACC
+SMACC will create a folder in your home directory, and then 3 folders in within that. It will look like this.
+```
+Users/<username>/smacc_data/cues  # <-- Any .wav file in here is made available as a cue to play with SMACC
+Users/<username>/smacc_data/logs  # <-- Data .log files are saved here.
+Users/<username>/smacc_data/noise # <-- The pink noise file is saved here.
+```
+
+If you don't want to use the default `~/smacc_data` folder, you can change this by setting a new environment variable called `SMACC_DATA_DIRECTORY` equal to whatever directory you want to use. SMACC will create it and all the subfolders (if not already present).
+
+* Place any sound files in the `~/smacc_data/cues` folder (_must be **.wav** files!_).
+
+There is a `Record Dream Report` button that will start to record from whatever external recording device is selected from the SMACC menubar. There is also an option to have it pop open a website URL. I use this to open up a dream report survey I have set up on Qualtrics. If you want it to open something, update the `SURVEY_URL` variable in `config.py`.
+
+### Run SMACC
 
 ```bash
 python -m smacc
 ```
 
-### Check recording device
-
 * Test the setup by trying to play some cues.
-* If planning to record dreams, choose sound device for recording audio from the Menu Bar (`Audio > Output device > [choose device]`).
+* If planning to record dreams, choose sound device for recording audio from the menubar (`Audio > Input device > [choose device]`).
