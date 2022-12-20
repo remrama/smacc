@@ -5,7 +5,7 @@ DESCRIPTION = "Sleep Manipulation and Communication Clickything\ngithub.com/remr
 DEVELOPMENT_ID = 999
 DEFAULT_VOLUME = 0.5
 
-SURVEY_URL = "https://northwestern.az1.qualtrics.com/..."
+SURVEY_URL = None
 
 PPORT_ADDRESS = "0x3FD8"
 PPORT_CODES = {

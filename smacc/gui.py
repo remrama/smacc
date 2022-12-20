@@ -419,17 +419,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def handleDreamReportButton(self):
         self.record() # i think this function handles the start/stop decision
         if self.sender().isChecked():
-            # try:
-            #     webbrowser.open(SURVEY_URL, new=0, autoraise=True)
-            # except:
-            #     pass
+            if SURVEY_URL is not None:
+                webbrowser.open(SURVEY_URL, new=0, autoraise=True)
             port_msg = "DreamReportStarted"
-            # self.logViewer.setStyleSheet("border: 3px solid red;")
-            # self.sender().setStyleSheet("background-color : lightgrey")
         else:
             port_msg = "DreamReportStopped"
-            # self.logViewer.setStyleSheet("border: 0px solid red;")
-            # self.sender().setStyleSheet("background-color : lightblue")
         # button_label = self.sender().text()
         portcode = self.portcodes[port_msg]
         self.send_to_pport(portcode, port_msg)
