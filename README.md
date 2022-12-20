@@ -45,7 +45,7 @@ There is a `Record Dream Report` button that will start to record from whatever 
 ### Run SMACC
 
 ```bash
-# Make sure you're conda environment is active.
+# Make sure the conda environment is active.
 conda activate smacc
 
 # Run SMACC.
