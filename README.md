@@ -16,7 +16,7 @@ Download either [Anaconda](https://www.anaconda.com/products/distribution) or [M
 
 ### Get SMACC
 
-1. Open the `Powershell` app on your PC (or `Terminal` if Mac).
+1. Open the `Powershell` app on your PC **with Admin privileges** (Right-click to open and select `Run as administrator`).
 2. Create a new conda environment, so that our installation is isolated from the rest of your system. Also we need to make sure we use Python 3.8. Type `conda create -n smacc python=3.8` and hit `Enter`.
 3. Activate the environment you just created. Type `conda activate smacc` and hit `Enter`.
 4. Install SMACC! Type `pip install smacc` and hit `Enter`.
@@ -45,6 +45,10 @@ There is a `Record Dream Report` button that will start to record from whatever 
 ### Run SMACC
 
 ```bash
+# Make sure you're conda environment is active.
+conda activate smacc
+
+# Run SMACC.
 python -m smacc
 ```
 
