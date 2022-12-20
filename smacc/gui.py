@@ -10,7 +10,11 @@ import logging
 import warnings
 import webbrowser
 
-from psychopy import parallel
+try:
+    from psychopy import parallel
+except:
+    print("Psychopy not found, no parallel port access.")
+
 from PyQt5 import QtWidgets, QtGui, QtCore, QtMultimedia
 
 from smacc import utils
