@@ -22,9 +22,11 @@ data_directory = utils.get_data_directory()
 logs_directory = data_directory / "logs"
 cues_directory = data_directory / "cues"
 noise_directory = data_directory / "noise"
+dreams_directory = data_directory / "dreams"
 logs_directory.mkdir(exist_ok=True)
 cues_directory.mkdir(exist_ok=True)
 noise_directory.mkdir(exist_ok=True)
+dreams_directory.mkdir(exist_ok=True)
 
 
 #########################################################
@@ -377,8 +379,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
             ### start a new recording
             # generate filename
             self.n_report_counter += 1
-            basename = f"{self.subj_sess_ids}_report-{self.n_report_counter:02d}.wav"
-            export_fname = os.path.join(self.session_dir, basename)
+            basename = f"sub-{self.subject}_ses-{self.session}_report-{self.n_report_counter:02d}.wav"
+            export_fname = os.path.join(dreams_directory, basename)
             self.recorder.setOutputLocation(QtCore.QUrl.fromLocalFile(export_fname))
             self.recorder.record()
             # # filename = 'https://www.pachd.com/sfx/camera_click.wav'
@@ -413,10 +415,10 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def handleDreamReportButton(self):
         self.record() # i think this function handles the start/stop decision
         if self.sender().isChecked():
-            try:
-                webbrowser.open(SURVEY_URL, new=0, autoraise=True)
-            except:
-                pass
+            # try:
+            #     webbrowser.open(SURVEY_URL, new=0, autoraise=True)
+            # except:
+            #     pass
             port_msg = "DreamReportStarted"
             # self.logViewer.setStyleSheet("border: 3px solid red;")
             # self.sender().setStyleSheet("background-color : lightgrey")
