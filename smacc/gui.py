@@ -12,7 +12,7 @@ import webbrowser
 
 try:
     from psychopy import parallel
-except:
+except ModuleNotFoundError:
     print("Psychopy not found, no parallel port access.")
 
 from PyQt5 import QtWidgets, QtGui, QtCore, QtMultimedia
