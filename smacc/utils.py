@@ -8,7 +8,9 @@ from scipy.io.wavfile import write
 def get_data_directory():
     """Returns default data directory if environment variable is not set."""
     data_directory = environ.get("SMACC_DATA_DIRECTORY", "~/SMACC")
-    return Path(data_directory).expanduser()
+    data_directory = Path(data_directory).expanduser()
+    data_directory.mkdir(exist_ok=True)
+    return data_directory
 
 def note(freq, duration, amp, rate):
     """https://stackoverflow.com/q/11570942"""
