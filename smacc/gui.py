@@ -57,7 +57,7 @@ class SubjectSessionRequest(QtWidgets.QDialog):
         self.subject_id = QtWidgets.QLineEdit(self)
         self.session_id = QtWidgets.QLineEdit(self)
         self.subject_id.setText(str(DEVELOPMENT_ID))
-        self.session_id.setText(str(DEVELOPMENT_ID))
+        self.session_id.setText("1")
         self.subject_id.setValidator(QtGui.QIntValidator(0, 999))  # Require a 3-digit number
         self.session_id.setValidator(QtGui.QIntValidator(0, 999))  # Require a 3-digit number
         # Create buttons to accept values or cancel.
@@ -177,7 +177,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         portcode = self.portcodes["TriggerInitialization"]
         self.send_to_pport(portcode, msg)
 
-
     def send_to_pport(self, portcode, port_msg):
         """Wrapper to avoid rewriting if not None a bunch
         to make sure the msg also gets logged to output file and gui
@@ -193,29 +192,22 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.log_info_msg(log_msg)
 
     def init_logger(self):
-        """initialize logger that writes to a log file
-        as well as the terminal, with independent levels if info
-        """
+        """initialize logger that writes to a log file"""
         path_name = f"sub-{self.subject}_ses-{self.session}_smacc-{VERSION}.log"
         log_path = logs_directory / path_name
         self.logger = logging.getLogger("smacc")
         self.logger.setLevel(logging.DEBUG)
         # open file handler to save external file
-        write_mode = "w" if (self.subject == 999 and self.session == 999) else "x"
+        write_mode = "w" if self.subject == DEVELOPMENT_ID else "x"
         fh = logging.FileHandler(log_path, mode=write_mode, encoding="utf-8")
         fh.setLevel(logging.DEBUG) # this determines what gets written to file
-        # create console handler to choose separately from file
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG) # this determines what gets printed to console
         # create formatter and add it to the handlers
         formatter = logging.Formatter(
             fmt="%(asctime)s.%(msecs)03d, %(levelname)s, %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S")
         fh.setFormatter(formatter)
-        ch.setFormatter(formatter)
-        # add the handlers to the logger
+        # add the handler to the logger
         self.logger.addHandler(fh)
-        self.logger.addHandler(ch)
 
 
 
