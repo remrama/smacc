@@ -20,6 +20,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore, QtMultimedia
 from smacc import utils
 from .config import *
 
+from .widgets import LightSwitchWidget
 
 # Define directories.
 data_directory = utils.get_data_directory()
@@ -208,7 +209,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         fh.setFormatter(formatter)
         # add the handler to the logger
         self.logger.addHandler(fh)
-
 
 
     def initUI(self):
@@ -422,7 +422,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def handleLightSwitch(self):
         # button_label = self.sender().text()
-        if self.sender().isChecked():
+        if self.sender().current_state == "OFF":
             port_msg = "LightsOff"
         else:
             port_msg = "LightsOn"
@@ -647,17 +647,15 @@ class SmaccWindow(QtWidgets.QMainWindow):
         noteButton.setStatusTip("Open a text box and timestamp a note.")
         noteButton.clicked.connect(self.handleNoteButton)
 
-        lightSwitch = QtWidgets.QPushButton("Lights Off", self)
-        lightSwitch.setStatusTip("Switch lights off or back on.")
-        lightSwitch.setCheckable(True)
-        lightSwitch.clicked.connect(self.handleLightSwitch)
+        # Add the LightSwitchWidget to the main window
+        self.lightSwitch = LightSwitchWidget(self)
+        self.lightSwitch.switchToggled.connect(self.handleLightSwitch)
 
         buttonsLayout = QtWidgets.QVBoxLayout()
         # buttonsLayout.setMargin(20)
         buttonsLayout.setAlignment(QtCore.Qt.AlignCenter)
         # buttonsLayout.setFixedSize(12, 12)
         buttonsLayout.addWidget(self.noiseButton)
-        buttonsLayout.addWidget(lightSwitch)
         buttonsLayout.addWidget(dreamReportButton)
         buttonsLayout.addWidget(noteButton)
 
@@ -770,6 +768,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         volumeKnobsLayout = QtWidgets.QHBoxLayout()
         volumeKnobsLayout.addLayout(cueVolumeLayout)
         volumeKnobsLayout.addLayout(noiseVolumeLayout)
+        volumeKnobsLayout.addWidget(self.lightSwitch)
         # formLayout = QtWidgets.QFormLayout()
         # formLayout.addRow(self.tr("&Volume:"), volumeSlider)
         # io_layout.addLayout(formLayout, 1, 0, 1, 2)
