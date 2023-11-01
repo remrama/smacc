@@ -10,11 +10,7 @@ import logging
 import warnings
 import webbrowser
 
-try:
-    from psychopy import parallel
-except ModuleNotFoundError:
-    print("Psychopy not found, no parallel port access.")
-
+from pylsl import StreamInfo, StreamOutlet, local_clock
 from PyQt5 import QtWidgets, QtGui, QtCore, QtMultimedia
 
 from smacc import utils
@@ -133,7 +129,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         init_msg = "Opened SMACC v" + VERSION
         self.log_info_msg(init_msg)
 
-        self.init_pport()
+        self.init_lsl_stream()
 
     def showErrorPopup(self, short_msg, long_msg=None):
         self.log_info_msg("ERROR")
@@ -167,29 +163,16 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # self.eventList.addItem(item)
         # self.eventList.update()
 
-    def init_pport(self):
-        try:
-            self.pport = parallel.ParallelPort(address=self.pport_address)
-            self.pport.setData(0) # clear all pins out to prep for sending
-            msg = "Parallel port connection succeeded."
-        except:
-            self.pport = None
-            msg = "Parallel port connection failed."
-        portcode = self.portcodes["TriggerInitialization"]
-        self.send_to_pport(portcode, msg)
+    def init_lsl_stream(self, stream_id="myuidw43536"):
+        self.info = StreamInfo("MyMarkerStream", "Markers", 1, 0, "string", stream_id)
+        self.outlet = StreamOutlet(self.info)
 
-    def send_to_pport(self, portcode, port_msg):
+    def send_event_marker(self, portcode, port_msg):
         """Wrapper to avoid rewriting if not None a bunch
         to make sure the msg also gets logged to output file and gui
         """
-        if self.pport is not None:
-            self.pport.setData(0)
-            self.pport.setData(portcode)
-            success = "Sent"
-        else:
-            success = "Failed"
-            ### Consider re-trying to connect here
-        log_msg = f"{port_msg} - {success} portcode {portcode}"
+        self.outlet.push_sample([str(portcode)])
+        log_msg = f"{port_msg} - portcode {portcode}"
         self.log_info_msg(log_msg)
 
     def init_logger(self):
@@ -399,7 +382,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
             portcode = self.portcodes["CueStopped"]
             action = "Stopped"
         port_msg = f"Cue{action}-{cue_name} - Volume {current_volume}" 
-        self.send_to_pport(portcode, port_msg)
+        self.send_event_marker(portcode, port_msg)
 
 
     def recorder_state_change(self, state):
@@ -418,7 +401,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
             port_msg = "DreamReportStopped"
         # button_label = self.sender().text()
         portcode = self.portcodes[port_msg]
-        self.send_to_pport(portcode, port_msg)
+        self.send_event_marker(portcode, port_msg)
 
     def handleLightSwitch(self):
         # button_label = self.sender().text()
@@ -427,7 +410,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         else:
             port_msg = "LightsOn"
         portcode = self.portcodes[port_msg]
-        self.send_to_pport(portcode, port_msg)
+        self.send_event_marker(portcode, port_msg)
 
 
     # def preload_biocals(self):
@@ -451,7 +434,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
     #         biocal_str = self.biocals_order[current_index]
     #         portcode = self.portcodes[f"biocals-{biocal_str}"]
     #         msg = f"BiocalStarted-{biocal_str}"
-    #         self.send_to_pport(portcode, msg)
+    #         self.send_event_marker(portcode, msg)
     #     else:
     #         self.biocalsButton.setChecked(False)
 
@@ -506,7 +489,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         else: # not checked
             self.noisePlayer.stop()
             msg = "NoiseStopped"
-        self.send_to_pport(self.portcodes[msg], msg)
+        self.send_event_marker(self.portcodes[msg], msg)
 
     @QtCore.pyqtSlot()
     def handleCueButton(self):
@@ -517,7 +500,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
             #     cue_basename = selected_item.text()
             #     portcode = self.portcodes[cue_basename]
             #     port_msg = "CUE+" + cue_basename
-            #     self.send_to_pport(portcode, port_msg)
+            #     self.send_event_marker(portcode, port_msg)
             #     self.playables[cue_basename].play()
             #### play random
             n_list_items = self.rightList.count()
@@ -536,7 +519,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         if ok: # True of OK button was hit, False otherwise (cancel button)
             portcode = self.portcodes["Note"]
             port_msg = f"Note [{text}]"
-            self.send_to_pport(portcode, port_msg)
+            self.send_event_marker(portcode, port_msg)
 
     @QtCore.pyqtSlot()
     def handleLeft2RightButton(self):
