@@ -50,13 +50,55 @@ def brownian_noise(f):
 def pink_noise(f):
     return 1/np.where(f == 0, float("inf"), np.sqrt(f))
 
+def generate_noise_files():
+    """Generates temporary noise files"""
+    data_directory = get_data_directory()
+    # Generate some noise wav files to mask cues.
+    noise_directory = data_directory / "noise"
+    noise_directory.mkdir(exist_ok=True)
+    rate = 44100
+    noise_functions = {
+        "pink": pink_noise,
+        "blue": blue_noise,
+        "white": white_noise,
+        "brown": brownian_noise,
+        "violet": violet_noise,
+    }
+    for color, func in noise_functions.items():
+        # Generate a 1-second sample.
+        noise = func(rate)
+        # Scale it for exporting.
+        scaled = np.int16(noise / np.max(np.abs(noise)) * 32767)
+        # Export.
+        export_path = noise_directory / f"{color}.wav"
+        write(export_path, rate, scaled)
+
+def generate_test_cue_file():
+    """Generates a test cue file"""
+    data_directory = get_data_directory()
+    cues_directory = data_directory / "cues"
+    cues_directory.mkdir(exist_ok=True)
+    duration = 1
+    amp = 1E4
+    rate = 44100
+    tone0 = note(0, duration, amp, rate)  #silence
+    tone1 = note(261.63, duration, amp, rate)  # C4
+    tone2 = note(329.63, duration, amp, rate)  # E4
+    tone3 = note(392.00, duration, amp, rate)  # G4
+    seq1 = np.concatenate((tone1, tone0, tone0, tone0, tone1), axis=0)
+    seq2 = np.concatenate((tone0, tone2, tone0, tone0, tone2), axis=0)
+    seq3 = np.concatenate((tone0, tone0, tone3, tone0, tone3), axis=0)
+    song = seq1 + seq2 + seq3
+    export_path = cues_directory / "song.wav"
+    write(export_path, 44100, song)
+
+
 def inpout_exists():
     dll_path = Path("C:\\Windows\\System32\\inpoutx64.dll")
     return dll_path.exists()
 
 def download_inpout():
-    # Install parallel port driver (optional, only if triggers needed)        
-    from .utils import get_data_directory
+    # Install parallel port driver (optional, only if triggers needed)
     data_directory = get_data_directory()
     import os
     import shutil

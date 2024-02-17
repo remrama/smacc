@@ -177,14 +177,14 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def init_logger(self):
         """initialize logger that writes to a log file"""
-        path_name = f"sub-{self.subject}_ses-{self.session}_smacc-{VERSION}.log"
+        path_name = f"sub-{self.subject:03d}_ses-{self.session:03d}_smacc-{VERSION}.log"
         log_path = logs_directory / path_name
         self.logger = logging.getLogger("smacc")
         self.logger.setLevel(logging.DEBUG)
         # open file handler to save external file
         write_mode = "w" if self.subject == DEVELOPMENT_ID else "x"
         fh = logging.FileHandler(log_path, mode=write_mode, encoding="utf-8")
-        fh.setLevel(logging.DEBUG) # this determines what gets written to file
+        fh.setLevel(logging.DEBUG)  # this determines what gets written to file
         # create formatter and add it to the handlers
         formatter = logging.Formatter(
             fmt="%(asctime)s.%(msecs)03d, %(levelname)s, %(message)s",
@@ -358,7 +358,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
             ### start a new recording
             # generate filename
             self.n_report_counter += 1
-            basename = f"sub-{self.subject}_ses-{self.session}_report-{self.n_report_counter:02d}.wav"
+            basename = f"sub-{self.subject:03d}_ses-{self.session:03d}_report-{self.n_report_counter:02d}.wav"
             export_fname = os.path.join(dreams_directory, basename)
             self.recorder.setOutputLocation(QtCore.QUrl.fromLocalFile(export_fname))
             self.recorder.record()

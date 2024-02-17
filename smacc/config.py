@@ -1,5 +1,5 @@
 
-VERSION = "0.0.5"
+VERSION = "0.0.5.1"
 DESCRIPTION = "Sleep Manipulation and Communication Clickything\ngithub.com/remrama/smacc"
 
 DEVELOPMENT_ID = 999
