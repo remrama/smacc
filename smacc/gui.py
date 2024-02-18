@@ -16,7 +16,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore, QtMultimedia
 from smacc import utils
 from .config import *
 
-from .widgets import LightSwitchWidget
+from .widgets import LightSwitchWidget, VisualStimController
 
 # Define directories.
 data_directory = utils.get_data_directory()
@@ -122,6 +122,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.extract_cue_names()
         self.preload_cues()
 
+        self.init_blinkstick()
+
         self.init_recorder()
 
         self.initUI()
@@ -206,13 +208,23 @@ class SmaccWindow(QtWidgets.QMainWindow):
         exitAct.setShortcut("Ctrl+Q")
         exitAct.setStatusTip("Close the TWC interface (don't worry about saving)")
         exitAct.triggered.connect(self.close) #close goes to closeEvent
-        
+
         # create an about window
         aboutIcon = self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_MessageBoxInformation"))
         aboutAct = QtWidgets.QAction(aboutIcon, "&About", self)
         # aboutAct.setShortcut("Ctrl+A")
         aboutAct.setStatusTip("What is this?")
         aboutAct.triggered.connect(showAboutPopup)
+
+        # # colorpickerAction = QtWidgets.QAction(QtWidgets.QMessageBox.Question, "&Pick", self)
+        # colorpickerAction = QtWidgets.QAction(self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_BrowserStop")), "&Pick", self)
+        # # colorpickerAction.setIcon(QtWidgets.QMessageBox.Question)
+        # colorpickerAction.setIcon(QtGui.QIcon("./1F3A8_color.png"))
+        # # colorpickerAction.setIcon(QtGui.QIcon(QtGui.QPixmap("./color.png")))
+        # colorpickerAction.setShortcut("Ctrl+p")
+        # colorpickerAction.setStatusTip("Pick the color")
+        # colorpickerAction.triggered.connect(self.pick_color)
+        # # self.colorpickerAction = colorpickerAction
 
         #####  setup menu bar  #####
         menuBar = self.menuBar()
@@ -282,9 +294,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # audioMenu.addAction(exitAct)
 
         #####  setup tool bar  #####
-        toolbar = self.addToolBar("&Add")
-        # toolbar.addAction(initArousalAct)
-        # toolbar.addAction(delRecallAct)
+        # toolbar = self.addToolBar("&Add")
+        # toolbar.addAction(colorpickerAction)
+        toolbar = QtWidgets.QToolBar("Visual parameters", self)
+        self.addToolBar(QtCore.Qt.LeftToolBarArea, toolbar)
+        # toolbar.addAction(colorpickerAction)
 
         # create central widget for holding grid layout
         self.init_CentralWidget()
@@ -294,8 +308,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # self.setGeometry(*xywh)
         # self.setMinimumSize(300, 200)    
         self.setWindowTitle("SMACC")
-        windowIcon = self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_ComputerIcon"))
+        windowIcon = self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_ToolBarHorizontalExtensionButton"))
         self.setWindowIcon(windowIcon)
+        # self.openAction = QAction(QIcon(":file-open.svg"), "&Open...", self)
         # self.setGeometry(100, 100, 600, 400)
         self.resize(1200, 500)
         self.show()
@@ -329,6 +344,14 @@ class SmaccWindow(QtWidgets.QMainWindow):
             #     if menu_item.iconText() == self.sender().text():
             #         menu_item.setChecked(True)
 
+    def init_blinkstick(self):
+        default_freq = 1.0
+        default_rgb = (0, 0, 0)
+        r, g, b = default_rgb
+        led_data = [g, r, b] * 32
+        self.stick_led_data = led_data
+        self.blink_freq = default_freq
+        # Draw button/icon/pixmap to show default color
 
     def init_recorder(self):
         """initialize the recorder
@@ -513,6 +536,42 @@ class SmaccWindow(QtWidgets.QMainWindow):
                 if v.isPlaying():
                     v.stop()
 
+    @QtCore.pyqtSlot()
+    def pick_color(self):
+        color = QtWidgets.QColorDialog.getColor()
+        if color.isValid():
+            self.stick_hexcode = color.name()
+            self.stick_rgb = color.getRgb()
+            ## Not sure why, but the blinkstick.set_led_data expects R and G reversed
+            # Create a sequence 96 values
+            # sequences of GRB values (RGB with R/G reversed), 3 for each of 32 LEDs
+            r, g, b, a = self.stick_rgb
+            led_data = [g, r, b] * 32
+            self.stick_led_data = led_data
+            # pixmap = QtGui.QPixmap(16, 16)
+            # pixmap.fill(color)
+            # self.colorpickerAction.setIcon(QtGui.QIcon(pixmap))
+
+    # @QtCore.pyqtSlot()
+    def handleFreqChange(self, freq):
+        """Takes frequency as a float, coming from user selection. In Hz"""
+        self.blink_freq = freq
+        # portcode = self.portcodes["blink"]
+        # port_msg = f"Set color: [{color}]"
+        # self.send_event_marker(portcode, port_msg)
+
+    @QtCore.pyqtSlot()
+    def handleBlinkButton(self):
+        from time import sleep
+        black = [0, 0, 0] * 32
+        freq = self.blink_freq
+        self.visual_stim_controller.stick.set_led_data(channel=0, data=self.stick_led_data)
+        sleep(freq)
+        self.visual_stim_controller.stick.set_led_data(channel=0, data=black)
+        # portcode = self.portcodes["blink"]
+        # port_msg = f"Set color: [{color}]"
+        # self.send_event_marker(portcode, port_msg)
+
     def handleNoteButton(self):
         text, ok = QtWidgets.QInputDialog.getText(self, "Text Input Dialog", "Custom note (no commas):")
         # self.subject_id.setValidator(QtGui.QIntValidator(0, 999)) # must be a 3-digit number
@@ -630,9 +689,38 @@ class SmaccWindow(QtWidgets.QMainWindow):
         noteButton.setStatusTip("Open a text box and timestamp a note.")
         noteButton.clicked.connect(self.handleNoteButton)
 
+        blinkButton = QtWidgets.QPushButton("Blink BlinkStick", self)
+        # blinkIcon.setIcon(QtGui.QIcon("./img/fish.ico"))
+        blinkButton.setStatusTip("Present visual stimulus.")
+        blinkButton.clicked.connect(self.handleBlinkButton)
+
+        colorpickerButton = QtWidgets.QPushButton("Pick BlinkStick color", self)
+        colorpickerButton.setStatusTip("Pick the visual stimulus color.")
+        colorpickerButton.setIcon(QtGui.QIcon("./color.png"))
+        colorpickerButton.clicked.connect(self.pick_color)
+
+        freqSpinBox = QtWidgets.QDoubleSpinBox(self)
+        freqSpinBox.setStatusTip("Pick BlinkStick blink frequency (how long the light will stay on in seconds).")
+        # freqSpinBox.setRange(0, 100)
+        freqSpinBox.setMinimum(0)
+        freqSpinBox.setMaximum(100)
+        freqSpinBox.setPrefix("Blink length: ")
+        freqSpinBox.setSuffix(" seconds")
+        freqSpinBox.setSingleStep(0.5)
+        freqSpinBox.setValue(self.blink_freq)
+        freqSpinBox.valueChanged.connect(self.handleFreqChange)
+        # freqSpinBox.textChanged.connect(self.value_changed_str)
+
         # Add the LightSwitchWidget to the main window
         self.lightSwitch = LightSwitchWidget(self)
         self.lightSwitch.switchToggled.connect(self.handleLightSwitch)
+
+        # Add VisualStimController as a popup
+        self.visual_stim_controller = VisualStimController(self)
+        # Connect switch events (signals) to functions in smacc main window (slots)
+        # self.visual_stim_controller.flicker_checkbox.toggled.connect(self.onClicked)
+        # self.freq_scroller.connect()
+        # self.brightness_scroller.connect()
 
         buttonsLayout = QtWidgets.QVBoxLayout()
         # buttonsLayout.setMargin(20)
@@ -641,7 +729,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         buttonsLayout.addWidget(self.noiseButton)
         buttonsLayout.addWidget(dreamReportButton)
         buttonsLayout.addWidget(noteButton)
-
+        buttonsLayout.addWidget(blinkButton)
+        buttonsLayout.addWidget(colorpickerButton)
+        buttonsLayout.addWidget(freqSpinBox)
 
         logViewer_header = QtWidgets.QLabel("Event log", self)
         logViewer_header.setAlignment(QtCore.Qt.AlignCenter)
@@ -784,13 +874,17 @@ class SmaccWindow(QtWidgets.QMainWindow):
         central_widget = QtWidgets.QWidget()
         # central_widget.setStyleSheet("background-color:salmon;")
         central_widget.setContentsMargins(5, 5, 5, 5)
-        central_widget.move(100, 100)
+        central_widget.move(100, 100)  # Change initial startup position
         # central_widget.setFixedSize(300, 300) # using self.resize makes it resizable
         central_widget.setLayout(main_layout)
 
         self.setCentralWidget(central_widget)
         self.main_layout = main_layout
         # self.resize(300, 300)
+
+    # def onClicked(self):
+    #     cbutton = self.sender()
+    #     print("Animal " + (cbutton.animal) + " is " + str(cbutton.isChecked()))
 
     def _volume_rescaler(self, zero_to_hundred):
         # pyqt sliders only take integers but range is 0-1
