@@ -1,4 +1,59 @@
+"""
+Custom widgets
+"""
+
 from PyQt5 import QtWidgets, QtGui, QtCore
+
+
+try:
+    from blinkstick import blinkstick
+except:
+    blinkstick = None
+
+
+class VisualStimController(QtWidgets.QWidget):
+    """
+    A :class:`QtWidgets.QtWidget` with parameters/controllers for visual
+    stimulation.
+
+    Requires the python package ``blink-stick-python``
+    https://github.com/arvydas/blinkstick-python
+
+    """
+
+    # switchToggled = QtCore.pyqtSignal()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if blinkstick is None:
+            raise ValueError("Use of visual stimulation requires `blinkstick` Python package.")
+
+        self.stick = blinkstick.find_first()
+        if self.stick is None:
+            raise ValueError("No BlinkStick found")
+        # else:
+        #     assert stick.get_variant_string() == "BlinkStick Flex"
+
+        # Create subwidgets needed for the display
+        self.title_label = QtWidgets.QLabel("Title of VisualStimController", self)
+        self.title_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.freq_label = QtWidgets.QLabel("Frequency", self)
+        self.freq_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.brightness_label = QtWidgets.QLabel("Brightness", self)
+        self.brightness_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.flicker_checkbox = QtWidgets.QCheckBox("Flicker?")
+        self.flicker_checkbox.setChecked(True)
+        self.flicker_checkbox.animal = "Cat"
+
+        # Create/compile layout with subwidgets
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.addWidget(self.title_label)
+        self.layout.addWidget(self.freq_label)
+        self.layout.addWidget(self.brightness_label)
+        self.setLayout(self.layout)
+        # layout.addWidget(cbutton, 0, 0)
+
 
 class LightSwitchWidget(QtWidgets.QWidget):
     # Define a custom signal for when the switch is toggled
