@@ -16,7 +16,6 @@ from PyQt5 import QtWidgets, QtGui, QtCore, QtMultimedia
 from smacc import utils
 from .config import *
 
-from .widgets import LightSwitchWidget, VisualStimulationWidget
 
 try:
     from blinkstick import blinkstick
@@ -278,7 +277,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         freqSpinBox.setPrefix("Blink length: ")
         freqSpinBox.setSuffix(" seconds")
         freqSpinBox.setSingleStep(0.5)
-        freqSpinBox.setValue(self.blink_freq)
+        freqSpinBox.setValue(self.bstick_blink_freq)
         freqSpinBox.valueChanged.connect(self.handleFreqChange)
         # freqSpinBox.textChanged.connect(self.value_changed_str)
 
@@ -370,19 +369,25 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # COMMON EVENT MARKERS WIDGET
         ########################################################################
 
-        awakeButton = QtWidgets.QPushButton("Awakening", self)
-        awakeButton.setStatusTip("Mark an awakening (shortcut 1)")
-        awakeButton.setShortcut("1")
-        awakeButton.setCheckable(False)
-        awakeButton.clicked.connect(self.handle_event_button)
-
-        noteButton = QtWidgets.QPushButton("Note", self)
-        noteButton.setStatusTip("Open a text box and timestamp a note.")
-        noteButton.clicked.connect(self.open_note_marker_dialogue)
+        common_events = {
+            "Awakening": "Mark an awakening (shortcut 1)",
+            "LRLR": "Mark a left-right-left-right lucid signal",
+            "Sleep onset": "Mark observed sleep onset",
+            "Lighs off": "Mark the beginning of sleep session",
+            "Lights on": "Mark the end of sleep session",
+            "Note": "Open a text box and timestamp a note.",
+        }
 
         eventsLayout = QtWidgets.QFormLayout()
-        eventsLayout.addRow(awakeButton)
-        eventsLayout.addRow(noteButton)
+        for i, (event, tip) in enumerate(common_events.items()):
+            shortcut = str(i + 1)
+            label = f"{event} ({shortcut})"
+            button = QtWidgets.QPushButton(label, self)
+            button.setStatusTip(tip)
+            button.setShortcut(shortcut)
+            # button.setCheckable(False)
+            button.clicked.connect(self.handle_event_button)
+            eventsLayout.addRow(button)
 
         ########################################################################
         # LOG VIEWER WIDGET
@@ -625,8 +630,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         default_rgb = (0, 0, 0)
         r, g, b = default_rgb
         led_data = [g, r, b] * 32
-        self.stick_led_data = led_data
-        self.blink_freq = default_freq
+        self.bstick_led_data = led_data
+        self.bstick_blink_freq = default_freq
         # Draw button/icon/pixmap to show default color
 
     def init_recorder(self):
@@ -701,16 +706,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # button_label = self.sender().text()
         portcode = self.portcodes[port_msg]
         self.send_event_marker(portcode, port_msg)
-
-    def handleLightSwitch(self):
-        # button_label = self.sender().text()
-        if self.sender().current_state == "OFF":
-            port_msg = "LightsOff"
-        else:
-            port_msg = "LightsOn"
-        portcode = self.portcodes[port_msg]
-        self.send_event_marker(portcode, port_msg)
-
 
     # def preload_biocals(self):
     #     self.biocals_player = QtMultimedia.QMediaPlayer()
@@ -816,14 +811,14 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def pick_color(self):
         color = QtWidgets.QColorDialog.getColor()
         if color.isValid():
-            self.stick_hexcode = color.name()
-            self.stick_rgb = color.getRgb()
+            self.bstick_hexcode = color.name()
+            self.bstick_rgb = color.getRgb()
             ## Not sure why, but the blinkstick.set_led_data expects R and G reversed
             # Create a sequence 96 values
             # sequences of GRB values (RGB with R/G reversed), 3 for each of 32 LEDs
-            r, g, b, a = self.stick_rgb
+            r, g, b, a = self.bstick_rgb
             led_data = [g, r, b] * 32
-            self.stick_led_data = led_data
+            self.bstick_led_data = led_data
             # pixmap = QtGui.QPixmap(16, 16)
             # pixmap.fill(color)
             # self.colorpickerAction.setIcon(QtGui.QIcon(pixmap))
@@ -831,7 +826,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
     # @QtCore.pyqtSlot()
     def handleFreqChange(self, freq):
         """Takes frequency as a float, coming from user selection. In Hz"""
-        self.blink_freq = freq
+        self.bstick_blink_freq = freq
         # portcode = self.portcodes["blink"]
         # port_msg = f"Set color: [{color}]"
         # self.send_event_marker(portcode, port_msg)
@@ -840,10 +835,10 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def handleBlinkButton(self):
         from time import sleep
         black = [0, 0, 0] * 32
-        freq = self.blink_freq
-        self.visual_stim_controller.stick.set_led_data(channel=0, data=self.stick_led_data)
+        freq = self.bstick_blink_freq
+        self.bstick.set_led_data(channel=0, data=self.bstick_led_data)
         sleep(freq)
-        self.visual_stim_controller.stick.set_led_data(channel=0, data=black)
+        self.bstick.set_led_data(channel=0, data=black)
         # portcode = self.portcodes["blink"]
         # port_msg = f"Set color: [{color}]"
         # self.send_event_marker(portcode, port_msg)
