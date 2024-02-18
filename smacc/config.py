@@ -1,6 +1,5 @@
 
-VERSION = "0.0.5.1"
-DESCRIPTION = "Sleep Manipulation and Communication Clickything\ngithub.com/remrama/smacc"
+VERSION = "0.0.6"
 
 DEVELOPMENT_ID = 999
 DEFAULT_VOLUME = 0.5

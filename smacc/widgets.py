@@ -11,7 +11,7 @@ except:
     blinkstick = None
 
 
-class VisualStimController(QtWidgets.QWidget):
+class VisualStimulationWidget(QtWidgets.QWidget):
     """
     A :class:`QtWidgets.QtWidget` with parameters/controllers for visual
     stimulation.
@@ -29,9 +29,16 @@ class VisualStimController(QtWidgets.QWidget):
         if blinkstick is None:
             raise ValueError("Use of visual stimulation requires `blinkstick` Python package.")
 
+        devices = blinkstick.find_all()
+        for d in devices:
+            product_name = d.device.product_name
+            serial_number = d.device.serial_number
+            version_number = d.device.version_number
+            dropdown_str = f"{product_name} v{version_number} (Serial No. {serial_number})"
+
         self.stick = blinkstick.find_first()
-        if self.stick is None:
-            raise ValueError("No BlinkStick found")
+        # if self.stick is None:
+        #     raise ValueError("No BlinkStick found")
         # else:
         #     assert stick.get_variant_string() == "BlinkStick Flex"
 

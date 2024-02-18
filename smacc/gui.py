@@ -16,7 +16,13 @@ from PyQt5 import QtWidgets, QtGui, QtCore, QtMultimedia
 from smacc import utils
 from .config import *
 
-from .widgets import LightSwitchWidget, VisualStimController
+from .widgets import LightSwitchWidget, VisualStimulationWidget
+
+try:
+    from blinkstick import blinkstick
+except:
+    blinkstick = None
+
 
 # Define directories.
 data_directory = utils.get_data_directory()
@@ -79,13 +85,17 @@ class SubjectSessionRequest(QtWidgets.QDialog):
 
 def showAboutPopup():
     """'About SMACC' popup window."""
+    text = (
+        f"Sleep Manipulation and Communication Clickything\n"
+        f"version: v{VERSION}"
+        f"https://github.com/remrama/smacc\n"
+    )
     win = QtWidgets.QMessageBox()
-    win.setWindowTitle("About")
+    win.setWindowTitle("About SMACC")
     win.setIcon(QtWidgets.QMessageBox.Information)
     win.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Close)
     win.setDefaultButton(QtWidgets.QMessageBox.Close)
-    informative_text = f"{DESCRIPTION}\nVersion: {VERSION}"
-    win.setInformativeText(informative_text)
+    win.setInformativeText(text)
     # win.setDetailedText("detailshere")
     # win.setStyleSheet("QLabel{min-width:500 px; font-size: 24px;} QPushButton{ width:250px; font-size: 18px; }");
     # win.setGeometry(200, 150, 100, 40)
@@ -126,7 +136,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         self.init_recorder()
 
-        self.initUI()
+        self.init_main_window()
 
         init_msg = "Opened SMACC v" + VERSION
         self.log_info_msg(init_msg)
@@ -156,9 +166,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.logger.info(msg)
         
         # print message to the GUI viewer box thing
-        item = self.logViewer.addItem(time.strftime("%H:%M:%S") + " - " + msg)
-        self.logViewer.repaint()
-        self.logViewer.scrollToBottom()
+        item = self.logviewList.addItem(time.strftime("%H:%M:%S") + " - " + msg)
+        self.logviewList.repaint()
+        self.logviewList.scrollToBottom()
         # item = pg.QtGui.QListWidgetItem(msg)
         # if warning: # change txt color
         #     item.setForeground(pg.QtCore.Qt.red)
@@ -196,109 +206,229 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.logger.addHandler(fh)
 
 
-    def initUI(self):
+    def init_main_window(self):
+        """
+        Initialize SMACC's main window, just the frame.
+        This is the "bars" (menu bar, tool bar, status bar)
+        And the widgets.
+        """
+
+        ########################################################################
+        # MENU BAR
+        ########################################################################
+
+        aboutAction = QtWidgets.QAction(self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_MessageBoxInformation")), "&About", self)
+        aboutAction.setStatusTip("About SMACC")
+        aboutAction.triggered.connect(showAboutPopup)
+
+        quitAction = QtWidgets.QAction(self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_BrowserStop")), "&Quit", self)
+        quitAction.setShortcut("Ctrl+Q")
+        quitAction.setStatusTip("Quit/close interface")
+        quitAction.triggered.connect(self.close)  # close goes to closeEvent
+
+        menuBar = self.menuBar()
+        # menuBar.setNativeMenuBar(False)  # needed for pyqt5 on Mac
+        helpMenu = menuBar.addMenu("&Help")
+        helpMenu.addAction(aboutAction)
+        helpMenu.addAction(quitAction)
+
+        ########################################################################
+        # TOOL BAR
+        ########################################################################
+
+        toolBar = QtWidgets.QToolBar("Visual parameters", self)
+        self.addToolBar(QtCore.Qt.LeftToolBarArea, toolBar)
+        # toolBar.addAction(colorpickerAction)
+
+        ########################################################################
+        # STATUS BAR
+        ########################################################################
 
         self.statusBar().showMessage("Ready")
 
-        ##### create actions that can be applied to *either* menu or toolbar #####
-        
-        # create a quit/exit option
-        exitIcon = self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_BrowserStop"))
-        exitAct = QtWidgets.QAction(exitIcon, "&Exit", self)
-        exitAct.setShortcut("Ctrl+Q")
-        exitAct.setStatusTip("Close the TWC interface (don't worry about saving)")
-        exitAct.triggered.connect(self.close) #close goes to closeEvent
+        ########################################################################
+        # VISUAL STIMULATION WIDGETS AND LAYOUT (BUTTON STACK)
+        ########################################################################
 
-        # create an about window
-        aboutIcon = self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_MessageBoxInformation"))
-        aboutAct = QtWidgets.QAction(aboutIcon, "&About", self)
-        # aboutAct.setShortcut("Ctrl+A")
-        aboutAct.setStatusTip("What is this?")
-        aboutAct.triggered.connect(showAboutPopup)
+        # Visual device picker: QComboBox signal --> update device slot
+        available_blinksticks_dropdown = QtWidgets.QComboBox()
+        available_blinksticks_dropdown.setStatusTip("Select visual stimulation device")
+        available_blinksticks_dropdown.currentTextChanged.connect(self.set_new_blinkstick)
+        # > populate this dropdown with refresh function, so it can happen later outside init too
+        self.available_blinksticks_dropdown = available_blinksticks_dropdown
+        self.refresh_available_blinksticks()
 
-        # # colorpickerAction = QtWidgets.QAction(QtWidgets.QMessageBox.Question, "&Pick", self)
-        # colorpickerAction = QtWidgets.QAction(self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_BrowserStop")), "&Pick", self)
-        # # colorpickerAction.setIcon(QtWidgets.QMessageBox.Question)
-        # colorpickerAction.setIcon(QtGui.QIcon("./1F3A8_color.png"))
-        # # colorpickerAction.setIcon(QtGui.QIcon(QtGui.QPixmap("./color.png")))
-        # colorpickerAction.setShortcut("Ctrl+p")
-        # colorpickerAction.setStatusTip("Pick the color")
-        # colorpickerAction.triggered.connect(self.pick_color)
-        # # self.colorpickerAction = colorpickerAction
+        # Visual play button: QPushButton signal --> visual_stim slot
+        blinkButton = QtWidgets.QPushButton("Play BlinkStick", self)
+        blinkButton.setStatusTip("Present visual stimulus.")
+        blinkButton.clicked.connect(self.handleBlinkButton)
 
-        #####  setup menu bar  #####
-        menuBar = self.menuBar()
-        menuBar.setNativeMenuBar(False) # needed for pyqt5 on Mac
+        # Visual color picker: QPushButton signal --> QColorPicker slot
+        colorpickerButton = QtWidgets.QPushButton("Select color", self)
+        colorpickerButton.setStatusTip("Pick the visual stimulus color.")
+        colorpickerButton.setIcon(QtGui.QIcon("./color.png"))
+        colorpickerButton.clicked.connect(self.pick_color)
 
-        fileMenu = menuBar.addMenu("&File")
-        fileMenu.addAction(aboutAct)
-        fileMenu.addAction(exitAct)
+        # Visual frequency selector: QDoubleSpinBox signal --> update visual parameters slot
+        freqSpinBox = QtWidgets.QDoubleSpinBox(self)
+        freqSpinBox.setStatusTip("Pick BlinkStick blink frequency (how long the light will stay on in seconds).")
+        # freqSpinBox.setRange(0, 100)
+        freqSpinBox.setMinimum(0)
+        freqSpinBox.setMaximum(100)
+        freqSpinBox.setPrefix("Blink length: ")
+        freqSpinBox.setSuffix(" seconds")
+        freqSpinBox.setSingleStep(0.5)
+        freqSpinBox.setValue(self.blink_freq)
+        freqSpinBox.valueChanged.connect(self.handleFreqChange)
+        # freqSpinBox.textChanged.connect(self.value_changed_str)
 
-        #### audio device list menu
-        audioMenu = menuBar.addMenu("&Audio")
-        inputIcon = self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_DialogNoButton"))
-        inputMenu = audioMenu.addMenu(inputIcon, "&Input device")
-        # outputMenu = audioMenu.addMenu(QtGui.QIcon("./img/output.png"), "&Output device")
+        # Compile them into a vertical layout
+        visualstimLayout = QtWidgets.QFormLayout()
+        visualstimLayout.addRow("Select visual stimulation device: ", available_blinksticks_dropdown)
+        visualstimLayout.addRow("Select visual stimulation color: ", colorpickerButton)
+        visualstimLayout.addRow(blinkButton)
 
-        input_devices = self.recorder.audioInputs()
-        # don't know y each device shows up twice
-        input_devices = list(set(input_devices))
-        # print(self.recorder.defaultAudioInput())
-        # print(QtMultimedia.QtMultimediaControl.QAudioInputSelectorControl.defaultInput())
-        # print(input_devices)
-        # print(self.recorder.audioInput())
-        # print(self.recorder.audioInputDescription("Default Input Device"))
-        # print(QtMultimedia.QAudioRecorder())
-        # devices = QtMultimedia.QAudioDeviceInfo.availableDevices(QtMultimedia.QAudio.AudioInput)
-        # for d in devices:
-        #     print(d.deviceName())
-        # print(QtMultimedia.QAudioDeviceInfo.availableDevices(QtMultimedia.QAudio.AudioInput))
-        # print(QtMultimedia.QAudioDeviceInfo.availableDevices(QtMultimedia.QAudio.AudioOutput))
-        # save the action items to change the checkmarks later
-        self.input_menu_items = []
-        for device in input_devices:
-            action = QtWidgets.QAction(device, self)
-            action.setStatusTip(f"Set {device} as input device")
-            action.setCheckable(True)
-            # if device == self.recorder.defaultAudioInput():
-            if device == self.recorder.audioInput(): # doesn't work :/
-                action.setChecked(True)
-            action.triggered.connect(self.update_input_device)
-            inputMenu.addAction(action)
-            self.input_menu_items.append(action)
+        ########################################################################
+        # AUDIO STIMULATION WIDGET
+        ########################################################################
 
-        # # devices = sd.query_devices()
-        # # input_devices  = { d["name"]: i for i, d in enumerate(devices) if d["max_input_channels"]>0 }
-        # # output_devices = { d["name"]: i for i, d in enumerate(devices) if d["max_output_channels"]>0 }
-        # # for k, v in input_devices.values():
-        # for i, dev in enumerate(devices):
-        #     if dev["max_input_channels"] > 0:
-        #         action = QtWidgets.QAction(QtGui.QIcon("./img/1F399_color.png"), dev["name"], self)
-        #         action.setStatusTip("Set "+dev["name"]+" as input device")
-        #         action.triggered.connect(self.set_audio_device)
-        #         inputMenu.addAction(action)
-        #     if dev["max_output_channels"] > 0:
-        #         action = QtWidgets.QAction(QtGui.QIcon("./img/1F4FB_color.png"), dev["name"], self)
-        #         action.setStatusTip("Set "+dev["name"]+" as output device")
-        #         action.triggered.connect(self.set_audio_device)
-        #         outputMenu.addAction(action)
+        # Audio stimulation device picker: QComboBox signal --> update device slot
+        available_speakers_dropdown = QtWidgets.QComboBox()
+        available_speakers_dropdown.setStatusTip("Select audio stimulation device")
+        available_speakers_dropdown.setPlaceholderText("No speaker devices were found.")
+        # inputIcon = self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_DialogNoButton"))
+        available_speakers_dropdown.currentTextChanged.connect(self.set_new_speakers)
+        self.available_speakers_dropdown = available_speakers_dropdown
+        self.refresh_available_speakers()
 
+        # Audio volume selector: QDoubleSpinBox signal --> update audio volume slot
+        volumeSpinBox = QtWidgets.QDoubleSpinBox(self)
+        volumeSpinBox.setStatusTip("Select volume of audio stimulation.")
+        # volumeSpinBox.setRange(0, 100)
+        volumeSpinBox.setMinimum(0)
+        volumeSpinBox.setMaximum(100)
+        # volumeSpinBox.setPrefix("Volume: ")
+        volumeSpinBox.setSuffix(" dB")
+        volumeSpinBox.setSingleStep(0.5)
+        volumeSpinBox.setValue(20)
+        volumeSpinBox.valueChanged.connect(self.update_audio_volume)
 
-        # # create an about window
-        # # aboutAct.setShortcut("Ctrl+A")
-        # fileMenu = menuBar.addMenu("&File")
-        # aboutAct.setStatusTip("What is this?")
-        # aboutAct.triggered.connect(showAboutPopup)
-        # outputAct = QtWidgets.QAction(QtGui.QIcon("./img/1F937_color.png"), "&Input", self)
-        # audioMenu.addAction(inputAct)
-        # audioMenu.addAction(exitAct)
+        # Compile them into a vertical layout
+        audiostimLayout = QtWidgets.QFormLayout()
+        audiostimLayout.addRow("Select audio stimulation device: ", available_speakers_dropdown)
+        audiostimLayout.addRow("Select audio stimulation volume: ", volumeSpinBox)
 
-        #####  setup tool bar  #####
-        # toolbar = self.addToolBar("&Add")
-        # toolbar.addAction(colorpickerAction)
-        toolbar = QtWidgets.QToolBar("Visual parameters", self)
-        self.addToolBar(QtCore.Qt.LeftToolBarArea, toolbar)
-        # toolbar.addAction(colorpickerAction)
+        # #### audio device list menu
+        # audioMenu = menuBar.addMenu("&Audio")
+        # inputMenu = audioMenu.addMenu(inputIcon, "&Input device")
+        # # outputMenu = audioMenu.addMenu(QtGui.QIcon("./img/output.png"), "&Output device")
+
+        ########################################################################
+        # AUDIO RECORDING WIDGET
+        ########################################################################
+
+        # Microphone device picker: QComboBox signal --> update device slot
+        available_microphones_dropdown = QtWidgets.QComboBox()
+        available_microphones_dropdown.setStatusTip("Select microphone")
+        available_microphones_dropdown.setPlaceholderText("No microphones were found.")
+        available_microphones_dropdown.currentTextChanged.connect(self.set_new_microphone)
+        self.available_microphones_dropdown = available_microphones_dropdown
+        self.refresh_available_microphones()
+
+        microphoneLayout = QtWidgets.QFormLayout()
+        microphoneLayout.addRow("Select microphone: ", available_microphones_dropdown)
+
+        ########################################################################
+        # NOISE PLAYER WIDGET
+        ########################################################################
+
+        # Noise device picker: QComboBox signal --> update device slot
+        available_noisespeakers_dropdown = QtWidgets.QComboBox()
+        available_noisespeakers_dropdown.setStatusTip("Select speakers for noise")
+        available_noisespeakers_dropdown.currentTextChanged.connect(self.set_new_noisespeakers)
+        self.available_noisespeakers_dropdown = available_noisespeakers_dropdown
+        self.refresh_available_noisespeakers()
+
+        # Noise color picker: QComboBox signal --> update noise color parameter
+        available_noisecolors = ["white", "pink", "brown"]
+        available_noisecolors_dropdown = QtWidgets.QComboBox()
+        available_noisecolors_dropdown.setStatusTip("Select speakers for noise")
+        available_noisecolors_dropdown.currentTextChanged.connect(self.set_new_noisespeakers)
+        # available_noisecolors_dropdown.addItems(available_noisecolors)
+        for color in available_noisecolors:
+            pixmap = QtGui.QPixmap(16, 16)
+            pixmap.fill(QtGui.QColor(color))
+            icon = QtGui.QIcon(pixmap)
+            available_noisecolors_dropdown.addItem(icon, color)
+        self.available_noisecolors_dropdown = available_noisecolors_dropdown
+
+        noiseLayout = QtWidgets.QFormLayout()
+        noiseLayout.addRow("Select speakers: ", available_noisespeakers_dropdown)
+        noiseLayout.addRow("Select noise color: ", available_noisecolors_dropdown)
+
+        ########################################################################
+        # COMMON EVENT MARKERS WIDGET
+        ########################################################################
+
+        awakeButton = QtWidgets.QPushButton("Awakening", self)
+        awakeButton.setStatusTip("Mark an awakening (shortcut 1)")
+        awakeButton.setShortcut("1")
+        awakeButton.setCheckable(False)
+        awakeButton.clicked.connect(self.handle_event_button)
+
+        noteButton = QtWidgets.QPushButton("Note", self)
+        noteButton.setStatusTip("Open a text box and timestamp a note.")
+        noteButton.clicked.connect(self.open_note_marker_dialogue)
+
+        eventsLayout = QtWidgets.QFormLayout()
+        eventsLayout.addRow(awakeButton)
+        eventsLayout.addRow(noteButton)
+
+        ########################################################################
+        # LOG VIEWER WIDGET
+        ########################################################################
+
+        # Events log viewer --> gets updated when events are logged
+        logviewLabel = QtWidgets.QLabel("Event log", self)
+        logviewLabel.setAlignment(QtCore.Qt.AlignCenter)
+        logviewList = QtWidgets.QListWidget()
+        logviewList.setAutoScroll(True)
+        # logviewList.setGeometry(20,20,100,700)
+        self.logviewList = logviewList
+
+        logviewLayout = QtWidgets.QGridLayout()
+        logviewLayout.addWidget(logviewLabel, 0, 0, 1, 1)
+        logviewLayout.addWidget(logviewList, 2, 0, 2, 1)
+
+        ########################################################################
+        # COMPILE ALL WIDGETS INTO CENTRAL WIDGET
+        ########################################################################
+
+        # Central widget and layout
+        central_layout = QtWidgets.QHBoxLayout()
+        central_layout.addLayout(visualstimLayout)
+        central_layout.addLayout(audiostimLayout)
+        central_layout.addLayout(microphoneLayout)
+        central_layout.addLayout(noiseLayout)
+        central_layout.addLayout(eventsLayout)
+        central_layout.addLayout(logviewLayout)
+        central_widget = QtWidgets.QWidget()
+        central_widget.setContentsMargins(5, 5, 5, 5)
+        central_widget.move(100, 100)  # Change initial startup position
+        central_widget.setLayout(central_layout)
+        self.setCentralWidget(central_widget)
+        # self.main_layout = main_layout
+
+        # # Add the LightSwitchWidget to the main window
+        # self.lightSwitch = LightSwitchWidget(self)
+        # self.lightSwitch.switchToggled.connect(self.handleLightSwitch)
+
+        # # Add VisualStimController as a popup
+        # self.visual_stim_controller = VisualStimController(self)
+        # # Connect switch events (signals) to functions in smacc main window (slots)
+        # # self.visual_stim_controller.flicker_checkbox.toggled.connect(self.onClicked)
+        # # self.freq_scroller.connect()
+        # # self.brightness_scroller.connect()
 
         # create central widget for holding grid layout
         self.init_CentralWidget()
@@ -315,6 +445,152 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.resize(1200, 500)
         self.show()
 
+    def handle_event_button(self):
+        sender = self.sender()
+        text = sender.text()
+        port_codes = {
+            "Awakening": 123,
+            "LRLR": 234,
+            "LR": 345,
+        }
+        code = port_codes[text]
+        self.send_event_marker(code, text)
+
+    def set_new_noise_color(self, text):
+        print(f"New noise color {text} selected!")
+
+    def set_new_speakers(self, text):
+        print(f"New speakers {text} selected!")
+
+    def set_new_noisespeakers(self, text):
+        print(f"New noise speakers {text} selected!")
+
+    def set_new_microphone(self, text):
+        print(f"New microphone {text} selected!")
+
+    ############################################################################
+    # Functions for refreshing/searching for connected devices (inputs and outputs)
+    ############################################################################
+
+    def refresh_available_noisespeakers(self):
+        """
+        Populate the audio stimulation device selection menu with currently
+        available speakers.
+
+        Code is identical to refresh_available_speakers
+        except updates/populates the noise device list instead of audio stim
+
+        seealso: refresh_available_speakers
+        """
+        self.available_noisespeakers_dropdown.clear()
+        devices = QtMultimedia.QAudioDeviceInfo.availableDevices(QtMultimedia.QAudio.AudioOutput)
+        devices = [d for d in devices if d.realm() != "default"]
+        for device in devices:
+            device_name = device.deviceName()
+            device_realm = device.realm()  # This differentiates the duplicate of default output
+            device_str = f"{device_name} [{device_realm}]"
+            self.available_noisespeakers_dropdown.addItem(device_str)
+        if devices:
+            self.available_noisespeakers_dropdown.setCurrentIndex(0)
+        else:
+            self.show_popup_warning("No audio devices found.")
+
+    def refresh_available_speakers(self):
+        """
+        Populate the audio stimulation device selection menu with currently
+        available speakers.
+        seealso: refresh_available_noisespeakers
+        """
+        self.available_speakers_dropdown.clear()
+        devices = QtMultimedia.QAudioDeviceInfo.availableDevices(QtMultimedia.QAudio.AudioOutput)
+        devices = [d for d in devices if d.realm() != "default"]
+        for device in devices:
+            device_name = device.deviceName()
+            device_realm = device.realm()  # This differentiates the duplicate of default output
+            device_str = f"{device_name} [{device_realm}]"
+            self.available_speakers_dropdown.addItem(device_str)
+        if devices:
+            self.available_speakers_dropdown.setCurrentIndex(0)
+        else:
+            self.show_popup_warning("No audio devices found.")
+
+    def refresh_available_microphones(self):
+        """
+        Populate the microphone dropdown menu with all available audio input devices.
+        """
+        self.available_microphones_dropdown.clear()
+        devices = QtMultimedia.QAudioDeviceInfo.availableDevices(QtMultimedia.QAudio.AudioInput)
+        # devices = self.recorder.audioInputs()
+        # # don't know y each device shows up twice
+        # devices = list(set(devices))
+        for device in devices:
+            device_name = device.deviceName()
+            device_realm = device.realm()
+            device_str = f"{device_name} [{device_realm}]"
+            self.available_microphones_dropdown.addItem(device_str)
+        if devices:
+            self.available_microphones_dropdown.setCurrentIndex(0)
+        else:
+            self.show_popup_warning("No microphones found.")
+        # # devices = sd.query_devices()
+        # # input_devices  = { d["name"]: i for i, d in enumerate(devices) if d["max_input_channels"]>0 }
+        # # output_devices = { d["name"]: i for i, d in enumerate(devices) if d["max_output_channels"]>0 }
+        # # for k, v in input_devices.values():
+        # for i, dev in enumerate(devices):
+        #     if dev["max_input_channels"] > 0:
+        #         action = QtWidgets.QAction(QtGui.QIcon("./img/1F399_color.png"), dev["name"], self)
+        #         action.setStatusTip("Set "+dev["name"]+" as input device")
+        #         action.triggered.connect(self.set_audio_device)
+        #         inputMenu.addAction(action)
+        #     if dev["max_output_channels"] > 0:
+        #         action = QtWidgets.QAction(QtGui.QIcon("./img/1F4FB_color.png"), dev["name"], self)
+        #         action.setStatusTip("Set "+dev["name"]+" as output device")
+        #         action.triggered.connect(self.set_audio_device)
+        #         outputMenu.addAction(action)
+
+    def set_new_blinkstick(self, text):
+        """
+        Set new BlinkStick for visual stimulation.
+        Method that takes input from dropdown selection menu.
+        Only activated upon a change/new selection.
+
+        text : str
+            Text of the menu item from the dropdown.
+        See also: refresh_available_blinksticks
+        """
+        serial_number = text.split(". ")[1].split(")")[0]
+        self.bstick = blinkstick.find_by_serial(serial_number)
+
+    def refresh_available_blinksticks(self):
+        """
+        Searches for all available BlinkSticks and populates the dropdown menu with them.
+        Refresh the dropdown menu with currently available BlinkSticks.
+        Clears all existing, searches again, and populates the menu.
+        Note this will clear currently selected.
+        Requires installation of `blinkstick` package (as does rest of vis stim).
+
+        Automatically selects the first found BlinkStick by default.
+
+        See also: set_new_blinkstick
+        """
+        # Clear existing devices from the dropdown menu
+        self.available_blinksticks_dropdown.clear()
+        if blinkstick is None:
+            devices = []
+            self.show_popup_warning("Use of visual stimulation requires `blinkstick` Python package. Unable to search for devices.")
+        else:
+            devices = blinkstick.find_all()
+        # Add each device to the dropdown menu
+        for i, d in enumerate(devices):
+            product_name = d.device.product_name
+            serial_number = d.device.serial_number
+            version_number = d.device.version_number
+            device_str = f"{product_name} v{version_number} (Serial No. {serial_number})"
+            self.available_blinksticks_dropdown.addItem(device_str)
+        if devices:
+            self.available_blinksticks_dropdown.setCurrentIndex(0)
+        else:
+            self.show_popup_warning("No BlinkSticks found.")
 
     def update_input_device(self):
         # if the current input is re-selected it still "changes" here
@@ -366,12 +642,13 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # https://stackoverflow.com/a/64300056
         # https://doc.qt.io/qt-5/qtmultimedia-multimedia-audiorecorder-example.html
         # https://flothesof.github.io/pyqt-microphone-fft-application.html
-        self.recorder = QtMultimedia.QAudioRecorder()
         settings = QtMultimedia.QAudioEncoderSettings()
         settings.setEncodingMode(QtMultimedia.QMultimedia.ConstantQualityEncoding)
         settings.setQuality(QtMultimedia.QMultimedia.NormalQuality)
+        self.recorder = QtMultimedia.QAudioRecorder()
         self.recorder.setEncodingSettings(settings)
-        self.recorder.stateChanged.connect(self.recorder_state_change)
+        # Connect stateChange to adjust color of button to indicate status
+        self.recorder.stateChanged.connect(self.recorder_update_status)
 
     def record(self):
         state = self.recorder.state() # recording / paused / stopped
@@ -407,15 +684,14 @@ class SmaccWindow(QtWidgets.QMainWindow):
         port_msg = f"Cue{action}-{cue_name} - Volume {current_volume}" 
         self.send_event_marker(portcode, port_msg)
 
-
-    def recorder_state_change(self, state):
+    def recorder_update_status(self, state):
         if state == QtMultimedia.QMediaRecorder.StoppedState:
-            self.logViewer.setStyleSheet("border: 0px solid red;")
+            self.logviewList.setStyleSheet("border: 0px solid red;")
         elif state == QtMultimedia.QMediaRecorder.RecordingState:
-            self.logViewer.setStyleSheet("border: 3px solid red;")
+            self.logviewList.setStyleSheet("border: 3px solid red;")
 
     def handleDreamReportButton(self):
-        self.record() # i think this function handles the start/stop decision
+        self.record()  # This will start OR stop recording, whichever is not currently happening
         if self.sender().isChecked():
             if SURVEY_URL is not None:
                 webbrowser.open(SURVEY_URL, new=0, autoraise=True)
@@ -572,7 +848,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # port_msg = f"Set color: [{color}]"
         # self.send_event_marker(portcode, port_msg)
 
-    def handleNoteButton(self):
+    def open_note_marker_dialogue(self):
         text, ok = QtWidgets.QInputDialog.getText(self, "Text Input Dialog", "Custom note (no commas):")
         # self.subject_id.setValidator(QtGui.QIntValidator(0, 999)) # must be a 3-digit number
         if ok: # True of OK button was hit, False otherwise (cancel button)
@@ -685,42 +961,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         dreamReportButton.setCheckable(True)
         dreamReportButton.clicked.connect(self.handleDreamReportButton)
 
-        noteButton = QtWidgets.QPushButton("Note", self)
-        noteButton.setStatusTip("Open a text box and timestamp a note.")
-        noteButton.clicked.connect(self.handleNoteButton)
-
-        blinkButton = QtWidgets.QPushButton("Blink BlinkStick", self)
-        # blinkIcon.setIcon(QtGui.QIcon("./img/fish.ico"))
-        blinkButton.setStatusTip("Present visual stimulus.")
-        blinkButton.clicked.connect(self.handleBlinkButton)
-
-        colorpickerButton = QtWidgets.QPushButton("Pick BlinkStick color", self)
-        colorpickerButton.setStatusTip("Pick the visual stimulus color.")
-        colorpickerButton.setIcon(QtGui.QIcon("./color.png"))
-        colorpickerButton.clicked.connect(self.pick_color)
-
-        freqSpinBox = QtWidgets.QDoubleSpinBox(self)
-        freqSpinBox.setStatusTip("Pick BlinkStick blink frequency (how long the light will stay on in seconds).")
-        # freqSpinBox.setRange(0, 100)
-        freqSpinBox.setMinimum(0)
-        freqSpinBox.setMaximum(100)
-        freqSpinBox.setPrefix("Blink length: ")
-        freqSpinBox.setSuffix(" seconds")
-        freqSpinBox.setSingleStep(0.5)
-        freqSpinBox.setValue(self.blink_freq)
-        freqSpinBox.valueChanged.connect(self.handleFreqChange)
-        # freqSpinBox.textChanged.connect(self.value_changed_str)
-
-        # Add the LightSwitchWidget to the main window
-        self.lightSwitch = LightSwitchWidget(self)
-        self.lightSwitch.switchToggled.connect(self.handleLightSwitch)
-
-        # Add VisualStimController as a popup
-        self.visual_stim_controller = VisualStimController(self)
-        # Connect switch events (signals) to functions in smacc main window (slots)
-        # self.visual_stim_controller.flicker_checkbox.toggled.connect(self.onClicked)
-        # self.freq_scroller.connect()
-        # self.brightness_scroller.connect()
 
         buttonsLayout = QtWidgets.QVBoxLayout()
         # buttonsLayout.setMargin(20)
@@ -728,16 +968,10 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # buttonsLayout.setFixedSize(12, 12)
         buttonsLayout.addWidget(self.noiseButton)
         buttonsLayout.addWidget(dreamReportButton)
-        buttonsLayout.addWidget(noteButton)
-        buttonsLayout.addWidget(blinkButton)
-        buttonsLayout.addWidget(colorpickerButton)
-        buttonsLayout.addWidget(freqSpinBox)
-
-        logViewer_header = QtWidgets.QLabel("Event log", self)
-        logViewer_header.setAlignment(QtCore.Qt.AlignCenter)
-        self.logViewer = QtWidgets.QListWidget()
-        # logViewer.setGeometry(20,20,100,700)
-        self.logViewer.setAutoScroll(True)
+        # buttonsLayout.addWidget(blinkButton)
+        # buttonsLayout.addWidget(colorpickerButton)
+        # buttonsLayout.addWidget(freqSpinBox)
+        # buttonsLayout.addWidget(self.visual_stim_controller)
 
         # cue_header = QtWidgets.QLabel("Audio cue buttons", self)
         # cue_header.setAlignment(QtCore.Qt.AlignCenter)
@@ -774,11 +1008,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # audiocue_layout.addWidget(cue_header, 0, 0, 1, 2) # widget, row, col, rowspan, colspan
         # audiocue_layout.addLayout(left_button_layout, 1, 0, 2, 1)
         # audiocue_layout.addLayout(right_button_layout, 1, 1, 2, 1)
-
-        ## sublayout for log viewer
-        viewer_layout = QtWidgets.QGridLayout()
-        viewer_layout.addWidget(logViewer_header, 0, 0, 1, 1)
-        viewer_layout.addWidget(self.logViewer, 2, 0, 2, 1)
 
         ## sublayout for extra buttons
         extra_layout = QtWidgets.QGridLayout()
@@ -841,7 +1070,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         volumeKnobsLayout = QtWidgets.QHBoxLayout()
         volumeKnobsLayout.addLayout(cueVolumeLayout)
         volumeKnobsLayout.addLayout(noiseVolumeLayout)
-        volumeKnobsLayout.addWidget(self.lightSwitch)
+        # volumeKnobsLayout.addWidget(self.lightSwitch)
         # formLayout = QtWidgets.QFormLayout()
         # formLayout.addRow(self.tr("&Volume:"), volumeSlider)
         # io_layout.addLayout(formLayout, 1, 0, 1, 2)
@@ -863,7 +1092,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # main_layout.addLayout(audiocue_layout, 0, 0, 3, 2)
         main_layout.addLayout(cueSelectionLayout, 0, 0, 2, 2)
         main_layout.addLayout(extra_layout, 3, 0, 1, 2)
-        main_layout.addLayout(viewer_layout, 0, 2, 2, 1)
+        # main_layout.addLayout(viewer_layout, 0, 2, 2, 1)
         main_layout.addLayout(volumeKnobsLayout, 2, 2, 2, 1)
         # main_layout.setContentsMargins(20, 20, 20, 20)
         # main_layout.setSpacing(20)
@@ -871,15 +1100,15 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # main_layout.setColumnStretch(0, 2)
         # main_layout.setColumnStretch(1, 1)
 
-        central_widget = QtWidgets.QWidget()
-        # central_widget.setStyleSheet("background-color:salmon;")
-        central_widget.setContentsMargins(5, 5, 5, 5)
-        central_widget.move(100, 100)  # Change initial startup position
-        # central_widget.setFixedSize(300, 300) # using self.resize makes it resizable
-        central_widget.setLayout(main_layout)
+        # central_widget = QtWidgets.QWidget()
+        # # central_widget.setStyleSheet("background-color:salmon;")
+        # central_widget.setContentsMargins(5, 5, 5, 5)
+        # central_widget.move(100, 100)  # Change initial startup position
+        # # central_widget.setFixedSize(300, 300) # using self.resize makes it resizable
+        # central_widget.setLayout(main_layout)
 
-        self.setCentralWidget(central_widget)
-        self.main_layout = main_layout
+        # self.setCentralWidget(central_widget)
+        # self.main_layout = main_layout
         # self.resize(300, 300)
 
     # def onClicked(self):
@@ -891,13 +1120,21 @@ class SmaccWindow(QtWidgets.QMainWindow):
         float_volume = round(zero_to_hundred / 100, 2)
         return float_volume
 
+    def update_audio_volume(self, value):
+        """Method catching signals from audio stimulation volume spinbox
+        """
+        # float_volume = self._volume_rescaler(value)
+        float_volume = value
+        for player in self.playables.values():
+            player.setVolume(float_volume)
+        # self.log_info_msg(f"VolumeSet - Cue {float_volume}")
+
     def changeOutputCueVolume(self, value):
         # self.volume = value / 100
         float_volume = self._volume_rescaler(value)
         for player in self.playables.values():
             player.setVolume(float_volume)
         self.log_info_msg(f"VolumeSet - Cue {float_volume}")
-        # self.createData()
 
     def changeOutputNoiseVolume(self, value):
         # pyqt sliders only take integers but range is 0-1
@@ -914,7 +1151,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         """customize exit.
         closeEvent is a default method used in pyqt to close, so this overrides it
         """
-        if QtWidgets.QMessageBox.question(self, "Exit", "Are you sure?") == QtWidgets.QMessageBox.Yes:
+        response = QtWidgets.QMessageBox.question(self, "Quit", "Do you want to quit/close SMACC?")
+        if response == QtWidgets.QMessageBox.Yes:
             self.log_info_msg("Program closed")
             event.accept()
             # self.closed.emit()
