@@ -3,6 +3,7 @@ Initialize a new session
 and open the main interface.
 """
 import os
+from pathlib import Path
 import sys
 import time
 import random
@@ -132,7 +133,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.preload_cues()
 
         self.init_blinkstick()
-
+        self.init_audio_stimulation_setup()
         self.init_recorder()
 
         self.init_main_window()
@@ -260,7 +261,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # Visual play button: QPushButton signal --> visual_stim slot
         blinkButton = QtWidgets.QPushButton("Play BlinkStick", self)
         blinkButton.setStatusTip("Present visual stimulus.")
-        blinkButton.clicked.connect(self.handleBlinkButton)
+        blinkButton.clicked.connect(self.stimulate_visual)
 
         # Visual color picker: QPushButton signal --> QColorPicker slot
         colorpickerButton = QtWidgets.QPushButton("Select color", self)
@@ -276,10 +277,10 @@ class SmaccWindow(QtWidgets.QMainWindow):
         freqSpinBox.setMaximum(100)
         freqSpinBox.setPrefix("Blink length: ")
         freqSpinBox.setSuffix(" seconds")
-        freqSpinBox.setSingleStep(0.5)
-        freqSpinBox.setValue(self.bstick_blink_freq)
+        freqSpinBox.setSingleStep(1)
         freqSpinBox.valueChanged.connect(self.handleFreqChange)
         # freqSpinBox.textChanged.connect(self.value_changed_str)
+        freqSpinBox.setValue(self.bstick_blink_freq)
 
         # Compile them into a vertical layout
         visualstimLayout = QtWidgets.QFormLayout()
@@ -300,22 +301,43 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.available_speakers_dropdown = available_speakers_dropdown
         self.refresh_available_speakers()
 
+        wavselectorLayout = QtWidgets.QHBoxLayout()
+        wavselectorLabel = QtWidgets.QLabel("File:", self)
+        wavselectorEdit = QtWidgets.QLineEdit(self)
+        wavselectorButton = QtWidgets.QPushButton("Browse", self)
+        wavselectorButton.clicked.connect(self.open_wav_selector)
+        wavselectorLayout.addWidget(wavselectorLabel)
+        wavselectorLayout.addWidget(wavselectorEdit)
+        wavselectorLayout.addWidget(wavselectorButton)
+        wavselectorEdit.textChanged.connect(self.update_audio_source)  # For programmatic changes
+        # wavselectorEdit.textEdited.connect(self.update_audio_source)  # For user changes
+        wavselectorEdit.editingFinished.connect(self.update_audio_source)  # For user changes
+        self.wavselectorEdit = wavselectorEdit
+
         # Audio volume selector: QDoubleSpinBox signal --> update audio volume slot
         volumeSpinBox = QtWidgets.QDoubleSpinBox(self)
         volumeSpinBox.setStatusTip("Select volume of audio stimulation.")
-        # volumeSpinBox.setRange(0, 100)
+        # volumeSpinBox.setRange(0, 1)
         volumeSpinBox.setMinimum(0)
-        volumeSpinBox.setMaximum(100)
+        volumeSpinBox.setMaximum(1)  # Currently using QSoundEffect which only allows 0-1
         # volumeSpinBox.setPrefix("Volume: ")
         volumeSpinBox.setSuffix(" dB")
-        volumeSpinBox.setSingleStep(0.5)
-        volumeSpinBox.setValue(20)
+        volumeSpinBox.setSingleStep(0.01)
         volumeSpinBox.valueChanged.connect(self.update_audio_volume)
+        volumeSpinBox.setValue(0.2)
+
+        # Play button: QPushButton signal --> play function
+        playButton = QtWidgets.QPushButton("Play soundfile", self)
+        playButton.setStatusTip("Play the selected sound file.")
+        # playButton.setIcon(QtGui.QIcon("./color.png"))
+        playButton.clicked.connect(self.stimulate_audio)
 
         # Compile them into a vertical layout
         audiostimLayout = QtWidgets.QFormLayout()
         audiostimLayout.addRow("Select audio stimulation device: ", available_speakers_dropdown)
         audiostimLayout.addRow("Select audio stimulation volume: ", volumeSpinBox)
+        audiostimLayout.addRow(wavselectorLayout)
+        audiostimLayout.addRow(playButton)
 
         # #### audio device list menu
         # audioMenu = menuBar.addMenu("&Audio")
@@ -460,6 +482,17 @@ class SmaccWindow(QtWidgets.QMainWindow):
         }
         code = port_codes[text]
         self.send_event_marker(code, text)
+
+    def open_wav_selector(self):
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Select a File", 
+            "C:\\Users\\malle\\Desktop\\", 
+            "Audio (*.wav)"
+        )
+        if filename:
+            path = Path(filename)
+            self.wavselectorEdit.setText(str(path))
 
     def set_new_noise_color(self, text):
         print(f"New noise color {text} selected!")
@@ -633,6 +666,15 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.bstick_led_data = led_data
         self.bstick_blink_freq = default_freq
         # Draw button/icon/pixmap to show default color
+
+    def init_audio_stimulation_setup(self):
+        """Create media player for cue files."""
+        wavplayer = QtMultimedia.QSoundEffect()
+        # Default settings
+        wavplayer.setVolume(0)  # 0 to 1
+        wavplayer.setLoopCount(1)
+        # wavplayer.playingChanged.connect(self.on_cuePlayingChange)
+        self.wavplayer = wavplayer
 
     def init_recorder(self):
         """initialize the recorder
@@ -832,7 +874,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # self.send_event_marker(portcode, port_msg)
 
     @QtCore.pyqtSlot()
-    def handleBlinkButton(self):
+    def stimulate_audio(self):
+        self.wavplayer.play()
+
+    @QtCore.pyqtSlot()
+    def stimulate_visual(self):
         from time import sleep
         black = [0, 0, 0] * 32
         freq = self.bstick_blink_freq
@@ -915,11 +961,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.leftList.setSortingEnabled(True) # allow alphabetical sorting
         self.rightList.setSortingEnabled(True)
 
-        self.cueButton = QtWidgets.QPushButton("Cue", self)
-        self.cueButton.setStatusTip("Play a random cue from the right side.")
-        self.cueButton.setShortcut("Ctrl+R")
-        self.cueButton.setCheckable(True)
-        self.cueButton.clicked.connect(self.handleCueButton)
+        # self.cueButton = QtWidgets.QPushButton("Cue", self)
+        # self.cueButton.setStatusTip("Play a random cue from the right side.")
+        # self.cueButton.setShortcut("Ctrl+R")
+        # self.cueButton.setCheckable(True)
+        # self.cueButton.clicked.connect(self.handleCueButton)
 
         self.noiseButton = QtWidgets.QPushButton("Noise", self)
         self.noiseButton.setStatusTip("Play pink noise.")
@@ -936,7 +982,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         cueSelectionLayout = QtWidgets.QGridLayout()
         # cueSelectionLayout.addWidget(logViewer_header, 0, 0, 1, 1)
         cueSelectionLayout.addWidget(leftListHeader, 0, 0, 1, 2)
-        cueSelectionLayout.addWidget(self.cueButton, 0, 3, 1, 2)
+        # cueSelectionLayout.addWidget(self.cueButton, 0, 3, 1, 2)
         cueSelectionLayout.addWidget(self.leftList, 1, 0, 4, 2)
         cueSelectionLayout.addWidget(self.rightList, 1, 3, 4, 2)
         cueSelectionLayout.addWidget(self.left2rightButton, 2, 2, 1, 1)
@@ -1032,20 +1078,20 @@ class SmaccWindow(QtWidgets.QMainWindow):
         ## so have to use 0-100 and then divide when setting it later
         default_vol_upscaled = int(100 * DEFAULT_VOLUME)
 
-        # Cue Volume Knob Layout
-        cueVolumeKnob = QtWidgets.QDial()
-        cueVolumeKnob.setMinimum(0)
-        cueVolumeKnob.setMaximum(100)
-        cueVolumeKnob.setSingleStep(1)
-        cueVolumeKnob.setValue(default_vol_upscaled)
-        cueVolumeKnob.setNotchesVisible(True)
-        cueVolumeKnob.setWrapping(False)
-        cueVolumeKnob.valueChanged.connect(self.changeOutputCueVolume)
-        cueVolumeLabel = QtWidgets.QLabel("Cue Volume", self)
-        cueVolumeLabel.setAlignment(QtCore.Qt.AlignCenter)
-        cueVolumeLayout = QtWidgets.QVBoxLayout()
-        cueVolumeLayout.addWidget(cueVolumeLabel)
-        cueVolumeLayout.addWidget(cueVolumeKnob)
+        # # Cue Volume Knob Layout
+        # cueVolumeKnob = QtWidgets.QDial()
+        # cueVolumeKnob.setMinimum(0)
+        # cueVolumeKnob.setMaximum(100)
+        # cueVolumeKnob.setSingleStep(1)
+        # cueVolumeKnob.setValue(default_vol_upscaled)
+        # cueVolumeKnob.setNotchesVisible(True)
+        # cueVolumeKnob.setWrapping(False)
+        # cueVolumeKnob.valueChanged.connect(self.changeOutputCueVolume)
+        # cueVolumeLabel = QtWidgets.QLabel("Cue Volume", self)
+        # cueVolumeLabel.setAlignment(QtCore.Qt.AlignCenter)
+        # cueVolumeLayout = QtWidgets.QVBoxLayout()
+        # cueVolumeLayout.addWidget(cueVolumeLabel)
+        # cueVolumeLayout.addWidget(cueVolumeKnob)
 
         # Noise Volume Knob Layout
         noiseVolumeKnob = QtWidgets.QDial()
@@ -1063,7 +1109,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         noiseVolumeLayout.addWidget(noiseVolumeKnob)
 
         volumeKnobsLayout = QtWidgets.QHBoxLayout()
-        volumeKnobsLayout.addLayout(cueVolumeLayout)
+        # volumeKnobsLayout.addLayout(cueVolumeLayout)
         volumeKnobsLayout.addLayout(noiseVolumeLayout)
         # volumeKnobsLayout.addWidget(self.lightSwitch)
         # formLayout = QtWidgets.QFormLayout()
@@ -1110,26 +1156,30 @@ class SmaccWindow(QtWidgets.QMainWindow):
     #     cbutton = self.sender()
     #     print("Animal " + (cbutton.animal) + " is " + str(cbutton.isChecked()))
 
-    def _volume_rescaler(self, zero_to_hundred):
-        # pyqt sliders only take integers but range is 0-1
-        float_volume = round(zero_to_hundred / 100, 2)
-        return float_volume
+
+    def update_audio_source(self):
+        """Catches signal from audio file lineedit/browser."""
+        lineEdit = self.sender()
+        filepath = lineEdit.text()
+        assert Path(filepath).exists() and Path(filepath).suffix == ".wav"
+        content = QtCore.QUrl.fromLocalFile(filepath)
+        self.wavplayer.setSource(content)
 
     def update_audio_volume(self, value):
         """Method catching signals from audio stimulation volume spinbox
+        NOT noise, audio cues.
+
+        value should be a float from the spinbox
         """
-        # float_volume = self._volume_rescaler(value)
-        float_volume = value
-        for player in self.playables.values():
-            player.setVolume(float_volume)
+        self.wavplayer.setVolume(value)  # 0 - 1
         # self.log_info_msg(f"VolumeSet - Cue {float_volume}")
 
-    def changeOutputCueVolume(self, value):
-        # self.volume = value / 100
-        float_volume = self._volume_rescaler(value)
-        for player in self.playables.values():
-            player.setVolume(float_volume)
-        self.log_info_msg(f"VolumeSet - Cue {float_volume}")
+    # def changeOutputCueVolume(self, value):
+    #     # self.volume = value / 100
+    #     float_volume = self._volume_rescaler(value)
+    #     for player in self.playables.values():
+    #         player.setVolume(float_volume)
+    #     self.log_info_msg(f"VolumeSet - Cue {float_volume}")
 
     def changeOutputNoiseVolume(self, value):
         # pyqt sliders only take integers but range is 0-1
