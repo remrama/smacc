@@ -129,13 +129,13 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.cues_directory = cues_directory
         self.noise_directory = noise_directory
 
-        self.extract_cue_names()
-        self.preload_cues()
+        # self.extract_cue_names()
+        # self.preload_cues()
 
         self.init_blinkstick()
         self.init_audio_stimulation_setup()
         self.init_noise_player()
-        self.init_recorder()
+        self.init_microphone()
 
         self.init_main_window()
 
@@ -205,7 +205,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         fh.setFormatter(formatter)
         # add the handler to the logger
         self.logger.addHandler(fh)
-
 
     def init_main_window(self):
         """
@@ -346,7 +345,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # # outputMenu = audioMenu.addMenu(QtGui.QIcon("./img/output.png"), "&Output device")
 
         ########################################################################
-        # AUDIO RECORDING WIDGET
+        # AUDIO RECORDING/MICROPHONE WIDGET
         ########################################################################
 
         # Microphone device picker: QComboBox signal --> update device slot
@@ -357,8 +356,14 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.available_microphones_dropdown = available_microphones_dropdown
         self.refresh_available_microphones()
 
+        micrecordButton = QtWidgets.QPushButton("Record dream report", self)
+        micrecordButton.setStatusTip("Ask for a dream report and start recording.")
+        micrecordButton.setCheckable(True)
+        micrecordButton.clicked.connect(self.start_or_stop_recording)
+
         microphoneLayout = QtWidgets.QFormLayout()
         microphoneLayout.addRow("Select microphone: ", available_microphones_dropdown)
+        microphoneLayout.addRow("Play/Stop recording:", micrecordButton)
 
         ########################################################################
         # NOISE PLAYER WIDGET
@@ -423,9 +428,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         common_events = {
             "Awakening": "Mark an awakening (shortcut 1)",
             "LRLR": "Mark a left-right-left-right lucid signal",
-            "Sleep onset": "Mark observed sleep onset",
-            "Lighs off": "Mark the beginning of sleep session",
-            "Lights on": "Mark the end of sleep session",
+            "SleepOnset": "Mark observed sleep onset",
+            "LightsOff": "Mark the beginning of sleep session",
+            "LightsOn": "Mark the end of sleep session",
             "Note": "Open a text box and timestamp a note.",
         }
 
@@ -437,7 +442,10 @@ class SmaccWindow(QtWidgets.QMainWindow):
             button.setStatusTip(tip)
             button.setShortcut(shortcut)
             # button.setCheckable(False)
-            button.clicked.connect(self.handle_event_button)
+            if event == "Note":
+                button.clicked.connect(self.open_note_marker_dialogue)
+            else:
+                button.clicked.connect(self.handle_event_button)
             eventsLayout.addRow(button)
 
         ########################################################################
@@ -503,11 +511,13 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def handle_event_button(self):
         sender = self.sender()
-        text = sender.text()
+        text = sender.text().split("(")[0].strip()
         port_codes = {
-            "Awakening": 123,
-            "LRLR": 234,
-            "LR": 345,
+            "Awakening": 12,
+            "LRLR": 23,
+            "SleepOnset": 34,
+            "LightOff": 45,
+            "LightsOn": 56,
         }
         code = port_codes[text]
         self.send_event_marker(code, text)
@@ -592,7 +602,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         """
         self.available_microphones_dropdown.clear()
         devices = QtMultimedia.QAudioDeviceInfo.availableDevices(QtMultimedia.QAudio.AudioInput)
-        # devices = self.recorder.audioInputs()
+        # devices = self.microphone.audioInputs()
         # # don't know y each device shows up twice
         # devices = list(set(devices))
         for device in devices:
@@ -676,11 +686,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
             for menu_item in self.input_menu_items:
                 device_name = menu_item.text()
                 if device_name == new_device_name:
-                    self.recorder.setAudioInput(new_device_name)
+                    self.microphone.setAudioInput(new_device_name)
                     # menu_item.setChecked(True) # happens by default
                 else: # need to uncheck the one that WAS checked, so just hit all of them
                     menu_item.setChecked(False)
-            # if new_device_name == self.recorder.audioInput():
+            # if new_device_name == self.microphone.audioInput():
             #     action.setChecked(True)
             # self.log_info_msg(f"INPUT DEVICE UPDATE {new_device_name}")
             # self.showErrorPopup("Not implemented yet")
@@ -724,8 +734,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def stop_noise(self):
         self.noiseplayer.stop()
 
-    def init_recorder(self):
-        """initialize the recorder
+    def init_microphone(self):
+        """initialize the microphone/recorder to collect dream reports
         Do this early so that a list of devices can be generated
         to build the menubar options for changing the input device.
         Not allowing options to change settings for now.
@@ -740,14 +750,15 @@ class SmaccWindow(QtWidgets.QMainWindow):
         settings = QtMultimedia.QAudioEncoderSettings()
         settings.setEncodingMode(QtMultimedia.QMultimedia.ConstantQualityEncoding)
         settings.setQuality(QtMultimedia.QMultimedia.NormalQuality)
-        self.recorder = QtMultimedia.QAudioRecorder()
-        self.recorder.setEncodingSettings(settings)
+        microphone = QtMultimedia.QAudioRecorder()
+        microphone.setEncodingSettings(settings)
         # Connect stateChange to adjust color of button to indicate status
-        self.recorder.stateChanged.connect(self.recorder_update_status)
+        microphone.stateChanged.connect(self.update_microphone_status)
+        self.microphone = microphone
 
     def record(self):
-        state = self.recorder.state() # recording / paused / stopped
-        status = self.recorder.status() # this has more options, like unavailable vs inactive
+        state = self.microphone.state() # recording / paused / stopped
+        status = self.microphone.status() # this has more options, like unavailable vs inactive
         # if status == QtMultimedia.QMediaRecorder.RecordingStatus:
         if state == QtMultimedia.QMediaRecorder.StoppedState:
             ### start a new recording
@@ -755,41 +766,39 @@ class SmaccWindow(QtWidgets.QMainWindow):
             self.n_report_counter += 1
             basename = f"sub-{self.subject:03d}_ses-{self.session:03d}_report-{self.n_report_counter:02d}.wav"
             export_fname = os.path.join(dreams_directory, basename)
-            self.recorder.setOutputLocation(QtCore.QUrl.fromLocalFile(export_fname))
-            self.recorder.record()
+            self.microphone.setOutputLocation(QtCore.QUrl.fromLocalFile(export_fname))
+            self.microphone.record()
             # # filename = 'https://www.pachd.com/sfx/camera_click.wav'
             # # fullpath = QtCore.QDir.current().absoluteFilePath(filename) 
         elif state == QtMultimedia.QMediaRecorder.RecordingState:
-            self.recorder.stop()
+            self.microphone.stop()
 
-    @QtCore.pyqtSlot()
-    def on_cuePlayingChange(self):
-        """To uncheck the cue button if something stops on its own.
-        and send port message of start/stop"""
-        current_volume = self.sender().volume()
-        filepath = self.sender().source().toString()
-        cue_name = os.path.basename(filepath).split(".")[0]
-        if self.sender().isPlaying():
-            portcode = self.portcodes[cue_name]
-            action = "Started"
-        else:
-            self.cueButton.setChecked(False) # so it unchecks if player stops naturally
-            portcode = self.portcodes["CueStopped"]
-            action = "Stopped"
-        port_msg = f"Cue{action}-{cue_name} - Volume {current_volume}" 
-        self.send_event_marker(portcode, port_msg)
+    # @QtCore.pyqtSlot()
+    # def on_cuePlayingChange(self):
+    #     """To uncheck the cue button if something stops on its own.
+    #     and send port message of start/stop"""
+    #     current_volume = self.sender().volume()
+    #     filepath = self.sender().source().toString()
+    #     cue_name = os.path.basename(filepath).split(".")[0]
+    #     if self.sender().isPlaying():
+    #         portcode = self.portcodes[cue_name]
+    #         action = "Started"
+    #     else:
+    #         self.cueButton.setChecked(False) # so it unchecks if player stops naturally
+    #         portcode = self.portcodes["CueStopped"]
+    #         action = "Stopped"
+    #     port_msg = f"Cue{action}-{cue_name} - Volume {current_volume}" 
+    #     self.send_event_marker(portcode, port_msg)
 
-    def recorder_update_status(self, state):
+    def update_microphone_status(self, state):
         if state == QtMultimedia.QMediaRecorder.StoppedState:
             self.logviewList.setStyleSheet("border: 0px solid red;")
         elif state == QtMultimedia.QMediaRecorder.RecordingState:
             self.logviewList.setStyleSheet("border: 3px solid red;")
 
-    def handleDreamReportButton(self):
+    def start_or_stop_recording(self):
         self.record()  # This will start OR stop recording, whichever is not currently happening
         if self.sender().isChecked():
-            if SURVEY_URL is not None:
-                webbrowser.open(SURVEY_URL, new=0, autoraise=True)
             port_msg = "DreamReportStarted"
         else:
             port_msg = "DreamReportStopped"
@@ -822,80 +831,80 @@ class SmaccWindow(QtWidgets.QMainWindow):
     #     else:
     #         self.biocalsButton.setChecked(False)
 
-    def extract_cue_names(self):
-        self.cue_name_list = []
-        for cue_basename in os.listdir(self.cues_directory):
-            if cue_basename.endswith(".wav"):
-                assert cue_basename.count(".") == 1
-                cue_name = cue_basename.split(".")[0]
-                assert cue_name not in self.portcodes, "No duplicate cue names"
-                existing_portcodes = list(self.portcodes.values())
-                portcode = max(existing_portcodes) + 1
-                assert portcode < 245
-                self.portcodes[cue_name] = int(portcode)
-                self.cue_name_list.append(cue_name)
+    # def extract_cue_names(self):
+    #     self.cue_name_list = []
+    #     for cue_basename in os.listdir(self.cues_directory):
+    #         if cue_basename.endswith(".wav"):
+    #             assert cue_basename.count(".") == 1
+    #             cue_name = cue_basename.split(".")[0]
+    #             assert cue_name not in self.portcodes, "No duplicate cue names"
+    #             existing_portcodes = list(self.portcodes.values())
+    #             portcode = max(existing_portcodes) + 1
+    #             assert portcode < 245
+    #             self.portcodes[cue_name] = int(portcode)
+    #             self.cue_name_list.append(cue_name)
 
-    def preload_cues(self):
-        self.playables = {}
-        for cue_name in self.cue_name_list:
-            cue_basename = f"{cue_name}.wav"
-            cue_fullpath = os.path.join(self.cues_directory, cue_basename)
-            content = QtCore.QUrl.fromLocalFile(cue_fullpath)
-            player = QtMultimedia.QSoundEffect()
-            player.setSource(content)
-            player.setVolume(DEFAULT_VOLUME) # 0 to 1
-            ### these might be easier to handle in a Qmediaplaylist and then indexing like track numbers
-            # player.setLoopCount(1) # QtMultimedia.QSoundEffect.Infinite
-            # Connect to a function that gets called when it starts or stops playing.
-            # Only need it for the "stop" so it unchecks the cue button when not manually stopped.
-            player.playingChanged.connect(self.on_cuePlayingChange)
-            self.playables[cue_name] = player
+    # def preload_cues(self):
+    #     self.playables = {}
+    #     for cue_name in self.cue_name_list:
+    #         cue_basename = f"{cue_name}.wav"
+    #         cue_fullpath = os.path.join(self.cues_directory, cue_basename)
+    #         content = QtCore.QUrl.fromLocalFile(cue_fullpath)
+    #         player = QtMultimedia.QSoundEffect()
+    #         player.setSource(content)
+    #         player.setVolume(DEFAULT_VOLUME) # 0 to 1
+    #         ### these might be easier to handle in a Qmediaplaylist and then indexing like track numbers
+    #         # player.setLoopCount(1) # QtMultimedia.QSoundEffect.Infinite
+    #         # Connect to a function that gets called when it starts or stops playing.
+    #         # Only need it for the "stop" so it unchecks the cue button when not manually stopped.
+    #         player.playingChanged.connect(self.on_cuePlayingChange)
+    #         self.playables[cue_name] = player
 
-        # noise player
-        noise_basename = "pink.wav"
-        noise_fullpath = os.path.join(self.noise_directory, noise_basename)
-        noise_content = QtCore.QUrl.fromLocalFile(noise_fullpath)
-        ## this should prob be a mediaplayer/playlist which uses less resources
-        self.noisePlayer = QtMultimedia.QSoundEffect()
-        self.noisePlayer.setSource(noise_content)
-        self.noisePlayer.setVolume(DEFAULT_VOLUME) # 0 to 1
-        self.noisePlayer.setLoopCount(QtMultimedia.QSoundEffect.Infinite)
-        # Connect to a function that gets called when it starts or stops playing.
-        # Only need it for the "stop" so it unchecks the cue button when not manually stopped.
-        # self.noisePlayer.playingChanged.connect(self.on_cuePlayingChange)
+        # # noise player
+        # noise_basename = "pink.wav"
+        # noise_fullpath = os.path.join(self.noise_directory, noise_basename)
+        # noise_content = QtCore.QUrl.fromLocalFile(noise_fullpath)
+        # ## this should prob be a mediaplayer/playlist which uses less resources
+        # self.noisePlayer = QtMultimedia.QSoundEffect()
+        # self.noisePlayer.setSource(noise_content)
+        # self.noisePlayer.setVolume(DEFAULT_VOLUME) # 0 to 1
+        # self.noisePlayer.setLoopCount(QtMultimedia.QSoundEffect.Infinite)
+        # # Connect to a function that gets called when it starts or stops playing.
+        # # Only need it for the "stop" so it unchecks the cue button when not manually stopped.
+        # # self.noisePlayer.playingChanged.connect(self.on_cuePlayingChange)
 
-    @QtCore.pyqtSlot()
-    def handleNoiseButton(self):
-        if self.noiseButton.isChecked():
-            # self.noisePlayer.setLoopCount(QtMultimedia.QSoundEffect.Infinite)
-            self.noisePlayer.play()
-            msg = "NoiseStarted"
-        else: # not checked
-            self.noisePlayer.stop()
-            msg = "NoiseStopped"
-        self.send_event_marker(self.portcodes[msg], msg)
+    # @QtCore.pyqtSlot()
+    # def handleNoiseButton(self):
+    #     if self.noiseButton.isChecked():
+    #         # self.noisePlayer.setLoopCount(QtMultimedia.QSoundEffect.Infinite)
+    #         self.noisePlayer.play()
+    #         msg = "NoiseStarted"
+    #     else: # not checked
+    #         self.noisePlayer.stop()
+    #         msg = "NoiseStopped"
+    #     self.send_event_marker(self.portcodes[msg], msg)
 
-    @QtCore.pyqtSlot()
-    def handleCueButton(self):
-        if self.cueButton.isChecked():
-            # #### play selected item
-            # selected_item = self.rightList.currentItem()
-            # if selected_item is not None:
-            #     cue_basename = selected_item.text()
-            #     portcode = self.portcodes[cue_basename]
-            #     port_msg = "CUE+" + cue_basename
-            #     self.send_event_marker(portcode, port_msg)
-            #     self.playables[cue_basename].play()
-            #### play random
-            n_list_items = self.rightList.count()
-            if n_list_items > 0:
-                selected_item = random.choice(range(n_list_items))
-                cue_name = self.rightList.item(selected_item).text()
-                self.playables[cue_name].play()
-        else: # stop
-            for k, v in self.playables.items():
-                if v.isPlaying():
-                    v.stop()
+    # @QtCore.pyqtSlot()
+    # def handleCueButton(self):
+    #     if self.cueButton.isChecked():
+    #         # #### play selected item
+    #         # selected_item = self.rightList.currentItem()
+    #         # if selected_item is not None:
+    #         #     cue_basename = selected_item.text()
+    #         #     portcode = self.portcodes[cue_basename]
+    #         #     port_msg = "CUE+" + cue_basename
+    #         #     self.send_event_marker(portcode, port_msg)
+    #         #     self.playables[cue_basename].play()
+    #         #### play random
+    #         n_list_items = self.rightList.count()
+    #         if n_list_items > 0:
+    #             selected_item = random.choice(range(n_list_items))
+    #             cue_name = self.rightList.item(selected_item).text()
+    #             self.playables[cue_name].play()
+    #     else: # stop
+    #         for k, v in self.playables.items():
+    #             if v.isPlaying():
+    #                 v.stop()
 
     @QtCore.pyqtSlot()
     def pick_color(self):
@@ -1045,11 +1054,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         #     if k not in ["Dream report", "Note"]:
         #         self.buttons[k] = self.generate_cue_button(k)
 
-        dreamReportButton = QtWidgets.QPushButton("Record dream report", self)
-        dreamReportButton.setStatusTip("Ask for a dream report and start recording.")
-        dreamReportButton.setCheckable(True)
-        dreamReportButton.clicked.connect(self.handleDreamReportButton)
-
         # buttonsLayout = QtWidgets.QVBoxLayout()
         # # buttonsLayout.setMargin(20)
         # buttonsLayout.setAlignment(QtCore.Qt.AlignCenter)
@@ -1119,7 +1123,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # create volume slider and add to this i/o layout
         # volume slider stuff
         # cueVolumeSlider = QtWidgets.QSlider(QtCore.Qt.Vertical)
-        buttonsLayout = QtWidgets.QVBoxLayout()
+        # buttonsLayout = QtWidgets.QVBoxLayout()
 
         ## sliders can only have integer values
         ## so have to use 0-100 and then divide when setting it later
