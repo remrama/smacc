@@ -134,6 +134,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         self.init_blinkstick()
         self.init_audio_stimulation_setup()
+        self.init_noise_player()
         self.init_recorder()
 
         self.init_main_window()
@@ -374,7 +375,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         available_noisecolors = ["white", "pink", "brown"]
         available_noisecolors_dropdown = QtWidgets.QComboBox()
         available_noisecolors_dropdown.setStatusTip("Select speakers for noise")
-        available_noisecolors_dropdown.currentTextChanged.connect(self.set_new_noisespeakers)
+        available_noisecolors_dropdown.currentTextChanged.connect(self.set_new_noisecolor)
         # available_noisecolors_dropdown.addItems(available_noisecolors)
         for color in available_noisecolors:
             pixmap = QtGui.QPixmap(16, 16)
@@ -383,9 +384,37 @@ class SmaccWindow(QtWidgets.QMainWindow):
             available_noisecolors_dropdown.addItem(icon, color)
         self.available_noisecolors_dropdown = available_noisecolors_dropdown
 
+        # Noise volume selector: QDoubleSpinBox signal --> update audio volume slot
+        noisevolumeSpinBox = QtWidgets.QDoubleSpinBox(self)
+        noisevolumeSpinBox.setStatusTip("Select volume of noise.")
+        # noisevolumeSpinBox.setRange(0, 1)
+        noisevolumeSpinBox.setMinimum(0)
+        noisevolumeSpinBox.setMaximum(1)  # Currently using QSoundEffect which only allows 0-1
+        # noisevolumeSpinBox.setPrefix("Volume: ")
+        noisevolumeSpinBox.setSuffix(" dB")
+        noisevolumeSpinBox.setSingleStep(0.01)
+        noisevolumeSpinBox.valueChanged.connect(self.update_noise_volume)
+        noisevolumeSpinBox.setValue(0.2)
+
+        # Play button: QPushButton signal --> play function
+        playnoiseButton = QtWidgets.QPushButton("Play noise", self)
+        playnoiseButton.setStatusTip("Play the selected noise color.")
+        # playButton.setIcon(QtGui.QIcon("./color.png"))
+        playnoiseButton.clicked.connect(self.play_noise)
+        # Stop button: QPushButton signal --> stop function
+        stopnoiseButton = QtWidgets.QPushButton("Stop noise", self)
+        stopnoiseButton.setStatusTip("Stop the selected noise color.")
+        stopnoiseButton.clicked.connect(self.stop_noise)
+
+        playstopLayout = QtWidgets.QHBoxLayout()
+        playstopLayout.addWidget(playnoiseButton)
+        playstopLayout.addWidget(stopnoiseButton)
+
         noiseLayout = QtWidgets.QFormLayout()
         noiseLayout.addRow("Select speakers: ", available_noisespeakers_dropdown)
         noiseLayout.addRow("Select noise color: ", available_noisecolors_dropdown)
+        noiseLayout.addWidget(noisevolumeSpinBox)
+        noiseLayout.addRow(playstopLayout)
 
         ########################################################################
         # COMMON EVENT MARKERS WIDGET
@@ -494,7 +523,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
             path = Path(filename)
             self.wavselectorEdit.setText(str(path))
 
-    def set_new_noise_color(self, text):
+    def set_new_noisecolor(self, text):
+        """text is the noise color"""
+        filepath = Path(".") / text
+        # content = QtCore.QUrl.fromLocalFile(str(filepath))
+        # self.noiseplayer.setSource(content)
+
         print(f"New noise color {text} selected!")
 
     def set_new_speakers(self, text):
@@ -669,12 +703,26 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def init_audio_stimulation_setup(self):
         """Create media player for cue files."""
-        wavplayer = QtMultimedia.QSoundEffect()
+        player = QtMultimedia.QSoundEffect()
         # Default settings
-        wavplayer.setVolume(0)  # 0 to 1
-        wavplayer.setLoopCount(1)
-        # wavplayer.playingChanged.connect(self.on_cuePlayingChange)
-        self.wavplayer = wavplayer
+        # player.setVolume(0)  # 0 to 1 -- Gets set already when parameter selector is made
+        player.setLoopCount(1)
+        # player.playingChanged.connect(self.on_cuePlayingChange)
+        self.wavplayer = player
+
+    def init_noise_player(self):
+        """Create media player for noise files."""
+        player = QtMultimedia.QSoundEffect()
+        # player.setVolume(0)  # 0 to 1 -- Gets set already when parameter selector is made
+        player.setLoopCount(QtMultimedia.QSoundEffect.Infinite)
+        # player.playingChanged.connect(self.on_cuePlayingChange)
+        self.noiseplayer = player
+
+    def play_noise(self):
+        self.noiseplayer.play()
+
+    def stop_noise(self):
+        self.noiseplayer.stop()
 
     def init_recorder(self):
         """initialize the recorder
@@ -950,16 +998,16 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         ############ create buttons ################
 
-        leftListHeader = QtWidgets.QLabel("Cue Bank", self)
-        leftListHeader.setAlignment(QtCore.Qt.AlignCenter)
-        # leftListHeader.setStyleSheet("border: 1px solid red;") #changed
+        # leftListHeader = QtWidgets.QLabel("Cue Bank", self)
+        # leftListHeader.setAlignment(QtCore.Qt.AlignCenter)
+        # # leftListHeader.setStyleSheet("border: 1px solid red;") #changed
 
-        self.leftList = QtWidgets.QListWidget()
-        self.rightList = QtWidgets.QListWidget()
-        self.leftList.setAutoScroll(True) # scrollable
-        self.leftList.setAutoScroll(True)
-        self.leftList.setSortingEnabled(True) # allow alphabetical sorting
-        self.rightList.setSortingEnabled(True)
+        # self.leftList = QtWidgets.QListWidget()
+        # self.rightList = QtWidgets.QListWidget()
+        # self.leftList.setAutoScroll(True) # scrollable
+        # self.leftList.setAutoScroll(True)
+        # self.leftList.setSortingEnabled(True) # allow alphabetical sorting
+        # self.rightList.setSortingEnabled(True)
 
         # self.cueButton = QtWidgets.QPushButton("Cue", self)
         # self.cueButton.setStatusTip("Play a random cue from the right side.")
@@ -967,29 +1015,29 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # self.cueButton.setCheckable(True)
         # self.cueButton.clicked.connect(self.handleCueButton)
 
-        self.noiseButton = QtWidgets.QPushButton("Noise", self)
-        self.noiseButton.setStatusTip("Play pink noise.")
-        self.noiseButton.setShortcut("Ctrl+P")
-        self.noiseButton.setCheckable(True)
-        self.noiseButton.clicked.connect(self.handleNoiseButton)
+        # self.noiseButton = QtWidgets.QPushButton("Noise", self)
+        # self.noiseButton.setStatusTip("Play pink noise.")
+        # self.noiseButton.setShortcut("Ctrl+P")
+        # self.noiseButton.setCheckable(True)
+        # self.noiseButton.clicked.connect(self.handleNoiseButton)
 
-        self.left2rightButton = QtWidgets.QPushButton(">", self)
-        self.right2leftButton = QtWidgets.QPushButton("<", self)
-        self.left2rightButton.setStatusTip("Move selected item from left to right.")
-        self.right2leftButton.setStatusTip("Move selected item from right to left.")
-        self.left2rightButton.clicked.connect(self.handleLeft2RightButton)
-        self.right2leftButton.clicked.connect(self.handleRight2LeftButton)
+        # self.left2rightButton = QtWidgets.QPushButton(">", self)
+        # self.right2leftButton = QtWidgets.QPushButton("<", self)
+        # self.left2rightButton.setStatusTip("Move selected item from left to right.")
+        # self.right2leftButton.setStatusTip("Move selected item from right to left.")
+        # self.left2rightButton.clicked.connect(self.handleLeft2RightButton)
+        # self.right2leftButton.clicked.connect(self.handleRight2LeftButton)
         cueSelectionLayout = QtWidgets.QGridLayout()
         # cueSelectionLayout.addWidget(logViewer_header, 0, 0, 1, 1)
-        cueSelectionLayout.addWidget(leftListHeader, 0, 0, 1, 2)
-        # cueSelectionLayout.addWidget(self.cueButton, 0, 3, 1, 2)
-        cueSelectionLayout.addWidget(self.leftList, 1, 0, 4, 2)
-        cueSelectionLayout.addWidget(self.rightList, 1, 3, 4, 2)
-        cueSelectionLayout.addWidget(self.left2rightButton, 2, 2, 1, 1)
-        cueSelectionLayout.addWidget(self.right2leftButton, 3, 2, 1, 1)
-        # cueSelectionLayout.addWidget(self.cueButton, 5, 3, 1, 2)
-        for c in self.cue_name_list:
-            self.leftList.addItem(c)
+        # cueSelectionLayout.addWidget(leftListHeader, 0, 0, 1, 2)
+        # # cueSelectionLayout.addWidget(self.cueButton, 0, 3, 1, 2)
+        # cueSelectionLayout.addWidget(self.leftList, 1, 0, 4, 2)
+        # cueSelectionLayout.addWidget(self.rightList, 1, 3, 4, 2)
+        # cueSelectionLayout.addWidget(self.left2rightButton, 2, 2, 1, 1)
+        # cueSelectionLayout.addWidget(self.right2leftButton, 3, 2, 1, 1)
+        # # cueSelectionLayout.addWidget(self.cueButton, 5, 3, 1, 2)
+        # for c in self.cue_name_list:
+        #     self.leftList.addItem(c)
 
         # # all cue buttons are similar so can be created simultaneously
         # self.buttons = {}
@@ -1002,13 +1050,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
         dreamReportButton.setCheckable(True)
         dreamReportButton.clicked.connect(self.handleDreamReportButton)
 
-
-        buttonsLayout = QtWidgets.QVBoxLayout()
-        # buttonsLayout.setMargin(20)
-        buttonsLayout.setAlignment(QtCore.Qt.AlignCenter)
-        # buttonsLayout.setFixedSize(12, 12)
-        buttonsLayout.addWidget(self.noiseButton)
-        buttonsLayout.addWidget(dreamReportButton)
+        # buttonsLayout = QtWidgets.QVBoxLayout()
+        # # buttonsLayout.setMargin(20)
+        # buttonsLayout.setAlignment(QtCore.Qt.AlignCenter)
+        # # buttonsLayout.setFixedSize(12, 12)
+        # buttonsLayout.addWidget(self.noiseButton)
+        # buttonsLayout.addWidget(dreamReportButton)
         # buttonsLayout.addWidget(blinkButton)
         # buttonsLayout.addWidget(colorpickerButton)
         # buttonsLayout.addWidget(freqSpinBox)
@@ -1051,8 +1098,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # audiocue_layout.addLayout(right_button_layout, 1, 1, 2, 1)
 
         ## sublayout for extra buttons
-        extra_layout = QtWidgets.QGridLayout()
-        extra_layout.addLayout(buttonsLayout, 0, 0, 1, 1)
+        # extra_layout = QtWidgets.QGridLayout()
+        # extra_layout.addLayout(buttonsLayout, 0, 0, 1, 1)
 
         # ## layout for the audio i/o monitoring
         # # io_layout = QtWidgets.QGridLayout()
@@ -1093,24 +1140,24 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # cueVolumeLayout.addWidget(cueVolumeLabel)
         # cueVolumeLayout.addWidget(cueVolumeKnob)
 
-        # Noise Volume Knob Layout
-        noiseVolumeKnob = QtWidgets.QDial()
-        noiseVolumeKnob.setMinimum(0)
-        noiseVolumeKnob.setMaximum(100)
-        noiseVolumeKnob.setSingleStep(1)
-        noiseVolumeKnob.setValue(default_vol_upscaled)
-        noiseVolumeKnob.setNotchesVisible(True)
-        noiseVolumeKnob.setWrapping(False)
-        noiseVolumeKnob.valueChanged.connect(self.changeOutputNoiseVolume)
-        noiseVolumeLabel = QtWidgets.QLabel("Noise Volume", self)
-        noiseVolumeLabel.setAlignment(QtCore.Qt.AlignCenter)
-        noiseVolumeLayout = QtWidgets.QVBoxLayout()
-        noiseVolumeLayout.addWidget(noiseVolumeLabel)
-        noiseVolumeLayout.addWidget(noiseVolumeKnob)
+        # # Noise Volume Knob Layout
+        # noiseVolumeKnob = QtWidgets.QDial()
+        # noiseVolumeKnob.setMinimum(0)
+        # noiseVolumeKnob.setMaximum(100)
+        # noiseVolumeKnob.setSingleStep(1)
+        # noiseVolumeKnob.setValue(default_vol_upscaled)
+        # noiseVolumeKnob.setNotchesVisible(True)
+        # noiseVolumeKnob.setWrapping(False)
+        # noiseVolumeKnob.valueChanged.connect(self.changeOutputNoiseVolume)
+        # noiseVolumeLabel = QtWidgets.QLabel("Noise Volume", self)
+        # noiseVolumeLabel.setAlignment(QtCore.Qt.AlignCenter)
+        # noiseVolumeLayout = QtWidgets.QVBoxLayout()
+        # noiseVolumeLayout.addWidget(noiseVolumeLabel)
+        # noiseVolumeLayout.addWidget(noiseVolumeKnob)
 
-        volumeKnobsLayout = QtWidgets.QHBoxLayout()
+        # volumeKnobsLayout = QtWidgets.QHBoxLayout()
         # volumeKnobsLayout.addLayout(cueVolumeLayout)
-        volumeKnobsLayout.addLayout(noiseVolumeLayout)
+        # volumeKnobsLayout.addLayout(noiseVolumeLayout)
         # volumeKnobsLayout.addWidget(self.lightSwitch)
         # formLayout = QtWidgets.QFormLayout()
         # formLayout.addRow(self.tr("&Volume:"), volumeSlider)
@@ -1129,12 +1176,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
 
         # this main/larger layout holds all the subwidgets and in some cases other layouts
-        main_layout = QtWidgets.QGridLayout()
+        # main_layout = QtWidgets.QGridLayout()
         # main_layout.addLayout(audiocue_layout, 0, 0, 3, 2)
-        main_layout.addLayout(cueSelectionLayout, 0, 0, 2, 2)
-        main_layout.addLayout(extra_layout, 3, 0, 1, 2)
+        # main_layout.addLayout(cueSelectionLayout, 0, 0, 2, 2)
+        # main_layout.addLayout(extra_layout, 3, 0, 1, 2)
         # main_layout.addLayout(viewer_layout, 0, 2, 2, 1)
-        main_layout.addLayout(volumeKnobsLayout, 2, 2, 2, 1)
+        # main_layout.addLayout(volumeKnobsLayout, 2, 2, 2, 1)
         # main_layout.setContentsMargins(20, 20, 20, 20)
         # main_layout.setSpacing(20)
         # main_layout.addWidget(border_widget, 0, 0, 3, 2)
@@ -1161,8 +1208,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         """Catches signal from audio file lineedit/browser."""
         lineEdit = self.sender()
         filepath = lineEdit.text()
-        assert Path(filepath).exists() and Path(filepath).suffix == ".wav"
+        # assert Path(filepath).exists() and Path(filepath).suffix == ".wav"
         content = QtCore.QUrl.fromLocalFile(filepath)
+        # can do the assrtions here with content.exists()
         self.wavplayer.setSource(content)
 
     def update_audio_volume(self, value):
@@ -1174,20 +1222,14 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.wavplayer.setVolume(value)  # 0 - 1
         # self.log_info_msg(f"VolumeSet - Cue {float_volume}")
 
-    # def changeOutputCueVolume(self, value):
-    #     # self.volume = value / 100
-    #     float_volume = self._volume_rescaler(value)
-    #     for player in self.playables.values():
-    #         player.setVolume(float_volume)
-    #     self.log_info_msg(f"VolumeSet - Cue {float_volume}")
+    def update_noise_volume(self, value):
+        """Method catching signals from audio stimulation volume spinbox
+        NOT noise, audio cues.
 
-    def changeOutputNoiseVolume(self, value):
-        # pyqt sliders only take integers but range is 0-1
-        # self.volume = value / 100
-        float_volume = self._volume_rescaler(value)
-        self.noisePlayer.setVolume(float_volume)
-        self.log_info_msg(f"VolumeSet - Noise {float_volume}")
-        # self.createData()
+        value should be a float from the spinbox
+        """
+        self.noiseplayer.setVolume(value)  # 0 - 1
+        # self.log_info_msg(f"VolumeSet - Noise {float_volume}")
 
     def changeInputGain(self, value):
         self.showErrorPopup("Not implemented yet", "This should eventually allow for increasing mic input volume.")
