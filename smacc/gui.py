@@ -253,6 +253,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # Visual device picker: QComboBox signal --> update device slot
         available_blinksticks_dropdown = QtWidgets.QComboBox()
         available_blinksticks_dropdown.setStatusTip("Select visual stimulation device")
+        available_blinksticks_dropdown.setMaximumWidth(200)
         available_blinksticks_dropdown.currentTextChanged.connect(self.set_new_blinkstick)
         # > populate this dropdown with refresh function, so it can happen later outside init too
         self.available_blinksticks_dropdown = available_blinksticks_dropdown
@@ -284,8 +285,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         # Compile them into a vertical layout
         visualstimLayout = QtWidgets.QFormLayout()
-        visualstimLayout.addRow("Select visual stimulation device: ", available_blinksticks_dropdown)
-        visualstimLayout.addRow("Select visual stimulation color: ", colorpickerButton)
+        visualstimLayout.addRow("Device:", available_blinksticks_dropdown)
+        visualstimLayout.addRow("Color:", colorpickerButton)
         visualstimLayout.addRow(blinkButton)
 
         ########################################################################
@@ -296,6 +297,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         available_speakers_dropdown = QtWidgets.QComboBox()
         available_speakers_dropdown.setStatusTip("Select audio stimulation device")
         available_speakers_dropdown.setPlaceholderText("No speaker devices were found.")
+        available_speakers_dropdown.setMaximumWidth(200)
         # inputIcon = self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_DialogNoButton"))
         available_speakers_dropdown.currentTextChanged.connect(self.set_new_speakers)
         self.available_speakers_dropdown = available_speakers_dropdown
@@ -334,8 +336,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         # Compile them into a vertical layout
         audiostimLayout = QtWidgets.QFormLayout()
-        audiostimLayout.addRow("Select audio stimulation device: ", available_speakers_dropdown)
-        audiostimLayout.addRow("Select audio stimulation volume: ", volumeSpinBox)
+        audiostimLayout.addRow("Device: ", available_speakers_dropdown)
+        audiostimLayout.addRow("Volume: ", volumeSpinBox)
         audiostimLayout.addRow(wavselectorLayout)
         audiostimLayout.addRow(playButton)
 
@@ -352,6 +354,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         available_microphones_dropdown = QtWidgets.QComboBox()
         available_microphones_dropdown.setStatusTip("Select microphone")
         available_microphones_dropdown.setPlaceholderText("No microphones were found.")
+        available_microphones_dropdown.setMaximumWidth(200)
         available_microphones_dropdown.currentTextChanged.connect(self.set_new_microphone)
         self.available_microphones_dropdown = available_microphones_dropdown
         self.refresh_available_microphones()
@@ -362,8 +365,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         micrecordButton.clicked.connect(self.start_or_stop_recording)
 
         microphoneLayout = QtWidgets.QFormLayout()
-        microphoneLayout.addRow("Select microphone: ", available_microphones_dropdown)
-        microphoneLayout.addRow("Play/Stop recording:", micrecordButton)
+        microphoneLayout.addRow("Device: ", available_microphones_dropdown)
+        microphoneLayout.addRow("Play/Stop:", micrecordButton)
 
         ########################################################################
         # NOISE PLAYER WIDGET
@@ -372,6 +375,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # Noise device picker: QComboBox signal --> update device slot
         available_noisespeakers_dropdown = QtWidgets.QComboBox()
         available_noisespeakers_dropdown.setStatusTip("Select speakers for noise")
+        available_noisespeakers_dropdown.setMaximumWidth(200)
         available_noisespeakers_dropdown.currentTextChanged.connect(self.set_new_noisespeakers)
         self.available_noisespeakers_dropdown = available_noisespeakers_dropdown
         self.refresh_available_noisespeakers()
@@ -416,8 +420,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         playstopLayout.addWidget(stopnoiseButton)
 
         noiseLayout = QtWidgets.QFormLayout()
-        noiseLayout.addRow("Select speakers: ", available_noisespeakers_dropdown)
-        noiseLayout.addRow("Select noise color: ", available_noisecolors_dropdown)
+        noiseLayout.addRow("Device: ", available_noisespeakers_dropdown)
+        noiseLayout.addRow("Color/Type: ", available_noisecolors_dropdown)
         noiseLayout.addWidget(noisevolumeSpinBox)
         noiseLayout.addRow(playstopLayout)
 
@@ -516,7 +520,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
             "Awakening": 12,
             "LRLR": 23,
             "SleepOnset": 34,
-            "LightOff": 45,
+            "LightsOff": 45,
             "LightsOn": 56,
         }
         code = port_codes[text]
