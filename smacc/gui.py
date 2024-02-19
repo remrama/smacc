@@ -27,11 +27,9 @@ except:
 data_directory = utils.get_data_directory()
 logs_directory = data_directory / "logs"
 cues_directory = data_directory / "cues"
-noise_directory = data_directory / "noise"
 dreams_directory = data_directory / "dreams"
 logs_directory.mkdir(exist_ok=True)
 cues_directory.mkdir(exist_ok=True)
-noise_directory.mkdir(exist_ok=True)
 dreams_directory.mkdir(exist_ok=True)
 
 
@@ -126,7 +124,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.portcodes = PPORT_CODES
 
         self.cues_directory = cues_directory
-        self.noise_directory = noise_directory
+        # self.noise_directory = noise_directory
 
         self.init_blinkstick()
         self.init_audio_stimulation_setup()
