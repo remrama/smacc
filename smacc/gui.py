@@ -250,10 +250,15 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # VISUAL STIMULATION WIDGETS AND LAYOUT (BUTTON STACK)
         ########################################################################
 
+        visualtitleLabel = QtWidgets.QLabel("Visual stimulation")
+        visualtitleLabel.setAlignment(QtCore.Qt.AlignCenter)
+        # titleLabel.setStyleSheet("font: 30pt Comic Sans MS")
+        visualtitleLabel.setStyleSheet("font: 18pt")
+
         # Visual device picker: QComboBox signal --> update device slot
         available_blinksticks_dropdown = QtWidgets.QComboBox()
         available_blinksticks_dropdown.setStatusTip("Select visual stimulation device")
-        available_blinksticks_dropdown.setMaximumWidth(200)
+        # available_blinksticks_dropdown.setMaximumWidth(200)
         available_blinksticks_dropdown.currentTextChanged.connect(self.set_new_blinkstick)
         # > populate this dropdown with refresh function, so it can happen later outside init too
         self.available_blinksticks_dropdown = available_blinksticks_dropdown
@@ -272,39 +277,46 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         # Visual frequency selector: QDoubleSpinBox signal --> update visual parameters slot
         freqSpinBox = QtWidgets.QDoubleSpinBox(self)
-        freqSpinBox.setStatusTip("Pick BlinkStick blink frequency (how long the light will stay on in seconds).")
+        freqSpinBox.setStatusTip("Pick light stimulation length (how long the light will stay on in seconds).")
         # freqSpinBox.setRange(0, 100)
         freqSpinBox.setMinimum(0)
-        freqSpinBox.setMaximum(100)
-        freqSpinBox.setPrefix("Blink length: ")
+        freqSpinBox.setMaximum(60)
+        # freqSpinBox.setPrefix("Blink length: ")
         freqSpinBox.setSuffix(" seconds")
-        freqSpinBox.setSingleStep(1)
+        freqSpinBox.setSingleStep(0.1)
         freqSpinBox.valueChanged.connect(self.handleFreqChange)
         # freqSpinBox.textChanged.connect(self.value_changed_str)
         freqSpinBox.setValue(self.bstick_blink_freq)
 
         # Compile them into a vertical layout
         visualstimLayout = QtWidgets.QFormLayout()
+        visualstimLayout.setLabelAlignment(QtCore.Qt.AlignRight)
+        visualstimLayout.addRow(visualtitleLabel)
         visualstimLayout.addRow("Device:", available_blinksticks_dropdown)
         visualstimLayout.addRow("Color:", colorpickerButton)
+        visualstimLayout.addRow("Length:", freqSpinBox)
         visualstimLayout.addRow(blinkButton)
 
         ########################################################################
         # AUDIO STIMULATION WIDGET
         ########################################################################
 
+        audiotitleLabel = QtWidgets.QLabel("Audio stimulation")
+        audiotitleLabel.setAlignment(QtCore.Qt.AlignCenter)
+        audiotitleLabel.setStyleSheet("font: 18pt")
+
         # Audio stimulation device picker: QComboBox signal --> update device slot
         available_speakers_dropdown = QtWidgets.QComboBox()
         available_speakers_dropdown.setStatusTip("Select audio stimulation device")
         available_speakers_dropdown.setPlaceholderText("No speaker devices were found.")
-        available_speakers_dropdown.setMaximumWidth(200)
+        # available_speakers_dropdown.setMaximumWidth(200)
         # inputIcon = self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_DialogNoButton"))
         available_speakers_dropdown.currentTextChanged.connect(self.set_new_speakers)
         self.available_speakers_dropdown = available_speakers_dropdown
         self.refresh_available_speakers()
 
         wavselectorLayout = QtWidgets.QHBoxLayout()
-        wavselectorLabel = QtWidgets.QLabel("File:", self)
+        wavselectorLabel = QtWidgets.QLabel("Sound:", self)
         wavselectorEdit = QtWidgets.QLineEdit(self)
         wavselectorButton = QtWidgets.QPushButton("Browse", self)
         wavselectorButton.clicked.connect(self.open_wav_selector)
@@ -318,12 +330,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         # Audio volume selector: QDoubleSpinBox signal --> update audio volume slot
         volumeSpinBox = QtWidgets.QDoubleSpinBox(self)
-        volumeSpinBox.setStatusTip("Select volume of audio stimulation.")
+        volumeSpinBox.setStatusTip("Select volume of audio stimulation (must be in range 0-1).")
         # volumeSpinBox.setRange(0, 1)
         volumeSpinBox.setMinimum(0)
         volumeSpinBox.setMaximum(1)  # Currently using QSoundEffect which only allows 0-1
         # volumeSpinBox.setPrefix("Volume: ")
-        volumeSpinBox.setSuffix(" dB")
+        # volumeSpinBox.setSuffix(" dB")
         volumeSpinBox.setSingleStep(0.01)
         volumeSpinBox.valueChanged.connect(self.update_audio_volume)
         volumeSpinBox.setValue(0.2)
@@ -336,8 +348,10 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         # Compile them into a vertical layout
         audiostimLayout = QtWidgets.QFormLayout()
-        audiostimLayout.addRow("Device: ", available_speakers_dropdown)
-        audiostimLayout.addRow("Volume: ", volumeSpinBox)
+        audiostimLayout.setLabelAlignment(QtCore.Qt.AlignRight)
+        audiostimLayout.addRow(audiotitleLabel)
+        audiostimLayout.addRow("Device:", available_speakers_dropdown)
+        audiostimLayout.addRow("Volume:", volumeSpinBox)
         audiostimLayout.addRow(wavselectorLayout)
         audiostimLayout.addRow(playButton)
 
@@ -350,11 +364,15 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # AUDIO RECORDING/MICROPHONE WIDGET
         ########################################################################
 
+        recordingtitleLabel = QtWidgets.QLabel("Dream recording")
+        recordingtitleLabel.setAlignment(QtCore.Qt.AlignCenter)
+        recordingtitleLabel.setStyleSheet("font: 18pt")
+
         # Microphone device picker: QComboBox signal --> update device slot
         available_microphones_dropdown = QtWidgets.QComboBox()
         available_microphones_dropdown.setStatusTip("Select microphone")
         available_microphones_dropdown.setPlaceholderText("No microphones were found.")
-        available_microphones_dropdown.setMaximumWidth(200)
+        # available_microphones_dropdown.setMaximumWidth(200)
         available_microphones_dropdown.currentTextChanged.connect(self.set_new_microphone)
         self.available_microphones_dropdown = available_microphones_dropdown
         self.refresh_available_microphones()
@@ -365,17 +383,24 @@ class SmaccWindow(QtWidgets.QMainWindow):
         micrecordButton.clicked.connect(self.start_or_stop_recording)
 
         microphoneLayout = QtWidgets.QFormLayout()
-        microphoneLayout.addRow("Device: ", available_microphones_dropdown)
+        microphoneLayout.setLabelAlignment(QtCore.Qt.AlignRight)
+        microphoneLayout.setLabelAlignment(QtCore.Qt.AlignRight)
+        microphoneLayout.addRow(recordingtitleLabel)
+        microphoneLayout.addRow("Device:", available_microphones_dropdown)
         microphoneLayout.addRow("Play/Stop:", micrecordButton)
 
         ########################################################################
         # NOISE PLAYER WIDGET
         ########################################################################
 
+        noisetitleLabel = QtWidgets.QLabel("Noise machine")
+        noisetitleLabel.setAlignment(QtCore.Qt.AlignCenter)
+        noisetitleLabel.setStyleSheet("font: 18pt")
+
         # Noise device picker: QComboBox signal --> update device slot
         available_noisespeakers_dropdown = QtWidgets.QComboBox()
         available_noisespeakers_dropdown.setStatusTip("Select speakers for noise")
-        available_noisespeakers_dropdown.setMaximumWidth(200)
+        # available_noisespeakers_dropdown.setMaximumWidth(200)
         available_noisespeakers_dropdown.currentTextChanged.connect(self.set_new_noisespeakers)
         self.available_noisespeakers_dropdown = available_noisespeakers_dropdown
         self.refresh_available_noisespeakers()
@@ -395,12 +420,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         # Noise volume selector: QDoubleSpinBox signal --> update audio volume slot
         noisevolumeSpinBox = QtWidgets.QDoubleSpinBox(self)
-        noisevolumeSpinBox.setStatusTip("Select volume of noise.")
+        noisevolumeSpinBox.setStatusTip("Select volume of noise (must be in range 0-1).")
         # noisevolumeSpinBox.setRange(0, 1)
         noisevolumeSpinBox.setMinimum(0)
         noisevolumeSpinBox.setMaximum(1)  # Currently using QSoundEffect which only allows 0-1
         # noisevolumeSpinBox.setPrefix("Volume: ")
-        noisevolumeSpinBox.setSuffix(" dB")
+        # noisevolumeSpinBox.setSuffix(" dB")
         noisevolumeSpinBox.setSingleStep(0.01)
         noisevolumeSpinBox.valueChanged.connect(self.update_noise_volume)
         noisevolumeSpinBox.setValue(0.2)
@@ -415,19 +440,25 @@ class SmaccWindow(QtWidgets.QMainWindow):
         stopnoiseButton.setStatusTip("Stop the selected noise color.")
         stopnoiseButton.clicked.connect(self.stop_noise)
 
-        playstopLayout = QtWidgets.QHBoxLayout()
-        playstopLayout.addWidget(playnoiseButton)
-        playstopLayout.addWidget(stopnoiseButton)
+        playstopnoiseLayout = QtWidgets.QHBoxLayout()
+        playstopnoiseLayout.addWidget(playnoiseButton)
+        playstopnoiseLayout.addWidget(stopnoiseButton)
 
         noiseLayout = QtWidgets.QFormLayout()
-        noiseLayout.addRow("Device: ", available_noisespeakers_dropdown)
-        noiseLayout.addRow("Color/Type: ", available_noisecolors_dropdown)
-        noiseLayout.addWidget(noisevolumeSpinBox)
-        noiseLayout.addRow(playstopLayout)
+        noiseLayout.setLabelAlignment(QtCore.Qt.AlignRight)
+        noiseLayout.addRow(noisetitleLabel)
+        noiseLayout.addRow("Device:", available_noisespeakers_dropdown)
+        noiseLayout.addRow("Color/Type:", available_noisecolors_dropdown)
+        noiseLayout.addRow("Volume:", noisevolumeSpinBox)
+        noiseLayout.addRow(playstopnoiseLayout)
 
         ########################################################################
         # COMMON EVENT MARKERS WIDGET
         ########################################################################
+
+        eventmarkertitleLabel = QtWidgets.QLabel("Event logging")
+        eventmarkertitleLabel.setAlignment(QtCore.Qt.AlignCenter)
+        eventmarkertitleLabel.setStyleSheet("font: 18pt")
 
         common_events = {
             "Awakening": "Mark an awakening (shortcut 1)",
@@ -438,8 +469,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
             "Note": "Open a text box and timestamp a note.",
         }
 
-        eventsLayout = QtWidgets.QFormLayout()
+        eventsLayout = QtWidgets.QGridLayout()
+        eventsLayout.addWidget(eventmarkertitleLabel, 0, 0, 1, 2)
         for i, (event, tip) in enumerate(common_events.items()):
+            if i > len(common_events) / 2:
+                row = 1
+                col += 1
             shortcut = str(i + 1)
             label = f"{event} ({shortcut})"
             button = QtWidgets.QPushButton(label, self)
@@ -450,42 +485,62 @@ class SmaccWindow(QtWidgets.QMainWindow):
                 button.clicked.connect(self.open_note_marker_dialogue)
             else:
                 button.clicked.connect(self.handle_event_button)
-            eventsLayout.addRow(button)
+            row = 1 + i
+            if i >= (halfsize := int(len(common_events) / 2)):
+                row -= halfsize
+            col = 1 if i >= halfsize else 0
+            eventsLayout.addWidget(button, row, col)
+
 
         ########################################################################
         # LOG VIEWER WIDGET
         ########################################################################
 
+        logviewertitleLabel = QtWidgets.QLabel("Log viewer")
+        logviewertitleLabel.setAlignment(QtCore.Qt.AlignCenter)
+        logviewertitleLabel.setStyleSheet("font: 18pt")
+
         # Events log viewer --> gets updated when events are logged
-        logviewLabel = QtWidgets.QLabel("Event log", self)
-        logviewLabel.setAlignment(QtCore.Qt.AlignCenter)
         logviewList = QtWidgets.QListWidget()
         logviewList.setAutoScroll(True)
         # logviewList.setGeometry(20,20,100,700)
         self.logviewList = logviewList
 
-        logviewLayout = QtWidgets.QGridLayout()
-        logviewLayout.addWidget(logviewLabel, 0, 0, 1, 1)
-        logviewLayout.addWidget(logviewList, 2, 0, 2, 1)
+        logviewLayout = QtWidgets.QFormLayout()
+        logviewLayout.addRow(logviewertitleLabel)
+        logviewLayout.addRow(logviewList)
 
         ########################################################################
         # COMPILE ALL WIDGETS INTO CENTRAL WIDGET
         ########################################################################
 
-        # Central widget and layout
-        central_layout = QtWidgets.QHBoxLayout()
-        central_layout.addLayout(visualstimLayout)
-        central_layout.addLayout(audiostimLayout)
-        central_layout.addLayout(microphoneLayout)
-        central_layout.addLayout(noiseLayout)
-        central_layout.addLayout(eventsLayout)
-        central_layout.addLayout(logviewLayout)
+        central_layout = QtWidgets.QGridLayout()
+        central_layout.addLayout(visualstimLayout, 0, 0)
+        central_layout.addLayout(audiostimLayout, 1, 0)
+        central_layout.addLayout(noiseLayout, 2, 0)
+        central_layout.addLayout(logviewLayout, 0, 1)
+        central_layout.addLayout(microphoneLayout, 1, 1)
+        central_layout.addLayout(eventsLayout, 2, 1)
         central_widget = QtWidgets.QWidget()
         central_widget.setContentsMargins(5, 5, 5, 5)
-        central_widget.move(100, 100)  # Change initial startup position
+        central_widget.move(100, 100)
         central_widget.setLayout(central_layout)
         self.setCentralWidget(central_widget)
-        # self.main_layout = main_layout
+
+        # # Central widget and layout
+        # central_layout = QtWidgets.QHBoxLayout()
+        # central_layout.addLayout(visualstimLayout)
+        # central_layout.addLayout(audiostimLayout)
+        # central_layout.addLayout(microphoneLayout)
+        # central_layout.addLayout(noiseLayout)
+        # central_layout.addLayout(eventsLayout)
+        # central_layout.addLayout(logviewLayout)
+        # central_widget = QtWidgets.QWidget()
+        # central_widget.setContentsMargins(5, 5, 5, 5)
+        # central_widget.move(100, 100)  # Change initial startup position
+        # central_widget.setLayout(central_layout)
+        # self.setCentralWidget(central_widget)
+        # # self.main_layout = main_layout
 
         # # Add the LightSwitchWidget to the main window
         # self.lightSwitch = LightSwitchWidget(self)
@@ -498,8 +553,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # # self.freq_scroller.connect()
         # # self.brightness_scroller.connect()
 
-        # create central widget for holding grid layout
-        self.init_CentralWidget()
+        # # create central widget for holding grid layout
+        # self.init_CentralWidget()
 
         # # main window stuff
         # xywh = (50, 100, self.winWidth, self.winHeight) # xloc, yloc, width, height
@@ -980,7 +1035,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
     #     b.clicked.connect(lambda: self.handleCueButton(button_label))
     #     return b
 
-    def init_CentralWidget(self):
+    # def init_CentralWidget(self):
         """The central widget holds the *non-toolbar*
         contents of the main window."""
 
@@ -1040,7 +1095,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # self.right2leftButton.setStatusTip("Move selected item from right to left.")
         # self.left2rightButton.clicked.connect(self.handleLeft2RightButton)
         # self.right2leftButton.clicked.connect(self.handleRight2LeftButton)
-        cueSelectionLayout = QtWidgets.QGridLayout()
+        # cueSelectionLayout = QtWidgets.QGridLayout()
         # cueSelectionLayout.addWidget(logViewer_header, 0, 0, 1, 1)
         # cueSelectionLayout.addWidget(leftListHeader, 0, 0, 1, 2)
         # # cueSelectionLayout.addWidget(self.cueButton, 0, 3, 1, 2)
@@ -1096,8 +1151,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # right_button_layout.addWidget(self.buttons["TLR cue"])
         # right_button_layout.addWidget(self.buttons["TMR cue"])
 
-
-        border_widget = BorderWidget()
+        # border_widget = BorderWidget()
 
         # ## sublayout for audio cue section
         # audiocue_layout = QtWidgets.QGridLayout()
@@ -1131,7 +1185,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         ## sliders can only have integer values
         ## so have to use 0-100 and then divide when setting it later
-        default_vol_upscaled = int(100 * DEFAULT_VOLUME)
+        # default_vol_upscaled = int(100 * DEFAULT_VOLUME)
 
         # # Cue Volume Knob Layout
         # cueVolumeKnob = QtWidgets.QDial()
