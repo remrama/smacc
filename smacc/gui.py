@@ -9,7 +9,6 @@ import time
 import random
 import logging
 import warnings
-import webbrowser
 
 from pylsl import StreamInfo, StreamOutlet, local_clock
 from PyQt5 import QtWidgets, QtGui, QtCore, QtMultimedia
@@ -129,9 +128,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.cues_directory = cues_directory
         self.noise_directory = noise_directory
 
-        # self.extract_cue_names()
-        # self.preload_cues()
-
         self.init_blinkstick()
         self.init_audio_stimulation_setup()
         self.init_noise_player()
@@ -145,7 +141,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.init_lsl_stream()
 
     def showErrorPopup(self, short_msg, long_msg=None):
-        self.log_info_msg("ERROR")
+        # self.log_info_msg("ERROR")
         win = QtWidgets.QMessageBox()
         win.setIcon(QtWidgets.QMessageBox.Warning)
         # win.setIconPixmap(QtGui.QPixmap("./img/fish.ico"))
@@ -605,7 +601,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         if devices:
             self.available_noisespeakers_dropdown.setCurrentIndex(0)
         else:
-            self.show_popup_warning("No audio devices found.")
+            self.showErrorPopup("No audio devices found.")            
 
     def refresh_available_speakers(self):
         """
@@ -624,7 +620,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         if devices:
             self.available_speakers_dropdown.setCurrentIndex(0)
         else:
-            self.show_popup_warning("No audio devices found.")
+            self.showErrorPopup("No audio devices found.")            
 
     def refresh_available_microphones(self):
         """
@@ -643,7 +639,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         if devices:
             self.available_microphones_dropdown.setCurrentIndex(0)
         else:
-            self.show_popup_warning("No microphones found.")
+            self.showErrorPopup("No microphones found.")
         # # devices = sd.query_devices()
         # # input_devices  = { d["name"]: i for i, d in enumerate(devices) if d["max_input_channels"]>0 }
         # # output_devices = { d["name"]: i for i, d in enumerate(devices) if d["max_output_channels"]>0 }
@@ -689,7 +685,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.available_blinksticks_dropdown.clear()
         if blinkstick is None:
             devices = []
-            self.show_popup_warning("Use of visual stimulation requires `blinkstick` Python package. Unable to search for devices.")
+            self.showErrorPopup("Use of visual stimulation requires `blinkstick` Python package. Unable to search for devices.")
         else:
             devices = blinkstick.find_all()
         # Add each device to the dropdown menu
@@ -702,7 +698,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         if devices:
             self.available_blinksticks_dropdown.setCurrentIndex(0)
         else:
-            self.show_popup_warning("No BlinkSticks found.")
+            self.showErrorPopup("No BlinkSticks found.")
 
     def update_input_device(self):
         # if the current input is re-selected it still "changes" here
