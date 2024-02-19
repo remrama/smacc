@@ -50,29 +50,6 @@ def brownian_noise(f):
 def pink_noise(f):
     return 1/np.where(f == 0, float("inf"), np.sqrt(f))
 
-def generate_noise_files():
-    """Generates temporary noise files"""
-    data_directory = get_data_directory()
-    # Generate some noise wav files to mask cues.
-    noise_directory = data_directory / "noise"
-    noise_directory.mkdir(exist_ok=True)
-    rate = 44100
-    noise_functions = {
-        "pink": pink_noise,
-        "blue": blue_noise,
-        "white": white_noise,
-        "brown": brownian_noise,
-        "violet": violet_noise,
-    }
-    for color, func in noise_functions.items():
-        # Generate a 1-second sample.
-        noise = func(rate)
-        # Scale it for exporting.
-        scaled = np.int16(noise / np.max(np.abs(noise)) * 32767)
-        # Export.
-        export_path = noise_directory / f"{color}.wav"
-        write(export_path, rate, scaled)
-
 def generate_test_cue_file():
     """Generates a test cue file"""
     data_directory = get_data_directory()
