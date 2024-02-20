@@ -9,6 +9,7 @@ import time
 import random
 import logging
 import warnings
+import webbrowser
 
 from pylsl import StreamInfo, StreamOutlet, local_clock
 from PyQt5 import QtWidgets, QtGui, QtCore, QtMultimedia
@@ -356,7 +357,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # # outputMenu = audioMenu.addMenu(QtGui.QIcon("./img/output.png"), "&Output device")
 
         ########################################################################
-        # AUDIO RECORDING/MICROPHONE WIDGET
+        # DREAM REPORT WIDGET
         ########################################################################
 
         recordingtitleLabel = QtWidgets.QLabel("Dream recording")
@@ -377,11 +378,15 @@ class SmaccWindow(QtWidgets.QMainWindow):
         micrecordButton.setCheckable(True)
         micrecordButton.clicked.connect(self.start_or_stop_recording)
 
+        surveyurlEdit = QtWidgets.QLineEdit(self)
+        self.surveyurlEdit = surveyurlEdit
+
         microphoneLayout = QtWidgets.QFormLayout()
         microphoneLayout.setLabelAlignment(QtCore.Qt.AlignRight)
         microphoneLayout.setLabelAlignment(QtCore.Qt.AlignRight)
         microphoneLayout.addRow(recordingtitleLabel)
         microphoneLayout.addRow("Device:", available_microphones_dropdown)
+        microphoneLayout.addRow("Survey URL:", surveyurlEdit)
         microphoneLayout.addRow("Play/Stop:", micrecordButton)
 
         ########################################################################
@@ -827,6 +832,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def start_or_stop_recording(self):
         self.record()  # This will start OR stop recording, whichever is not currently happening
         if self.sender().isChecked():
+            if (survey_url := self.surveyurlEdit.text()):
+                webbrowser.open(survey_url, new=1, autoraise=False)
             port_msg = "DreamReportStarted"
         else:
             port_msg = "DreamReportStopped"
