@@ -82,25 +82,6 @@ class SubjectSessionRequest(QtWidgets.QDialog):
         return subject_int, session_int
 
 
-def showAboutPopup():
-    """'About SMACC' popup window."""
-    text = (
-        f"Sleep Manipulation and Communication Clickything\n"
-        f"version: v{VERSION}"
-        f"https://github.com/remrama/smacc\n"
-    )
-    win = QtWidgets.QMessageBox()
-    win.setWindowTitle("About SMACC")
-    win.setIcon(QtWidgets.QMessageBox.Information)
-    win.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Close)
-    win.setDefaultButton(QtWidgets.QMessageBox.Close)
-    win.setInformativeText(text)
-    # win.setDetailedText("detailshere")
-    # win.setStyleSheet("QLabel{min-width:500 px; font-size: 24px;} QPushButton{ width:250px; font-size: 18px; }");
-    # win.setGeometry(200, 150, 100, 40)
-    win.exec_()
-
-
 
 #####################################
 #########    Main window    #########
@@ -143,8 +124,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def showErrorPopup(self, short_msg, long_msg=None):
         # self.log_info_msg("ERROR")
         win = QtWidgets.QMessageBox()
-        win.setIcon(QtWidgets.QMessageBox.Warning)
-        # win.setIconPixmap(QtGui.QPixmap("./img/fish.ico"))
+        # # win.setIcon(QtWidgets.QMessageBox.Question)
+        # win.setWindowIcon(QtGui.QIcon("./thumb-small.png"))
+        # win.setIconPixmap(QtGui.QPixmap("./thumb.png"))
         win.setText(short_msg)
         if long_msg is not None:
             win.setInformativeText(long_msg)
@@ -215,7 +197,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         aboutAction = QtWidgets.QAction(self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_MessageBoxInformation")), "&About", self)
         aboutAction.setStatusTip("About SMACC")
-        aboutAction.triggered.connect(showAboutPopup)
+        aboutAction.triggered.connect(self.show_about_popup)
 
         quitAction = QtWidgets.QAction(self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_BrowserStop")), "&Quit", self)
         quitAction.setShortcut("Ctrl+Q")
@@ -538,6 +520,20 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # self.setGeometry(100, 100, 600, 400)
         self.resize(1200, 500)
         self.show()
+
+    def show_about_popup(self):
+        win = QtWidgets.QMessageBox()
+        # win.setIcon(QtWidgets.QMessageBox.Question)
+        # win.setWindowIcon(QtGui.QIcon("./thumb-small.png"))
+        # win.setIconPixmap(QtGui.QPixmap("./thumb.png"))
+        win.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        win.setWindowTitle("About SMACC")
+        win.setText("Sleep Manipulation and Communication Clickything")
+        win.setInformativeText(f"version: v{VERSION}\nhttps://github.com/remrama/smacc")
+        # win.setDetailedText("detailshere")
+        # win.setStyleSheet("QLabel{min-width:500 px; font-size: 24px;} QPushButton{ width:250px; font-size: 18px; }");
+        # win.setGeometry(200, 150, 100, 40)
+        win.exec_()
 
     def handle_event_button(self):
         sender = self.sender()
