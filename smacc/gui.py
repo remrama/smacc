@@ -34,6 +34,29 @@ logs_directory.mkdir(exist_ok=True)
 cues_directory.mkdir(exist_ok=True)
 dreams_directory.mkdir(exist_ok=True)
 
+COMMON_EVENT_CODES = {
+    "REM detected": 12,
+    "Tech in room": 12,
+    "TLR training start": 12,
+    "TLR training end": 12,
+    "LRLR detected": 12,
+    "Sleep onset": 34,
+    "Lights off": 45,
+    "Lights on": 56,
+}
+
+COMMON_EVENT_TIPS = {
+    "Lights off": "Mark the beginning of sleep session",
+    "Lights on": "Mark the end of sleep session",
+    "TLR training start": "Mark the start of Targeted Lucidity Reactivation training",
+    "TLR training end": "Mark the end of Targeted Lucidity Reactivation training",
+    "Tech in room": "Mark the entry of an experimenter/technician in the participant bedroom",
+    "Sleep onset": "Mark observed sleep onset",
+    "REM detected": "Mark observed REM",
+    "LRLR detected": "Mark an observed left-right-left-right lucid signal",
+    "Note": "Mark a note and enter free text",
+}
+
 
 #########################################################
 #########    Create some custom PyQt classes    #########
@@ -442,19 +465,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
         eventmarkertitleLabel.setAlignment(QtCore.Qt.AlignCenter)
         eventmarkertitleLabel.setStyleSheet("font: 18pt")
 
-        common_events = {
-            "Awakening": "Mark an awakening (shortcut 1)",
-            "LRLR": "Mark a left-right-left-right lucid signal",
-            "SleepOnset": "Mark observed sleep onset",
-            "LightsOff": "Mark the beginning of sleep session",
-            "LightsOn": "Mark the end of sleep session",
-            "Note": "Open a text box and timestamp a note.",
-        }
-
         eventsLayout = QtWidgets.QGridLayout()
         eventsLayout.addWidget(eventmarkertitleLabel, 0, 0, 1, 2)
-        for i, (event, tip) in enumerate(common_events.items()):
-            if i > len(common_events) / 2:
+        n_events = len(COMMON_EVENT_TIPS)
+        for i, (event, tip) in enumerate(COMMON_EVENT_TIPS.items()):
+            if i > n_events / 2:
                 row = 1
                 col += 1
             shortcut = str(i + 1)
@@ -468,7 +483,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
             else:
                 button.clicked.connect(self.handle_event_button)
             row = 1 + i
-            if i >= (halfsize := int(len(common_events) / 2)):
+            if i >= (halfsize := int(n_events / 2)):
                 row -= halfsize
             col = 1 if i >= halfsize else 0
             eventsLayout.addWidget(button, row, col)
@@ -538,14 +553,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def handle_event_button(self):
         sender = self.sender()
         text = sender.text().split("(")[0].strip()
-        port_codes = {
-            "Awakening": 12,
-            "LRLR": 23,
-            "SleepOnset": 34,
-            "LightsOff": 45,
-            "LightsOn": 56,
-        }
-        code = port_codes[text]
+        code = COMMON_EVENT_CODES[text]
         self.send_event_marker(code, text)
 
     def open_wav_selector(self):
