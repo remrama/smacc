@@ -12,6 +12,7 @@ import warnings
 
 from pylsl import StreamInfo, StreamOutlet, local_clock
 from PyQt5 import QtWidgets, QtGui, QtCore, QtMultimedia
+import sounddevice as sd
 
 from smacc import utils
 from .config import *
@@ -27,11 +28,9 @@ except:
 data_directory = utils.get_data_directory()
 logs_directory = data_directory / "logs"
 cues_directory = data_directory / "cues"
-noise_directory = data_directory / "noise"
 dreams_directory = data_directory / "dreams"
 logs_directory.mkdir(exist_ok=True)
 cues_directory.mkdir(exist_ok=True)
-noise_directory.mkdir(exist_ok=True)
 dreams_directory.mkdir(exist_ok=True)
 
 
@@ -126,7 +125,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.portcodes = PPORT_CODES
 
         self.cues_directory = cues_directory
-        self.noise_directory = noise_directory
+        # self.noise_directory = noise_directory
 
         self.init_blinkstick()
         self.init_audio_stimulation_setup()
@@ -561,17 +560,19 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def set_new_noisecolor(self, text):
         """text is the noise color"""
-        filepath = Path(".") / text
+        # filepath = Path(".") / text
         # content = QtCore.QUrl.fromLocalFile(str(filepath))
         # self.noiseplayer.setSource(content)
-
-        print(f"New noise color {text} selected!")
+        if self.noise_stream is not None:  # or isactive
+            self.stop_noise()
+            self.play_noise()
 
     def set_new_speakers(self, text):
         print(f"New speakers {text} selected!")
 
     def set_new_noisespeakers(self, text):
-        print(f"New noise speakers {text} selected!")
+        """Text is the device name, with host api string appended to the end."""
+        self.noiseplayer_device = text
 
     def set_new_microphone(self, text):
         print(f"New microphone {text} selected!")
@@ -585,19 +586,18 @@ class SmaccWindow(QtWidgets.QMainWindow):
         Populate the audio stimulation device selection menu with currently
         available speakers.
 
-        Code is identical to refresh_available_speakers
-        except updates/populates the noise device list instead of audio stim
-
         seealso: refresh_available_speakers
         """
         self.available_noisespeakers_dropdown.clear()
-        devices = QtMultimedia.QAudioDeviceInfo.availableDevices(QtMultimedia.QAudio.AudioOutput)
-        devices = [d for d in devices if d.realm() != "default"]
+        HOST_API = "Windows WASAPI"
+        hostapi = [api["name"] for api in sd.query_hostapis()].index(HOST_API)
+        devices = sd.query_devices()
         for device in devices:
-            device_name = device.deviceName()
-            device_realm = device.realm()  # This differentiates the duplicate of default output
-            device_str = f"{device_name} [{device_realm}]"
-            self.available_noisespeakers_dropdown.addItem(device_str)
+            if device["hostapi"] == hostapi and device["max_output_channels"] > 0:
+                device_name = device["name"]
+                device_realm = device["hostapi"]
+                device_str = f"{device_name}, {HOST_API}"
+                self.available_noisespeakers_dropdown.addItem(device_str)
         if devices:
             self.available_noisespeakers_dropdown.setCurrentIndex(0)
         else:
@@ -640,21 +640,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
             self.available_microphones_dropdown.setCurrentIndex(0)
         else:
             self.showErrorPopup("No microphones found.")
-        # # devices = sd.query_devices()
-        # # input_devices  = { d["name"]: i for i, d in enumerate(devices) if d["max_input_channels"]>0 }
-        # # output_devices = { d["name"]: i for i, d in enumerate(devices) if d["max_output_channels"]>0 }
-        # # for k, v in input_devices.values():
-        # for i, dev in enumerate(devices):
-        #     if dev["max_input_channels"] > 0:
-        #         action = QtWidgets.QAction(QtGui.QIcon("./img/1F399_color.png"), dev["name"], self)
-        #         action.setStatusTip("Set "+dev["name"]+" as input device")
-        #         action.triggered.connect(self.set_audio_device)
-        #         inputMenu.addAction(action)
-        #     if dev["max_output_channels"] > 0:
-        #         action = QtWidgets.QAction(QtGui.QIcon("./img/1F4FB_color.png"), dev["name"], self)
-        #         action.setStatusTip("Set "+dev["name"]+" as output device")
-        #         action.triggered.connect(self.set_audio_device)
-        #         outputMenu.addAction(action)
 
     def set_new_blinkstick(self, text):
         """
@@ -748,17 +733,51 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def init_noise_player(self):
         """Create media player for noise files."""
-        player = QtMultimedia.QSoundEffect()
-        # player.setVolume(0)  # 0 to 1 -- Gets set already when parameter selector is made
-        player.setLoopCount(QtMultimedia.QSoundEffect.Infinite)
-        # player.playingChanged.connect(self.on_cuePlayingChange)
-        self.noiseplayer = player
+        # player = QtMultimedia.QSoundEffect()
+        # # player.setVolume(0)  # 0 to 1 -- Gets set already when parameter selector is made
+        # player.setLoopCount(QtMultimedia.QSoundEffect.Infinite)
+        # # player.playingChanged.connect(self.on_cuePlayingChange)
+        # self.noiseplayer = player
+        self.noise_stream = None
+
+    @staticmethod
+    def noise_color_funcs(color):
+        noise_functions = {
+            "pink": utils.pink_noise,
+            "blue": utils.blue_noise,
+            "white": utils.white_noise,
+            "brown": utils.brownian_noise,
+            "violet": utils.violet_noise,
+        }
+        return noise_functions[color]
 
     def play_noise(self):
-        self.noiseplayer.play()
+        # self.noiseplayer.play()
+        # device = self.noise_stream_device  # could also just set default sd device :/
+        ## DO NOT actually need to connect dropdown to update device in this case.
+        ## because need to use the device here at play, instead of setting it earlier
+        device = self.available_noisespeakers_dropdown.currentText()
+        color = self.available_noisecolors_dropdown.currentText()
+        rate = 44100
+        # global white_noise
+        # if color == "white":
+        #     noise_data = white_noise(44100).reshape(-1, 1)
+        def callback(outdata, frames, time, status):
+            """frames is the number of frames (rate)"""
+            if status:
+                print(status)
+            outdata[:] = self.noise_color_funcs(color)(rate).reshape(-1, 1) * self.noise_stream_volume
+        # add end_callback
+        if self.noise_stream is None:
+            self.noise_stream = sd.OutputStream(channels=1, blocksize=rate, callback=callback, device=device)
+            self.noise_stream.start()
+        # could use with statement and threading
 
     def stop_noise(self):
-        self.noiseplayer.stop()
+        # self.noiseplayer.stop()
+        if self.noise_stream is not None:
+            self.noise_stream.abort()
+            self.noise_stream = None
 
     def init_microphone(self):
         """initialize the microphone/recorder to collect dream reports
@@ -897,8 +916,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         value should be a float from the spinbox
         """
-        self.noiseplayer.setVolume(value)  # 0 - 1
+        # self.noiseplayer.setVolume(value)  # 0 - 1
         # self.log_info_msg(f"VolumeSet - Noise {float_volume}")
+        self.noise_stream_volume = value
 
     def changeInputGain(self, value):
         self.showErrorPopup("Not implemented yet", "This should eventually allow for increasing mic input volume.")
@@ -909,6 +929,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         """
         response = QtWidgets.QMessageBox.question(self, "Quit", "Do you want to quit/close SMACC?")
         if response == QtWidgets.QMessageBox.Yes:
+            if self.noise_stream:
+                self.noise_stream.close()
             self.log_info_msg("Program closed")
             event.accept()
             # self.closed.emit()
