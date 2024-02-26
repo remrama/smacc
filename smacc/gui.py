@@ -9,6 +9,7 @@ import time
 import random
 import logging
 import warnings
+import webbrowser
 
 from pylsl import StreamInfo, StreamOutlet, local_clock
 from PyQt5 import QtWidgets, QtGui, QtCore, QtMultimedia
@@ -32,6 +33,29 @@ dreams_directory = data_directory / "dreams"
 logs_directory.mkdir(exist_ok=True)
 cues_directory.mkdir(exist_ok=True)
 dreams_directory.mkdir(exist_ok=True)
+
+COMMON_EVENT_CODES = {
+    "REM detected": 12,
+    "Tech in room": 12,
+    "TLR training start": 12,
+    "TLR training end": 12,
+    "LRLR detected": 12,
+    "Sleep onset": 34,
+    "Lights off": 45,
+    "Lights on": 56,
+}
+
+COMMON_EVENT_TIPS = {
+    "Lights off": "Mark the beginning of sleep session",
+    "Lights on": "Mark the end of sleep session",
+    "TLR training start": "Mark the start of Targeted Lucidity Reactivation training",
+    "TLR training end": "Mark the end of Targeted Lucidity Reactivation training",
+    "Tech in room": "Mark the entry of an experimenter/technician in the participant bedroom",
+    "Sleep onset": "Mark observed sleep onset",
+    "REM detected": "Mark observed REM",
+    "LRLR detected": "Mark an observed left-right-left-right lucid signal",
+    "Note": "Mark a note and enter free text",
+}
 
 
 #########################################################
@@ -81,25 +105,6 @@ class SubjectSessionRequest(QtWidgets.QDialog):
         return subject_int, session_int
 
 
-def showAboutPopup():
-    """'About SMACC' popup window."""
-    text = (
-        f"Sleep Manipulation and Communication Clickything\n"
-        f"version: v{VERSION}"
-        f"https://github.com/remrama/smacc\n"
-    )
-    win = QtWidgets.QMessageBox()
-    win.setWindowTitle("About SMACC")
-    win.setIcon(QtWidgets.QMessageBox.Information)
-    win.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Close)
-    win.setDefaultButton(QtWidgets.QMessageBox.Close)
-    win.setInformativeText(text)
-    # win.setDetailedText("detailshere")
-    # win.setStyleSheet("QLabel{min-width:500 px; font-size: 24px;} QPushButton{ width:250px; font-size: 18px; }");
-    # win.setGeometry(200, 150, 100, 40)
-    win.exec_()
-
-
 
 #####################################
 #########    Main window    #########
@@ -142,8 +147,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def showErrorPopup(self, short_msg, long_msg=None):
         # self.log_info_msg("ERROR")
         win = QtWidgets.QMessageBox()
-        win.setIcon(QtWidgets.QMessageBox.Warning)
-        # win.setIconPixmap(QtGui.QPixmap("./img/fish.ico"))
+        # # win.setIcon(QtWidgets.QMessageBox.Question)
+        # win.setWindowIcon(QtGui.QIcon("./thumb-small.png"))
+        # win.setIconPixmap(QtGui.QPixmap("./thumb.png"))
         win.setText(short_msg)
         if long_msg is not None:
             win.setInformativeText(long_msg)
@@ -214,7 +220,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         aboutAction = QtWidgets.QAction(self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_MessageBoxInformation")), "&About", self)
         aboutAction.setStatusTip("About SMACC")
-        aboutAction.triggered.connect(showAboutPopup)
+        aboutAction.triggered.connect(self.show_about_popup)
 
         quitAction = QtWidgets.QAction(self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_BrowserStop")), "&Quit", self)
         quitAction.setShortcut("Ctrl+Q")
@@ -356,7 +362,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # # outputMenu = audioMenu.addMenu(QtGui.QIcon("./img/output.png"), "&Output device")
 
         ########################################################################
-        # AUDIO RECORDING/MICROPHONE WIDGET
+        # DREAM REPORT WIDGET
         ########################################################################
 
         recordingtitleLabel = QtWidgets.QLabel("Dream recording")
@@ -377,11 +383,15 @@ class SmaccWindow(QtWidgets.QMainWindow):
         micrecordButton.setCheckable(True)
         micrecordButton.clicked.connect(self.start_or_stop_recording)
 
+        surveyurlEdit = QtWidgets.QLineEdit(self)
+        self.surveyurlEdit = surveyurlEdit
+
         microphoneLayout = QtWidgets.QFormLayout()
         microphoneLayout.setLabelAlignment(QtCore.Qt.AlignRight)
         microphoneLayout.setLabelAlignment(QtCore.Qt.AlignRight)
         microphoneLayout.addRow(recordingtitleLabel)
         microphoneLayout.addRow("Device:", available_microphones_dropdown)
+        microphoneLayout.addRow("Survey URL:", surveyurlEdit)
         microphoneLayout.addRow("Play/Stop:", micrecordButton)
 
         ########################################################################
@@ -455,19 +465,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
         eventmarkertitleLabel.setAlignment(QtCore.Qt.AlignCenter)
         eventmarkertitleLabel.setStyleSheet("font: 18pt")
 
-        common_events = {
-            "Awakening": "Mark an awakening (shortcut 1)",
-            "LRLR": "Mark a left-right-left-right lucid signal",
-            "SleepOnset": "Mark observed sleep onset",
-            "LightsOff": "Mark the beginning of sleep session",
-            "LightsOn": "Mark the end of sleep session",
-            "Note": "Open a text box and timestamp a note.",
-        }
-
         eventsLayout = QtWidgets.QGridLayout()
         eventsLayout.addWidget(eventmarkertitleLabel, 0, 0, 1, 2)
-        for i, (event, tip) in enumerate(common_events.items()):
-            if i > len(common_events) / 2:
+        n_events = len(COMMON_EVENT_TIPS)
+        for i, (event, tip) in enumerate(COMMON_EVENT_TIPS.items()):
+            if i > n_events / 2:
                 row = 1
                 col += 1
             shortcut = str(i + 1)
@@ -481,7 +483,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
             else:
                 button.clicked.connect(self.handle_event_button)
             row = 1 + i
-            if i >= (halfsize := int(len(common_events) / 2)):
+            if i >= (halfsize := int(n_events / 2)):
                 row -= halfsize
             col = 1 if i >= halfsize else 0
             eventsLayout.addWidget(button, row, col)
@@ -534,17 +536,24 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.resize(1200, 500)
         self.show()
 
+    def show_about_popup(self):
+        win = QtWidgets.QMessageBox()
+        # win.setIcon(QtWidgets.QMessageBox.Question)
+        # win.setWindowIcon(QtGui.QIcon("./thumb-small.png"))
+        # win.setIconPixmap(QtGui.QPixmap("./thumb.png"))
+        win.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        win.setWindowTitle("About SMACC")
+        win.setText("Sleep Manipulation and Communication Clickything")
+        win.setInformativeText(f"version: v{VERSION}\nhttps://github.com/remrama/smacc")
+        # win.setDetailedText("detailshere")
+        # win.setStyleSheet("QLabel{min-width:500 px; font-size: 24px;} QPushButton{ width:250px; font-size: 18px; }");
+        # win.setGeometry(200, 150, 100, 40)
+        win.exec_()
+
     def handle_event_button(self):
         sender = self.sender()
         text = sender.text().split("(")[0].strip()
-        port_codes = {
-            "Awakening": 12,
-            "LRLR": 23,
-            "SleepOnset": 34,
-            "LightsOff": 45,
-            "LightsOn": 56,
-        }
-        code = port_codes[text]
+        code = COMMON_EVENT_CODES[text]
         self.send_event_marker(code, text)
 
     def open_wav_selector(self):
@@ -827,6 +836,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def start_or_stop_recording(self):
         self.record()  # This will start OR stop recording, whichever is not currently happening
         if self.sender().isChecked():
+            if (survey_url := self.surveyurlEdit.text()):
+                webbrowser.open(survey_url, new=1, autoraise=False)
             port_msg = "DreamReportStarted"
         else:
             port_msg = "DreamReportStopped"
