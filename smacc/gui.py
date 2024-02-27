@@ -35,14 +35,15 @@ cues_directory.mkdir(exist_ok=True)
 dreams_directory.mkdir(exist_ok=True)
 
 COMMON_EVENT_CODES = {
-    "REM detected": 12,
-    "Tech in room": 12,
-    "TLR training start": 12,
-    "TLR training end": 12,
-    "LRLR detected": 12,
-    "Sleep onset": 34,
-    "Lights off": 45,
-    "Lights on": 56,
+    "REM detected": 41,
+    "Tech in room": 42,
+    "TLR training start": 43,
+    "TLR training end": 44,
+    "LRLR detected": 45,
+    "Sleep onset": 46,
+    "Lights off": 47,
+    "Lights on": 48,
+    "Clapper": 49,
 }
 
 COMMON_EVENT_TIPS = {
@@ -54,6 +55,7 @@ COMMON_EVENT_TIPS = {
     "Sleep onset": "Mark observed sleep onset",
     "REM detected": "Mark observed REM",
     "LRLR detected": "Mark an observed left-right-left-right lucid signal",
+    "Clapper": "Synchronize a marker with EEG",
     "Note": "Mark a note and enter free text",
 }
 
