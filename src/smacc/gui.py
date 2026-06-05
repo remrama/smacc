@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import time
 import webbrowser
 from collections.abc import Callable
@@ -13,7 +14,7 @@ import sounddevice as sd
 from pylsl import StreamInfo, StreamOutlet
 from PyQt5 import QtCore, QtGui, QtMultimedia, QtWidgets
 
-from smacc import utils
+from smacc import bids, study, utils
 
 from .config import (
     DEVELOPMENT_ID,
@@ -211,6 +212,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         """Initialize the logger that writes to a per-session log file."""
         path_name = f"sub-{self.subject:03d}_ses-{self.session:03d}_smacc-{VERSION}.log"
         log_path = logs_directory / path_name
+        self.log_path = log_path  # kept for BIDS events export
         self.logger = logging.getLogger("smacc")
         self.logger.setLevel(logging.DEBUG)
         # open file handler to save external file
@@ -252,6 +254,20 @@ class SmaccWindow(QtWidgets.QMainWindow):
         quitAction.setStatusTip("Quit/close interface")
         quitAction.triggered.connect(self.close)  # close goes to closeEvent
 
+        # File -> Save/Load study: persist session setup to a reusable study.json.
+        saveStudyAction = QtWidgets.QAction("&Save study…", self)
+        saveStudyAction.setStatusTip("Save the current setup to a study folder.")
+        saveStudyAction.triggered.connect(self.save_study)
+        loadStudyAction = QtWidgets.QAction("&Load study…", self)
+        loadStudyAction.setStatusTip("Load setup from a saved study.json.")
+        loadStudyAction.triggered.connect(self.load_study)
+
+        exportEventsAction = QtWidgets.QAction("&Export events (BIDS)…", self)
+        exportEventsAction.setStatusTip(
+            "Export this session's events log as a BIDS events.tsv."
+        )
+        exportEventsAction.triggered.connect(self.export_events_bids)
+
         # View -> Always on top: keep the control window above the dimmed bedroom screen.
         alwaysOnTopAction = QtWidgets.QAction("Always on &top", self)
         alwaysOnTopAction.setStatusTip("Keep the SMACC window above all other windows.")
@@ -261,6 +277,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         menuBar = self.menuBar()
         # menuBar.setNativeMenuBar(False)  # needed for pyqt5 on Mac
+        fileMenu = menuBar.addMenu("&File")
+        fileMenu.addAction(saveStudyAction)
+        fileMenu.addAction(loadStudyAction)
+        fileMenu.addSeparator()
+        fileMenu.addAction(exportEventsAction)
         helpMenu = menuBar.addMenu("&Help")
         helpMenu.addAction(aboutAction)
         helpMenu.addAction(quitAction)
@@ -326,6 +347,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         freqSpinBox.valueChanged.connect(self.handle_freq_change)
         # freqSpinBox.textChanged.connect(self.value_changed_str)
         freqSpinBox.setValue(self.bstick_blink_freq)
+        self.freqSpinBox = freqSpinBox
 
         # Compile them into a vertical layout
         visualstimLayout = QtWidgets.QFormLayout()
@@ -386,6 +408,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         volumeSpinBox.setSingleStep(0.01)
         volumeSpinBox.valueChanged.connect(self.update_audio_volume)
         volumeSpinBox.setValue(0.2)
+        self.volumeSpinBox = volumeSpinBox
 
         # Loop toggle: when checked, the cue repeats until stopped.
         loopCheckBox = QtWidgets.QCheckBox("Loop until stopped", self)
@@ -522,6 +545,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         noisevolumeSpinBox.setSingleStep(0.01)
         noisevolumeSpinBox.valueChanged.connect(self.update_noise_volume)
         noisevolumeSpinBox.setValue(0.2)
+        self.noisevolumeSpinBox = noisevolumeSpinBox
 
         # Play button: QPushButton signal --> play function
         playnoiseButton = QtWidgets.QPushButton("Play noise", self)
@@ -826,13 +850,19 @@ class SmaccWindow(QtWidgets.QMainWindow):
             #         menu_item.setChecked(True)
 
     def init_blinkstick(self):
-        default_freq = 1.0
-        default_rgb = (0, 0, 0)
-        r, g, b = default_rgb
-        led_data = [g, r, b] * 32
-        self.bstick_led_data = led_data
-        self.bstick_blink_freq = default_freq
+        self.bstick_blink_freq = 1.0
+        self.set_blink_color(0, 0, 0)  # default color: black/off
         # Draw button/icon/pixmap to show default color
+
+    def set_blink_color(self, r: int, g: int, b: int) -> None:
+        """Set the BlinkStick color from 0-255 RGB components.
+
+        Stores the hex code (for study save/load) and precomputes the LED data.
+        blinkstick.set_led_data expects G/R swapped: 3 values per LED, 32 LEDs.
+        """
+        self.bstick_rgb = (r, g, b, 255)
+        self.bstick_hexcode = f"#{r:02x}{g:02x}{b:02x}"
+        self.bstick_led_data = [g, r, b] * 32
 
     def init_audio_stimulation_setup(self):
         """Create media player for cue files."""
@@ -944,6 +974,145 @@ class SmaccWindow(QtWidgets.QMainWindow):
         elif state == QtMultimedia.QMediaRecorder.RecordingState:
             self.logviewList.setStyleSheet("border: 3px solid red;")
 
+    ############################################################################
+    # Study config save/resume (study.json bundles)
+    ############################################################################
+
+    def gather_study_state(self) -> dict:
+        """Collect the current GUI parameters into a serializable dict.
+
+        Single source of truth for study save/load. Audio devices are excluded
+        on purpose (only the noise device routes today).
+        """
+        survey_options = {
+            self.surveyComboBox.itemText(i): self.surveyComboBox.itemData(i)
+            for i in range(self.surveyComboBox.count())
+            if self.surveyComboBox.itemData(i)
+        }
+        return {
+            "cue_file": self.wavselectorEdit.text(),
+            "cue_volume": self.volumeSpinBox.value(),
+            "cue_loop": self.loopCheckBox.isChecked(),
+            "noise_volume": self.noisevolumeSpinBox.value(),
+            "noise_color": self.available_noisecolors_dropdown.currentText(),
+            "blink_color": self.bstick_hexcode,
+            "blink_length": self.bstick_blink_freq,
+            "survey_url": self.current_survey_url(),
+            "survey_options": survey_options,
+        }
+
+    def apply_study_state(self, state: dict) -> None:
+        """Apply a study ``state`` dict to the GUI widgets.
+
+        Setting widget values fires their existing signals, so volume/source/
+        color/length all propagate without extra wiring.
+        """
+        if cue := state.get("cue_file"):
+            self.wavselectorEdit.setText(cue)
+        if (v := state.get("cue_volume")) is not None:
+            self.volumeSpinBox.setValue(float(v))
+        self.loopCheckBox.setChecked(bool(state.get("cue_loop", False)))
+        if (v := state.get("noise_volume")) is not None:
+            self.noisevolumeSpinBox.setValue(float(v))
+        if color := state.get("noise_color"):
+            idx = self.available_noisecolors_dropdown.findText(color)
+            if idx >= 0:
+                self.available_noisecolors_dropdown.setCurrentIndex(idx)
+        if hexcode := state.get("blink_color"):
+            qcolor = QtGui.QColor(hexcode)
+            if qcolor.isValid():
+                self.set_blink_color(qcolor.red(), qcolor.green(), qcolor.blue())
+        if (length := state.get("blink_length")) is not None:
+            self.freqSpinBox.setValue(float(length))
+        self._apply_survey_state(state)
+
+    def _apply_survey_state(self, state: dict) -> None:
+        """Rebuild the survey dropdown from saved presets and select the saved URL."""
+        options = state.get("survey_options") or {}
+        self.surveyComboBox.blockSignals(True)
+        self.surveyComboBox.clear()
+        self.surveyComboBox.addItem("", "")  # Blank default == no survey.
+        for label, url in options.items():
+            self.surveyComboBox.addItem(label, url)
+        self.surveyComboBox.blockSignals(False)
+        survey_url = state.get("survey_url", "")
+        for i in range(self.surveyComboBox.count()):
+            if self.surveyComboBox.itemData(i) == survey_url:
+                self.surveyComboBox.setCurrentIndex(i)
+                return
+        self.surveyComboBox.setEditText(survey_url)
+
+    def save_study(self) -> None:
+        """Prompt for a study folder, copy the cue into it, and write study.json."""
+        folder = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Select a study folder", str(data_directory)
+        )
+        if not folder:
+            return
+        study_dir = Path(folder)
+        state = self.gather_study_state()
+        # Copy the cue WAV into the study folder so the bundle is self-contained.
+        cue_file = state.get("cue_file")
+        if cue_file and Path(cue_file).is_file():
+            dest = study_dir / Path(cue_file).name
+            if Path(cue_file).resolve() != dest.resolve():
+                shutil.copy2(cue_file, dest)
+            state["cue_file"] = Path(cue_file).name  # store basename, resolve on load
+        try:
+            study.save_study(study_dir / "study.json", state)
+        except OSError as exc:
+            self.show_error_popup("Could not save study.", str(exc))
+            return
+        self.log_info_msg(f"Saved study to {study_dir}")
+
+    def load_study(self) -> None:
+        """Prompt for a study.json and apply it, resolving the bundled cue file."""
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Load study", str(data_directory), "Study (study.json)"
+        )
+        if not path:
+            return
+        study_path = Path(path)
+        try:
+            state = study.load_study(study_path)
+        except (OSError, ValueError) as exc:
+            self.show_error_popup("Could not load study.", str(exc))
+            return
+        # Resolve a bundled (basename) cue relative to the study folder.
+        cue_file = state.get("cue_file")
+        if cue_file and not Path(cue_file).is_absolute():
+            candidate = study_path.parent / cue_file
+            if candidate.is_file():
+                state["cue_file"] = str(candidate)
+        self.apply_study_state(state)
+        self.log_info_msg(f"Loaded study from {study_path}")
+
+    def export_events_bids(self) -> None:
+        """Convert the session log to a BIDS events.tsv (+ JSON sidecar)."""
+        if not self.log_path.is_file():
+            self.show_error_popup("No log file to export yet.")
+            return
+        # Flush handlers so the on-disk log includes the latest events.
+        for handler in self.logger.handlers:
+            handler.flush()
+        default = self.log_path.with_name(
+            f"sub-{self.subject:03d}_ses-{self.session:03d}_events.tsv"
+        )
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Export events (BIDS)", str(default), "BIDS events (*.tsv)"
+        )
+        if not path:
+            return
+        try:
+            log_text = self.log_path.read_text(encoding="utf-8")
+            events = bids.log_to_events(log_text)
+            bids.write_events_tsv(events, path)
+            bids.write_events_json(Path(path).with_suffix(".json"))
+        except OSError as exc:
+            self.show_error_popup("Could not export events.", str(exc))
+            return
+        self.log_info_msg(f"Exported {len(events)} events to {path}")
+
     def current_survey_url(self) -> str:
         """Resolve the survey URL from the dropdown.
 
@@ -971,14 +1140,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def pick_color(self):
         color = QtWidgets.QColorDialog.getColor()
         if color.isValid():
-            self.bstick_hexcode = color.name()
-            self.bstick_rgb = color.getRgb()
-            ## Not sure why, but the blinkstick.set_led_data expects R and G reversed
-            # Create a sequence 96 values
-            # sequences of GRB values (RGB with R/G reversed), 3 for each of 32 LEDs
-            r, g, b, a = self.bstick_rgb
-            led_data = [g, r, b] * 32
-            self.bstick_led_data = led_data
+            r, g, b, _ = color.getRgb()
+            self.set_blink_color(r, g, b)
             # pixmap = QtGui.QPixmap(16, 16)
             # pixmap.fill(color)
             # self.colorpickerAction.setIcon(QtGui.QIcon(pixmap))
