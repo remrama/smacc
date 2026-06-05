@@ -1,3 +1,79 @@
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "smacc"
+description = "Sleep manipulation and communication clickything"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "BSD-3-Clause" }
+authors = [{ name = "Remington Mallett", email = "mallett.remy@gmail.com" }]
+dynamic = ["version"]
+classifiers = [
+    "Environment :: Console",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Intended Audience :: Science/Research",
+]
+dependencies = [
+    "numpy",
+    "pylsl",
+    "PyQt5",
+    # pyqt5-qt5 5.15.19 dropped Windows wheels; pin to a version with
+    # wheels for all platforms (win/linux/macos) so uv resolves everywhere.
+    "PyQt5-Qt5==5.15.2",
+    "scipy",
+    "sounddevice",
+]
+
+[project.optional-dependencies]
+visual = ["blinkstick"]
+dev = [
+    "pytest",
+    "ruff",
+    "mypy",
+    "pre-commit",
+    "pyinstaller",
+    "PyQt5-stubs",
+]
+
+[project.urls]
+Homepage = "https://github.com/remrama/smacc"
+Source = "https://github.com/remrama/smacc"
+"Bug Tracker" = "https://github.com/remrama/smacc/issues"
+"Release Notes" = "https://github.com/remrama/smacc/releases"
+
+[tool.setuptools.dynamic]
+version = { attr = "smacc.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+# The formatter owns line length; it won't split string literals/comments,
+# so leave E501 to the formatter rather than flagging unsplittable lines.
+ignore = ["E501"]
+
+[tool.ruff.format]
+indent-style = "space"
+line-ending = "lf"
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+files = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
