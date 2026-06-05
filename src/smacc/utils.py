@@ -1,3 +1,8 @@
+"""Utility helpers: data-directory resolution and noise/tone generation."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
 from os import environ
 from pathlib import Path
 
@@ -5,21 +10,33 @@ import numpy as np
 from scipy.io.wavfile import write
 
 
-def get_data_directory():
-    """Returns default data directory if environment variable is not set."""
-    data_directory = environ.get("SMACC_DATA_DIRECTORY", "~/SMACC")
-    data_directory = Path(data_directory).expanduser()
+def get_data_directory() -> Path:
+    """Return the data directory, creating it if needed.
+
+    Honors the ``SMACC_DATA_DIRECTORY`` environment variable and falls back
+    to ``~/SMACC`` when it is not set.
+    """
+    raw = environ.get("SMACC_DATA_DIRECTORY", "~/SMACC")
+    data_directory = Path(raw).expanduser()
     data_directory.mkdir(exist_ok=True)
     return data_directory
 
-def note(freq, duration, amp, rate):
-    """https://stackoverflow.com/q/11570942"""
-    t = np.linspace(0, duration, duration * rate)
+
+def note(freq: float, duration: float, amp: float, rate: int) -> np.ndarray:
+    """Return a sine-wave tone as 16-bit integer samples.
+
+    https://stackoverflow.com/q/11570942
+    """
+    t = np.linspace(0, duration, int(duration * rate))
     data = np.sin(2 * np.pi * freq * t) * amp
     return data.astype(np.int16)  # two byte integers
 
-def noise_psd(N, psd = lambda f: 1):
-    """https://stackoverflow.com/a/67127726"""
+
+def noise_psd(N: int, psd: Callable = lambda f: 1) -> np.ndarray:
+    """Generate noise shaped by a power-spectral-density function.
+
+    https://stackoverflow.com/a/67127726
+    """
     X_white = np.fft.rfft(np.random.randn(N))
     S = psd(np.fft.rfftfreq(N))
     # Normalize S
@@ -27,38 +44,51 @@ def noise_psd(N, psd = lambda f: 1):
     X_shaped = X_white * S
     return np.fft.irfft(X_shaped)
 
-def PSDGenerator(f):
+
+def PSDGenerator(f: Callable) -> Callable[[int], np.ndarray]:
+    """Turn a PSD-shape function into a noise generator taking a sample count."""
     return lambda N: noise_psd(N, f)
+
 
 @PSDGenerator
 def white_noise(f):
+    """Flat power spectrum."""
     return 1
+
 
 @PSDGenerator
 def blue_noise(f):
+    """Power spectrum proportional to sqrt(f)."""
     return np.sqrt(f)
+
 
 @PSDGenerator
 def violet_noise(f):
+    """Power spectrum proportional to f."""
     return f
+
 
 @PSDGenerator
 def brownian_noise(f):
-    return 1/np.where(f == 0, float("inf"), f)
+    """Power spectrum proportional to 1/f."""
+    return 1 / np.where(f == 0, float("inf"), f)
+
 
 @PSDGenerator
 def pink_noise(f):
-    return 1/np.where(f == 0, float("inf"), np.sqrt(f))
+    """Power spectrum proportional to 1/sqrt(f)."""
+    return 1 / np.where(f == 0, float("inf"), np.sqrt(f))
 
-def generate_test_cue_file():
-    """Generates a test cue file"""
+
+def generate_test_cue_file() -> None:
+    """Generate a short multi-tone test cue and save it to the cues directory."""
     data_directory = get_data_directory()
     cues_directory = data_directory / "cues"
     cues_directory.mkdir(exist_ok=True)
     duration = 1
-    amp = 1E4
+    amp = 1e4
     rate = 44100
-    tone0 = note(0, duration, amp, rate)  #silence
+    tone0 = note(0, duration, amp, rate)  # silence
     tone1 = note(261.63, duration, amp, rate)  # C4
     tone2 = note(329.63, duration, amp, rate)  # E4
     tone3 = note(392.00, duration, amp, rate)  # G4

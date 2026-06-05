@@ -1,27 +1,25 @@
-"""
-Initialize a new session
-and open the main interface.
-"""
-import os
-from pathlib import Path
-import sys
-import time
-import random
-import logging
-import warnings
-import webbrowser
+"""Initialize a new session and open the main interface."""
 
-from pylsl import StreamInfo, StreamOutlet, local_clock
-from PyQt5 import QtWidgets, QtGui, QtCore, QtMultimedia
+from __future__ import annotations
+
+import logging
+import os
+import time
+import webbrowser
+from collections.abc import Callable
+from pathlib import Path
+
 import sounddevice as sd
+from pylsl import StreamInfo, StreamOutlet
+from PyQt5 import QtCore, QtGui, QtMultimedia, QtWidgets
 
 from smacc import utils
-from .config import *
 
+from .config import DEVELOPMENT_ID, PPORT_ADDRESS, PPORT_CODES, VERSION
 
 try:
     from blinkstick import blinkstick
-except:
+except ImportError:
     blinkstick = None
 
 
@@ -64,17 +62,23 @@ COMMON_EVENT_TIPS = {
 #########    Create some custom PyQt classes    #########
 #########################################################
 
+
 class BorderWidget(QtWidgets.QFrame):
     """thing to make a border https://stackoverflow.com/a/7351943"""
+
     def __init__(self, *args):
-        super(BorderWidget, self).__init__(*args)
-        self.setStyleSheet("background-color: rgb(0,0,0,0); margin:0px; border:4px solid rgb(0, 0, 0); border-radius: 25px; ")
+        super().__init__(*args)
+        self.setStyleSheet(
+            "background-color: rgb(0,0,0,0); margin:0px; border:4px solid rgb(0, 0, 0); border-radius: 25px; "
+        )
+
 
 class SubjectSessionRequest(QtWidgets.QDialog):
     """A popup window that pops up once during initialization
     to get subject and session IDs from the user.
     """
-    def __init__(self, parent=None):
+
+    def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Subject and session information")
         # Removes the default "What's this?" question mark icon from the titlebar.
@@ -85,12 +89,15 @@ class SubjectSessionRequest(QtWidgets.QDialog):
         self.session_id = QtWidgets.QLineEdit(self)
         self.subject_id.setText(str(DEVELOPMENT_ID))
         self.session_id.setText("1")
-        self.subject_id.setValidator(QtGui.QIntValidator(0, 999))  # Require a 3-digit number
-        self.session_id.setValidator(QtGui.QIntValidator(0, 999))  # Require a 3-digit number
+        self.subject_id.setValidator(
+            QtGui.QIntValidator(0, 999)
+        )  # Require a 3-digit number
+        self.session_id.setValidator(
+            QtGui.QIntValidator(0, 999)
+        )  # Require a 3-digit number
         # Create buttons to accept values or cancel.
         buttonBox = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel,
-            self
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self
         )
         buttonBox.accepted.connect(self.accept)
         buttonBox.rejected.connect(self.reject)
@@ -100,24 +107,25 @@ class SubjectSessionRequest(QtWidgets.QDialog):
         layout.addRow("Session ID", self.session_id)
         layout.addWidget(buttonBox)
 
-    def getInputs(self):
+    def get_inputs(self) -> tuple[int, int]:
         """Return user-specified subject and session IDs as integers."""
         subject_int = int(self.subject_id.text())
         session_int = int(self.session_id.text())
         return subject_int, session_int
 
 
-
 #####################################
 #########    Main window    #########
 #####################################
 
+
 class SmaccWindow(QtWidgets.QMainWindow):
-    """Main interface"""
-    def __init__(self, subject_id, session_id):
+    """Main interface."""
+
+    def __init__(self, subject_id: int, session_id: int) -> None:
         super().__init__()
 
-        self.n_report_counter = 0 # cumulative counter for determining filenames
+        self.n_report_counter = 0  # cumulative counter for determining filenames
 
         # store the subject and session IDs
         # self.subject_id = subject_id
@@ -128,7 +136,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         self.init_logger()
 
-        self.pport_address = PPORT_ADDRESS        
+        self.pport_address = PPORT_ADDRESS
         self.portcodes = PPORT_CODES
 
         self.cues_directory = cues_directory
@@ -146,7 +154,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         self.init_lsl_stream()
 
-    def showErrorPopup(self, short_msg, long_msg=None):
+    def show_error_popup(self, short_msg, long_msg=None):
         # self.log_info_msg("ERROR")
         win = QtWidgets.QMessageBox()
         # # win.setIcon(QtWidgets.QMessageBox.Question)
@@ -156,11 +164,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
         if long_msg is not None:
             win.setInformativeText(long_msg)
         win.setWindowTitle("Error")
-        win.exec_()
-    # def showErrorPopup(self, short_msg):
+        win.exec()
+
+    # def show_error_popup(self, short_msg):
     #     em = QtWidgets.QErrorMessage()
     #     em.showMessage(short_msg)
-    #     em.exec_()
+    #     em.exec()
 
     def log_info_msg(self, msg):
         """wrapper just to make sure msg goes to viewer too
@@ -168,9 +177,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         """
         # log the message
         self.logger.info(msg)
-        
+
         # print message to the GUI viewer box thing
-        item = self.logviewList.addItem(time.strftime("%H:%M:%S") + " - " + msg)
+        self.logviewList.addItem(time.strftime("%H:%M:%S") + " - " + msg)
         self.logviewList.repaint()
         self.logviewList.scrollToBottom()
         # item = pg.QtGui.QListWidgetItem(msg)
@@ -179,11 +188,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # self.eventList.addItem(item)
         # self.eventList.update()
 
-    def init_lsl_stream(self, stream_id="myuidw43536"):
+    def init_lsl_stream(self, stream_id: str = "myuidw43536") -> None:
+        """Create the LSL marker stream and its outlet."""
         self.info = StreamInfo("MyMarkerStream", "Markers", 1, 0, "string", stream_id)
         self.outlet = StreamOutlet(self.info)
 
-    def send_event_marker(self, portcode, port_msg):
+    def send_event_marker(self, portcode: int, port_msg: str) -> None:
         """Wrapper to avoid rewriting if not None a bunch
         to make sure the msg also gets logged to output file and gui
         """
@@ -191,8 +201,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         log_msg = f"{port_msg} - portcode {portcode}"
         self.log_info_msg(log_msg)
 
-    def init_logger(self):
-        """initialize logger that writes to a log file"""
+    def init_logger(self) -> None:
+        """Initialize the logger that writes to a per-session log file."""
         path_name = f"sub-{self.subject:03d}_ses-{self.session:03d}_smacc-{VERSION}.log"
         log_path = logs_directory / path_name
         self.logger = logging.getLogger("smacc")
@@ -204,7 +214,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # create formatter and add it to the handlers
         formatter = logging.Formatter(
             fmt="%(asctime)s.%(msecs)03d, %(levelname)s, %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S")
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
         fh.setFormatter(formatter)
         # add the handler to the logger
         self.logger.addHandler(fh)
@@ -220,11 +231,17 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # MENU BAR
         ########################################################################
 
-        aboutAction = QtWidgets.QAction(self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_MessageBoxInformation")), "&About", self)
+        aboutAction = QtWidgets.QAction(
+            self.style().standardIcon(QtWidgets.QStyle.SP_MessageBoxInformation),
+            "&About",
+            self,
+        )
         aboutAction.setStatusTip("About SMACC")
         aboutAction.triggered.connect(self.show_about_popup)
 
-        quitAction = QtWidgets.QAction(self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_BrowserStop")), "&Quit", self)
+        quitAction = QtWidgets.QAction(
+            self.style().standardIcon(QtWidgets.QStyle.SP_BrowserStop), "&Quit", self
+        )
         quitAction.setShortcut("Ctrl+Q")
         quitAction.setStatusTip("Quit/close interface")
         quitAction.triggered.connect(self.close)  # close goes to closeEvent
@@ -262,7 +279,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         available_blinksticks_dropdown = QtWidgets.QComboBox()
         available_blinksticks_dropdown.setStatusTip("Select visual stimulation device")
         # available_blinksticks_dropdown.setMaximumWidth(200)
-        available_blinksticks_dropdown.currentTextChanged.connect(self.set_new_blinkstick)
+        available_blinksticks_dropdown.currentTextChanged.connect(
+            self.set_new_blinkstick
+        )
         # > populate this dropdown with refresh function, so it can happen later outside init too
         self.available_blinksticks_dropdown = available_blinksticks_dropdown
         self.refresh_available_blinksticks()
@@ -280,14 +299,16 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         # Visual frequency selector: QDoubleSpinBox signal --> update visual parameters slot
         freqSpinBox = QtWidgets.QDoubleSpinBox(self)
-        freqSpinBox.setStatusTip("Pick light stimulation length (how long the light will stay on in seconds).")
+        freqSpinBox.setStatusTip(
+            "Pick light stimulation length (how long the light will stay on in seconds)."
+        )
         # freqSpinBox.setRange(0, 100)
         freqSpinBox.setMinimum(0)
         freqSpinBox.setMaximum(60)
         # freqSpinBox.setPrefix("Blink length: ")
         freqSpinBox.setSuffix(" seconds")
         freqSpinBox.setSingleStep(0.1)
-        freqSpinBox.valueChanged.connect(self.handleFreqChange)
+        freqSpinBox.valueChanged.connect(self.handle_freq_change)
         # freqSpinBox.textChanged.connect(self.value_changed_str)
         freqSpinBox.setValue(self.bstick_blink_freq)
 
@@ -326,17 +347,25 @@ class SmaccWindow(QtWidgets.QMainWindow):
         wavselectorLayout.addWidget(wavselectorLabel)
         wavselectorLayout.addWidget(wavselectorEdit)
         wavselectorLayout.addWidget(wavselectorButton)
-        wavselectorEdit.textChanged.connect(self.update_audio_source)  # For programmatic changes
+        wavselectorEdit.textChanged.connect(
+            self.update_audio_source
+        )  # For programmatic changes
         # wavselectorEdit.textEdited.connect(self.update_audio_source)  # For user changes
-        wavselectorEdit.editingFinished.connect(self.update_audio_source)  # For user changes
+        wavselectorEdit.editingFinished.connect(
+            self.update_audio_source
+        )  # For user changes
         self.wavselectorEdit = wavselectorEdit
 
         # Audio volume selector: QDoubleSpinBox signal --> update audio volume slot
         volumeSpinBox = QtWidgets.QDoubleSpinBox(self)
-        volumeSpinBox.setStatusTip("Select volume of audio stimulation (must be in range 0-1).")
+        volumeSpinBox.setStatusTip(
+            "Select volume of audio stimulation (must be in range 0-1)."
+        )
         # volumeSpinBox.setRange(0, 1)
         volumeSpinBox.setMinimum(0)
-        volumeSpinBox.setMaximum(1)  # Currently using QSoundEffect which only allows 0-1
+        volumeSpinBox.setMaximum(
+            1
+        )  # Currently using QSoundEffect which only allows 0-1
         # volumeSpinBox.setPrefix("Volume: ")
         # volumeSpinBox.setSuffix(" dB")
         volumeSpinBox.setSingleStep(0.01)
@@ -376,7 +405,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         available_microphones_dropdown.setStatusTip("Select microphone")
         available_microphones_dropdown.setPlaceholderText("No microphones were found.")
         # available_microphones_dropdown.setMaximumWidth(200)
-        available_microphones_dropdown.currentTextChanged.connect(self.set_new_microphone)
+        available_microphones_dropdown.currentTextChanged.connect(
+            self.set_new_microphone
+        )
         self.available_microphones_dropdown = available_microphones_dropdown
         self.refresh_available_microphones()
 
@@ -408,7 +439,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         available_noisespeakers_dropdown = QtWidgets.QComboBox()
         available_noisespeakers_dropdown.setStatusTip("Select speakers for noise")
         # available_noisespeakers_dropdown.setMaximumWidth(200)
-        available_noisespeakers_dropdown.currentTextChanged.connect(self.set_new_noisespeakers)
+        available_noisespeakers_dropdown.currentTextChanged.connect(
+            self.set_new_noisespeakers
+        )
         self.available_noisespeakers_dropdown = available_noisespeakers_dropdown
         self.refresh_available_noisespeakers()
 
@@ -416,7 +449,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         available_noisecolors = ["white", "pink", "brown"]
         available_noisecolors_dropdown = QtWidgets.QComboBox()
         available_noisecolors_dropdown.setStatusTip("Select speakers for noise")
-        available_noisecolors_dropdown.currentTextChanged.connect(self.set_new_noisecolor)
+        available_noisecolors_dropdown.currentTextChanged.connect(
+            self.set_new_noisecolor
+        )
         # available_noisecolors_dropdown.addItems(available_noisecolors)
         for color in available_noisecolors:
             pixmap = QtGui.QPixmap(16, 16)
@@ -427,10 +462,14 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         # Noise volume selector: QDoubleSpinBox signal --> update audio volume slot
         noisevolumeSpinBox = QtWidgets.QDoubleSpinBox(self)
-        noisevolumeSpinBox.setStatusTip("Select volume of noise (must be in range 0-1).")
+        noisevolumeSpinBox.setStatusTip(
+            "Select volume of noise (must be in range 0-1)."
+        )
         # noisevolumeSpinBox.setRange(0, 1)
         noisevolumeSpinBox.setMinimum(0)
-        noisevolumeSpinBox.setMaximum(1)  # Currently using QSoundEffect which only allows 0-1
+        noisevolumeSpinBox.setMaximum(
+            1
+        )  # Currently using QSoundEffect which only allows 0-1
         # noisevolumeSpinBox.setPrefix("Volume: ")
         # noisevolumeSpinBox.setSuffix(" dB")
         noisevolumeSpinBox.setSingleStep(0.01)
@@ -471,9 +510,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         eventsLayout.addWidget(eventmarkertitleLabel, 0, 0, 1, 2)
         n_events = len(COMMON_EVENT_TIPS)
         for i, (event, tip) in enumerate(COMMON_EVENT_TIPS.items()):
-            if i > n_events / 2:
-                row = 1
-                col += 1
             shortcut = str(i + 1)
             label = f"{event} ({shortcut})"
             button = QtWidgets.QPushButton(label, self)
@@ -489,7 +525,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
                 row -= halfsize
             col = 1 if i >= halfsize else 0
             eventsLayout.addWidget(button, row, col)
-
 
         ########################################################################
         # LOG VIEWER WIDGET
@@ -529,9 +564,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # # main window stuff
         # xywh = (50, 100, self.winWidth, self.winHeight) # xloc, yloc, width, height
         # self.setGeometry(*xywh)
-        # self.setMinimumSize(300, 200)    
+        # self.setMinimumSize(300, 200)
         self.setWindowTitle("SMACC")
-        windowIcon = self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_ToolBarHorizontalExtensionButton"))
+        windowIcon = self.style().standardIcon(
+            QtWidgets.QStyle.SP_ToolBarHorizontalExtensionButton
+        )
         self.setWindowIcon(windowIcon)
         # self.openAction = QAction(QIcon(":file-open.svg"), "&Open...", self)
         # self.setGeometry(100, 100, 600, 400)
@@ -550,7 +587,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # win.setDetailedText("detailshere")
         # win.setStyleSheet("QLabel{min-width:500 px; font-size: 24px;} QPushButton{ width:250px; font-size: 18px; }");
         # win.setGeometry(200, 150, 100, 40)
-        win.exec_()
+        win.exec()
 
     def handle_event_button(self):
         sender = self.sender()
@@ -560,17 +597,14 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def open_wav_selector(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self,
-            "Select a File", 
-            "C:\\Users\\malle\\Desktop\\", 
-            "Audio (*.wav)"
+            self, "Select a File", "C:\\Users\\malle\\Desktop\\", "Audio (*.wav)"
         )
         if filename:
             path = Path(filename)
             self.wavselectorEdit.setText(str(path))
 
-    def set_new_noisecolor(self, text):
-        """text is the noise color"""
+    def set_new_noisecolor(self, text: str) -> None:
+        """Restart noise playback when the noise color changes (``text``)."""
         # filepath = Path(".") / text
         # content = QtCore.QUrl.fromLocalFile(str(filepath))
         # self.noiseplayer.setSource(content)
@@ -578,14 +612,16 @@ class SmaccWindow(QtWidgets.QMainWindow):
             self.stop_noise()
             self.play_noise()
 
-    def set_new_speakers(self, text):
+    def set_new_speakers(self, text: str) -> None:
+        """Handle a new audio-stimulation speaker selection."""
         print(f"New speakers {text} selected!")
 
-    def set_new_noisespeakers(self, text):
+    def set_new_noisespeakers(self, text: str) -> None:
         """Text is the device name, with host api string appended to the end."""
         self.noiseplayer_device = text
 
-    def set_new_microphone(self, text):
+    def set_new_microphone(self, text: str) -> None:
+        """Handle a new microphone selection."""
         print(f"New microphone {text} selected!")
 
     ############################################################################
@@ -606,13 +642,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
         for device in devices:
             if device["hostapi"] == hostapi and device["max_output_channels"] > 0:
                 device_name = device["name"]
-                device_realm = device["hostapi"]
                 device_str = f"{device_name}, {HOST_API}"
                 self.available_noisespeakers_dropdown.addItem(device_str)
         if devices:
             self.available_noisespeakers_dropdown.setCurrentIndex(0)
         else:
-            self.showErrorPopup("No audio devices found.")            
+            self.show_error_popup("No audio devices found.")
 
     def refresh_available_speakers(self):
         """
@@ -621,24 +656,30 @@ class SmaccWindow(QtWidgets.QMainWindow):
         seealso: refresh_available_noisespeakers
         """
         self.available_speakers_dropdown.clear()
-        devices = QtMultimedia.QAudioDeviceInfo.availableDevices(QtMultimedia.QAudio.AudioOutput)
+        devices = QtMultimedia.QAudioDeviceInfo.availableDevices(
+            QtMultimedia.QAudio.AudioOutput
+        )
         devices = [d for d in devices if d.realm() != "default"]
         for device in devices:
             device_name = device.deviceName()
-            device_realm = device.realm()  # This differentiates the duplicate of default output
+            device_realm = (
+                device.realm()
+            )  # This differentiates the duplicate of default output
             device_str = f"{device_name} [{device_realm}]"
             self.available_speakers_dropdown.addItem(device_str)
         if devices:
             self.available_speakers_dropdown.setCurrentIndex(0)
         else:
-            self.showErrorPopup("No audio devices found.")            
+            self.show_error_popup("No audio devices found.")
 
     def refresh_available_microphones(self):
         """
         Populate the microphone dropdown menu with all available audio input devices.
         """
         self.available_microphones_dropdown.clear()
-        devices = QtMultimedia.QAudioDeviceInfo.availableDevices(QtMultimedia.QAudio.AudioInput)
+        devices = QtMultimedia.QAudioDeviceInfo.availableDevices(
+            QtMultimedia.QAudio.AudioInput
+        )
         # devices = self.microphone.audioInputs()
         # # don't know y each device shows up twice
         # devices = list(set(devices))
@@ -650,7 +691,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         if devices:
             self.available_microphones_dropdown.setCurrentIndex(0)
         else:
-            self.showErrorPopup("No microphones found.")
+            self.show_error_popup("No microphones found.")
 
     def set_new_blinkstick(self, text):
         """
@@ -681,20 +722,24 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.available_blinksticks_dropdown.clear()
         if blinkstick is None:
             devices = []
-            self.showErrorPopup("Use of visual stimulation requires `blinkstick` Python package. Unable to search for devices.")
+            self.show_error_popup(
+                "Use of visual stimulation requires `blinkstick` Python package. Unable to search for devices."
+            )
         else:
             devices = blinkstick.find_all()
         # Add each device to the dropdown menu
-        for i, d in enumerate(devices):
+        for d in devices:
             product_name = d.device.product_name
             serial_number = d.device.serial_number
             version_number = d.device.version_number
-            device_str = f"{product_name} v{version_number} (Serial No. {serial_number})"
+            device_str = (
+                f"{product_name} v{version_number} (Serial No. {serial_number})"
+            )
             self.available_blinksticks_dropdown.addItem(device_str)
         if devices:
             self.available_blinksticks_dropdown.setCurrentIndex(0)
         else:
-            self.showErrorPopup("No BlinkSticks found.")
+            self.show_error_popup("No BlinkSticks found.")
 
     def update_input_device(self):
         # if the current input is re-selected it still "changes" here
@@ -710,16 +755,16 @@ class SmaccWindow(QtWidgets.QMainWindow):
                 if device_name == new_device_name:
                     self.microphone.setAudioInput(new_device_name)
                     # menu_item.setChecked(True) # happens by default
-                else: # need to uncheck the one that WAS checked, so just hit all of them
+                else:  # need to uncheck the one that WAS checked, so just hit all of them
                     menu_item.setChecked(False)
             # if new_device_name == self.microphone.audioInput():
             #     action.setChecked(True)
             # self.log_info_msg(f"INPUT DEVICE UPDATE {new_device_name}")
-            # self.showErrorPopup("Not implemented yet")
+            # self.show_error_popup("Not implemented yet")
         elif not checked:
             # this is when someone tries to "unselect" an input.
             # can't be allowed, but pyqt will uncheck it, so recheck it
-            self.sender().setChecked(True) # recheck it
+            self.sender().setChecked(True)  # recheck it
             # for menu_item in self.input_menu_items:
             #     if menu_item.iconText() == self.sender().text():
             #         menu_item.setChecked(True)
@@ -752,7 +797,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.noise_stream = None
 
     @staticmethod
-    def noise_color_funcs(color):
+    def noise_color_funcs(color: str) -> Callable:
+        """Return the noise-generation function for the given color name."""
         noise_functions = {
             "pink": utils.pink_noise,
             "blue": utils.blue_noise,
@@ -762,7 +808,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         }
         return noise_functions[color]
 
-    def play_noise(self):
+    def play_noise(self) -> None:
+        """Start streaming the selected noise color to the selected device."""
         # self.noiseplayer.play()
         # device = self.noise_stream_device  # could also just set default sd device :/
         ## DO NOT actually need to connect dropdown to update device in this case.
@@ -770,6 +817,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         device = self.available_noisespeakers_dropdown.currentText()
         color = self.available_noisecolors_dropdown.currentText()
         rate = 44100
+
         # global white_noise
         # if color == "white":
         #     noise_data = white_noise(44100).reshape(-1, 1)
@@ -777,14 +825,21 @@ class SmaccWindow(QtWidgets.QMainWindow):
             """frames is the number of frames (rate)"""
             if status:
                 print(status)
-            outdata[:] = self.noise_color_funcs(color)(rate).reshape(-1, 1) * self.noise_stream_volume
+            outdata[:] = (
+                self.noise_color_funcs(color)(rate).reshape(-1, 1)
+                * self.noise_stream_volume
+            )
+
         # add end_callback
         if self.noise_stream is None:
-            self.noise_stream = sd.OutputStream(channels=1, blocksize=rate, callback=callback, device=device)
+            self.noise_stream = sd.OutputStream(
+                channels=1, blocksize=rate, callback=callback, device=device
+            )
             self.noise_stream.start()
         # could use with statement and threading
 
-    def stop_noise(self):
+    def stop_noise(self) -> None:
+        """Stop and tear down the active noise stream, if any."""
         # self.noiseplayer.stop()
         if self.noise_stream is not None:
             self.noise_stream.abort()
@@ -813,9 +868,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.microphone = microphone
 
     def record(self):
-        state = self.microphone.state() # recording / paused / stopped
-        status = self.microphone.status() # this has more options, like unavailable vs inactive
-        # if status == QtMultimedia.QMediaRecorder.RecordingStatus:
+        state = self.microphone.state()  # recording / paused / stopped
         if state == QtMultimedia.QMediaRecorder.StoppedState:
             ### start a new recording
             # generate filename
@@ -825,7 +878,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
             self.microphone.setOutputLocation(QtCore.QUrl.fromLocalFile(export_fname))
             self.microphone.record()
             # # filename = 'https://www.pachd.com/sfx/camera_click.wav'
-            # # fullpath = QtCore.QDir.current().absoluteFilePath(filename) 
+            # # fullpath = QtCore.QDir.current().absoluteFilePath(filename)
         elif state == QtMultimedia.QMediaRecorder.RecordingState:
             self.microphone.stop()
 
@@ -838,7 +891,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def start_or_stop_recording(self):
         self.record()  # This will start OR stop recording, whichever is not currently happening
         if self.sender().isChecked():
-            if (survey_url := self.surveyurlEdit.text()):
+            if survey_url := self.surveyurlEdit.text():
                 webbrowser.open(survey_url, new=1, autoraise=False)
             port_msg = "DreamReportStarted"
         else:
@@ -864,8 +917,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
             # self.colorpickerAction.setIcon(QtGui.QIcon(pixmap))
 
     # @QtCore.pyqtSlot()
-    def handleFreqChange(self, freq):
-        """Takes frequency as a float, coming from user selection. In Hz"""
+    def handle_freq_change(self, freq: float) -> None:
+        """Takes frequency as a float, coming from user selection. In Hz."""
         self.bstick_blink_freq = freq
         # portcode = self.portcodes["blink"]
         # port_msg = f"Set color: [{color}]"
@@ -878,6 +931,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot()
     def stimulate_visual(self):
         from time import sleep
+
         black = [0, 0, 0] * 32
         freq = self.bstick_blink_freq
         self.bstick.set_led_data(channel=0, data=self.bstick_led_data)
@@ -888,20 +942,22 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # self.send_event_marker(portcode, port_msg)
 
     def open_note_marker_dialogue(self):
-        text, ok = QtWidgets.QInputDialog.getText(self, "Text Input Dialog", "Custom note (no commas):")
+        text, ok = QtWidgets.QInputDialog.getText(
+            self, "Text Input Dialog", "Custom note (no commas):"
+        )
         # self.subject_id.setValidator(QtGui.QIntValidator(0, 999)) # must be a 3-digit number
-        if ok: # True of OK button was hit, False otherwise (cancel button)
+        if ok:  # True of OK button was hit, False otherwise (cancel button)
             portcode = self.portcodes["Note"]
             port_msg = f"Note [{text}]"
             self.send_event_marker(portcode, port_msg)
 
     @QtCore.pyqtSlot()
-    def handleLeft2RightButton(self):
+    def handle_left2right_button(self):
         self.rightList.addItem(self.leftList.takeItem(self.leftList.currentRow()))
         self.rightList.sortItems()
 
     @QtCore.pyqtSlot()
-    def handleRight2LeftButton(self):
+    def handle_right2left_button(self):
         self.leftList.addItem(self.rightList.takeItem(self.rightList.currentRow()))
         self.leftList.sortItems()
 
@@ -914,7 +970,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # can do the assrtions here with content.exists()
         self.wavplayer.setSource(content)
 
-    def update_audio_volume(self, value):
+    def update_audio_volume(self, value: float) -> None:
         """Method catching signals from audio stimulation volume spinbox
         NOT noise, audio cues.
 
@@ -923,7 +979,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.wavplayer.setVolume(value)  # 0 - 1
         # self.log_info_msg(f"VolumeSet - Cue {float_volume}")
 
-    def update_noise_volume(self, value):
+    def update_noise_volume(self, value: float) -> None:
         """Method catching signals from audio stimulation volume spinbox
         NOT noise, audio cues.
 
@@ -933,14 +989,19 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # self.log_info_msg(f"VolumeSet - Noise {float_volume}")
         self.noise_stream_volume = value
 
-    def changeInputGain(self, value):
-        self.showErrorPopup("Not implemented yet", "This should eventually allow for increasing mic input volume.")
+    def change_input_gain(self, value):
+        self.show_error_popup(
+            "Not implemented yet",
+            "This should eventually allow for increasing mic input volume.",
+        )
 
     def closeEvent(self, event):
         """customize exit.
         closeEvent is a default method used in pyqt to close, so this overrides it
         """
-        response = QtWidgets.QMessageBox.question(self, "Quit", "Do you want to quit/close SMACC?")
+        response = QtWidgets.QMessageBox.question(
+            self, "Quit", "Do you want to quit/close SMACC?"
+        )
         if response == QtWidgets.QMessageBox.Yes:
             if self.noise_stream:
                 self.noise_stream.close()
