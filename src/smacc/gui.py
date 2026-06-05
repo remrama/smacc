@@ -246,11 +246,20 @@ class SmaccWindow(QtWidgets.QMainWindow):
         quitAction.setStatusTip("Quit/close interface")
         quitAction.triggered.connect(self.close)  # close goes to closeEvent
 
+        # View -> Always on top: keep the control window above the dimmed bedroom screen.
+        alwaysOnTopAction = QtWidgets.QAction("Always on &top", self)
+        alwaysOnTopAction.setStatusTip("Keep the SMACC window above all other windows.")
+        alwaysOnTopAction.setCheckable(True)
+        alwaysOnTopAction.setChecked(True)
+        alwaysOnTopAction.toggled.connect(self.toggle_always_on_top)
+
         menuBar = self.menuBar()
         # menuBar.setNativeMenuBar(False)  # needed for pyqt5 on Mac
         helpMenu = menuBar.addMenu("&Help")
         helpMenu.addAction(aboutAction)
         helpMenu.addAction(quitAction)
+        viewMenu = menuBar.addMenu("&View")
+        viewMenu.addAction(alwaysOnTopAction)
 
         ########################################################################
         # TOOL BAR
@@ -372,11 +381,30 @@ class SmaccWindow(QtWidgets.QMainWindow):
         volumeSpinBox.valueChanged.connect(self.update_audio_volume)
         volumeSpinBox.setValue(0.2)
 
-        # Play button: QPushButton signal --> play function
+        # Loop toggle: when checked, the cue repeats until stopped.
+        loopCheckBox = QtWidgets.QCheckBox("Loop until stopped", self)
+        loopCheckBox.setStatusTip(
+            "Repeat the cue continuously until the Stop button is pressed."
+        )
+        loopCheckBox.toggled.connect(self.update_audio_loop)
+        self.loopCheckBox = loopCheckBox
+
+        # Play/Stop buttons: QPushButton signals --> play/stop functions
         playButton = QtWidgets.QPushButton("Play soundfile", self)
         playButton.setStatusTip("Play the selected sound file.")
         # playButton.setIcon(QtGui.QIcon("./color.png"))
         playButton.clicked.connect(self.stimulate_audio)
+        stopcueButton = QtWidgets.QPushButton("Stop", self)
+        stopcueButton.setStatusTip("Stop the currently playing cue.")
+        stopcueButton.clicked.connect(self.stop_audio)
+        playstopcueLayout = QtWidgets.QHBoxLayout()
+        playstopcueLayout.addWidget(playButton)
+        playstopcueLayout.addWidget(stopcueButton)
+
+        # Visible "playing/looping" indicator so a cue is never left running silently.
+        cueStatusLabel = QtWidgets.QLabel("■ stopped", self)
+        cueStatusLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.cueStatusLabel = cueStatusLabel
 
         # Compile them into a vertical layout
         audiostimLayout = QtWidgets.QFormLayout()
@@ -385,7 +413,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         audiostimLayout.addRow("Device:", available_speakers_dropdown)
         audiostimLayout.addRow("Volume:", volumeSpinBox)
         audiostimLayout.addRow(wavselectorLayout)
-        audiostimLayout.addRow(playButton)
+        audiostimLayout.addRow(loopCheckBox)
+        audiostimLayout.addRow(playstopcueLayout)
+        audiostimLayout.addRow(cueStatusLabel)
 
         # #### audio device list menu
         # audioMenu = menuBar.addMenu("&Audio")
@@ -573,7 +603,16 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # self.openAction = QAction(QIcon(":file-open.svg"), "&Open...", self)
         # self.setGeometry(100, 100, 600, 400)
         self.resize(1200, 500)
+        # Match the default-checked "Always on top" menu action.
+        self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
         self.show()
+
+    def toggle_always_on_top(self, enabled: bool) -> None:
+        """Toggle the window's always-on-top hint (from the View menu)."""
+        self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, enabled)
+        # Re-applying window flags hides the window on some platforms; re-show it.
+        self.show()
+        self.log_info_msg(f"Always-on-top {'enabled' if enabled else 'disabled'}")
 
     def show_about_popup(self):
         win = QtWidgets.QMessageBox()
@@ -597,7 +636,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def open_wav_selector(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Select a File", "C:\\Users\\malle\\Desktop\\", "Audio (*.wav)"
+            self, "Select a File", str(self.cues_directory), "Audio (*.wav)"
         )
         if filename:
             path = Path(filename)
@@ -784,7 +823,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # Default settings
         # player.setVolume(0)  # 0 to 1 -- Gets set already when parameter selector is made
         player.setLoopCount(1)
-        # player.playingChanged.connect(self.on_cuePlayingChange)
+        player.playingChanged.connect(self.on_cue_playing_change)
         self.wavplayer = player
 
     def init_noise_player(self):
@@ -927,6 +966,28 @@ class SmaccWindow(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot()
     def stimulate_audio(self):
         self.wavplayer.play()
+
+    @QtCore.pyqtSlot()
+    def stop_audio(self):
+        """Stop the currently playing/looping cue."""
+        self.wavplayer.stop()
+
+    def update_audio_loop(self, enabled: bool) -> None:
+        """Set the cue loop count from the loop checkbox."""
+        loop_count = QtMultimedia.QSoundEffect.Infinite if enabled else 1
+        self.wavplayer.setLoopCount(loop_count)
+
+    def on_cue_playing_change(self) -> None:
+        """Update the cue status indicator when playback starts/stops."""
+        if self.wavplayer.isPlaying():
+            looping = self.loopCheckBox.isChecked()
+            self.cueStatusLabel.setText(
+                "\U0001f501 looping" if looping else "▶ playing"
+            )
+            self.cueStatusLabel.setStyleSheet("color: red; font-weight: bold;")
+        else:
+            self.cueStatusLabel.setText("■ stopped")
+            self.cueStatusLabel.setStyleSheet("")
 
     @QtCore.pyqtSlot()
     def stimulate_visual(self):
