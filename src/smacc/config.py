@@ -24,4 +24,6 @@ PPORT_CODES = {
     "NoiseStarted": 206,
     "NoiseStopped": 207,
     "CueStopped": 208,
+    "IntercomStarted": 209,
+    "IntercomStopped": 210,
 }

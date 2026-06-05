@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import queue
 import shutil
 import time
 import webbrowser
@@ -14,7 +15,7 @@ import sounddevice as sd
 from pylsl import StreamInfo, StreamOutlet
 from PyQt5 import QtCore, QtGui, QtMultimedia, QtWidgets
 
-from smacc import bids, study, utils
+from smacc import audio, bids, study, utils
 
 from .config import (
     DEVELOPMENT_ID,
@@ -153,8 +154,15 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.init_audio_stimulation_setup()
         self.init_noise_player()
         self.init_microphone()
+        self.init_level_meter()
+        self.init_intercom()
 
         self.init_main_window()
+
+        # Catch the spacebar app-wide (any focus) for intercom push-to-talk.
+        app = QtWidgets.QApplication.instance()
+        if app is not None:
+            app.installEventFilter(self)
 
         init_msg = "Opened SMACC v" + VERSION
         self.log_info_msg(init_msg)
@@ -413,6 +421,30 @@ class SmaccWindow(QtWidgets.QMainWindow):
         volumeSpinBox.setValue(0.2)
         self.volumeSpinBox = volumeSpinBox
 
+        # Fade-in (attack) and fade-out (release) ramps, in seconds. Ramping the
+        # cue volume avoids an abrupt onset that could wake the participant (#22).
+        attackSpinBox = QtWidgets.QDoubleSpinBox(self)
+        attackSpinBox.setStatusTip(
+            "Fade-in time for the cue, in seconds (0 = instant)."
+        )
+        attackSpinBox.setRange(0, 60)
+        attackSpinBox.setSingleStep(0.1)
+        attackSpinBox.setSuffix(" seconds")
+        attackSpinBox.valueChanged.connect(self.update_cue_attack)
+        attackSpinBox.setValue(0.0)
+        self.attackSpinBox = attackSpinBox
+
+        releaseSpinBox = QtWidgets.QDoubleSpinBox(self)
+        releaseSpinBox.setStatusTip(
+            "Fade-out time when stopping the cue, in seconds (0 = instant)."
+        )
+        releaseSpinBox.setRange(0, 60)
+        releaseSpinBox.setSingleStep(0.1)
+        releaseSpinBox.setSuffix(" seconds")
+        releaseSpinBox.valueChanged.connect(self.update_cue_release)
+        releaseSpinBox.setValue(0.0)
+        self.releaseSpinBox = releaseSpinBox
+
         # Loop toggle: when checked, the cue repeats until stopped.
         loopCheckBox = QtWidgets.QCheckBox("Loop until stopped", self)
         loopCheckBox.setStatusTip(
@@ -444,6 +476,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         audiostimLayout.addRow(audiotitleLabel)
         audiostimLayout.addRow("Device:", available_speakers_dropdown)
         audiostimLayout.addRow("Volume:", volumeSpinBox)
+        audiostimLayout.addRow("Fade in:", attackSpinBox)
+        audiostimLayout.addRow("Fade out:", releaseSpinBox)
         audiostimLayout.addRow(wavselectorLayout)
         audiostimLayout.addRow(loopCheckBox)
         audiostimLayout.addRow(playstopcueLayout)
@@ -478,6 +512,46 @@ class SmaccWindow(QtWidgets.QMainWindow):
         micrecordButton.setCheckable(True)
         micrecordButton.clicked.connect(self.start_or_stop_recording)
 
+        # Live input level meter (#25): monitor microphone/room level in dBFS.
+        # Checkbox + bar share one row (label provided by the form layout).
+        monitorCheckBox = QtWidgets.QCheckBox(self)
+        monitorCheckBox.setStatusTip(
+            "Show the live input level from the default microphone, in dBFS."
+        )
+        monitorCheckBox.toggled.connect(self.toggle_level_monitor)
+        self.monitorCheckBox = monitorCheckBox
+
+        levelMeterBar = QtWidgets.QProgressBar(self)
+        levelMeterBar.setRange(0, 100)
+        levelMeterBar.setValue(0)
+        levelMeterBar.setTextVisible(True)
+        levelMeterBar.setFormat("")
+        self.levelMeterBar = levelMeterBar
+
+        levelLayout = QtWidgets.QHBoxLayout()
+        levelLayout.addWidget(monitorCheckBox)
+        levelLayout.addWidget(levelMeterBar)
+
+        # Intercom (#20): live experimenter-mic -> participant-output so the
+        # experimenter can talk to the participant. Toggle/spacebar; LSL markers.
+        # Output device the participant hears on (their speakers/headphones).
+        intercom_output_dropdown = QtWidgets.QComboBox()
+        intercom_output_dropdown.setStatusTip(
+            "Output device the participant hears the intercom on "
+            "(their speakers/headphones)."
+        )
+        self.intercom_output_dropdown = intercom_output_dropdown
+        self.refresh_intercom_outputs()
+
+        intercomButton = QtWidgets.QPushButton("Intercom (talk)", self)
+        intercomButton.setStatusTip(
+            "Click to latch the intercom on/off, or press and hold the spacebar to "
+            "talk (push-to-talk). Warning: risks feedback near open speakers."
+        )
+        intercomButton.setCheckable(True)
+        intercomButton.toggled.connect(self.toggle_intercom)
+        self.intercomButton = intercomButton
+
         # Survey selector: editable dropdown of named presets (or a typed-in URL).
         # The chosen survey opens in the browser when a dream report starts.
         surveyComboBox = QtWidgets.QComboBox(self)
@@ -499,6 +573,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         microphoneLayout.addRow("Device:", available_microphones_dropdown)
         microphoneLayout.addRow("Survey:", surveyComboBox)
         microphoneLayout.addRow("Play/Stop:", micrecordButton)
+        microphoneLayout.addRow("Show input level:", levelLayout)
+        microphoneLayout.addRow("To participant:", intercom_output_dropdown)
+        microphoneLayout.addRow("Intercom:", intercomButton)
 
         ########################################################################
         # NOISE PLAYER WIDGET
@@ -874,6 +951,10 @@ class SmaccWindow(QtWidgets.QMainWindow):
         player.setLoopCount(1)
         player.playingChanged.connect(self.on_cue_playing_change)
         self.wavplayer = player
+        # Fade (attack/release) durations in seconds; 0 == instant on/off.
+        self.cue_attack_s = 0.0
+        self.cue_release_s = 0.0
+        self._cue_fade_anim: QtCore.QPropertyAnimation | None = None
 
     def init_noise_player(self):
         """Create media player for noise files."""
@@ -932,6 +1013,209 @@ class SmaccWindow(QtWidgets.QMainWindow):
         if self.noise_stream is not None:
             self.noise_stream.abort()
             self.noise_stream = None
+
+    ############################################################################
+    # Input level meter (#25)
+    ############################################################################
+
+    def init_level_meter(self) -> None:
+        """Set up the input level meter stream and its refresh timer."""
+        self.meter_stream: sd.InputStream | None = None
+        self._input_level_db = audio.FLOOR_DBFS
+        self.meter_timer = QtCore.QTimer(self)
+        self.meter_timer.setInterval(50)  # ~20 Hz display refresh
+        self.meter_timer.timeout.connect(self.update_level_meter)
+
+    def toggle_level_monitor(self, enabled: bool) -> None:
+        """Start/stop monitoring the default input device's level."""
+        if enabled:
+            try:
+                self.meter_stream = sd.InputStream(
+                    channels=1, callback=self._meter_callback
+                )
+                self.meter_stream.start()
+            except Exception as exc:  # PortAudio errors, no device, etc.
+                self.show_error_popup("Could not open input for monitoring.", str(exc))
+                self.monitorCheckBox.setChecked(False)
+                self.meter_stream = None
+                return
+            self.meter_timer.start()
+        else:
+            self.meter_timer.stop()
+            if self.meter_stream is not None:
+                self.meter_stream.abort()
+                self.meter_stream.close()
+                self.meter_stream = None
+            self.levelMeterBar.setValue(0)
+            self.levelMeterBar.setFormat("")
+
+    def _meter_callback(self, indata, frames, time, status) -> None:
+        """sounddevice callback (audio thread): stash the latest input level."""
+        self._input_level_db = audio.rms_dbfs(indata)
+
+    def update_level_meter(self) -> None:
+        """GUI-thread timer: render the latest level onto the meter bar."""
+        db = self._input_level_db
+        self.levelMeterBar.setValue(audio.dbfs_to_meter(db))
+        self.levelMeterBar.setFormat(f"{db:.0f} dBFS")
+
+    ############################################################################
+    # Intercom: live mic -> speaker routing (#20)
+    ############################################################################
+
+    def init_intercom(self) -> None:
+        """Set up intercom (live experimenter-mic -> participant-output) state.
+
+        Uses two independent streams (mic in, participant out) bridged by a queue
+        and a resampler, so the two devices need not share a sample rate.
+        """
+        self.intercom_input_stream: sd.InputStream | None = None
+        self.intercom_output_stream: sd.OutputStream | None = None
+        self._intercom_queue: queue.Queue | None = None
+        self._intercom_resampler: audio.LinearResampler | None = None
+        self._intercom_push_to_talk = False  # True while held via spacebar
+
+    def refresh_intercom_outputs(self) -> None:
+        """Populate the intercom output dropdown with available output devices.
+
+        seealso: refresh_available_noisespeakers
+        """
+        self.intercom_output_dropdown.clear()
+        host_api_name = "Windows WASAPI"
+        host_api_names = [api["name"] for api in sd.query_hostapis()]
+        hostapi = (
+            host_api_names.index(host_api_name)
+            if host_api_name in host_api_names
+            else None
+        )
+        for device in sd.query_devices():
+            if device["max_output_channels"] <= 0:
+                continue
+            if hostapi is not None and device["hostapi"] != hostapi:
+                continue
+            suffix = f", {host_api_name}" if hostapi is not None else ""
+            self.intercom_output_dropdown.addItem(f"{device['name']}{suffix}")
+        if self.intercom_output_dropdown.count():
+            self.intercom_output_dropdown.setCurrentIndex(0)
+
+    def toggle_intercom(self, enabled: bool) -> None:
+        """Start/stop routing the experimenter mic to the participant output.
+
+        Two single-direction streams (each at its device's native rate) bridged by
+        a queue + resampler, so mismatched sample rates are fine. Logged and marked
+        in the EEG record via LSL. Warning: a mic near open speakers risks feedback.
+        """
+        if enabled:
+            # Default input (experimenter mic); selected output (participant hears).
+            output_device = self.intercom_output_dropdown.currentText() or None
+            try:
+                in_rate = int(sd.query_devices(kind="input")["default_samplerate"])
+                out_info = (
+                    sd.query_devices(output_device, "output")
+                    if output_device
+                    else sd.query_devices(kind="output")
+                )
+                out_rate = int(out_info["default_samplerate"])
+                self._intercom_queue = queue.Queue(maxsize=32)
+                self._intercom_resampler = audio.LinearResampler(in_rate, out_rate)
+                self.intercom_input_stream = sd.InputStream(
+                    samplerate=in_rate,
+                    channels=1,
+                    callback=self._intercom_in_callback,
+                )
+                self.intercom_output_stream = sd.OutputStream(
+                    samplerate=out_rate,
+                    channels=1,
+                    device=output_device,
+                    callback=self._intercom_out_callback,
+                )
+                self.intercom_input_stream.start()
+                self.intercom_output_stream.start()
+            except Exception as exc:  # PortAudio errors, no device, etc.
+                self._stop_intercom_streams()
+                self.show_error_popup("Could not start intercom.", str(exc))
+                self.intercomButton.setChecked(False)
+                return
+            self.send_event_marker(
+                self.portcodes["IntercomStarted"], "Intercom unmuted (talking)"
+            )
+        elif self._stop_intercom_streams():
+            self.send_event_marker(
+                self.portcodes["IntercomStopped"], "Intercom remuted"
+            )
+
+    def _stop_intercom_streams(self) -> bool:
+        """Tear down both intercom streams; return True if any were running."""
+        stopped = False
+        for attr in ("intercom_input_stream", "intercom_output_stream"):
+            stream = getattr(self, attr)
+            if stream is not None:
+                stream.abort()
+                stream.close()
+                setattr(self, attr, None)
+                stopped = True
+        self._intercom_queue = None
+        self._intercom_resampler = None
+        return stopped
+
+    def _intercom_in_callback(self, indata, frames, time, status) -> None:
+        """Mic stream (audio thread): queue captured frames for the output stream."""
+        if self._intercom_queue is not None:
+            try:
+                self._intercom_queue.put_nowait(indata[:, 0].copy())
+            except queue.Full:
+                pass  # output not keeping up; drop a block rather than block
+
+    def _intercom_out_callback(self, outdata, frames, time, status) -> None:
+        """Output stream (audio thread): resample queued mic frames to the device."""
+        if self._intercom_queue is not None and self._intercom_resampler is not None:
+            while True:
+                try:
+                    self._intercom_resampler.push(self._intercom_queue.get_nowait())
+                except queue.Empty:
+                    break
+            outdata[:, 0] = self._intercom_resampler.pull(frames)
+        else:
+            outdata.fill(0)
+
+    @staticmethod
+    def _is_text_widget_focused() -> bool:
+        """True if a text-entry widget has focus (so space should type, not talk)."""
+        widget = QtWidgets.QApplication.focusWidget()
+        return isinstance(
+            widget,
+            (
+                QtWidgets.QLineEdit,
+                QtWidgets.QAbstractSpinBox,
+                QtWidgets.QTextEdit,
+                QtWidgets.QPlainTextEdit,
+            ),
+        )
+
+    def eventFilter(self, obj, event) -> bool:
+        """Application-wide spacebar push-to-talk for the intercom.
+
+        Installed on the QApplication so it sees the spacebar regardless of which
+        widget has focus (a plain keyPressEvent only fires when the window itself
+        is focused). Hold space to talk, release to stop; auto-repeat is swallowed
+        so the intercom never rapidly toggles. Space passes through untouched while
+        a text-entry widget is focused, so typing (notes, URLs) still works.
+        """
+        etype = event.type()
+        if (
+            etype in (QtCore.QEvent.KeyPress, QtCore.QEvent.KeyRelease)
+            and event.key() == QtCore.Qt.Key_Space
+            and not self._is_text_widget_focused()
+        ):
+            if etype == QtCore.QEvent.KeyPress:
+                if not event.isAutoRepeat() and not self.intercomButton.isChecked():
+                    self._intercom_push_to_talk = True
+                    self.intercomButton.setChecked(True)  # -> toggle_intercom(True)
+            elif not event.isAutoRepeat() and self._intercom_push_to_talk:
+                self._intercom_push_to_talk = False
+                self.intercomButton.setChecked(False)  # -> toggle_intercom(False)
+            return True  # consume so the focused widget doesn't also see space
+        return super().eventFilter(obj, event)
 
     def init_microphone(self):
         """initialize the microphone/recorder to collect dream reports
@@ -995,6 +1279,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
             "cue_file": self.wavselectorEdit.text(),
             "cue_volume": self.volumeSpinBox.value(),
             "cue_loop": self.loopCheckBox.isChecked(),
+            "cue_attack": self.attackSpinBox.value(),
+            "cue_release": self.releaseSpinBox.value(),
             "noise_volume": self.noisevolumeSpinBox.value(),
             "noise_color": self.available_noisecolors_dropdown.currentText(),
             "blink_color": self.bstick_hexcode,
@@ -1013,6 +1299,10 @@ class SmaccWindow(QtWidgets.QMainWindow):
             self.wavselectorEdit.setText(cue)
         if (v := state.get("cue_volume")) is not None:
             self.volumeSpinBox.setValue(float(v))
+        if (v := state.get("cue_attack")) is not None:
+            self.attackSpinBox.setValue(float(v))
+        if (v := state.get("cue_release")) is not None:
+            self.releaseSpinBox.setValue(float(v))
         self.loopCheckBox.setChecked(bool(state.get("cue_loop", False)))
         if (v := state.get("noise_volume")) is not None:
             self.noisevolumeSpinBox.setValue(float(v))
@@ -1160,12 +1450,44 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot()
     def stimulate_audio(self):
-        self.wavplayer.play()
+        """Play the cue, ramping volume up over the attack time if set."""
+        target = self.volumeSpinBox.value()
+        if self.cue_attack_s > 0:
+            self.wavplayer.setVolume(0.0)
+            self.wavplayer.play()
+            self._fade_volume(0.0, target, self.cue_attack_s)
+        else:
+            self.wavplayer.setVolume(target)
+            self.wavplayer.play()
 
     @QtCore.pyqtSlot()
     def stop_audio(self):
-        """Stop the currently playing/looping cue."""
-        self.wavplayer.stop()
+        """Stop the cue, ramping volume down over the release time if set."""
+        if self.cue_release_s > 0 and self.wavplayer.isPlaying():
+            anim = self._fade_volume(self.wavplayer.volume(), 0.0, self.cue_release_s)
+            anim.finished.connect(self.wavplayer.stop)
+        else:
+            self.wavplayer.stop()
+
+    def _fade_volume(
+        self, start: float, end: float, seconds: float
+    ) -> QtCore.QPropertyAnimation:
+        """Animate the cue player's volume from ``start`` to ``end``."""
+        anim = QtCore.QPropertyAnimation(self.wavplayer, b"volume", self)
+        anim.setDuration(int(seconds * 1000))
+        anim.setStartValue(float(start))
+        anim.setEndValue(float(end))
+        anim.start()
+        self._cue_fade_anim = anim  # keep a reference so it isn't garbage-collected
+        return anim
+
+    def update_cue_attack(self, value: float) -> None:
+        """Set the cue fade-in (attack) time in seconds."""
+        self.cue_attack_s = value
+
+    def update_cue_release(self, value: float) -> None:
+        """Set the cue fade-out (release) time in seconds."""
+        self.cue_release_s = value
 
     def update_audio_loop(self, enabled: bool) -> None:
         """Set the cue loop count from the loop checkbox."""
@@ -1261,6 +1583,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         if response == QtWidgets.QMessageBox.Yes:
             if self.noise_stream:
                 self.noise_stream.close()
+            if self.meter_stream is not None:
+                self.meter_stream.close()
+            self._stop_intercom_streams()
             self.log_info_msg("Program closed")
             event.accept()
             # self.closed.emit()
