@@ -1,1 +1,1 @@
-Refer to [CLAUDE](../CLAUDE.md) for instructions.
+Refer to [AGENTS.md](../AGENTS.md) for instructions.

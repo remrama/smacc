@@ -1,1 +1,1 @@
-Refer to [README](./README.md) for project information.
+Refer to [AGENTS.md](./AGENTS.md) for instructions.
