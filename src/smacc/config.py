@@ -9,6 +9,10 @@ DEFAULT_VOLUME = 0.5
 
 SURVEY_URL = None
 
+# Named survey presets shown in the dream-recording panel's survey dropdown.
+# Maps a display label to its URL. Extend per study (persisted via study.json).
+SURVEY_OPTIONS: dict[str, str] = {}
+
 PPORT_ADDRESS = "0x3FD8"
 PPORT_CODES = {
     "TriggerInitialization": 200,

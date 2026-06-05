@@ -15,7 +15,13 @@ from PyQt5 import QtCore, QtGui, QtMultimedia, QtWidgets
 
 from smacc import utils
 
-from .config import DEVELOPMENT_ID, PPORT_ADDRESS, PPORT_CODES, VERSION
+from .config import (
+    DEVELOPMENT_ID,
+    PPORT_ADDRESS,
+    PPORT_CODES,
+    SURVEY_OPTIONS,
+    VERSION,
+)
 
 try:
     from blinkstick import blinkstick
@@ -446,15 +452,26 @@ class SmaccWindow(QtWidgets.QMainWindow):
         micrecordButton.setCheckable(True)
         micrecordButton.clicked.connect(self.start_or_stop_recording)
 
-        surveyurlEdit = QtWidgets.QLineEdit(self)
-        self.surveyurlEdit = surveyurlEdit
+        # Survey selector: editable dropdown of named presets (or a typed-in URL).
+        # The chosen survey opens in the browser when a dream report starts.
+        surveyComboBox = QtWidgets.QComboBox(self)
+        surveyComboBox.setEditable(True)
+        surveyComboBox.setInsertPolicy(QtWidgets.QComboBox.NoInsert)
+        surveyComboBox.setStatusTip(
+            "Survey opened in the browser when a dream report starts. "
+            "Pick a preset or type a URL (leave blank for none)."
+        )
+        surveyComboBox.addItem("", "")  # Blank default == no survey.
+        for label, url in SURVEY_OPTIONS.items():
+            surveyComboBox.addItem(label, url)
+        self.surveyComboBox = surveyComboBox
 
         microphoneLayout = QtWidgets.QFormLayout()
         microphoneLayout.setLabelAlignment(QtCore.Qt.AlignRight)
         microphoneLayout.setLabelAlignment(QtCore.Qt.AlignRight)
         microphoneLayout.addRow(recordingtitleLabel)
         microphoneLayout.addRow("Device:", available_microphones_dropdown)
-        microphoneLayout.addRow("Survey URL:", surveyurlEdit)
+        microphoneLayout.addRow("Survey:", surveyComboBox)
         microphoneLayout.addRow("Play/Stop:", micrecordButton)
 
         ########################################################################
@@ -927,10 +944,21 @@ class SmaccWindow(QtWidgets.QMainWindow):
         elif state == QtMultimedia.QMediaRecorder.RecordingState:
             self.logviewList.setStyleSheet("border: 3px solid red;")
 
+    def current_survey_url(self) -> str:
+        """Resolve the survey URL from the dropdown.
+
+        A selected preset stores its URL as item data; a typed-in entry has no
+        data, so fall back to the raw text. Empty == no survey.
+        """
+        data = self.surveyComboBox.currentData()
+        if data:
+            return str(data)
+        return self.surveyComboBox.currentText().strip()
+
     def start_or_stop_recording(self):
         self.record()  # This will start OR stop recording, whichever is not currently happening
         if self.sender().isChecked():
-            if survey_url := self.surveyurlEdit.text():
+            if survey_url := self.current_survey_url():
                 webbrowser.open(survey_url, new=1, autoraise=False)
             port_msg = "DreamReportStarted"
         else:
