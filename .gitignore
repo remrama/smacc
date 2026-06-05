@@ -4,3 +4,4 @@ dist/
 build/
 *.spec
 .venv/
+.*_cache/
