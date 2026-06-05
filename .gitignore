@@ -3,3 +3,4 @@ smacc.egg-info/
 dist/
 build/
 *.spec
+.venv/
