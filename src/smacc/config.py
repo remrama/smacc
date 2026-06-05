@@ -1,5 +1,8 @@
+"""Configuration constants for SMACC."""
 
-VERSION = "0.0.6"
+from smacc import __version__
+
+VERSION = __version__
 
 DEVELOPMENT_ID = 999
 DEFAULT_VOLUME = 0.5

@@ -1,0 +1,25 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --extra dev
+      - name: Build SMACC.exe
+        run: uv run pyinstaller entry.py --name SMACC --onefile --noconsole
+      - name: Attach exe to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/SMACC.exe
