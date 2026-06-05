@@ -163,7 +163,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def show_error_popup(self, short_msg, long_msg=None):
         # self.log_info_msg("ERROR")
-        win = QtWidgets.QMessageBox()
+        win = QtWidgets.QMessageBox(self)  # parent to self so it stacks above
         # # win.setIcon(QtWidgets.QMessageBox.Question)
         # win.setWindowIcon(QtGui.QIcon("./thumb-small.png"))
         # win.setIconPixmap(QtGui.QPixmap("./thumb.png"))
@@ -268,11 +268,14 @@ class SmaccWindow(QtWidgets.QMainWindow):
         )
         exportEventsAction.triggered.connect(self.export_events_bids)
 
-        # View -> Always on top: keep the control window above the dimmed bedroom screen.
+        # View -> Always on top: keep the control window above other apps. Off by
+        # default; app dialogs are parented to the window so they still stack above it.
         alwaysOnTopAction = QtWidgets.QAction("Always on &top", self)
-        alwaysOnTopAction.setStatusTip("Keep the SMACC window above all other windows.")
+        alwaysOnTopAction.setStatusTip(
+            "Keep the SMACC window above other applications."
+        )
         alwaysOnTopAction.setCheckable(True)
-        alwaysOnTopAction.setChecked(True)
+        alwaysOnTopAction.setChecked(False)
         alwaysOnTopAction.toggled.connect(self.toggle_always_on_top)
 
         menuBar = self.menuBar()
@@ -644,8 +647,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # self.openAction = QAction(QIcon(":file-open.svg"), "&Open...", self)
         # self.setGeometry(100, 100, 600, 400)
         self.resize(1200, 500)
-        # Match the default-checked "Always on top" menu action.
-        self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
+        # Always-on-top is off by default (toggle via View -> Always on top).
         self.show()
 
     def toggle_always_on_top(self, enabled: bool) -> None:
@@ -656,7 +658,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.log_info_msg(f"Always-on-top {'enabled' if enabled else 'disabled'}")
 
     def show_about_popup(self):
-        win = QtWidgets.QMessageBox()
+        win = QtWidgets.QMessageBox(self)  # parent to self so it stacks above
         # win.setIcon(QtWidgets.QMessageBox.Question)
         # win.setWindowIcon(QtGui.QIcon("./thumb-small.png"))
         # win.setIconPixmap(QtGui.QPixmap("./thumb.png"))
@@ -1138,7 +1140,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot()
     def pick_color(self):
-        color = QtWidgets.QColorDialog.getColor()
+        # Parent to self and seed with the current color so the dialog stacks
+        # above the main window (even when always-on-top is enabled).
+        color = QtWidgets.QColorDialog.getColor(QtGui.QColor(self.bstick_hexcode), self)
         if color.isValid():
             r, g, b, _ = color.getRgb()
             self.set_blink_color(r, g, b)
