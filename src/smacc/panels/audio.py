@@ -8,7 +8,6 @@ whatever was playing); fade-in/out is shared at the panel level.
 
 from __future__ import annotations
 
-import shutil
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
@@ -348,25 +347,6 @@ class AudioCueWindow(ModalityWindow):
         if (v := cue.get("volume")) is not None:
             slot.volumeSpinBox.setValue(float(v))
         slot.loopCheckBox.setChecked(bool(cue.get("loop", False)))
-
-    def relativize_files(self, state: dict, study_dir: Path) -> None:
-        """Copy each slot's cue file into the study folder, storing basenames."""
-        for cue in state.get("cues", []):
-            src = cue.get("file")
-            if src and Path(src).is_file():
-                dest = study_dir / Path(src).name
-                if Path(src).resolve() != dest.resolve():
-                    shutil.copy2(src, dest)
-                cue["file"] = Path(src).name  # store basename, resolve on load
-
-    def resolve_files(self, state: dict, study_dir: Path) -> None:
-        """Resolve bundled slot basenames back to absolute paths under study_dir."""
-        for cue in state.get("cues", []):
-            src = cue.get("file")
-            if src and not Path(src).is_absolute():
-                candidate = study_dir / src
-                if candidate.is_file():
-                    cue["file"] = str(candidate)
 
     def cleanup(self) -> None:
         for slot in self.slots:

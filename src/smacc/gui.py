@@ -397,7 +397,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
             panel.apply_state(state)
 
     def save_study(self) -> None:
-        """Prompt for a study folder, copy the cue into it, and write study.json."""
+        """Prompt for a study folder and write study.json.
+
+        Cue/audio files are referenced by their existing paths (not copied); a
+        richer, portable config format is planned (see #18).
+        """
         folder = QtWidgets.QFileDialog.getExistingDirectory(
             self, "Select a study folder", str(data_directory)
         )
@@ -405,10 +409,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
             return
         study_dir = Path(folder)
         state = self.gather_study_state()
-        # Let each panel bundle its files into the study folder (copy + rewrite
-        # to basenames) so the study.json is portable.
-        for panel in self.panels.values():
-            panel.relativize_files(state, study_dir)
         try:
             study.save_study(study_dir / "study.json", state)
         except OSError as exc:
@@ -417,7 +417,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.session.log_info_msg(f"Saved study to {study_dir}")
 
     def load_study(self) -> None:
-        """Prompt for a study.json and apply it, resolving the bundled cue file."""
+        """Prompt for a study.json and apply it to the panels."""
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, "Load study", str(data_directory), "Study (study.json)"
         )
@@ -429,9 +429,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         except (OSError, ValueError) as exc:
             self.show_error_popup("Could not load study.", str(exc))
             return
-        # Let each panel resolve its bundled (basename) files relative to the folder.
-        for panel in self.panels.values():
-            panel.resolve_files(state, study_path.parent)
         self.apply_study_state(state)
         self.session.log_info_msg(f"Loaded study from {study_path}")
 
