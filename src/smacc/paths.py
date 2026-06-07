@@ -13,6 +13,9 @@ if getattr(sys, "frozen", False):
 else:
     _asset_dir = Path(__file__).resolve().parent / "assets"
 LOGO_PATH = _asset_dir / "icon.png"
+# Demo cue files shipped with SMACC (resolved the same way as the icon above);
+# copied into the user's cues directory on first launch.
+BUNDLED_CUES_DIR = _asset_dir / "cues"
 
 # Define directories.
 data_directory = utils.get_data_directory()

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 import soundfile as sf
@@ -94,3 +96,73 @@ def test_ensure_wav_reuses_cached_conversion(tmp_path):
     second = utils.ensure_wav(flac_path, cache_dir)
     assert second == first
     assert second.stat().st_mtime_ns == mtime  # cache hit, not re-decoded
+
+
+def test_generate_demo_cues_writes_playable_wavs(tmp_path):
+    paths = utils.generate_demo_cues(tmp_path)
+    assert len(paths) == len(utils.DEMO_CUES)
+    for path in paths:
+        assert path.parent == tmp_path
+        assert path.name.startswith("demo-")
+        assert path.suffix == ".wav"
+        rate, data = read(path)
+        assert rate == utils.DEMO_RATE
+        assert data.dtype == np.int16
+        assert data.shape[0] > 0
+        assert np.all(np.isfinite(data))
+
+
+def test_seed_demo_cues_copies_bundled_and_fills_gaps(tmp_path):
+    bundled = tmp_path / "bundled"
+    bundled.mkdir()
+    rate = 8000
+    tone = utils.note(freq=440, duration=1, amp=1e4, rate=rate)
+    write(bundled / "demo-chord.wav", rate, tone)  # a shipped synth demo
+    write(bundled / "demo-birdsong.wav", rate, tone)  # a user-supplied clip
+    cues = tmp_path / "cues"
+    utils.seed_demo_cues(cues, bundled)
+    assert (cues / "demo-chord.wav").exists()  # bundled copied
+    assert (cues / "demo-birdsong.wav").exists()  # bundled (non-synth) copied
+    for name in utils.DEMO_CUES:  # synth demos absent from the bundle are generated
+        assert (cues / name).exists()
+
+
+def test_seed_demo_cues_generates_without_a_bundle(tmp_path):
+    cues = tmp_path / "cues"
+    utils.seed_demo_cues(cues, tmp_path / "missing")  # bundled dir does not exist
+    for name in utils.DEMO_CUES:
+        assert (cues / name).exists()
+
+
+def test_seed_demo_cues_coexists_with_user_files_and_restores(tmp_path):
+    cues = tmp_path / "cues"
+    cues.mkdir()
+    rate = 8000
+    write(cues / "mysong.wav", rate, utils.note(440, 1, 1e4, rate))
+    user_bytes = (cues / "mysong.wav").read_bytes()
+    utils.generate_demo_cues(cues)  # all demos present
+    kept = cues / "demo-chord.wav"
+    kept_bytes = kept.read_bytes()
+    (cues / "demo-chime.wav").unlink()  # user deleted one demo
+    utils.seed_demo_cues(cues, tmp_path / "missing")
+    assert (cues / "mysong.wav").read_bytes() == user_bytes  # user file untouched
+    assert (cues / "demo-chime.wav").exists()  # deleted demo restored
+    assert kept.read_bytes() == kept_bytes  # existing demo not overwritten
+
+
+def test_committed_demo_assets_match_generator():
+    """The committed demo WAVs must not drift from the generator that made them."""
+    assets_dir = (
+        Path(__file__).resolve().parents[1] / "src" / "smacc" / "assets" / "cues"
+    )
+    for name, synth in utils.DEMO_CUES.items():
+        committed = assets_dir / name
+        assert committed.is_file(), f"missing committed demo asset: {name}"
+        rate, data = read(committed)
+        expected = synth(utils.DEMO_RATE)
+        assert rate == utils.DEMO_RATE
+        assert data.shape == expected.shape
+        # Tolerance: np.sin/np.exp rounding can differ by ~1 LSB across platforms,
+        # but a real edit to a synth function diverges by far more than this.
+        diff = np.abs(data.astype(np.int64) - expected.astype(np.int64))
+        assert diff.max() <= 16

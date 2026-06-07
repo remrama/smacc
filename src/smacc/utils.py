@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import shutil
 from collections.abc import Callable
 from os import environ
 from pathlib import Path
@@ -11,6 +13,8 @@ import soundfile as sf
 from scipy.io.wavfile import write
 
 _WAV_SUFFIXES = {".wav", ".wave"}
+AUDIO_SUFFIXES = {".wav", ".wave", ".mp3", ".flac", ".ogg", ".oga", ".aif", ".aiff"}
+DEMO_RATE = 44100
 
 
 def get_data_directory() -> Path:
@@ -99,21 +103,88 @@ def pink_noise(f):
     return 1 / np.where(f == 0, float("inf"), np.sqrt(f))
 
 
-def generate_test_cue_file() -> None:
-    """Generate a short multi-tone test cue and save it to the cues directory."""
-    data_directory = get_data_directory()
-    cues_directory = data_directory / "cues"
-    cues_directory.mkdir(exist_ok=True)
+def _enveloped(
+    samples: np.ndarray, rate: int, *, fade: float = 0.01, decay: bool = False
+) -> np.ndarray:
+    """Apply a short fade in/out (and optional exponential decay) to avoid clicks."""
+    n = samples.shape[0]
+    env = np.exp(-3.0 * np.linspace(0, 1, n)) if decay else np.ones(n)
+    fade_n = min(int(fade * rate), n // 2)
+    if fade_n > 0:
+        ramp = np.linspace(0.0, 1.0, fade_n)
+        env[:fade_n] *= ramp
+        env[-fade_n:] *= ramp[::-1]
+    return np.clip(samples * env, -32768, 32767).astype(np.int16)
+
+
+def _demo_chord(rate: int) -> np.ndarray:
+    """A C-E-G arpeggio that resolves into a chord (the original test cue)."""
     duration = 1
     amp = 1e4
-    rate = 44100
-    tone0 = note(0, duration, amp, rate)  # silence
-    tone1 = note(261.63, duration, amp, rate)  # C4
-    tone2 = note(329.63, duration, amp, rate)  # E4
-    tone3 = note(392.00, duration, amp, rate)  # G4
-    seq1 = np.concatenate((tone1, tone0, tone0, tone0, tone1), axis=0)
-    seq2 = np.concatenate((tone0, tone2, tone0, tone0, tone2), axis=0)
-    seq3 = np.concatenate((tone0, tone0, tone3, tone0, tone3), axis=0)
-    song = seq1 + seq2 + seq3
-    export_path = cues_directory / "song.wav"
-    write(export_path, 44100, song)
+    silence = note(0, duration, amp, rate)
+    c4 = note(261.63, duration, amp, rate)
+    e4 = note(329.63, duration, amp, rate)
+    g4 = note(392.00, duration, amp, rate)
+    seq1 = np.concatenate((c4, silence, silence, silence, c4))
+    seq2 = np.concatenate((silence, e4, silence, silence, e4))
+    seq3 = np.concatenate((silence, silence, g4, silence, g4))
+    song = seq1.astype(np.int32) + seq2.astype(np.int32) + seq3.astype(np.int32)
+    return np.clip(song, -32768, 32767).astype(np.int16)
+
+
+def _demo_chime(rate: int) -> np.ndarray:
+    """A bell-like tone with an exponential decay."""
+    return _enveloped(note(880.0, 1.5, 1.2e4, rate), rate, fade=0.005, decay=True)
+
+
+def _demo_alert(rate: int) -> np.ndarray:
+    """A two-tone alternating alert."""
+    amp = 1e4
+    high = note(1000.0, 0.12, amp, rate)
+    low = note(800.0, 0.12, amp, rate)
+    pattern = np.concatenate([high, low, high, low, high, low])
+    return _enveloped(pattern, rate, fade=0.005)
+
+
+# Built-in demo cues, keyed by their ``demo-`` filename so they stay distinct from
+# (and never clobber) a user's own cue files. Used both to pre-render the bundled
+# assets and to regenerate on the fly when a demo is missing.
+DEMO_CUES: dict[str, Callable[[int], np.ndarray]] = {
+    "demo-chord.wav": _demo_chord,
+    "demo-chime.wav": _demo_chime,
+    "demo-alert.wav": _demo_alert,
+}
+
+
+def generate_demo_cues(dest_dir: Path) -> list[Path]:
+    """Synthesize the built-in demo cues into ``dest_dir`` as PCM-16 WAVs."""
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    paths: list[Path] = []
+    for name, synth in DEMO_CUES.items():
+        path = dest_dir / name
+        write(path, DEMO_RATE, synth(DEMO_RATE))
+        paths.append(path)
+    return paths
+
+
+def seed_demo_cues(cues_dir: Path, bundled_dir: Path) -> None:
+    """Ensure the demo cues exist in ``cues_dir`` (best-effort; never fatal).
+
+    Copies any shipped demo file missing from ``cues_dir`` (restoring a deleted
+    demo and adding bundled clips), then synthesizes any built-in demo still
+    absent. Existing files are never overwritten, so a user's own cues -- and any
+    demos they choose to keep -- are left untouched.
+    """
+    try:
+        cues_dir.mkdir(parents=True, exist_ok=True)
+        if bundled_dir.is_dir():
+            for src in sorted(bundled_dir.iterdir()):
+                dest = cues_dir / src.name
+                if src.suffix.lower() in AUDIO_SUFFIXES and not dest.exists():
+                    shutil.copy2(src, dest)
+        for name, synth in DEMO_CUES.items():
+            dest = cues_dir / name
+            if not dest.exists():
+                write(dest, DEMO_RATE, synth(DEMO_RATE))
+    except Exception:
+        logging.getLogger("smacc").exception("Could not seed demo cues")

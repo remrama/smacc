@@ -26,7 +26,8 @@ Build the standalone Windows executable:
 ```sh
 uv run pyinstaller entry.py --name SMACC --onefile --noconsole \
   --icon src/smacc/assets/icon.ico \
-  --add-data "src/smacc/assets/icon.png:smacc/assets"
+  --add-data "src/smacc/assets/icon.png:smacc/assets" \
+  --add-data "src/smacc/assets/cues:smacc/assets/cues"
 ```
 
 `--icon` sets the executable's file icon; `--add-data` bundles the runtime

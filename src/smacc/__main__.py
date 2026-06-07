@@ -11,8 +11,9 @@ from PyQt5.QtWidgets import QApplication, QMessageBox
 
 from .dialogs import SubjectSessionRequest
 from .gui import SmaccWindow
-from .paths import LOGO_PATH
+from .paths import BUNDLED_CUES_DIR, LOGO_PATH, cues_directory
 from .session import SmaccSession
+from .utils import seed_demo_cues
 
 
 def _install_excepthook() -> None:
@@ -70,6 +71,8 @@ def main() -> None:
     """Show the session-setup dialog and, on confirmation, open the main window."""
     app = QApplication(sys.argv)
     _install_excepthook()
+    # Make sure there's always something to play: seed demo cues on launch.
+    seed_demo_cues(cues_directory, BUNDLED_CUES_DIR)
     # Fusion honors the full QPalette consistently across platforms, which the
     # native Windows style does not — required for the lights-off dark theme.
     app.setStyle("Fusion")
