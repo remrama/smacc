@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import shutil
 from functools import partial
 from pathlib import Path
 from typing import cast
@@ -398,7 +397,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
             panel.apply_state(state)
 
     def save_study(self) -> None:
-        """Prompt for a study folder, copy the cue into it, and write study.json."""
+        """Prompt for a study folder and write study.json.
+
+        Cue/audio files are referenced by their existing paths (not copied); a
+        richer, portable config format is planned (see #18).
+        """
         folder = QtWidgets.QFileDialog.getExistingDirectory(
             self, "Select a study folder", str(data_directory)
         )
@@ -406,13 +409,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
             return
         study_dir = Path(folder)
         state = self.gather_study_state()
-        # Copy the cue WAV into the study folder so the bundle is self-contained.
-        cue_file = state.get("cue_file")
-        if cue_file and Path(cue_file).is_file():
-            dest = study_dir / Path(cue_file).name
-            if Path(cue_file).resolve() != dest.resolve():
-                shutil.copy2(cue_file, dest)
-            state["cue_file"] = Path(cue_file).name  # store basename, resolve on load
         try:
             study.save_study(study_dir / "study.json", state)
         except OSError as exc:
@@ -421,7 +417,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.session.log_info_msg(f"Saved study to {study_dir}")
 
     def load_study(self) -> None:
-        """Prompt for a study.json and apply it, resolving the bundled cue file."""
+        """Prompt for a study.json and apply it to the panels."""
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, "Load study", str(data_directory), "Study (study.json)"
         )
@@ -433,12 +429,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         except (OSError, ValueError) as exc:
             self.show_error_popup("Could not load study.", str(exc))
             return
-        # Resolve a bundled (basename) cue relative to the study folder.
-        cue_file = state.get("cue_file")
-        if cue_file and not Path(cue_file).is_absolute():
-            candidate = study_path.parent / cue_file
-            if candidate.is_file():
-                state["cue_file"] = str(candidate)
         self.apply_study_state(state)
         self.session.log_info_msg(f"Loaded study from {study_path}")
 

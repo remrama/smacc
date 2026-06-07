@@ -26,6 +26,7 @@ PPORT_CODES = {
     "CueStopped": 208,
     "IntercomStarted": 209,
     "IntercomStopped": 210,
+    "CueStarted": 211,
 }
 
 # LSL event-marker codes, looked up by name in send_event_marker.

@@ -32,9 +32,31 @@ def test_saved_file_records_schema_version(tmp_path):
     assert payload["state"] == {"cue_volume": 0.2}
 
 
+def test_load_accepts_older_schema(tmp_path):
+    # Files written by an older (lower) schema version still load unchanged;
+    # panels handle field-level back-compat.
+    path = tmp_path / "study.json"
+    state = {"cue_file": "cue.wav", "cue_volume": 0.3}
+    path.write_text(json.dumps({"schema_version": 1, "state": state}), encoding="utf-8")
+    assert study.load_study(path) == state
+
+
+def test_load_accepts_current_schema(tmp_path):
+    path = tmp_path / "study.json"
+    study.save_study(path, {"cue_attack": 1.0})
+    assert study.load_study(path) == {"cue_attack": 1.0}
+
+
 def test_load_rejects_unsupported_schema(tmp_path):
     path = tmp_path / "study.json"
     path.write_text(json.dumps({"schema_version": 999, "state": {}}), encoding="utf-8")
+    with pytest.raises(ValueError, match="schema version"):
+        study.load_study(path)
+
+
+def test_load_rejects_nonpositive_schema(tmp_path):
+    path = tmp_path / "study.json"
+    path.write_text(json.dumps({"schema_version": 0, "state": {}}), encoding="utf-8")
     with pytest.raises(ValueError, match="schema version"):
         study.load_study(path)
 
