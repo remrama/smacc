@@ -308,16 +308,17 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         menuBar = self.menuBar()
         # menuBar.setNativeMenuBar(False)  # needed for pyqt5 on Mac
+        # Single consolidated File menu holding all app actions.
         fileMenu = menuBar.addMenu("&File")
         fileMenu.addAction(saveStudyAction)
         fileMenu.addAction(loadStudyAction)
         fileMenu.addSeparator()
         fileMenu.addAction(exportEventsAction)
-        helpMenu = menuBar.addMenu("&Help")
-        helpMenu.addAction(aboutAction)
-        helpMenu.addAction(quitAction)
-        viewMenu = menuBar.addMenu("&View")
-        viewMenu.addAction(alwaysOnTopAction)
+        fileMenu.addSeparator()
+        fileMenu.addAction(alwaysOnTopAction)
+        fileMenu.addSeparator()
+        fileMenu.addAction(aboutAction)
+        fileMenu.addAction(quitAction)
 
         ########################################################################
         # TOOL BAR
