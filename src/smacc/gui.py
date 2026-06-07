@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import cast
 
 import sounddevice as sd
-from pylsl import StreamInfo, StreamOutlet
 from PyQt5 import QtCore, QtGui, QtMultimedia, QtWidgets
 
 from smacc import audio, bids, study, utils
@@ -20,9 +19,6 @@ from smacc import audio, bids, study, utils
 from .config import (
     COMMON_EVENT_CODES,
     COMMON_EVENT_TIPS,
-    DEVELOPMENT_ID,
-    PPORT_ADDRESS,
-    PPORT_CODES,
     SURVEY_OPTIONS,
     VERSION,
 )
@@ -31,9 +27,9 @@ from .paths import (
     cues_directory,
     data_directory,
     dreams_directory,
-    logs_directory,
 )
 from .qtlog import QtLogHandler
+from .session import SmaccSession
 
 try:
     from blinkstick import blinkstick
@@ -49,22 +45,11 @@ except ImportError:
 class SmaccWindow(QtWidgets.QMainWindow):
     """Main interface."""
 
-    def __init__(self, subject_id: str, session_id: str) -> None:
+    def __init__(self, session: SmaccSession) -> None:
         super().__init__()
+        self.session = session
 
         self.n_report_counter = 0  # cumulative counter for determining filenames
-
-        # store the subject and session IDs
-        # self.subject_id = subject_id
-        # self.session_id = session_id
-        # build a stringy-thing that will be used for lots of filenames
-        self.subject = subject_id
-        self.session = session_id
-
-        self.init_logger()
-
-        self.pport_address = PPORT_ADDRESS
-        self.portcodes = PPORT_CODES
 
         self.cues_directory = cues_directory
         # self.noise_directory = noise_directory
@@ -89,32 +74,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
         if app is not None:
             app.installEventFilter(self)
 
-        init_msg = "Opened SMACC v" + VERSION
-        self.log_info_msg(init_msg)
-
-        self.init_lsl_stream()
+        self.session.log_info_msg("Opened SMACC v" + VERSION)
 
     def show_error_popup(self, short_msg, long_msg=None):
-        # Record the error in the log file (and preview if Error is enabled).
-        self.logger.error(short_msg if long_msg is None else f"{short_msg} {long_msg}")
-        win = QtWidgets.QMessageBox(self)  # parent to self so it stacks above
-        # # win.setIcon(QtWidgets.QMessageBox.Question)
-        # win.setWindowIcon(QtGui.QIcon("./thumb-small.png"))
-        # win.setIconPixmap(QtGui.QPixmap("./thumb.png"))
-        win.setText(short_msg)
-        if long_msg is not None:
-            win.setInformativeText(long_msg)
-        win.setWindowTitle("Error")
-        win.exec()
-
-    # def show_error_popup(self, short_msg):
-    #     em = QtWidgets.QErrorMessage()
-    #     em.showMessage(short_msg)
-    #     em.exec()
-
-    def log_info_msg(self, msg):
-        """Log an INFO message (always to file; to the preview if INFO is on)."""
-        self.logger.info(msg)
+        """Show an error dialog parented to this window (logs via the session)."""
+        self.session.show_error_popup(short_msg, long_msg, parent=self)
 
     def _update_preview_levels(self) -> None:
         """Sync the preview handler's visible levels to the menu checkboxes."""
@@ -123,42 +87,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
             for level, action in self._preview_level_actions.items()
             if action.isChecked()
         }
-
-    def init_lsl_stream(self, stream_id: str = "myuidw43536") -> None:
-        """Create the LSL marker stream and its outlet."""
-        self.info = StreamInfo("MyMarkerStream", "Markers", 1, 0, "string", stream_id)
-        self.outlet = StreamOutlet(self.info)
-
-    def send_event_marker(self, portcode: int, port_msg: str) -> None:
-        """Wrapper to avoid rewriting if not None a bunch
-        to make sure the msg also gets logged to output file and gui
-        """
-        self.outlet.push_sample([str(portcode)])
-        log_msg = f"{port_msg} - portcode {portcode}"
-        self.log_info_msg(log_msg)
-
-    def init_logger(self) -> None:
-        """Initialize the logger that writes to a per-session log file."""
-        path_name = f"sub-{self.subject}_ses-{self.session}_smacc-{VERSION}.log"
-        log_path = logs_directory / path_name
-        self.log_path = log_path  # kept for BIDS events export
-        self.logger = logging.getLogger("smacc")
-        self.logger.setLevel(logging.DEBUG)
-        # Don't bubble up to the root logger (keeps everything out of the
-        # terminal; the file/preview handlers are the only outputs).
-        self.logger.propagate = False
-        # open file handler to save external file
-        write_mode = "w" if self.subject == DEVELOPMENT_ID else "x"
-        fh = logging.FileHandler(log_path, mode=write_mode, encoding="utf-8")
-        fh.setLevel(logging.DEBUG)  # the file always records every level
-        # create formatter and add it to the handlers
-        formatter = logging.Formatter(
-            fmt="%(asctime)s.%(msecs)03d, %(levelname)s, %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-        fh.setFormatter(formatter)
-        # add the handler to the logger
-        self.logger.addHandler(fh)
 
     def init_main_window(self):
         """Initialize SMACC's main window: menu/status bars and the widget grid."""
@@ -657,7 +585,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
                 fmt="%(asctime)s  %(levelname)s  %(message)s", datefmt="%H:%M:%S"
             )
         )
-        self.logger.addHandler(self.preview_handler)
+        self.session.logger.addHandler(self.preview_handler)
         self._update_preview_levels()  # sync to the menu checkboxes
 
         logviewLayout = QtWidgets.QFormLayout()
@@ -670,7 +598,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, enabled)
         # Re-applying window flags hides the window on some platforms; re-show it.
         self.show()
-        self.log_info_msg(f"Always-on-top {'enabled' if enabled else 'disabled'}")
+        self.session.log_info_msg(
+            f"Always-on-top {'enabled' if enabled else 'disabled'}"
+        )
 
     def show_about_popup(self):
         win = QtWidgets.QMessageBox(self)  # parent to self so it stacks above
@@ -690,7 +620,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         sender = self.sender()
         text = sender.text().split("(")[0].strip()
         code = COMMON_EVENT_CODES[text]
-        self.send_event_marker(code, text)
+        self.session.send_event_marker(code, text)
 
     def on_lightswitch_toggled(self, checked: bool) -> None:
         """Handle a user toggle of the lightswitch (``checked`` == lights on)."""
@@ -707,7 +637,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.apply_theme(dark=not lights_on)
         if send_marker:
             name = "Lights on" if lights_on else "Lights off"
-            self.send_event_marker(COMMON_EVENT_CODES[name], name)
+            self.session.send_event_marker(COMMON_EVENT_CODES[name], name)
 
     def _refresh_lightswitch_label(self) -> None:
         """Sync the lightswitch text/style to the current state."""
@@ -779,7 +709,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def set_new_speakers(self, text: str) -> None:
         """Handle a new audio-stimulation speaker selection."""
-        self.logger.debug(f"New speakers {text} selected!")
+        self.session.logger.debug(f"New speakers {text} selected!")
 
     def set_new_noisespeakers(self, text: str) -> None:
         """Text is the device name, with host api string appended to the end."""
@@ -787,7 +717,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def set_new_microphone(self, text: str) -> None:
         """Handle a new microphone selection."""
-        self.logger.debug(f"New microphone {text} selected!")
+        self.session.logger.debug(f"New microphone {text} selected!")
 
     ############################################################################
     # Functions for refreshing/searching for connected devices (inputs and outputs)
@@ -922,7 +852,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
                     menu_item.setChecked(False)
             # if new_device_name == self.microphone.audioInput():
             #     action.setChecked(True)
-            # self.log_info_msg(f"INPUT DEVICE UPDATE {new_device_name}")
+            # self.session.log_info_msg(f"INPUT DEVICE UPDATE {new_device_name}")
             # self.show_error_popup("Not implemented yet")
         elif not checked:
             # this is when someone tries to "unselect" an input.
@@ -1023,7 +953,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         def callback(outdata, frames, time, status):
             """frames is the number of frames (rate)"""
             if status:
-                self.logger.warning(f"Audio output status: {status}")
+                self.session.logger.warning(f"Audio output status: {status}")
             outdata[:] = (
                 self.noise_color_funcs(color)(rate).reshape(-1, 1)
                 * self.noise_stream_volume
@@ -1166,12 +1096,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
                 self.show_error_popup("Could not start intercom.", str(exc))
                 self.intercomButton.setChecked(False)
                 return
-            self.send_event_marker(
-                self.portcodes["IntercomStarted"], "Intercom unmuted (talking)"
+            self.session.send_event_marker(
+                self.session.portcodes["IntercomStarted"], "Intercom unmuted (talking)"
             )
         elif self._stop_intercom_streams():
-            self.send_event_marker(
-                self.portcodes["IntercomStopped"], "Intercom remuted"
+            self.session.send_event_marker(
+                self.session.portcodes["IntercomStopped"], "Intercom remuted"
             )
 
     def _stop_intercom_streams(self) -> bool:
@@ -1275,7 +1205,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
             ### start a new recording
             # generate filename
             self.n_report_counter += 1
-            basename = f"sub-{self.subject}_ses-{self.session}_report-{self.n_report_counter:02d}.wav"
+            basename = f"sub-{self.session.subject}_ses-{self.session.session}_report-{self.n_report_counter:02d}.wav"
             export_fname = os.path.join(dreams_directory, basename)
             self.microphone.setOutputLocation(QtCore.QUrl.fromLocalFile(export_fname))
             self.microphone.record()
@@ -1385,7 +1315,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         except OSError as exc:
             self.show_error_popup("Could not save study.", str(exc))
             return
-        self.log_info_msg(f"Saved study to {study_dir}")
+        self.session.log_info_msg(f"Saved study to {study_dir}")
 
     def load_study(self) -> None:
         """Prompt for a study.json and apply it, resolving the bundled cue file."""
@@ -1407,18 +1337,18 @@ class SmaccWindow(QtWidgets.QMainWindow):
             if candidate.is_file():
                 state["cue_file"] = str(candidate)
         self.apply_study_state(state)
-        self.log_info_msg(f"Loaded study from {study_path}")
+        self.session.log_info_msg(f"Loaded study from {study_path}")
 
     def export_events_bids(self) -> None:
         """Convert the session log to a BIDS events.tsv (+ JSON sidecar)."""
-        if not self.log_path.is_file():
+        if not self.session.log_path.is_file():
             self.show_error_popup("No log file to export yet.")
             return
         # Flush handlers so the on-disk log includes the latest events.
-        for handler in self.logger.handlers:
+        for handler in self.session.logger.handlers:
             handler.flush()
-        default = self.log_path.with_name(
-            f"sub-{self.subject}_ses-{self.session}_events.tsv"
+        default = self.session.log_path.with_name(
+            f"sub-{self.session.subject}_ses-{self.session.session}_events.tsv"
         )
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "Export events (BIDS)", str(default), "BIDS events (*.tsv)"
@@ -1426,14 +1356,14 @@ class SmaccWindow(QtWidgets.QMainWindow):
         if not path:
             return
         try:
-            log_text = self.log_path.read_text(encoding="utf-8")
+            log_text = self.session.log_path.read_text(encoding="utf-8")
             events = bids.log_to_events(log_text)
             bids.write_events_tsv(events, path)
             bids.write_events_json(Path(path).with_suffix(".json"))
         except OSError as exc:
             self.show_error_popup("Could not export events.", str(exc))
             return
-        self.log_info_msg(f"Exported {len(events)} events to {path}")
+        self.session.log_info_msg(f"Exported {len(events)} events to {path}")
 
     def current_survey_url(self) -> str:
         """Resolve the survey URL from the dropdown.
@@ -1455,8 +1385,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         else:
             port_msg = "DreamReportStopped"
         # button_label = self.sender().text()
-        portcode = self.portcodes[port_msg]
-        self.send_event_marker(portcode, port_msg)
+        portcode = self.session.portcodes[port_msg]
+        self.session.send_event_marker(portcode, port_msg)
 
     @QtCore.pyqtSlot()
     def pick_color(self):
@@ -1476,9 +1406,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def handle_freq_change(self, freq: float) -> None:
         """Takes frequency as a float, coming from user selection. In Hz."""
         self.bstick_blink_freq = freq
-        # portcode = self.portcodes["blink"]
+        # portcode = self.session.portcodes["blink"]
         # port_msg = f"Set color: [{color}]"
-        # self.send_event_marker(portcode, port_msg)
+        # self.session.send_event_marker(portcode, port_msg)
 
     @QtCore.pyqtSlot()
     def stimulate_audio(self):
@@ -1549,9 +1479,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.bstick.set_led_data(channel=0, data=self.bstick_led_data)
         sleep(freq)
         self.bstick.set_led_data(channel=0, data=black)
-        # portcode = self.portcodes["blink"]
+        # portcode = self.session.portcodes["blink"]
         # port_msg = f"Set color: [{color}]"
-        # self.send_event_marker(portcode, port_msg)
+        # self.session.send_event_marker(portcode, port_msg)
 
     def open_note_marker_dialogue(self):
         text, ok = QtWidgets.QInputDialog.getText(
@@ -1559,9 +1489,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         )
         # self.subject_id.setValidator(QtGui.QIntValidator(0, 999)) # must be a 3-digit number
         if ok:  # True of OK button was hit, False otherwise (cancel button)
-            portcode = self.portcodes["Note"]
+            portcode = self.session.portcodes["Note"]
             port_msg = f"Note [{text}]"
-            self.send_event_marker(portcode, port_msg)
+            self.session.send_event_marker(portcode, port_msg)
 
     @QtCore.pyqtSlot()
     def handle_left2right_button(self):
@@ -1589,7 +1519,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         value should be a float from the spinbox
         """
         self.wavplayer.setVolume(value)  # 0 - 1
-        # self.log_info_msg(f"VolumeSet - Cue {float_volume}")
+        # self.session.log_info_msg(f"VolumeSet - Cue {float_volume}")
 
     def update_noise_volume(self, value: float) -> None:
         """Method catching signals from audio stimulation volume spinbox
@@ -1598,7 +1528,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         value should be a float from the spinbox
         """
         # self.noiseplayer.setVolume(value)  # 0 - 1
-        # self.log_info_msg(f"VolumeSet - Noise {float_volume}")
+        # self.session.log_info_msg(f"VolumeSet - Noise {float_volume}")
         self.noise_stream_volume = value
 
     def change_input_gain(self, value):
@@ -1620,7 +1550,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
             if self.meter_stream is not None:
                 self.meter_stream.close()
             self._stop_intercom_streams()
-            self.log_info_msg("Program closed")
+            self.session.log_info_msg("Program closed")
             event.accept()
             # self.closed.emit()
             # sys.exit()

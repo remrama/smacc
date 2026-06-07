@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import QApplication, QMessageBox
 from .dialogs import SubjectSessionRequest
 from .gui import SmaccWindow
 from .paths import LOGO_PATH
+from .session import SmaccSession
 
 
 def _install_excepthook() -> None:
@@ -79,8 +80,9 @@ def main() -> None:
     inbox.exec()
     if inbox.result():  # 1 if they hit Ok, 0 if cancel
         subject_id, session_id = inbox.get_inputs()
+        session = SmaccSession(subject_id, session_id)
         # Keep a reference so Qt doesn't garbage-collect the window.
-        win = SmaccWindow(subject_id, session_id)  # noqa: F841
+        win = SmaccWindow(session)  # noqa: F841
         sys.exit(app.exec())
 
 
