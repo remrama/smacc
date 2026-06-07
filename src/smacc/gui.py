@@ -22,22 +22,17 @@ from .config import (
     SURVEY_OPTIONS,
     VERSION,
 )
+from .panels.audio import AudioCueWindow
 from .panels.base import ModalityWindow
 from .panels.noise import NoiseWindow
+from .panels.visual import VisualWindow
 from .paths import (
     LOGO_PATH,
-    cues_directory,
     data_directory,
     dreams_directory,
 )
 from .qtlog import QtLogHandler
 from .session import SmaccSession
-
-try:
-    from blinkstick import blinkstick
-except ImportError:
-    blinkstick = None
-
 
 #####################################
 #########    Main window    #########
@@ -53,17 +48,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         self.n_report_counter = 0  # cumulative counter for determining filenames
 
-        self.cues_directory = cues_directory
-        # self.noise_directory = noise_directory
-
         # Lights state drives the dark theme; sessions start with lights on.
         self.lights_on = True
         self._default_palette = cast(
             QtWidgets.QApplication, QtWidgets.QApplication.instance()
         ).palette()
 
-        self.init_blinkstick()
-        self.init_audio_stimulation_setup()
         self.init_microphone()
         self.init_level_meter()
         self.init_intercom()
@@ -71,6 +61,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # Modality windows, constructed up front (hidden) and opened on demand
         # from the launcher buttons. Each holds its own state for study save/load.
         self.panels: dict[str, ModalityWindow] = {
+            "visual": VisualWindow(self.session),
+            "audio": AudioCueWindow(self.session),
             "noise": NoiseWindow(self.session),
         }
 
@@ -105,12 +97,10 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # 3x2 grid of panels; menu must be built first (the log-viewer panel
         # syncs the preview handler to the Log preview menu checkboxes).
         central_layout = QtWidgets.QGridLayout()
-        central_layout.addLayout(self._build_visual_section(), 0, 0)
-        central_layout.addLayout(self._build_audio_section(), 1, 0)
-        central_layout.addLayout(self._build_launcher_buttons(), 2, 0)
+        central_layout.addLayout(self._build_launcher_buttons(), 0, 0)
+        central_layout.addLayout(self._build_events_section(), 1, 0)
         central_layout.addLayout(self._build_log_viewer_section(), 0, 1)
         central_layout.addLayout(self._build_recording_section(), 1, 1)
-        central_layout.addLayout(self._build_events_section(), 2, 1)
         central_widget = QtWidgets.QWidget()
         central_widget.setContentsMargins(5, 5, 5, 5)
         central_widget.move(100, 100)
@@ -244,170 +234,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         fileMenu.addSeparator()
         fileMenu.addAction(aboutAction)
         fileMenu.addAction(quitAction)
-
-    def _build_visual_section(self) -> QtWidgets.QLayout:
-        """Build the visual-stimulation (BlinkStick) panel."""
-        visualtitleLabel = self._make_section_title("Visual stimulation")
-
-        # Visual device picker: QComboBox signal --> update device slot
-        available_blinksticks_dropdown = QtWidgets.QComboBox()
-        available_blinksticks_dropdown.setStatusTip("Select visual stimulation device")
-        # available_blinksticks_dropdown.setMaximumWidth(200)
-        available_blinksticks_dropdown.currentTextChanged.connect(
-            self.set_new_blinkstick
-        )
-        # > populate this dropdown with refresh function, so it can happen later outside init too
-        self.available_blinksticks_dropdown = available_blinksticks_dropdown
-        self.refresh_available_blinksticks()
-
-        # Visual play button: QPushButton signal --> visual_stim slot
-        blinkButton = QtWidgets.QPushButton("Play BlinkStick", self)
-        blinkButton.setStatusTip("Present visual stimulus.")
-        blinkButton.clicked.connect(self.stimulate_visual)
-
-        # Visual color picker: QPushButton signal --> QColorPicker slot
-        colorpickerButton = QtWidgets.QPushButton("Select color", self)
-        colorpickerButton.setStatusTip("Pick the visual stimulus color.")
-        colorpickerButton.clicked.connect(self.pick_color)
-        self.colorpickerButton = colorpickerButton
-        self._update_color_swatch()  # show the current color from the start
-
-        # Visual frequency selector: QDoubleSpinBox signal --> update visual parameters slot
-        freqSpinBox = QtWidgets.QDoubleSpinBox(self)
-        freqSpinBox.setStatusTip(
-            "Pick light stimulation length (how long the light will stay on in seconds)."
-        )
-        # freqSpinBox.setRange(0, 100)
-        freqSpinBox.setMinimum(0)
-        freqSpinBox.setMaximum(60)
-        # freqSpinBox.setPrefix("Blink length: ")
-        freqSpinBox.setSuffix(" seconds")
-        freqSpinBox.setSingleStep(0.1)
-        freqSpinBox.valueChanged.connect(self.handle_freq_change)
-        # freqSpinBox.textChanged.connect(self.value_changed_str)
-        freqSpinBox.setValue(self.bstick_blink_freq)
-        self.freqSpinBox = freqSpinBox
-
-        # Compile them into a vertical layout
-        visualstimLayout = QtWidgets.QFormLayout()
-        visualstimLayout.setLabelAlignment(QtCore.Qt.AlignRight)
-        visualstimLayout.addRow(visualtitleLabel)
-        visualstimLayout.addRow("Device:", available_blinksticks_dropdown)
-        visualstimLayout.addRow("Color:", colorpickerButton)
-        visualstimLayout.addRow("Length:", freqSpinBox)
-        visualstimLayout.addRow(blinkButton)
-        return visualstimLayout
-
-    def _build_audio_section(self) -> QtWidgets.QLayout:
-        """Build the audio-stimulation (cue player) panel."""
-        audiotitleLabel = self._make_section_title("Audio stimulation")
-
-        # Audio stimulation device picker: QComboBox signal --> update device slot
-        available_speakers_dropdown = QtWidgets.QComboBox()
-        available_speakers_dropdown.setStatusTip("Select audio stimulation device")
-        available_speakers_dropdown.setPlaceholderText("No speaker devices were found.")
-        # available_speakers_dropdown.setMaximumWidth(200)
-        # inputIcon = self.style().standardIcon(getattr(QtWidgets.QStyle, "SP_DialogNoButton"))
-        available_speakers_dropdown.currentTextChanged.connect(self.set_new_speakers)
-        self.available_speakers_dropdown = available_speakers_dropdown
-        self.refresh_available_speakers()
-
-        wavselectorLayout = QtWidgets.QHBoxLayout()
-        wavselectorLabel = QtWidgets.QLabel("Sound:", self)
-        wavselectorEdit = QtWidgets.QLineEdit(self)
-        wavselectorButton = QtWidgets.QPushButton("Browse", self)
-        wavselectorButton.clicked.connect(self.open_wav_selector)
-        wavselectorLayout.addWidget(wavselectorLabel)
-        wavselectorLayout.addWidget(wavselectorEdit)
-        wavselectorLayout.addWidget(wavselectorButton)
-        wavselectorEdit.textChanged.connect(
-            self.update_audio_source
-        )  # For programmatic changes
-        # wavselectorEdit.textEdited.connect(self.update_audio_source)  # For user changes
-        wavselectorEdit.editingFinished.connect(
-            self.update_audio_source
-        )  # For user changes
-        self.wavselectorEdit = wavselectorEdit
-
-        # Audio volume selector: QDoubleSpinBox signal --> update audio volume slot
-        volumeSpinBox = QtWidgets.QDoubleSpinBox(self)
-        volumeSpinBox.setStatusTip(
-            "Select volume of audio stimulation (must be in range 0-1)."
-        )
-        # volumeSpinBox.setRange(0, 1)
-        volumeSpinBox.setMinimum(0)
-        volumeSpinBox.setMaximum(
-            1
-        )  # Currently using QSoundEffect which only allows 0-1
-        # volumeSpinBox.setPrefix("Volume: ")
-        # volumeSpinBox.setSuffix(" dB")
-        volumeSpinBox.setSingleStep(0.01)
-        volumeSpinBox.valueChanged.connect(self.update_audio_volume)
-        volumeSpinBox.setValue(0.2)
-        self.volumeSpinBox = volumeSpinBox
-
-        # Fade-in (attack) and fade-out (release) ramps, in seconds. Ramping the
-        # cue volume avoids an abrupt onset that could wake the participant (#22).
-        attackSpinBox = QtWidgets.QDoubleSpinBox(self)
-        attackSpinBox.setStatusTip(
-            "Fade-in time for the cue, in seconds (0 = instant)."
-        )
-        attackSpinBox.setRange(0, 60)
-        attackSpinBox.setSingleStep(0.1)
-        attackSpinBox.setSuffix(" seconds")
-        attackSpinBox.valueChanged.connect(self.update_cue_attack)
-        attackSpinBox.setValue(0.0)
-        self.attackSpinBox = attackSpinBox
-
-        releaseSpinBox = QtWidgets.QDoubleSpinBox(self)
-        releaseSpinBox.setStatusTip(
-            "Fade-out time when stopping the cue, in seconds (0 = instant)."
-        )
-        releaseSpinBox.setRange(0, 60)
-        releaseSpinBox.setSingleStep(0.1)
-        releaseSpinBox.setSuffix(" seconds")
-        releaseSpinBox.valueChanged.connect(self.update_cue_release)
-        releaseSpinBox.setValue(0.0)
-        self.releaseSpinBox = releaseSpinBox
-
-        # Loop toggle: when checked, the cue repeats until stopped.
-        loopCheckBox = QtWidgets.QCheckBox("Loop until stopped", self)
-        loopCheckBox.setStatusTip(
-            "Repeat the cue continuously until the Stop button is pressed."
-        )
-        loopCheckBox.toggled.connect(self.update_audio_loop)
-        self.loopCheckBox = loopCheckBox
-
-        # Play/Stop buttons: QPushButton signals --> play/stop functions
-        playButton = QtWidgets.QPushButton("Play soundfile", self)
-        playButton.setStatusTip("Play the selected sound file.")
-        # playButton.setIcon(QtGui.QIcon("./color.png"))
-        playButton.clicked.connect(self.stimulate_audio)
-        stopcueButton = QtWidgets.QPushButton("Stop", self)
-        stopcueButton.setStatusTip("Stop the currently playing cue.")
-        stopcueButton.clicked.connect(self.stop_audio)
-        playstopcueLayout = QtWidgets.QHBoxLayout()
-        playstopcueLayout.addWidget(playButton)
-        playstopcueLayout.addWidget(stopcueButton)
-
-        # Visible "playing/looping" indicator so a cue is never left running silently.
-        cueStatusLabel = QtWidgets.QLabel("■ stopped", self)
-        cueStatusLabel.setAlignment(QtCore.Qt.AlignCenter)
-        self.cueStatusLabel = cueStatusLabel
-
-        # Compile them into a vertical layout
-        audiostimLayout = QtWidgets.QFormLayout()
-        audiostimLayout.setLabelAlignment(QtCore.Qt.AlignRight)
-        audiostimLayout.addRow(audiotitleLabel)
-        audiostimLayout.addRow("Device:", available_speakers_dropdown)
-        audiostimLayout.addRow("Volume:", volumeSpinBox)
-        audiostimLayout.addRow("Fade in:", attackSpinBox)
-        audiostimLayout.addRow("Fade out:", releaseSpinBox)
-        audiostimLayout.addRow(wavselectorLayout)
-        audiostimLayout.addRow(loopCheckBox)
-        audiostimLayout.addRow(playstopcueLayout)
-        audiostimLayout.addRow(cueStatusLabel)
-        return audiostimLayout
 
     def _build_recording_section(self) -> QtWidgets.QLayout:
         """Build the dream-recording panel (mic, level meter, intercom, survey)."""
@@ -657,18 +483,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
             p.setColor(QtGui.QPalette.Disabled, role, disabled)
         return p
 
-    def open_wav_selector(self):
-        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Select a File", str(self.cues_directory), "Audio (*.wav)"
-        )
-        if filename:
-            path = Path(filename)
-            self.wavselectorEdit.setText(str(path))
-
-    def set_new_speakers(self, text: str) -> None:
-        """Handle a new audio-stimulation speaker selection."""
-        self.session.logger.debug(f"New speakers {text} selected!")
-
     def set_new_microphone(self, text: str) -> None:
         """Handle a new microphone selection."""
         self.session.logger.debug(f"New microphone {text} selected!")
@@ -676,29 +490,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
     ############################################################################
     # Functions for refreshing/searching for connected devices (inputs and outputs)
     ############################################################################
-
-    def refresh_available_speakers(self):
-        """
-        Populate the audio stimulation device selection menu with currently
-        available speakers.
-        seealso: refresh_available_noisespeakers
-        """
-        self.available_speakers_dropdown.clear()
-        devices = QtMultimedia.QAudioDeviceInfo.availableDevices(
-            QtMultimedia.QAudio.AudioOutput
-        )
-        devices = [d for d in devices if d.realm() != "default"]
-        for device in devices:
-            device_name = device.deviceName()
-            device_realm = (
-                device.realm()
-            )  # This differentiates the duplicate of default output
-            device_str = f"{device_name} [{device_realm}]"
-            self.available_speakers_dropdown.addItem(device_str)
-        if devices:
-            self.available_speakers_dropdown.setCurrentIndex(0)
-        else:
-            self.show_error_popup("No audio devices found.")
 
     def refresh_available_microphones(self):
         """
@@ -720,52 +511,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
             self.available_microphones_dropdown.setCurrentIndex(0)
         else:
             self.show_error_popup("No microphones found.")
-
-    def set_new_blinkstick(self, text):
-        """
-        Set new BlinkStick for visual stimulation.
-        Method that takes input from dropdown selection menu.
-        Only activated upon a change/new selection.
-
-        text : str
-            Text of the menu item from the dropdown.
-        See also: refresh_available_blinksticks
-        """
-        if not text:  # dropdown cleared / no device selected
-            self.bstick = None
-            return
-        serial_number = text.split(". ")[1].split(")")[0]
-        self.bstick = blinkstick.find_by_serial(serial_number)
-
-    def refresh_available_blinksticks(self):
-        """
-        Searches for all available BlinkSticks and populates the dropdown menu with them.
-        Refresh the dropdown menu with currently available BlinkSticks.
-        Clears all existing, searches again, and populates the menu.
-        Note this will clear currently selected.
-        Requires installation of `blinkstick` package (as does rest of vis stim).
-
-        Automatically selects the first found BlinkStick by default.
-
-        See also: set_new_blinkstick
-        """
-        # Clear existing devices from the dropdown menu. When the `blinkstick`
-        # package is missing or no device is connected, leave the dropdown empty
-        # silently — the error is raised only when visual stimulation is used
-        # (see _ensure_blinkstick), so non-BlinkStick users aren't nagged.
-        self.available_blinksticks_dropdown.clear()
-        devices = [] if blinkstick is None else blinkstick.find_all()
-        # Add each device to the dropdown menu
-        for d in devices:
-            product_name = d.device.product_name
-            serial_number = d.device.serial_number
-            version_number = d.device.version_number
-            device_str = (
-                f"{product_name} v{version_number} (Serial No. {serial_number})"
-            )
-            self.available_blinksticks_dropdown.addItem(device_str)
-        if devices:
-            self.available_blinksticks_dropdown.setCurrentIndex(0)
 
     def update_input_device(self):
         # if the current input is re-selected it still "changes" here
@@ -794,60 +539,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
             # for menu_item in self.input_menu_items:
             #     if menu_item.iconText() == self.sender().text():
             #         menu_item.setChecked(True)
-
-    def init_blinkstick(self):
-        self.bstick = None  # selected device; None until one is found/selected
-        self.bstick_blink_freq = 1.0
-        self.set_blink_color(0, 0, 0)  # default color: black/off
-
-    def set_blink_color(self, r: int, g: int, b: int) -> None:
-        """Set the BlinkStick color from 0-255 RGB components.
-
-        Stores the hex code (for study save/load) and precomputes the LED data.
-        blinkstick.set_led_data expects G/R swapped: 3 values per LED, 32 LEDs.
-        """
-        self.bstick_rgb = (r, g, b, 255)
-        self.bstick_hexcode = f"#{r:02x}{g:02x}{b:02x}"
-        self.bstick_led_data = [g, r, b] * 32
-        # Keep the color picker's swatch in sync (once the button exists).
-        if hasattr(self, "colorpickerButton"):
-            self._update_color_swatch()
-
-    def _update_color_swatch(self) -> None:
-        """Show the currently selected blink color on the color picker button."""
-        size = 22
-        pixmap = QtGui.QPixmap(size, size)
-        pixmap.fill(QtGui.QColor(*self.bstick_rgb))
-        painter = QtGui.QPainter(pixmap)
-        painter.setPen(QtGui.QColor("#808080"))  # border so black/white read
-        painter.drawRect(0, 0, size - 1, size - 1)
-        painter.end()
-        self.colorpickerButton.setIcon(QtGui.QIcon(pixmap))
-        self.colorpickerButton.setIconSize(QtCore.QSize(size, size))
-
-    def _ensure_blinkstick(self) -> bool:
-        """Return True if a BlinkStick is usable, else show one error popup."""
-        if blinkstick is not None and self.bstick is not None:
-            return True
-        self.show_error_popup(
-            "Visual stimulation unavailable.",
-            "No BlinkStick device was found and/or the `blinkstick` Python "
-            "package is not installed.",
-        )
-        return False
-
-    def init_audio_stimulation_setup(self):
-        """Create media player for cue files."""
-        player = QtMultimedia.QSoundEffect()
-        # Default settings
-        # player.setVolume(0)  # 0 to 1 -- Gets set already when parameter selector is made
-        player.setLoopCount(1)
-        player.playingChanged.connect(self.on_cue_playing_change)
-        self.wavplayer = player
-        # Fade (attack/release) durations in seconds; 0 == instant on/off.
-        self.cue_attack_s = 0.0
-        self.cue_release_s = 0.0
-        self._cue_fade_anim: QtCore.QPropertyAnimation | None = None
 
     ############################################################################
     # Input level meter (#25)
@@ -1111,13 +802,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
             if self.surveyComboBox.itemData(i)
         }
         state = {
-            "cue_file": self.wavselectorEdit.text(),
-            "cue_volume": self.volumeSpinBox.value(),
-            "cue_loop": self.loopCheckBox.isChecked(),
-            "cue_attack": self.attackSpinBox.value(),
-            "cue_release": self.releaseSpinBox.value(),
-            "blink_color": self.bstick_hexcode,
-            "blink_length": self.bstick_blink_freq,
             "survey_url": self.current_survey_url(),
             "survey_options": survey_options,
         }
@@ -1131,23 +815,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         Setting widget values fires their existing signals, so volume/source/
         color/length all propagate without extra wiring.
         """
-        if cue := state.get("cue_file"):
-            self.wavselectorEdit.setText(cue)
-        if (v := state.get("cue_volume")) is not None:
-            self.volumeSpinBox.setValue(float(v))
-        if (v := state.get("cue_attack")) is not None:
-            self.attackSpinBox.setValue(float(v))
-        if (v := state.get("cue_release")) is not None:
-            self.releaseSpinBox.setValue(float(v))
-        self.loopCheckBox.setChecked(bool(state.get("cue_loop", False)))
         for panel in self.panels.values():
             panel.apply_state(state)
-        if hexcode := state.get("blink_color"):
-            qcolor = QtGui.QColor(hexcode)
-            if qcolor.isValid():
-                self.set_blink_color(qcolor.red(), qcolor.green(), qcolor.blue())
-        if (length := state.get("blink_length")) is not None:
-            self.freqSpinBox.setValue(float(length))
         self._apply_survey_state(state)
 
     def _apply_survey_state(self, state: dict) -> None:
@@ -1261,100 +930,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.session.send_event_marker(portcode, port_msg)
 
     @QtCore.pyqtSlot()
-    def pick_color(self):
-        if not self._ensure_blinkstick():
-            return
-        # Parent to self and seed with the current color so the dialog stacks
-        # above the main window (even when always-on-top is enabled).
-        color = QtWidgets.QColorDialog.getColor(QtGui.QColor(self.bstick_hexcode), self)
-        if color.isValid():
-            r, g, b, _ = color.getRgb()
-            self.set_blink_color(r, g, b)
-            # pixmap = QtGui.QPixmap(16, 16)
-            # pixmap.fill(color)
-            # self.colorpickerAction.setIcon(QtGui.QIcon(pixmap))
-
-    # @QtCore.pyqtSlot()
-    def handle_freq_change(self, freq: float) -> None:
-        """Takes frequency as a float, coming from user selection. In Hz."""
-        self.bstick_blink_freq = freq
-        # portcode = self.session.portcodes["blink"]
-        # port_msg = f"Set color: [{color}]"
-        # self.session.send_event_marker(portcode, port_msg)
-
-    @QtCore.pyqtSlot()
-    def stimulate_audio(self):
-        """Play the cue, ramping volume up over the attack time if set."""
-        target = self.volumeSpinBox.value()
-        if self.cue_attack_s > 0:
-            self.wavplayer.setVolume(0.0)
-            self.wavplayer.play()
-            self._fade_volume(0.0, target, self.cue_attack_s)
-        else:
-            self.wavplayer.setVolume(target)
-            self.wavplayer.play()
-
-    @QtCore.pyqtSlot()
-    def stop_audio(self):
-        """Stop the cue, ramping volume down over the release time if set."""
-        if self.cue_release_s > 0 and self.wavplayer.isPlaying():
-            anim = self._fade_volume(self.wavplayer.volume(), 0.0, self.cue_release_s)
-            anim.finished.connect(self.wavplayer.stop)
-        else:
-            self.wavplayer.stop()
-
-    def _fade_volume(
-        self, start: float, end: float, seconds: float
-    ) -> QtCore.QPropertyAnimation:
-        """Animate the cue player's volume from ``start`` to ``end``."""
-        anim = QtCore.QPropertyAnimation(self.wavplayer, b"volume", self)
-        anim.setDuration(int(seconds * 1000))
-        anim.setStartValue(float(start))
-        anim.setEndValue(float(end))
-        anim.start()
-        self._cue_fade_anim = anim  # keep a reference so it isn't garbage-collected
-        return anim
-
-    def update_cue_attack(self, value: float) -> None:
-        """Set the cue fade-in (attack) time in seconds."""
-        self.cue_attack_s = value
-
-    def update_cue_release(self, value: float) -> None:
-        """Set the cue fade-out (release) time in seconds."""
-        self.cue_release_s = value
-
-    def update_audio_loop(self, enabled: bool) -> None:
-        """Set the cue loop count from the loop checkbox."""
-        loop_count = QtMultimedia.QSoundEffect.Infinite if enabled else 1
-        self.wavplayer.setLoopCount(loop_count)
-
-    def on_cue_playing_change(self) -> None:
-        """Update the cue status indicator when playback starts/stops."""
-        if self.wavplayer.isPlaying():
-            looping = self.loopCheckBox.isChecked()
-            self.cueStatusLabel.setText(
-                "\U0001f501 looping" if looping else "▶ playing"
-            )
-            self.cueStatusLabel.setStyleSheet("color: red; font-weight: bold;")
-        else:
-            self.cueStatusLabel.setText("■ stopped")
-            self.cueStatusLabel.setStyleSheet("")
-
-    @QtCore.pyqtSlot()
-    def stimulate_visual(self):
-        if not self._ensure_blinkstick():
-            return
-        from time import sleep
-
-        black = [0, 0, 0] * 32
-        freq = self.bstick_blink_freq
-        self.bstick.set_led_data(channel=0, data=self.bstick_led_data)
-        sleep(freq)
-        self.bstick.set_led_data(channel=0, data=black)
-        # portcode = self.session.portcodes["blink"]
-        # port_msg = f"Set color: [{color}]"
-        # self.session.send_event_marker(portcode, port_msg)
-
     def open_note_marker_dialogue(self):
         text, ok = QtWidgets.QInputDialog.getText(
             self, "Text Input Dialog", "Custom note (no commas):"
@@ -1374,24 +949,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def handle_right2left_button(self):
         self.leftList.addItem(self.rightList.takeItem(self.rightList.currentRow()))
         self.leftList.sortItems()
-
-    def update_audio_source(self):
-        """Catches signal from audio file lineedit/browser."""
-        lineEdit = self.sender()
-        filepath = lineEdit.text()
-        # assert Path(filepath).exists() and Path(filepath).suffix == ".wav"
-        content = QtCore.QUrl.fromLocalFile(filepath)
-        # can do the assrtions here with content.exists()
-        self.wavplayer.setSource(content)
-
-    def update_audio_volume(self, value: float) -> None:
-        """Method catching signals from audio stimulation volume spinbox
-        NOT noise, audio cues.
-
-        value should be a float from the spinbox
-        """
-        self.wavplayer.setVolume(value)  # 0 - 1
-        # self.session.log_info_msg(f"VolumeSet - Cue {float_volume}")
 
     def change_input_gain(self, value):
         self.show_error_popup(
