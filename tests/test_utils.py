@@ -166,3 +166,43 @@ def test_committed_demo_assets_match_generator():
         # but a real edit to a synth function diverges by far more than this.
         diff = np.abs(data.astype(np.int64) - expected.astype(np.int64))
         assert diff.max() <= 16
+
+
+def test_read_loop_within_bounds_returns_slice():
+    buf = np.arange(10, dtype=np.float32)
+    chunk, pos = utils.read_loop(buf, 2, 4)
+    np.testing.assert_array_equal(chunk, [2, 3, 4, 5])
+    assert pos == 6
+
+
+def test_read_loop_exact_fit_wraps_position_to_zero():
+    buf = np.arange(10, dtype=np.float32)
+    chunk, pos = utils.read_loop(buf, 6, 4)
+    np.testing.assert_array_equal(chunk, [6, 7, 8, 9])
+    assert pos == 0
+
+
+def test_read_loop_wraps_past_end():
+    buf = np.arange(10, dtype=np.float32)
+    chunk, pos = utils.read_loop(buf, 8, 4)
+    np.testing.assert_array_equal(chunk, [8, 9, 0, 1])
+    assert pos == 2
+
+
+def test_read_loop_handles_frames_longer_than_buffer():
+    buf = np.arange(4, dtype=np.float32)
+    chunk, pos = utils.read_loop(buf, 2, 10)
+    np.testing.assert_array_equal(chunk, [2, 3, 0, 1, 2, 3, 0, 1, 2, 3])
+    assert pos == 0
+
+
+def test_normalize_audio_scales_to_peak():
+    out = utils.normalize_audio(np.array([0, -2, 1], dtype=np.float64), peak=0.5)
+    assert out.dtype == np.float32
+    assert np.isclose(np.max(np.abs(out)), 0.5)
+
+
+def test_normalize_audio_handles_silence():
+    out = utils.normalize_audio(np.zeros(5, dtype=np.float32))
+    assert out.dtype == np.float32
+    assert np.all(out == 0)

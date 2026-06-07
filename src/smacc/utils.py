@@ -103,6 +103,41 @@ def pink_noise(f):
     return 1 / np.where(f == 0, float("inf"), np.sqrt(f))
 
 
+def normalize_audio(samples: np.ndarray, peak: float = 0.9) -> np.ndarray:
+    """Return ``samples`` as float32 scaled so its peak magnitude is ``peak``.
+
+    Keeps generated noise at a predictable level with headroom, so the 0-1
+    volume control maps cleanly without clipping at high settings.
+    """
+    data = samples.astype(np.float32)
+    largest = float(np.max(np.abs(data))) if data.size else 0.0
+    if largest > 0:
+        data *= peak / largest
+    return data
+
+
+def read_loop(buf: np.ndarray, pos: int, frames: int) -> tuple[np.ndarray, int]:
+    """Read ``frames`` samples from ``buf`` starting at ``pos``, looping the end.
+
+    ``buf`` is treated as an endless loop; reads spanning the end wrap back to the
+    start. Returns the chunk (a view when it doesn't wrap) and the next position.
+    """
+    n = buf.shape[0]
+    pos %= n
+    end = pos + frames
+    if end <= n:
+        return buf[pos:end], end % n
+    pieces: list[np.ndarray] = [buf[pos:]]
+    remaining = frames - (n - pos)
+    if remaining >= n:
+        reps = remaining // n
+        pieces.append(np.tile(buf, reps))
+        remaining -= reps * n
+    if remaining:
+        pieces.append(buf[:remaining])
+    return np.concatenate(pieces), (pos + frames) % n
+
+
 def _enveloped(
     samples: np.ndarray, rate: int, *, fade: float = 0.01, decay: bool = False
 ) -> np.ndarray:
