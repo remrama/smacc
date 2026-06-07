@@ -3,34 +3,27 @@
 from __future__ import annotations
 
 import logging
-import os
-import queue
 import shutil
-import webbrowser
 from functools import partial
 from pathlib import Path
 from typing import cast
 
-import sounddevice as sd
-from PyQt5 import QtCore, QtGui, QtMultimedia, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 
-from smacc import audio, bids, study
+from smacc import bids, study
 
 from .config import (
     COMMON_EVENT_CODES,
     COMMON_EVENT_TIPS,
-    SURVEY_OPTIONS,
     VERSION,
 )
 from .panels.audio import AudioCueWindow
 from .panels.base import ModalityWindow
+from .panels.intercom import IntercomWindow
 from .panels.noise import NoiseWindow
+from .panels.recording import RecordingWindow
 from .panels.visual import VisualWindow
-from .paths import (
-    LOGO_PATH,
-    data_directory,
-    dreams_directory,
-)
+from .paths import LOGO_PATH, data_directory
 from .qtlog import QtLogHandler
 from .session import SmaccSession
 
@@ -46,17 +39,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
         super().__init__()
         self.session = session
 
-        self.n_report_counter = 0  # cumulative counter for determining filenames
-
         # Lights state drives the dark theme; sessions start with lights on.
         self.lights_on = True
         self._default_palette = cast(
             QtWidgets.QApplication, QtWidgets.QApplication.instance()
         ).palette()
-
-        self.init_microphone()
-        self.init_level_meter()
-        self.init_intercom()
 
         # Modality windows, constructed up front (hidden) and opened on demand
         # from the launcher buttons. Each holds its own state for study save/load.
@@ -64,14 +51,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
             "visual": VisualWindow(self.session),
             "audio": AudioCueWindow(self.session),
             "noise": NoiseWindow(self.session),
+            "recording": RecordingWindow(self.session),
+            "intercom": IntercomWindow(self.session),
         }
 
         self.init_main_window()
-
-        # Catch the spacebar app-wide (any focus) for intercom push-to-talk.
-        app = QtWidgets.QApplication.instance()
-        if app is not None:
-            app.installEventFilter(self)
 
         self.session.log_info_msg("Opened SMACC v" + VERSION)
 
@@ -98,9 +82,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # syncs the preview handler to the Log preview menu checkboxes).
         central_layout = QtWidgets.QGridLayout()
         central_layout.addLayout(self._build_launcher_buttons(), 0, 0)
-        central_layout.addLayout(self._build_events_section(), 1, 0)
         central_layout.addLayout(self._build_log_viewer_section(), 0, 1)
-        central_layout.addLayout(self._build_recording_section(), 1, 1)
+        central_layout.addLayout(self._build_events_section(), 1, 0, 1, 2)
         central_widget = QtWidgets.QWidget()
         central_widget.setContentsMargins(5, 5, 5, 5)
         central_widget.move(100, 100)
@@ -234,92 +217,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         fileMenu.addSeparator()
         fileMenu.addAction(aboutAction)
         fileMenu.addAction(quitAction)
-
-    def _build_recording_section(self) -> QtWidgets.QLayout:
-        """Build the dream-recording panel (mic, level meter, intercom, survey)."""
-        recordingtitleLabel = self._make_section_title("Dream recording")
-
-        # Microphone device picker: QComboBox signal --> update device slot
-        available_microphones_dropdown = QtWidgets.QComboBox()
-        available_microphones_dropdown.setStatusTip("Select microphone")
-        available_microphones_dropdown.setPlaceholderText("No microphones were found.")
-        # available_microphones_dropdown.setMaximumWidth(200)
-        available_microphones_dropdown.currentTextChanged.connect(
-            self.set_new_microphone
-        )
-        self.available_microphones_dropdown = available_microphones_dropdown
-        self.refresh_available_microphones()
-
-        micrecordButton = QtWidgets.QPushButton("Record dream report", self)
-        micrecordButton.setStatusTip("Ask for a dream report and start recording.")
-        micrecordButton.setCheckable(True)
-        micrecordButton.clicked.connect(self.start_or_stop_recording)
-
-        # Live input level meter (#25): monitor microphone/room level in dBFS.
-        # Checkbox + bar share one row (label provided by the form layout).
-        monitorCheckBox = QtWidgets.QCheckBox(self)
-        monitorCheckBox.setStatusTip(
-            "Show the live input level from the default microphone, in dBFS."
-        )
-        monitorCheckBox.toggled.connect(self.toggle_level_monitor)
-        self.monitorCheckBox = monitorCheckBox
-
-        levelMeterBar = QtWidgets.QProgressBar(self)
-        levelMeterBar.setRange(0, 100)
-        levelMeterBar.setValue(0)
-        levelMeterBar.setTextVisible(True)
-        levelMeterBar.setFormat("")
-        self.levelMeterBar = levelMeterBar
-
-        levelLayout = QtWidgets.QHBoxLayout()
-        levelLayout.addWidget(monitorCheckBox)
-        levelLayout.addWidget(levelMeterBar)
-
-        # Intercom (#20): live experimenter-mic -> participant-output so the
-        # experimenter can talk to the participant. Toggle/spacebar; LSL markers.
-        # Output device the participant hears on (their speakers/headphones).
-        intercom_output_dropdown = QtWidgets.QComboBox()
-        intercom_output_dropdown.setStatusTip(
-            "Output device the participant hears the intercom on "
-            "(their speakers/headphones)."
-        )
-        self.intercom_output_dropdown = intercom_output_dropdown
-        self.refresh_intercom_outputs()
-
-        intercomButton = QtWidgets.QPushButton("Intercom (talk)", self)
-        intercomButton.setStatusTip(
-            "Click to latch the intercom on/off, or press and hold the spacebar to "
-            "talk (push-to-talk). Warning: risks feedback near open speakers."
-        )
-        intercomButton.setCheckable(True)
-        intercomButton.toggled.connect(self.toggle_intercom)
-        self.intercomButton = intercomButton
-
-        # Survey selector: editable dropdown of named presets (or a typed-in URL).
-        # The chosen survey opens in the browser when a dream report starts.
-        surveyComboBox = QtWidgets.QComboBox(self)
-        surveyComboBox.setEditable(True)
-        surveyComboBox.setInsertPolicy(QtWidgets.QComboBox.NoInsert)
-        surveyComboBox.setStatusTip(
-            "Survey opened in the browser when a dream report starts. "
-            "Pick a preset or type a URL (leave blank for none)."
-        )
-        surveyComboBox.addItem("", "")  # Blank default == no survey.
-        for label, url in SURVEY_OPTIONS.items():
-            surveyComboBox.addItem(label, url)
-        self.surveyComboBox = surveyComboBox
-
-        microphoneLayout = QtWidgets.QFormLayout()
-        microphoneLayout.setLabelAlignment(QtCore.Qt.AlignRight)
-        microphoneLayout.setLabelAlignment(QtCore.Qt.AlignRight)
-        microphoneLayout.addRow(recordingtitleLabel)
-        microphoneLayout.addRow("Device:", available_microphones_dropdown)
-        microphoneLayout.addRow("Survey:", surveyComboBox)
-        microphoneLayout.addRow("Play/Stop:", micrecordButton)
-        microphoneLayout.addRow("Show input level:", levelLayout)
-        microphoneLayout.addRow("To participant:", intercom_output_dropdown)
-        microphoneLayout.addRow("Intercom:", intercomButton)
-        return microphoneLayout
 
     def _build_events_section(self) -> QtWidgets.QLayout:
         """Build the event-marker grid (lightswitch + common event buttons)."""
@@ -483,357 +380,24 @@ class SmaccWindow(QtWidgets.QMainWindow):
             p.setColor(QtGui.QPalette.Disabled, role, disabled)
         return p
 
-    def set_new_microphone(self, text: str) -> None:
-        """Handle a new microphone selection."""
-        self.session.logger.debug(f"New microphone {text} selected!")
-
-    ############################################################################
-    # Functions for refreshing/searching for connected devices (inputs and outputs)
-    ############################################################################
-
-    def refresh_available_microphones(self):
-        """
-        Populate the microphone dropdown menu with all available audio input devices.
-        """
-        self.available_microphones_dropdown.clear()
-        devices = QtMultimedia.QAudioDeviceInfo.availableDevices(
-            QtMultimedia.QAudio.AudioInput
-        )
-        # devices = self.microphone.audioInputs()
-        # # don't know y each device shows up twice
-        # devices = list(set(devices))
-        for device in devices:
-            device_name = device.deviceName()
-            device_realm = device.realm()
-            device_str = f"{device_name} [{device_realm}]"
-            self.available_microphones_dropdown.addItem(device_str)
-        if devices:
-            self.available_microphones_dropdown.setCurrentIndex(0)
-        else:
-            self.show_error_popup("No microphones found.")
-
-    def update_input_device(self):
-        # if the current input is re-selected it still "changes" here
-        # update the menu checkmarks
-        # the only checkmark that gets AUTOMATICALLY updated is the one
-        # that was clicked, so change all the others, and change BACK
-        # the one that was undone if it was already the audio input (has to be something)
-        checked = self.sender().isChecked()
-        if checked:
-            new_device_name = self.sender().text()
-            for menu_item in self.input_menu_items:
-                device_name = menu_item.text()
-                if device_name == new_device_name:
-                    self.microphone.setAudioInput(new_device_name)
-                    # menu_item.setChecked(True) # happens by default
-                else:  # need to uncheck the one that WAS checked, so just hit all of them
-                    menu_item.setChecked(False)
-            # if new_device_name == self.microphone.audioInput():
-            #     action.setChecked(True)
-            # self.session.log_info_msg(f"INPUT DEVICE UPDATE {new_device_name}")
-            # self.show_error_popup("Not implemented yet")
-        elif not checked:
-            # this is when someone tries to "unselect" an input.
-            # can't be allowed, but pyqt will uncheck it, so recheck it
-            self.sender().setChecked(True)  # recheck it
-            # for menu_item in self.input_menu_items:
-            #     if menu_item.iconText() == self.sender().text():
-            #         menu_item.setChecked(True)
-
-    ############################################################################
-    # Input level meter (#25)
-    ############################################################################
-
-    def init_level_meter(self) -> None:
-        """Set up the input level meter stream and its refresh timer."""
-        self.meter_stream: sd.InputStream | None = None
-        self._input_level_db = audio.FLOOR_DBFS
-        self.meter_timer = QtCore.QTimer(self)
-        self.meter_timer.setInterval(50)  # ~20 Hz display refresh
-        self.meter_timer.timeout.connect(self.update_level_meter)
-
-    def toggle_level_monitor(self, enabled: bool) -> None:
-        """Start/stop monitoring the default input device's level."""
-        if enabled:
-            try:
-                self.meter_stream = sd.InputStream(
-                    channels=1, callback=self._meter_callback
-                )
-                self.meter_stream.start()
-            except Exception as exc:  # PortAudio errors, no device, etc.
-                self.show_error_popup("Could not open input for monitoring.", str(exc))
-                self.monitorCheckBox.setChecked(False)
-                self.meter_stream = None
-                return
-            self.meter_timer.start()
-        else:
-            self.meter_timer.stop()
-            if self.meter_stream is not None:
-                self.meter_stream.abort()
-                self.meter_stream.close()
-                self.meter_stream = None
-            self.levelMeterBar.setValue(0)
-            self.levelMeterBar.setFormat("")
-
-    def _meter_callback(self, indata, frames, time, status) -> None:
-        """sounddevice callback (audio thread): stash the latest input level."""
-        self._input_level_db = audio.rms_dbfs(indata)
-
-    def update_level_meter(self) -> None:
-        """GUI-thread timer: render the latest level onto the meter bar."""
-        db = self._input_level_db
-        self.levelMeterBar.setValue(audio.dbfs_to_meter(db))
-        self.levelMeterBar.setFormat(f"{db:.0f} dBFS")
-
-    ############################################################################
-    # Intercom: live mic -> speaker routing (#20)
-    ############################################################################
-
-    def init_intercom(self) -> None:
-        """Set up intercom (live experimenter-mic -> participant-output) state.
-
-        Uses two independent streams (mic in, participant out) bridged by a queue
-        and a resampler, so the two devices need not share a sample rate.
-        """
-        self.intercom_input_stream: sd.InputStream | None = None
-        self.intercom_output_stream: sd.OutputStream | None = None
-        self._intercom_queue: queue.Queue | None = None
-        self._intercom_resampler: audio.LinearResampler | None = None
-        self._intercom_push_to_talk = False  # True while held via spacebar
-
-    def refresh_intercom_outputs(self) -> None:
-        """Populate the intercom output dropdown with available output devices.
-
-        seealso: refresh_available_noisespeakers
-        """
-        self.intercom_output_dropdown.clear()
-        host_api_name = "Windows WASAPI"
-        host_api_names = [api["name"] for api in sd.query_hostapis()]
-        hostapi = (
-            host_api_names.index(host_api_name)
-            if host_api_name in host_api_names
-            else None
-        )
-        for device in sd.query_devices():
-            if device["max_output_channels"] <= 0:
-                continue
-            if hostapi is not None and device["hostapi"] != hostapi:
-                continue
-            suffix = f", {host_api_name}" if hostapi is not None else ""
-            self.intercom_output_dropdown.addItem(f"{device['name']}{suffix}")
-        if self.intercom_output_dropdown.count():
-            self.intercom_output_dropdown.setCurrentIndex(0)
-
-    def toggle_intercom(self, enabled: bool) -> None:
-        """Start/stop routing the experimenter mic to the participant output.
-
-        Two single-direction streams (each at its device's native rate) bridged by
-        a queue + resampler, so mismatched sample rates are fine. Logged and marked
-        in the EEG record via LSL. Warning: a mic near open speakers risks feedback.
-        """
-        if enabled:
-            # Default input (experimenter mic); selected output (participant hears).
-            output_device = self.intercom_output_dropdown.currentText() or None
-            try:
-                in_rate = int(sd.query_devices(kind="input")["default_samplerate"])
-                out_info = (
-                    sd.query_devices(output_device, "output")
-                    if output_device
-                    else sd.query_devices(kind="output")
-                )
-                out_rate = int(out_info["default_samplerate"])
-                self._intercom_queue = queue.Queue(maxsize=32)
-                self._intercom_resampler = audio.LinearResampler(in_rate, out_rate)
-                self.intercom_input_stream = sd.InputStream(
-                    samplerate=in_rate,
-                    channels=1,
-                    callback=self._intercom_in_callback,
-                )
-                self.intercom_output_stream = sd.OutputStream(
-                    samplerate=out_rate,
-                    channels=1,
-                    device=output_device,
-                    callback=self._intercom_out_callback,
-                )
-                self.intercom_input_stream.start()
-                self.intercom_output_stream.start()
-            except Exception as exc:  # PortAudio errors, no device, etc.
-                self._stop_intercom_streams()
-                self.show_error_popup("Could not start intercom.", str(exc))
-                self.intercomButton.setChecked(False)
-                return
-            self.session.send_event_marker(
-                self.session.portcodes["IntercomStarted"], "Intercom unmuted (talking)"
-            )
-        elif self._stop_intercom_streams():
-            self.session.send_event_marker(
-                self.session.portcodes["IntercomStopped"], "Intercom remuted"
-            )
-
-    def _stop_intercom_streams(self) -> bool:
-        """Tear down both intercom streams; return True if any were running."""
-        stopped = False
-        for attr in ("intercom_input_stream", "intercom_output_stream"):
-            stream = getattr(self, attr)
-            if stream is not None:
-                stream.abort()
-                stream.close()
-                setattr(self, attr, None)
-                stopped = True
-        self._intercom_queue = None
-        self._intercom_resampler = None
-        return stopped
-
-    def _intercom_in_callback(self, indata, frames, time, status) -> None:
-        """Mic stream (audio thread): queue captured frames for the output stream."""
-        if self._intercom_queue is not None:
-            try:
-                self._intercom_queue.put_nowait(indata[:, 0].copy())
-            except queue.Full:
-                pass  # output not keeping up; drop a block rather than block
-
-    def _intercom_out_callback(self, outdata, frames, time, status) -> None:
-        """Output stream (audio thread): resample queued mic frames to the device."""
-        if self._intercom_queue is not None and self._intercom_resampler is not None:
-            while True:
-                try:
-                    self._intercom_resampler.push(self._intercom_queue.get_nowait())
-                except queue.Empty:
-                    break
-            outdata[:, 0] = self._intercom_resampler.pull(frames)
-        else:
-            outdata.fill(0)
-
-    @staticmethod
-    def _is_text_widget_focused() -> bool:
-        """True if a text-entry widget has focus (so space should type, not talk)."""
-        widget = QtWidgets.QApplication.focusWidget()
-        return isinstance(
-            widget,
-            (
-                QtWidgets.QLineEdit,
-                QtWidgets.QAbstractSpinBox,
-                QtWidgets.QTextEdit,
-                QtWidgets.QPlainTextEdit,
-            ),
-        )
-
-    def eventFilter(self, obj, event) -> bool:
-        """Application-wide spacebar push-to-talk for the intercom.
-
-        Installed on the QApplication so it sees the spacebar regardless of which
-        widget has focus (a plain keyPressEvent only fires when the window itself
-        is focused). Hold space to talk, release to stop; auto-repeat is swallowed
-        so the intercom never rapidly toggles. Space passes through untouched while
-        a text-entry widget is focused, so typing (notes, URLs) still works.
-        """
-        etype = event.type()
-        if (
-            etype in (QtCore.QEvent.KeyPress, QtCore.QEvent.KeyRelease)
-            and event.key() == QtCore.Qt.Key_Space
-            and not self._is_text_widget_focused()
-        ):
-            if etype == QtCore.QEvent.KeyPress:
-                if not event.isAutoRepeat() and not self.intercomButton.isChecked():
-                    self._intercom_push_to_talk = True
-                    self.intercomButton.setChecked(True)  # -> toggle_intercom(True)
-            elif not event.isAutoRepeat() and self._intercom_push_to_talk:
-                self._intercom_push_to_talk = False
-                self.intercomButton.setChecked(False)  # -> toggle_intercom(False)
-            return True  # consume so the focused widget doesn't also see space
-        return super().eventFilter(obj, event)
-
-    def init_microphone(self):
-        """initialize the microphone/recorder to collect dream reports
-        Do this early so that a list of devices can be generated
-        to build the menubar options for changing the input device.
-        Not allowing options to change settings for now.
-
-        The output location is updated whenever a new recording is started.
-        The default device is selected here but can be updated from menubar.
-        """
-        # audio recorder stuff
-        # https://stackoverflow.com/a/64300056
-        # https://doc.qt.io/qt-5/qtmultimedia-multimedia-audiorecorder-example.html
-        # https://flothesof.github.io/pyqt-microphone-fft-application.html
-        settings = QtMultimedia.QAudioEncoderSettings()
-        settings.setEncodingMode(QtMultimedia.QMultimedia.ConstantQualityEncoding)
-        settings.setQuality(QtMultimedia.QMultimedia.NormalQuality)
-        microphone = QtMultimedia.QAudioRecorder()
-        microphone.setEncodingSettings(settings)
-        # Connect stateChange to adjust color of button to indicate status
-        microphone.stateChanged.connect(self.update_microphone_status)
-        self.microphone = microphone
-
-    def record(self):
-        state = self.microphone.state()  # recording / paused / stopped
-        if state == QtMultimedia.QMediaRecorder.StoppedState:
-            ### start a new recording
-            # generate filename
-            self.n_report_counter += 1
-            basename = f"sub-{self.session.subject}_ses-{self.session.session}_report-{self.n_report_counter:02d}.wav"
-            export_fname = os.path.join(dreams_directory, basename)
-            self.microphone.setOutputLocation(QtCore.QUrl.fromLocalFile(export_fname))
-            self.microphone.record()
-            # # filename = 'https://www.pachd.com/sfx/camera_click.wav'
-            # # fullpath = QtCore.QDir.current().absoluteFilePath(filename)
-        elif state == QtMultimedia.QMediaRecorder.RecordingState:
-            self.microphone.stop()
-
-    def update_microphone_status(self, state):
-        if state == QtMultimedia.QMediaRecorder.StoppedState:
-            self.logviewList.setStyleSheet("border: 0px solid red;")
-        elif state == QtMultimedia.QMediaRecorder.RecordingState:
-            self.logviewList.setStyleSheet("border: 3px solid red;")
-
     ############################################################################
     # Study config save/resume (study.json bundles)
     ############################################################################
 
     def gather_study_state(self) -> dict:
-        """Collect the current GUI parameters into a serializable dict.
+        """Collect each panel's parameters into one serializable study dict.
 
-        Single source of truth for study save/load. Audio devices are excluded
-        on purpose (only the noise device routes today).
+        Audio devices are excluded on purpose (only the noise device routes today).
         """
-        survey_options = {
-            self.surveyComboBox.itemText(i): self.surveyComboBox.itemData(i)
-            for i in range(self.surveyComboBox.count())
-            if self.surveyComboBox.itemData(i)
-        }
-        state = {
-            "survey_url": self.current_survey_url(),
-            "survey_options": survey_options,
-        }
+        state: dict = {}
         for panel in self.panels.values():
             state.update(panel.gather_state())
         return state
 
     def apply_study_state(self, state: dict) -> None:
-        """Apply a study ``state`` dict to the GUI widgets.
-
-        Setting widget values fires their existing signals, so volume/source/
-        color/length all propagate without extra wiring.
-        """
+        """Apply a study ``state`` dict to every panel (each reads its own keys)."""
         for panel in self.panels.values():
             panel.apply_state(state)
-        self._apply_survey_state(state)
-
-    def _apply_survey_state(self, state: dict) -> None:
-        """Rebuild the survey dropdown from saved presets and select the saved URL."""
-        options = state.get("survey_options") or {}
-        self.surveyComboBox.blockSignals(True)
-        self.surveyComboBox.clear()
-        self.surveyComboBox.addItem("", "")  # Blank default == no survey.
-        for label, url in options.items():
-            self.surveyComboBox.addItem(label, url)
-        self.surveyComboBox.blockSignals(False)
-        survey_url = state.get("survey_url", "")
-        for i in range(self.surveyComboBox.count()):
-            if self.surveyComboBox.itemData(i) == survey_url:
-                self.surveyComboBox.setCurrentIndex(i)
-                return
-        self.surveyComboBox.setEditText(survey_url)
 
     def save_study(self) -> None:
         """Prompt for a study folder, copy the cue into it, and write study.json."""
@@ -906,29 +470,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
             return
         self.session.log_info_msg(f"Exported {len(events)} events to {path}")
 
-    def current_survey_url(self) -> str:
-        """Resolve the survey URL from the dropdown.
-
-        A selected preset stores its URL as item data; a typed-in entry has no
-        data, so fall back to the raw text. Empty == no survey.
-        """
-        data = self.surveyComboBox.currentData()
-        if data:
-            return str(data)
-        return self.surveyComboBox.currentText().strip()
-
-    def start_or_stop_recording(self):
-        self.record()  # This will start OR stop recording, whichever is not currently happening
-        if self.sender().isChecked():
-            if survey_url := self.current_survey_url():
-                webbrowser.open(survey_url, new=1, autoraise=False)
-            port_msg = "DreamReportStarted"
-        else:
-            port_msg = "DreamReportStopped"
-        # button_label = self.sender().text()
-        portcode = self.session.portcodes[port_msg]
-        self.session.send_event_marker(portcode, port_msg)
-
     @QtCore.pyqtSlot()
     def open_note_marker_dialogue(self):
         text, ok = QtWidgets.QInputDialog.getText(
@@ -968,9 +509,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
                 panel._quitting = True
                 panel.cleanup()
                 panel.close()
-            if self.meter_stream is not None:
-                self.meter_stream.close()
-            self._stop_intercom_streams()
             self.session.log_info_msg("Program closed")
             event.accept()
         else:
