@@ -111,12 +111,11 @@ class SubjectSessionRequest(QtWidgets.QDialog):
         self.session_id = QtWidgets.QLineEdit(self)
         self.subject_id.setText(str(DEVELOPMENT_ID))
         self.session_id.setText("1")
-        self.subject_id.setValidator(
-            QtGui.QIntValidator(0, 999)
-        )  # Require a 3-digit number
-        self.session_id.setValidator(
-            QtGui.QIntValidator(0, 999)
-        )  # Require a 3-digit number
+        # Allow letters, numbers, underscores, and hyphens, up to 30 characters.
+        id_validator = QtGui.QRegExpValidator(QtCore.QRegExp(r"[A-Za-z0-9_-]{1,30}"))
+        for field in (self.subject_id, self.session_id):
+            field.setValidator(id_validator)
+            field.setMaxLength(30)
         # Create buttons to accept values or cancel.
         buttonBox = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self
@@ -129,11 +128,9 @@ class SubjectSessionRequest(QtWidgets.QDialog):
         layout.addRow("Session ID", self.session_id)
         layout.addWidget(buttonBox)
 
-    def get_inputs(self) -> tuple[int, int]:
-        """Return user-specified subject and session IDs as integers."""
-        subject_int = int(self.subject_id.text())
-        session_int = int(self.session_id.text())
-        return subject_int, session_int
+    def get_inputs(self) -> tuple[str, str]:
+        """Return user-specified subject and session IDs as strings."""
+        return self.subject_id.text(), self.session_id.text()
 
 
 #####################################
@@ -144,7 +141,7 @@ class SubjectSessionRequest(QtWidgets.QDialog):
 class SmaccWindow(QtWidgets.QMainWindow):
     """Main interface."""
 
-    def __init__(self, subject_id: int, session_id: int) -> None:
+    def __init__(self, subject_id: str, session_id: str) -> None:
         super().__init__()
 
         self.n_report_counter = 0  # cumulative counter for determining filenames
@@ -238,7 +235,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def init_logger(self) -> None:
         """Initialize the logger that writes to a per-session log file."""
-        path_name = f"sub-{self.subject:03d}_ses-{self.session:03d}_smacc-{VERSION}.log"
+        path_name = f"sub-{self.subject}_ses-{self.session}_smacc-{VERSION}.log"
         log_path = logs_directory / path_name
         self.log_path = log_path  # kept for BIDS events export
         self.logger = logging.getLogger("smacc")
@@ -1357,7 +1354,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
             ### start a new recording
             # generate filename
             self.n_report_counter += 1
-            basename = f"sub-{self.subject:03d}_ses-{self.session:03d}_report-{self.n_report_counter:02d}.wav"
+            basename = f"sub-{self.subject}_ses-{self.session}_report-{self.n_report_counter:02d}.wav"
             export_fname = os.path.join(dreams_directory, basename)
             self.microphone.setOutputLocation(QtCore.QUrl.fromLocalFile(export_fname))
             self.microphone.record()
@@ -1500,7 +1497,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         for handler in self.logger.handlers:
             handler.flush()
         default = self.log_path.with_name(
-            f"sub-{self.subject:03d}_ses-{self.session:03d}_events.tsv"
+            f"sub-{self.subject}_ses-{self.session}_events.tsv"
         )
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "Export events (BIDS)", str(default), "BIDS events (*.tsv)"

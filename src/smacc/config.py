@@ -4,7 +4,7 @@ from smacc import __version__
 
 VERSION = __version__
 
-DEVELOPMENT_ID = 999
+DEVELOPMENT_ID = "999"
 DEFAULT_VOLUME = 0.5
 
 SURVEY_URL = None
