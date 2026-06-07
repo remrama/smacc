@@ -7,14 +7,14 @@ import os
 import queue
 import shutil
 import webbrowser
-from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 from typing import cast
 
 import sounddevice as sd
 from PyQt5 import QtCore, QtGui, QtMultimedia, QtWidgets
 
-from smacc import audio, bids, study, utils
+from smacc import audio, bids, study
 
 from .config import (
     COMMON_EVENT_CODES,
@@ -22,6 +22,8 @@ from .config import (
     SURVEY_OPTIONS,
     VERSION,
 )
+from .panels.base import ModalityWindow
+from .panels.noise import NoiseWindow
 from .paths import (
     LOGO_PATH,
     cues_directory,
@@ -62,10 +64,15 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         self.init_blinkstick()
         self.init_audio_stimulation_setup()
-        self.init_noise_player()
         self.init_microphone()
         self.init_level_meter()
         self.init_intercom()
+
+        # Modality windows, constructed up front (hidden) and opened on demand
+        # from the launcher buttons. Each holds its own state for study save/load.
+        self.panels: dict[str, ModalityWindow] = {
+            "noise": NoiseWindow(self.session),
+        }
 
         self.init_main_window()
 
@@ -100,7 +107,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         central_layout = QtWidgets.QGridLayout()
         central_layout.addLayout(self._build_visual_section(), 0, 0)
         central_layout.addLayout(self._build_audio_section(), 1, 0)
-        central_layout.addLayout(self._build_noise_section(), 2, 0)
+        central_layout.addLayout(self._build_launcher_buttons(), 2, 0)
         central_layout.addLayout(self._build_log_viewer_section(), 0, 1)
         central_layout.addLayout(self._build_recording_section(), 1, 1)
         central_layout.addLayout(self._build_events_section(), 2, 1)
@@ -135,6 +142,35 @@ class SmaccWindow(QtWidgets.QMainWindow):
         font.setPointSize(18)
         label.setFont(font)
         return label
+
+    # Modality windows openable from the launcher (key -> button label).
+    PANEL_LABELS = {
+        "visual": "Visual stimulation",
+        "audio": "Audio cue",
+        "noise": "Noise machine",
+        "recording": "Dream recording",
+        "intercom": "Intercom",
+    }
+
+    def _build_launcher_buttons(self) -> QtWidgets.QLayout:
+        """Build the 'Open tools' column with a button per extracted panel."""
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(self._make_section_title("Open tools"))
+        for key, label in self.PANEL_LABELS.items():
+            if key not in self.panels:
+                continue
+            button = QtWidgets.QPushButton(label, self)
+            button.clicked.connect(partial(self._open_panel, key))
+            layout.addWidget(button)
+        layout.addStretch(1)
+        return layout
+
+    def _open_panel(self, key: str) -> None:
+        """Show and focus the modality window for ``key``."""
+        window = self.panels[key]
+        window.show()
+        window.raise_()
+        window.activateWindow()
 
     def _build_menu_bar(self) -> None:
         """Build the consolidated File menu (actions + log-preview levels)."""
@@ -459,75 +495,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         microphoneLayout.addRow("Intercom:", intercomButton)
         return microphoneLayout
 
-    def _build_noise_section(self) -> QtWidgets.QLayout:
-        """Build the noise-machine panel."""
-        noisetitleLabel = self._make_section_title("Noise machine")
-
-        # Noise device picker: QComboBox signal --> update device slot
-        available_noisespeakers_dropdown = QtWidgets.QComboBox()
-        available_noisespeakers_dropdown.setStatusTip("Select speakers for noise")
-        # available_noisespeakers_dropdown.setMaximumWidth(200)
-        available_noisespeakers_dropdown.currentTextChanged.connect(
-            self.set_new_noisespeakers
-        )
-        self.available_noisespeakers_dropdown = available_noisespeakers_dropdown
-        self.refresh_available_noisespeakers()
-
-        # Noise color picker: QComboBox signal --> update noise color parameter
-        available_noisecolors = ["white", "pink", "brown"]
-        available_noisecolors_dropdown = QtWidgets.QComboBox()
-        available_noisecolors_dropdown.setStatusTip("Select speakers for noise")
-        available_noisecolors_dropdown.currentTextChanged.connect(
-            self.set_new_noisecolor
-        )
-        # available_noisecolors_dropdown.addItems(available_noisecolors)
-        for color in available_noisecolors:
-            pixmap = QtGui.QPixmap(16, 16)
-            pixmap.fill(QtGui.QColor(color))
-            icon = QtGui.QIcon(pixmap)
-            available_noisecolors_dropdown.addItem(icon, color)
-        self.available_noisecolors_dropdown = available_noisecolors_dropdown
-
-        # Noise volume selector: QDoubleSpinBox signal --> update audio volume slot
-        noisevolumeSpinBox = QtWidgets.QDoubleSpinBox(self)
-        noisevolumeSpinBox.setStatusTip(
-            "Select volume of noise (must be in range 0-1)."
-        )
-        # noisevolumeSpinBox.setRange(0, 1)
-        noisevolumeSpinBox.setMinimum(0)
-        noisevolumeSpinBox.setMaximum(
-            1
-        )  # Currently using QSoundEffect which only allows 0-1
-        # noisevolumeSpinBox.setPrefix("Volume: ")
-        # noisevolumeSpinBox.setSuffix(" dB")
-        noisevolumeSpinBox.setSingleStep(0.01)
-        noisevolumeSpinBox.valueChanged.connect(self.update_noise_volume)
-        noisevolumeSpinBox.setValue(0.2)
-        self.noisevolumeSpinBox = noisevolumeSpinBox
-
-        # Play button: QPushButton signal --> play function
-        playnoiseButton = QtWidgets.QPushButton("Play noise", self)
-        playnoiseButton.setStatusTip("Play the selected noise color.")
-        # playButton.setIcon(QtGui.QIcon("./color.png"))
-        playnoiseButton.clicked.connect(self.play_noise)
-        # Stop button: QPushButton signal --> stop function
-        stopnoiseButton = QtWidgets.QPushButton("Stop noise", self)
-        stopnoiseButton.setStatusTip("Stop the selected noise color.")
-        stopnoiseButton.clicked.connect(self.stop_noise)
-
-        playstopnoiseLayout = QtWidgets.QHBoxLayout()
-        playstopnoiseLayout.addWidget(playnoiseButton)
-        playstopnoiseLayout.addWidget(stopnoiseButton)
-
-        noiseLayout = QtWidgets.QFormLayout()
-        noiseLayout.setLabelAlignment(QtCore.Qt.AlignRight)
-        noiseLayout.addRow(noisetitleLabel)
-        noiseLayout.addRow("Device:", available_noisespeakers_dropdown)
-        noiseLayout.addRow("Color/Type:", available_noisecolors_dropdown)
-        noiseLayout.addRow("Volume:", noisevolumeSpinBox)
-        noiseLayout.addRow(playstopnoiseLayout)
-        return noiseLayout
-
     def _build_events_section(self) -> QtWidgets.QLayout:
         """Build the event-marker grid (lightswitch + common event buttons)."""
         eventmarkertitleLabel = self._make_section_title("Event logging")
@@ -698,22 +665,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
             path = Path(filename)
             self.wavselectorEdit.setText(str(path))
 
-    def set_new_noisecolor(self, text: str) -> None:
-        """Restart noise playback when the noise color changes (``text``)."""
-        # filepath = Path(".") / text
-        # content = QtCore.QUrl.fromLocalFile(str(filepath))
-        # self.noiseplayer.setSource(content)
-        if self.noise_stream is not None:  # or isactive
-            self.stop_noise()
-            self.play_noise()
-
     def set_new_speakers(self, text: str) -> None:
         """Handle a new audio-stimulation speaker selection."""
         self.session.logger.debug(f"New speakers {text} selected!")
-
-    def set_new_noisespeakers(self, text: str) -> None:
-        """Text is the device name, with host api string appended to the end."""
-        self.noiseplayer_device = text
 
     def set_new_microphone(self, text: str) -> None:
         """Handle a new microphone selection."""
@@ -722,27 +676,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
     ############################################################################
     # Functions for refreshing/searching for connected devices (inputs and outputs)
     ############################################################################
-
-    def refresh_available_noisespeakers(self):
-        """
-        Populate the audio stimulation device selection menu with currently
-        available speakers.
-
-        seealso: refresh_available_speakers
-        """
-        self.available_noisespeakers_dropdown.clear()
-        HOST_API = "Windows WASAPI"
-        hostapi = [api["name"] for api in sd.query_hostapis()].index(HOST_API)
-        devices = sd.query_devices()
-        for device in devices:
-            if device["hostapi"] == hostapi and device["max_output_channels"] > 0:
-                device_name = device["name"]
-                device_str = f"{device_name}, {HOST_API}"
-                self.available_noisespeakers_dropdown.addItem(device_str)
-        if devices:
-            self.available_noisespeakers_dropdown.setCurrentIndex(0)
-        else:
-            self.show_error_popup("No audio devices found.")
 
     def refresh_available_speakers(self):
         """
@@ -915,64 +848,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.cue_attack_s = 0.0
         self.cue_release_s = 0.0
         self._cue_fade_anim: QtCore.QPropertyAnimation | None = None
-
-    def init_noise_player(self):
-        """Create media player for noise files."""
-        # player = QtMultimedia.QSoundEffect()
-        # # player.setVolume(0)  # 0 to 1 -- Gets set already when parameter selector is made
-        # player.setLoopCount(QtMultimedia.QSoundEffect.Infinite)
-        # # player.playingChanged.connect(self.on_cuePlayingChange)
-        # self.noiseplayer = player
-        self.noise_stream = None
-
-    @staticmethod
-    def noise_color_funcs(color: str) -> Callable:
-        """Return the noise-generation function for the given color name."""
-        noise_functions = {
-            "pink": utils.pink_noise,
-            "blue": utils.blue_noise,
-            "white": utils.white_noise,
-            "brown": utils.brownian_noise,
-            "violet": utils.violet_noise,
-        }
-        return noise_functions[color]
-
-    def play_noise(self) -> None:
-        """Start streaming the selected noise color to the selected device."""
-        # self.noiseplayer.play()
-        # device = self.noise_stream_device  # could also just set default sd device :/
-        ## DO NOT actually need to connect dropdown to update device in this case.
-        ## because need to use the device here at play, instead of setting it earlier
-        device = self.available_noisespeakers_dropdown.currentText()
-        color = self.available_noisecolors_dropdown.currentText()
-        rate = 44100
-
-        # global white_noise
-        # if color == "white":
-        #     noise_data = white_noise(44100).reshape(-1, 1)
-        def callback(outdata, frames, time, status):
-            """frames is the number of frames (rate)"""
-            if status:
-                self.session.logger.warning(f"Audio output status: {status}")
-            outdata[:] = (
-                self.noise_color_funcs(color)(rate).reshape(-1, 1)
-                * self.noise_stream_volume
-            )
-
-        # add end_callback
-        if self.noise_stream is None:
-            self.noise_stream = sd.OutputStream(
-                channels=1, blocksize=rate, callback=callback, device=device
-            )
-            self.noise_stream.start()
-        # could use with statement and threading
-
-    def stop_noise(self) -> None:
-        """Stop and tear down the active noise stream, if any."""
-        # self.noiseplayer.stop()
-        if self.noise_stream is not None:
-            self.noise_stream.abort()
-            self.noise_stream = None
 
     ############################################################################
     # Input level meter (#25)
@@ -1235,19 +1110,20 @@ class SmaccWindow(QtWidgets.QMainWindow):
             for i in range(self.surveyComboBox.count())
             if self.surveyComboBox.itemData(i)
         }
-        return {
+        state = {
             "cue_file": self.wavselectorEdit.text(),
             "cue_volume": self.volumeSpinBox.value(),
             "cue_loop": self.loopCheckBox.isChecked(),
             "cue_attack": self.attackSpinBox.value(),
             "cue_release": self.releaseSpinBox.value(),
-            "noise_volume": self.noisevolumeSpinBox.value(),
-            "noise_color": self.available_noisecolors_dropdown.currentText(),
             "blink_color": self.bstick_hexcode,
             "blink_length": self.bstick_blink_freq,
             "survey_url": self.current_survey_url(),
             "survey_options": survey_options,
         }
+        for panel in self.panels.values():
+            state.update(panel.gather_state())
+        return state
 
     def apply_study_state(self, state: dict) -> None:
         """Apply a study ``state`` dict to the GUI widgets.
@@ -1264,12 +1140,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         if (v := state.get("cue_release")) is not None:
             self.releaseSpinBox.setValue(float(v))
         self.loopCheckBox.setChecked(bool(state.get("cue_loop", False)))
-        if (v := state.get("noise_volume")) is not None:
-            self.noisevolumeSpinBox.setValue(float(v))
-        if color := state.get("noise_color"):
-            idx = self.available_noisecolors_dropdown.findText(color)
-            if idx >= 0:
-                self.available_noisecolors_dropdown.setCurrentIndex(idx)
+        for panel in self.panels.values():
+            panel.apply_state(state)
         if hexcode := state.get("blink_color"):
             qcolor = QtGui.QColor(hexcode)
             if qcolor.isValid():
@@ -1521,16 +1393,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.wavplayer.setVolume(value)  # 0 - 1
         # self.session.log_info_msg(f"VolumeSet - Cue {float_volume}")
 
-    def update_noise_volume(self, value: float) -> None:
-        """Method catching signals from audio stimulation volume spinbox
-        NOT noise, audio cues.
-
-        value should be a float from the spinbox
-        """
-        # self.noiseplayer.setVolume(value)  # 0 - 1
-        # self.session.log_info_msg(f"VolumeSet - Noise {float_volume}")
-        self.noise_stream_volume = value
-
     def change_input_gain(self, value):
         self.show_error_popup(
             "Not implemented yet",
@@ -1545,14 +1407,14 @@ class SmaccWindow(QtWidgets.QMainWindow):
             self, "Quit", "Do you want to quit/close SMACC?"
         )
         if response == QtWidgets.QMessageBox.Yes:
-            if self.noise_stream:
-                self.noise_stream.close()
+            for panel in self.panels.values():
+                panel._quitting = True
+                panel.cleanup()
+                panel.close()
             if self.meter_stream is not None:
                 self.meter_stream.close()
             self._stop_intercom_streams()
             self.session.log_info_msg("Program closed")
             event.accept()
-            # self.closed.emit()
-            # sys.exit()
         else:
             event.ignore()
