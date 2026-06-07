@@ -10,6 +10,9 @@ from .gui import SmaccWindow, SubjectSessionRequest
 def main() -> None:
     """Show the session-setup dialog and, on confirmation, open the main window."""
     app = QApplication(sys.argv)
+    # Fusion honors the full QPalette consistently across platforms, which the
+    # native Windows style does not — required for the lights-off dark theme.
+    app.setStyle("Fusion")
     inbox = SubjectSessionRequest()
     inbox.exec()
     if inbox.result():  # 1 if they hit Ok, 0 if cancel

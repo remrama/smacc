@@ -10,6 +10,7 @@ import time
 import webbrowser
 from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 import sounddevice as sd
 from pylsl import StreamInfo, StreamOutlet
@@ -53,8 +54,10 @@ COMMON_EVENT_CODES = {
 }
 
 COMMON_EVENT_TIPS = {
-    "Lights off": "Mark the beginning of sleep session",
-    "Lights on": "Mark the end of sleep session",
+    # "Lights off"/"Lights on" are intentionally omitted here: they are driven
+    # by the dedicated lightswitch toggle (which also flips the dark theme), not
+    # by the auto-generated event-marker grid. Their codes remain in
+    # COMMON_EVENT_CODES so send_event_marker still resolves them.
     "TLR training start": "Mark the start of Targeted Lucidity Reactivation training",
     "TLR training end": "Mark the end of Targeted Lucidity Reactivation training",
     "Tech in room": "Mark the entry of an experimenter/technician in the participant bedroom",
@@ -76,8 +79,9 @@ class BorderWidget(QtWidgets.QFrame):
 
     def __init__(self, *args):
         super().__init__(*args)
+        # Mid-grey border so it reads on both light and dark backgrounds.
         self.setStyleSheet(
-            "background-color: rgb(0,0,0,0); margin:0px; border:4px solid rgb(0, 0, 0); border-radius: 25px; "
+            "background-color: rgb(0,0,0,0); margin:0px; border:4px solid rgb(120, 120, 120); border-radius: 25px; "
         )
 
 
@@ -149,6 +153,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         self.cues_directory = cues_directory
         # self.noise_directory = noise_directory
+
+        # Lights state drives the dark theme; sessions start with lights on.
+        self.lights_on = True
+        self._default_palette = cast(
+            QtWidgets.QApplication, QtWidgets.QApplication.instance()
+        ).palette()
 
         self.init_blinkstick()
         self.init_audio_stimulation_setup()
@@ -317,10 +327,15 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # VISUAL STIMULATION WIDGETS AND LAYOUT (BUTTON STACK)
         ########################################################################
 
+        # Section headers use a QFont (not a stylesheet) so their text color
+        # follows the palette and stays legible when the dark theme toggles.
+        titleFont = QtGui.QFont()
+        titleFont.setPointSize(18)
+
         visualtitleLabel = QtWidgets.QLabel("Visual stimulation")
         visualtitleLabel.setAlignment(QtCore.Qt.AlignCenter)
         # titleLabel.setStyleSheet("font: 30pt Comic Sans MS")
-        visualtitleLabel.setStyleSheet("font: 18pt")
+        visualtitleLabel.setFont(titleFont)
 
         # Visual device picker: QComboBox signal --> update device slot
         available_blinksticks_dropdown = QtWidgets.QComboBox()
@@ -375,7 +390,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         audiotitleLabel = QtWidgets.QLabel("Audio stimulation")
         audiotitleLabel.setAlignment(QtCore.Qt.AlignCenter)
-        audiotitleLabel.setStyleSheet("font: 18pt")
+        audiotitleLabel.setFont(titleFont)
 
         # Audio stimulation device picker: QComboBox signal --> update device slot
         available_speakers_dropdown = QtWidgets.QComboBox()
@@ -494,7 +509,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         recordingtitleLabel = QtWidgets.QLabel("Dream recording")
         recordingtitleLabel.setAlignment(QtCore.Qt.AlignCenter)
-        recordingtitleLabel.setStyleSheet("font: 18pt")
+        recordingtitleLabel.setFont(titleFont)
 
         # Microphone device picker: QComboBox signal --> update device slot
         available_microphones_dropdown = QtWidgets.QComboBox()
@@ -583,7 +598,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         noisetitleLabel = QtWidgets.QLabel("Noise machine")
         noisetitleLabel.setAlignment(QtCore.Qt.AlignCenter)
-        noisetitleLabel.setStyleSheet("font: 18pt")
+        noisetitleLabel.setFont(titleFont)
 
         # Noise device picker: QComboBox signal --> update device slot
         available_noisespeakers_dropdown = QtWidgets.QComboBox()
@@ -655,10 +670,25 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         eventmarkertitleLabel = QtWidgets.QLabel("Event logging")
         eventmarkertitleLabel.setAlignment(QtCore.Qt.AlignCenter)
-        eventmarkertitleLabel.setStyleSheet("font: 18pt")
+        eventmarkertitleLabel.setFont(titleFont)
+
+        # Lights toggle: a single switch replacing the two lights event buttons.
+        # It sends the lights marker and flips the dark theme. Connect the
+        # toggled signal only after setChecked so construction fires no marker.
+        self.lightswitchButton = QtWidgets.QPushButton(self)
+        self.lightswitchButton.setCheckable(True)
+        self.lightswitchButton.setShortcut("L")
+        self.lightswitchButton.setMinimumHeight(48)
+        self.lightswitchButton.setStatusTip(
+            "Toggle lights off/on (sends the lights event marker and switches theme)"
+        )
+        self.lightswitchButton.setChecked(True)
+        self._refresh_lightswitch_label()
+        self.lightswitchButton.toggled.connect(self.on_lightswitch_toggled)
 
         eventsLayout = QtWidgets.QGridLayout()
         eventsLayout.addWidget(eventmarkertitleLabel, 0, 0, 1, 2)
+        eventsLayout.addWidget(self.lightswitchButton, 1, 0, 1, 2)
         n_events = len(COMMON_EVENT_TIPS)
         for i, (event, tip) in enumerate(COMMON_EVENT_TIPS.items()):
             shortcut = str(i + 1)
@@ -671,7 +701,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
                 button.clicked.connect(self.open_note_marker_dialogue)
             else:
                 button.clicked.connect(self.handle_event_button)
-            row = 1 + i
+            row = 2 + i
             if i >= (halfsize := int(n_events / 2)):
                 row -= halfsize
             col = 1 if i >= halfsize else 0
@@ -683,7 +713,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         logviewertitleLabel = QtWidgets.QLabel("Log viewer")
         logviewertitleLabel.setAlignment(QtCore.Qt.AlignCenter)
-        logviewertitleLabel.setStyleSheet("font: 18pt")
+        logviewertitleLabel.setFont(titleFont)
 
         # Events log viewer --> gets updated when events are logged
         logviewList = QtWidgets.QListWidget()
@@ -753,6 +783,74 @@ class SmaccWindow(QtWidgets.QMainWindow):
         text = sender.text().split("(")[0].strip()
         code = COMMON_EVENT_CODES[text]
         self.send_event_marker(code, text)
+
+    def on_lightswitch_toggled(self, checked: bool) -> None:
+        """Handle a user toggle of the lightswitch (``checked`` == lights on)."""
+        self.set_lights(checked, send_marker=True)
+
+    def set_lights(self, lights_on: bool, send_marker: bool = False) -> None:
+        """Update lights state, refresh the switch, and apply the theme.
+
+        ``send_marker`` stays False during setup so the event marker only fires
+        on real user interaction.
+        """
+        self.lights_on = lights_on
+        self._refresh_lightswitch_label()
+        self.apply_theme(dark=not lights_on)
+        if send_marker:
+            name = "Lights on" if lights_on else "Lights off"
+            self.send_event_marker(COMMON_EVENT_CODES[name], name)
+
+    def _refresh_lightswitch_label(self) -> None:
+        """Sync the lightswitch text/style to the current state."""
+        if self.lights_on:
+            self.lightswitchButton.setText(
+                "\U0001f4a1 Lights ON  (L) — click to turn OFF"
+            )
+            self.lightswitchButton.setStyleSheet(
+                "font: bold 14pt; padding: 8px; background-color: #f0d000; color: black;"
+            )
+        else:
+            self.lightswitchButton.setText(
+                "\U0001f319 Lights OFF  (L) — click to turn ON"
+            )
+            self.lightswitchButton.setStyleSheet(
+                "font: bold 14pt; padding: 8px; background-color: #303030; color: #dddddd;"
+            )
+
+    def apply_theme(self, dark: bool) -> None:
+        """Apply the dark or the default light palette to the whole application."""
+        app = cast("QtWidgets.QApplication | None", QtWidgets.QApplication.instance())
+        if app is None:
+            return
+        app.setPalette(self._dark_palette() if dark else self._default_palette)
+
+    @staticmethod
+    def _dark_palette() -> QtGui.QPalette:
+        """Build a dark, Fusion-friendly palette."""
+        p = QtGui.QPalette()
+        base = QtGui.QColor(53, 53, 53)
+        text = QtGui.QColor(220, 220, 220)
+        disabled = QtGui.QColor(127, 127, 127)
+        highlight = QtGui.QColor(42, 130, 218)
+        p.setColor(QtGui.QPalette.Window, base)
+        p.setColor(QtGui.QPalette.WindowText, text)
+        p.setColor(QtGui.QPalette.Base, QtGui.QColor(35, 35, 35))
+        p.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor(45, 45, 45))
+        p.setColor(QtGui.QPalette.ToolTipBase, base)
+        p.setColor(QtGui.QPalette.ToolTipText, text)
+        p.setColor(QtGui.QPalette.Text, text)
+        p.setColor(QtGui.QPalette.Button, base)
+        p.setColor(QtGui.QPalette.ButtonText, text)
+        p.setColor(QtGui.QPalette.Highlight, highlight)
+        p.setColor(QtGui.QPalette.HighlightedText, QtGui.QColor(0, 0, 0))
+        for role in (
+            QtGui.QPalette.WindowText,
+            QtGui.QPalette.Text,
+            QtGui.QPalette.ButtonText,
+        ):
+            p.setColor(QtGui.QPalette.Disabled, role, disabled)
+        return p
 
     def open_wav_selector(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
