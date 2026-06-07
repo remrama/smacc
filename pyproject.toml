@@ -29,6 +29,7 @@ dependencies = [
     "PyQt5-Qt5==5.15.2",
     "scipy",
     "sounddevice",
+    "soundfile>=0.12",
 ]
 
 [project.optional-dependencies]

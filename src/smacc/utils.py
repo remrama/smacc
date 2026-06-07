@@ -7,7 +7,10 @@ from os import environ
 from pathlib import Path
 
 import numpy as np
+import soundfile as sf
 from scipy.io.wavfile import write
+
+_WAV_SUFFIXES = {".wav", ".wave"}
 
 
 def get_data_directory() -> Path:
@@ -20,6 +23,22 @@ def get_data_directory() -> Path:
     data_directory = Path(raw).expanduser()
     data_directory.mkdir(exist_ok=True)
     return data_directory
+
+
+def ensure_wav(src: Path, cache_dir: Path) -> Path:
+    """Return a QSoundEffect-playable PCM WAV for ``src``.
+
+    WAV inputs are returned unchanged. Other formats (mp3/flac/ogg/aiff) are
+    decoded to a 16-bit PCM WAV under ``cache_dir`` and that path is returned.
+    The cache key includes the source mtime, so edits re-decode but repeats reuse.
+    """
+    if src.suffix.lower() in _WAV_SUFFIXES:
+        return src
+    dest = cache_dir / f"{src.stem}-{src.stat().st_mtime_ns}.wav"
+    if not dest.exists():
+        data, rate = sf.read(str(src), dtype="int16")  # mono or (frames, channels)
+        sf.write(str(dest), data, rate, subtype="PCM_16")
+    return dest
 
 
 def note(freq: float, duration: float, amp: float, rate: int) -> np.ndarray:

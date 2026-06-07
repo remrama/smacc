@@ -23,7 +23,7 @@ Note that for some features, you will need to open SMACC with Administrator priv
 
 * If you don't want to use the default `~/SMACC` folder, you can change this by setting a new environment variable called `SMACC_DATA_DIRECTORY` equal to whatever directory you want to use. SMACC will create it and all the subfolders (if not already present).
 
-* Place any sound files in the `~/SMACC/cues` folder (_must be **.wav** files!_).
+* Place any sound files in the `~/SMACC/cues` folder (`.wav`, `.mp3`, `.flac`, `.ogg`, and `.aiff` are all supported).
 
 * There is a `Record Dream Report` button that will start to record from whatever external recording device is selected from the SMACC menubar. There is also an option to have it pop open a website URL. I use this to open up a dream report survey I have set up on Qualtrics. If you want it to open something, update the `SURVEY_URL` variable in `config.py`. If planning to record dreams, choose sound device for recording audio from the menubar (`Audio > Input device > [choose device]`).
 

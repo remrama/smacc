@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+import soundfile as sf
 from scipy.io.wavfile import read, write
 
 from smacc import utils
@@ -53,3 +54,43 @@ def test_wav_round_trip(tmp_path):
     read_rate, read_data = read(wav_path)
     assert read_rate == rate
     np.testing.assert_array_equal(read_data, tone)
+
+
+def test_ensure_wav_converts_non_wav(tmp_path):
+    # FLAC is lossless, so the decoded WAV should match the source samples exactly.
+    rate = 8000
+    tone = utils.note(freq=261.63, duration=1, amp=1e4, rate=rate)
+    flac_path = tmp_path / "tone.flac"
+    sf.write(flac_path, tone, rate)
+    wav_path = utils.ensure_wav(flac_path, tmp_path)
+    assert wav_path != flac_path
+    assert wav_path.suffix == ".wav"
+    read_rate, read_data = read(wav_path)
+    assert read_rate == rate
+    np.testing.assert_array_equal(read_data, tone)
+
+
+def test_ensure_wav_passes_through_wav(tmp_path):
+    rate = 8000
+    tone = utils.note(freq=440, duration=1, amp=1e4, rate=rate)
+    wav_path = tmp_path / "tone.wav"
+    write(wav_path, rate, tone)
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    result = utils.ensure_wav(wav_path, cache_dir)
+    assert result == wav_path  # returned unchanged
+    assert list(cache_dir.iterdir()) == []  # nothing written to the cache
+
+
+def test_ensure_wav_reuses_cached_conversion(tmp_path):
+    rate = 8000
+    tone = utils.note(freq=329.63, duration=1, amp=1e4, rate=rate)
+    flac_path = tmp_path / "tone.flac"
+    sf.write(flac_path, tone, rate)
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    first = utils.ensure_wav(flac_path, cache_dir)
+    mtime = first.stat().st_mtime_ns
+    second = utils.ensure_wav(flac_path, cache_dir)
+    assert second == first
+    assert second.stat().st_mtime_ns == mtime  # cache hit, not re-decoded
