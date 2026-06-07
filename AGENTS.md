@@ -24,8 +24,14 @@ pre-commit install         # enable the lint/format/type-check git hooks
 Build the standalone Windows executable:
 
 ```sh
-uv run pyinstaller entry.py --name SMACC --onefile --noconsole
+uv run pyinstaller entry.py --name SMACC --onefile --noconsole \
+  --icon src/smacc/assets/icon.ico \
+  --add-data "src/smacc/assets/icon.png:smacc/assets"
 ```
+
+`--icon` sets the executable's file icon; `--add-data` bundles the runtime
+window/taskbar icon, which SMACC resolves via `sys._MEIPASS`. On Windows the
+`--add-data` separator is `;` rather than `:` (i.e. `...png;smacc/assets`).
 
 ## Project notes
 

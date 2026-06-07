@@ -2,9 +2,10 @@
 
 import sys
 
+from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication
 
-from .gui import SmaccWindow, SubjectSessionRequest
+from .gui import LOGO_PATH, SmaccWindow, SubjectSessionRequest
 
 
 def main() -> None:
@@ -13,6 +14,9 @@ def main() -> None:
     # Fusion honors the full QPalette consistently across platforms, which the
     # native Windows style does not — required for the lights-off dark theme.
     app.setStyle("Fusion")
+    # Application-wide icon (taskbar + the subject/session dialog).
+    if LOGO_PATH.is_file():
+        app.setWindowIcon(QIcon(str(LOGO_PATH)))
     inbox = SubjectSessionRequest()
     inbox.exec()
     if inbox.result():  # 1 if they hit Ok, 0 if cancel
