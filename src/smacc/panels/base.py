@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 from ..paths import LOGO_PATH
@@ -50,6 +52,21 @@ class ModalityWindow(QtWidgets.QMainWindow):
 
     def cleanup(self) -> None:
         """Stop any streams/timers this panel owns (called on app quit)."""
+
+    def relativize_files(self, state: dict, study_dir: Path) -> None:
+        """Copy any files this panel references into ``study_dir`` and rewrite
+        the paths in ``state`` to basenames, so the study bundle is portable.
+
+        Default: nothing to bundle. ``state`` is the full merged study dict;
+        override and touch only this panel's own keys.
+        """
+
+    def resolve_files(self, state: dict, study_dir: Path) -> None:
+        """Rewrite this panel's bundled basenames in ``state`` back to absolute
+        paths under ``study_dir`` (inverse of :meth:`relativize_files`).
+
+        Default: nothing to resolve.
+        """
 
     def closeEvent(self, event):
         """Hide the window instead of destroying it, unless the app is quitting."""

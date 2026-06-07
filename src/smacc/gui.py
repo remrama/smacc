@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import shutil
 from functools import partial
 from pathlib import Path
 from typing import cast
@@ -406,13 +405,10 @@ class SmaccWindow(QtWidgets.QMainWindow):
             return
         study_dir = Path(folder)
         state = self.gather_study_state()
-        # Copy the cue WAV into the study folder so the bundle is self-contained.
-        cue_file = state.get("cue_file")
-        if cue_file and Path(cue_file).is_file():
-            dest = study_dir / Path(cue_file).name
-            if Path(cue_file).resolve() != dest.resolve():
-                shutil.copy2(cue_file, dest)
-            state["cue_file"] = Path(cue_file).name  # store basename, resolve on load
+        # Let each panel bundle its files into the study folder (copy + rewrite
+        # to basenames) so the study.json is portable.
+        for panel in self.panels.values():
+            panel.relativize_files(state, study_dir)
         try:
             study.save_study(study_dir / "study.json", state)
         except OSError as exc:
@@ -433,12 +429,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         except (OSError, ValueError) as exc:
             self.show_error_popup("Could not load study.", str(exc))
             return
-        # Resolve a bundled (basename) cue relative to the study folder.
-        cue_file = state.get("cue_file")
-        if cue_file and not Path(cue_file).is_absolute():
-            candidate = study_path.parent / cue_file
-            if candidate.is_file():
-                state["cue_file"] = str(candidate)
+        # Let each panel resolve its bundled (basename) files relative to the folder.
+        for panel in self.panels.values():
+            panel.resolve_files(state, study_path.parent)
         self.apply_study_state(state)
         self.session.log_info_msg(f"Loaded study from {study_path}")
 

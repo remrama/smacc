@@ -1,7 +1,16 @@
-"""Audio cue window: play a sound file with fade-in/out and looping."""
+"""Audio cue window: a multi-slot cue board (file/volume/loop per slot).
+
+Each slot preloads its own sound with its own volume and loop setting, so a
+protocol that uses several sounds (e.g. cue vs. sham) can keep them ready and
+fire any one with a click. Playback is one-at-a-time (playing a slot stops
+whatever was playing); fade-in/out is shared at the panel level.
+"""
 
 from __future__ import annotations
 
+import shutil
+from dataclasses import dataclass, field
+from functools import partial
 from pathlib import Path
 
 from PyQt5 import QtCore, QtMultimedia, QtWidgets
@@ -10,31 +19,87 @@ from ..paths import cues_directory
 from ..session import SmaccSession
 from .base import ModalityWindow, make_section_title
 
+N_CUE_SLOTS = 4
+
+
+@dataclass
+class CueSlot:
+    """One preloaded cue: its player plus the row of widgets that control it."""
+
+    index: int
+    player: QtMultimedia.QSoundEffect
+    nameEdit: QtWidgets.QLineEdit
+    fileEdit: QtWidgets.QLineEdit
+    browseButton: QtWidgets.QPushButton
+    volumeSpinBox: QtWidgets.QDoubleSpinBox
+    loopCheckBox: QtWidgets.QCheckBox
+    playButton: QtWidgets.QPushButton
+    stopButton: QtWidgets.QPushButton
+    was_playing: bool = field(default=False)
+
 
 class AudioCueWindow(ModalityWindow):
-    """Cue-sound player with a mixing-board transport (play/stop, loop, status)."""
+    """Multi-slot cue board with a shared device + fade and per-slot play/stop."""
 
     TITLE = "Audio cue"
 
     def __init__(self, session: SmaccSession, parent: QtWidgets.QWidget | None = None):
         super().__init__(session, parent)
-        player = QtMultimedia.QSoundEffect()
-        player.setLoopCount(1)
-        player.playingChanged.connect(self.on_cue_playing_change)
-        self.wavplayer = player
-        # Fade (attack/release) durations in seconds; 0 == instant on/off.
+        # Shared fade (attack/release) durations in seconds; 0 == instant.
         self.cue_attack_s = 0.0
         self.cue_release_s = 0.0
         self._cue_fade_anim: QtCore.QPropertyAnimation | None = None
+        self._playing_index: int | None = None
+        # Populated incrementally so the per-slot signal handlers (fired by the
+        # initial setValue below) can already index self.slots.
+        self.slots: list[CueSlot] = []
+        self._make_slots()
         self.setCentralWidget(self._build())
 
-    def _build(self) -> QtWidgets.QWidget:
-        # "Now playing" indicator on top (mixing-board style).
-        cueStatusLabel = QtWidgets.QLabel("■ stopped", self)
-        cueStatusLabel.setAlignment(QtCore.Qt.AlignCenter)
-        self.cueStatusLabel = cueStatusLabel
+    # ----- construction ------------------------------------------------------
 
-        # Device picker: QComboBox signal --> update device slot
+    def _make_slots(self) -> None:
+        for i in range(N_CUE_SLOTS):
+            player = QtMultimedia.QSoundEffect()
+            player.setLoopCount(1)
+            nameEdit = QtWidgets.QLineEdit(f"Cue {i + 1}", self)
+            nameEdit.setMaximumWidth(90)
+            fileEdit = QtWidgets.QLineEdit(self)
+            fileEdit.setMinimumWidth(180)
+            browseButton = QtWidgets.QPushButton("Browse", self)
+            volumeSpinBox = QtWidgets.QDoubleSpinBox(self)
+            volumeSpinBox.setRange(0, 1)  # QSoundEffect only allows 0-1
+            volumeSpinBox.setSingleStep(0.01)
+            volumeSpinBox.setMaximumWidth(70)
+            loopCheckBox = QtWidgets.QCheckBox(self)
+            loopCheckBox.setStatusTip("Repeat this cue until stopped.")
+            loopCheckBox.setToolTip("Loop until stopped")
+            playButton = QtWidgets.QPushButton("Play", self)
+            stopButton = QtWidgets.QPushButton("Stop", self)
+            slot = CueSlot(
+                i,
+                player,
+                nameEdit,
+                fileEdit,
+                browseButton,
+                volumeSpinBox,
+                loopCheckBox,
+                playButton,
+                stopButton,
+            )
+            self.slots.append(slot)  # append before wiring so handlers can index it
+            player.playingChanged.connect(partial(self.on_slot_playing_change, i))
+            fileEdit.textChanged.connect(partial(self.update_slot_source, i))
+            fileEdit.editingFinished.connect(partial(self.update_slot_source, i))
+            volumeSpinBox.valueChanged.connect(partial(self.update_slot_volume, i))
+            loopCheckBox.toggled.connect(partial(self.update_slot_loop, i))
+            browseButton.clicked.connect(partial(self.open_wav_selector, i))
+            playButton.clicked.connect(partial(self.play_slot, i))
+            stopButton.clicked.connect(partial(self.stop_slot, i))
+            volumeSpinBox.setValue(0.2)  # fires update_slot_volume -> player
+
+    def _build(self) -> QtWidgets.QWidget:
+        # Shared device + fade controls.
         available_speakers_dropdown = QtWidgets.QComboBox()
         available_speakers_dropdown.setStatusTip("Select audio stimulation device")
         available_speakers_dropdown.setPlaceholderText("No speaker devices were found.")
@@ -42,32 +107,6 @@ class AudioCueWindow(ModalityWindow):
         self.available_speakers_dropdown = available_speakers_dropdown
         self.refresh_available_speakers()
 
-        wavselectorLayout = QtWidgets.QHBoxLayout()
-        wavselectorLabel = QtWidgets.QLabel("Sound:", self)
-        wavselectorEdit = QtWidgets.QLineEdit(self)
-        wavselectorButton = QtWidgets.QPushButton("Browse", self)
-        wavselectorButton.clicked.connect(self.open_wav_selector)
-        wavselectorLayout.addWidget(wavselectorLabel)
-        wavselectorLayout.addWidget(wavselectorEdit)
-        wavselectorLayout.addWidget(wavselectorButton)
-        wavselectorEdit.textChanged.connect(self.update_audio_source)
-        wavselectorEdit.editingFinished.connect(self.update_audio_source)
-        self.wavselectorEdit = wavselectorEdit
-
-        # Volume selector
-        volumeSpinBox = QtWidgets.QDoubleSpinBox(self)
-        volumeSpinBox.setStatusTip(
-            "Select volume of audio stimulation (must be in range 0-1)."
-        )
-        volumeSpinBox.setMinimum(0)
-        volumeSpinBox.setMaximum(1)  # QSoundEffect only allows 0-1
-        volumeSpinBox.setSingleStep(0.01)
-        volumeSpinBox.valueChanged.connect(self.update_audio_volume)
-        volumeSpinBox.setValue(0.2)
-        self.volumeSpinBox = volumeSpinBox
-
-        # Fade-in (attack) and fade-out (release) ramps, in seconds. Ramping the
-        # cue volume avoids an abrupt onset that could wake the participant (#22).
         attackSpinBox = QtWidgets.QDoubleSpinBox(self)
         attackSpinBox.setStatusTip(
             "Fade-in time for the cue, in seconds (0 = instant)."
@@ -90,49 +129,46 @@ class AudioCueWindow(ModalityWindow):
         releaseSpinBox.setValue(0.0)
         self.releaseSpinBox = releaseSpinBox
 
-        # Loop toggle: when checked, the cue repeats until stopped.
-        loopCheckBox = QtWidgets.QCheckBox("Loop until stopped", self)
-        loopCheckBox.setStatusTip(
-            "Repeat the cue continuously until the Stop button is pressed."
-        )
-        loopCheckBox.toggled.connect(self.update_audio_loop)
-        self.loopCheckBox = loopCheckBox
+        header = QtWidgets.QFormLayout()
+        header.setLabelAlignment(QtCore.Qt.AlignRight)
+        header.addRow("Device:", available_speakers_dropdown)
+        header.addRow("Fade in:", attackSpinBox)
+        header.addRow("Fade out:", releaseSpinBox)
 
-        # Stacked Play/Stop transport (mixing-board style).
-        playButton = QtWidgets.QPushButton("Play soundfile", self)
-        playButton.setStatusTip("Play the selected sound file.")
-        playButton.clicked.connect(self.stimulate_audio)
-        stopcueButton = QtWidgets.QPushButton("Stop", self)
-        stopcueButton.setStatusTip("Stop the currently playing cue.")
-        stopcueButton.clicked.connect(self.stop_audio)
-        transport = QtWidgets.QVBoxLayout()
-        transport.addWidget(playButton)
-        transport.addWidget(stopcueButton)
+        # "Now playing" indicator on top of the slot table (mixing-board style).
+        self.nowPlayingLabel = QtWidgets.QLabel("■ stopped", self)
+        self.nowPlayingLabel.setAlignment(QtCore.Qt.AlignCenter)
 
-        form = QtWidgets.QFormLayout()
-        form.setLabelAlignment(QtCore.Qt.AlignRight)
-        form.addRow("Device:", available_speakers_dropdown)
-        form.addRow("Volume:", volumeSpinBox)
-        form.addRow("Fade in:", attackSpinBox)
-        form.addRow("Fade out:", releaseSpinBox)
-        form.addRow(wavselectorLayout)
-        form.addRow(loopCheckBox)
+        # Cue table: a header row + one row per slot.
+        grid = QtWidgets.QGridLayout()
+        for col, title in enumerate(["Name", "Sound", "Vol", "Loop", "", ""]):
+            label = QtWidgets.QLabel(title, self)
+            label.setStyleSheet("font-weight: bold;")
+            grid.addWidget(label, 0, col)
+        for slot in self.slots:
+            row = slot.index + 1
+            grid.addWidget(slot.nameEdit, row, 0)
+            sound = QtWidgets.QHBoxLayout()
+            sound.addWidget(slot.fileEdit)
+            sound.addWidget(slot.browseButton)
+            grid.addLayout(sound, row, 1)
+            grid.addWidget(slot.volumeSpinBox, row, 2)
+            grid.addWidget(slot.loopCheckBox, row, 3)
+            grid.addWidget(slot.playButton, row, 4)
+            grid.addWidget(slot.stopButton, row, 5)
+        grid.setColumnStretch(1, 1)
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(make_section_title("Audio cue"))
-        layout.addWidget(cueStatusLabel)
-        layout.addLayout(form)
-        layout.addLayout(transport)
+        layout.addLayout(header)
+        layout.addWidget(self.nowPlayingLabel)
+        layout.addLayout(grid)
+        layout.addStretch(1)
         central = QtWidgets.QWidget()
         central.setLayout(layout)
         return central
 
-    def open_wav_selector(self):
-        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Select a File", str(cues_directory), "Audio (*.wav)"
-        )
-        if filename:
-            self.wavselectorEdit.setText(str(Path(filename)))
+    # ----- shared device + fade ---------------------------------------------
 
     def set_new_speakers(self, text: str) -> None:
         """Handle a new audio-stimulation speaker selection."""
@@ -155,91 +191,183 @@ class AudioCueWindow(ModalityWindow):
         else:
             self.session.show_error_popup("No audio devices found.", parent=self)
 
-    def stimulate_audio(self):
-        """Play the cue, ramping volume up over the attack time if set."""
-        target = self.volumeSpinBox.value()
-        if self.cue_attack_s > 0:
-            self.wavplayer.setVolume(0.0)
-            self.wavplayer.play()
-            self._fade_volume(0.0, target, self.cue_attack_s)
-        else:
-            self.wavplayer.setVolume(target)
-            self.wavplayer.play()
+    def update_cue_attack(self, value: float) -> None:
+        """Set the shared cue fade-in (attack) time in seconds."""
+        self.cue_attack_s = value
 
-    def stop_audio(self):
-        """Stop the cue, ramping volume down over the release time if set."""
-        if self.cue_release_s > 0 and self.wavplayer.isPlaying():
-            anim = self._fade_volume(self.wavplayer.volume(), 0.0, self.cue_release_s)
-            anim.finished.connect(self.wavplayer.stop)
-        else:
-            self.wavplayer.stop()
+    def update_cue_release(self, value: float) -> None:
+        """Set the shared cue fade-out (release) time in seconds."""
+        self.cue_release_s = value
 
     def _fade_volume(
-        self, start: float, end: float, seconds: float
+        self,
+        player: QtMultimedia.QSoundEffect,
+        start: float,
+        end: float,
+        seconds: float,
     ) -> QtCore.QPropertyAnimation:
-        """Animate the cue player's volume from ``start`` to ``end``."""
-        anim = QtCore.QPropertyAnimation(self.wavplayer, b"volume", self)
+        """Animate ``player``'s volume from ``start`` to ``end``."""
+        anim = QtCore.QPropertyAnimation(player, b"volume", self)
         anim.setDuration(int(seconds * 1000))
         anim.setStartValue(float(start))
         anim.setEndValue(float(end))
         anim.start()
-        self._cue_fade_anim = anim  # keep a reference so it isn't garbage-collected
+        self._cue_fade_anim = anim  # one-at-a-time, so a single ref is enough
         return anim
 
-    def update_cue_attack(self, value: float) -> None:
-        """Set the cue fade-in (attack) time in seconds."""
-        self.cue_attack_s = value
+    # ----- per-slot controls -------------------------------------------------
 
-    def update_cue_release(self, value: float) -> None:
-        """Set the cue fade-out (release) time in seconds."""
-        self.cue_release_s = value
+    def open_wav_selector(self, index: int) -> None:
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Select a File", str(cues_directory), "Audio (*.wav)"
+        )
+        if filename:
+            self.slots[index].fileEdit.setText(str(Path(filename)))
 
-    def update_audio_loop(self, enabled: bool) -> None:
-        """Set the cue loop count from the loop checkbox."""
-        loop_count = QtMultimedia.QSoundEffect.Infinite if enabled else 1
-        self.wavplayer.setLoopCount(loop_count)
+    def update_slot_source(self, index: int) -> None:
+        """Set a slot player's source from its file line edit."""
+        filepath = self.slots[index].fileEdit.text()
+        self.slots[index].player.setSource(QtCore.QUrl.fromLocalFile(filepath))
 
-    def update_audio_source(self):
-        """Catch the audio-file line edit/browse signal and set the cue source."""
-        filepath = self.wavselectorEdit.text()
-        content = QtCore.QUrl.fromLocalFile(filepath)
-        self.wavplayer.setSource(content)
+    def update_slot_volume(self, index: int, value: float | None = None) -> None:
+        """Set a slot player's volume (0-1) from its spinbox."""
+        self.slots[index].player.setVolume(self.slots[index].volumeSpinBox.value())
 
-    def update_audio_volume(self, value: float) -> None:
-        """Catch the cue volume spinbox signal (value is a 0-1 float)."""
-        self.wavplayer.setVolume(value)
+    def update_slot_loop(self, index: int, enabled: bool | None = None) -> None:
+        """Set a slot player's loop count from its checkbox."""
+        looping = self.slots[index].loopCheckBox.isChecked()
+        count = QtMultimedia.QSoundEffect.Infinite if looping else 1
+        self.slots[index].player.setLoopCount(count)
 
-    def on_cue_playing_change(self) -> None:
-        """Update the cue status indicator when playback starts/stops."""
-        if self.wavplayer.isPlaying():
-            looping = self.loopCheckBox.isChecked()
-            self.cueStatusLabel.setText(
-                "\U0001f501 looping" if looping else "▶ playing"
-            )
-            self.cueStatusLabel.setStyleSheet("color: red; font-weight: bold;")
+    def play_slot(self, index: int) -> None:
+        """Play one slot (stopping any other playing slot first) with fade-in."""
+        slot = self.slots[index]
+        if not slot.fileEdit.text().strip():
+            return  # nothing loaded in this slot
+        # One-at-a-time: stop whatever else is playing (fires its CueStopped).
+        if self._playing_index is not None and self._playing_index != index:
+            self.slots[self._playing_index].player.stop()
+        self._playing_index = index
+        target = slot.volumeSpinBox.value()
+        if self.cue_attack_s > 0:
+            slot.player.setVolume(0.0)
+            slot.player.play()
+            self._fade_volume(slot.player, 0.0, target, self.cue_attack_s)
         else:
-            self.cueStatusLabel.setText("■ stopped")
-            self.cueStatusLabel.setStyleSheet("")
+            slot.player.setVolume(target)
+            slot.player.play()
+        self.session.send_event_marker(
+            self.session.portcodes["CueStarted"], f"Cue started: {slot.nameEdit.text()}"
+        )
+
+    def stop_slot(self, index: int) -> None:
+        """Stop a slot (with fade-out) if it is the one currently playing."""
+        slot = self.slots[index]
+        if not slot.player.isPlaying():
+            return
+        if self.cue_release_s > 0:
+            anim = self._fade_volume(
+                slot.player, slot.player.volume(), 0.0, self.cue_release_s
+            )
+            anim.finished.connect(slot.player.stop)
+        else:
+            slot.player.stop()
+
+    def on_slot_playing_change(self, index: int) -> None:
+        """Track each slot's play/stop edges: update the label, emit markers.
+
+        CueStarted is emitted by play_slot (the user action); here we detect the
+        playing->stopped edge per slot to emit CueStopped, so a natural end (a
+        non-looping cue finishing) is marked too, with no double-fire.
+        """
+        slot = self.slots[index]
+        playing = slot.player.isPlaying()
+        if playing and not slot.was_playing:
+            slot.was_playing = True
+            self._playing_index = index
+            looping = slot.loopCheckBox.isChecked()
+            name = slot.nameEdit.text()
+            self.nowPlayingLabel.setText(
+                f"\U0001f501 {name} (looping)" if looping else f"▶ {name}"
+            )
+            self.nowPlayingLabel.setStyleSheet("color: red; font-weight: bold;")
+        elif not playing and slot.was_playing:
+            slot.was_playing = False
+            self.session.send_event_marker(
+                self.session.portcodes["CueStopped"],
+                f"Cue stopped: {slot.nameEdit.text()}",
+            )
+            if self._playing_index == index:
+                self._playing_index = None
+                self.nowPlayingLabel.setText("■ stopped")
+                self.nowPlayingLabel.setStyleSheet("")
+
+    # ----- study state -------------------------------------------------------
 
     def gather_state(self) -> dict:
         return {
-            "cue_file": self.wavselectorEdit.text(),
-            "cue_volume": self.volumeSpinBox.value(),
-            "cue_loop": self.loopCheckBox.isChecked(),
+            "cues": [
+                {
+                    "name": slot.nameEdit.text(),
+                    "file": slot.fileEdit.text(),
+                    "volume": slot.volumeSpinBox.value(),
+                    "loop": slot.loopCheckBox.isChecked(),
+                }
+                for slot in self.slots
+            ],
             "cue_attack": self.attackSpinBox.value(),
             "cue_release": self.releaseSpinBox.value(),
         }
 
     def apply_state(self, state: dict) -> None:
-        if cue := state.get("cue_file"):
-            self.wavselectorEdit.setText(cue)
-        if (v := state.get("cue_volume")) is not None:
-            self.volumeSpinBox.setValue(float(v))
+        cues = state.get("cues")
+        if isinstance(cues, list):
+            for slot, cue in zip(self.slots, cues, strict=False):
+                self._apply_cue(slot, cue)
+        elif state.get("cue_file") is not None or state.get("cue_volume") is not None:
+            # Back-compat: a v1 single cue maps into the first slot.
+            self._apply_cue(
+                self.slots[0],
+                {
+                    "file": state.get("cue_file", ""),
+                    "volume": state.get("cue_volume"),
+                    "loop": state.get("cue_loop"),
+                },
+            )
         if (v := state.get("cue_attack")) is not None:
             self.attackSpinBox.setValue(float(v))
         if (v := state.get("cue_release")) is not None:
             self.releaseSpinBox.setValue(float(v))
-        self.loopCheckBox.setChecked(bool(state.get("cue_loop", False)))
+
+    @staticmethod
+    def _apply_cue(slot: CueSlot, cue: dict) -> None:
+        if name := cue.get("name"):
+            slot.nameEdit.setText(str(name))
+        if (f := cue.get("file")) is not None:
+            slot.fileEdit.setText(str(f))
+        if (v := cue.get("volume")) is not None:
+            slot.volumeSpinBox.setValue(float(v))
+        slot.loopCheckBox.setChecked(bool(cue.get("loop", False)))
+
+    def relativize_files(self, state: dict, study_dir: Path) -> None:
+        """Copy each slot's cue file into the study folder, storing basenames."""
+        for cue in state.get("cues", []):
+            src = cue.get("file")
+            if src and Path(src).is_file():
+                dest = study_dir / Path(src).name
+                if Path(src).resolve() != dest.resolve():
+                    shutil.copy2(src, dest)
+                cue["file"] = Path(src).name  # store basename, resolve on load
+
+    def resolve_files(self, state: dict, study_dir: Path) -> None:
+        """Resolve bundled slot basenames back to absolute paths under study_dir."""
+        for cue in state.get("cues", []):
+            src = cue.get("file")
+            if src and not Path(src).is_absolute():
+                candidate = study_dir / src
+                if candidate.is_file():
+                    cue["file"] = str(candidate)
 
     def cleanup(self) -> None:
-        self.wavplayer.stop()
+        for slot in self.slots:
+            slot.player.stop()

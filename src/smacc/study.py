@@ -13,8 +13,10 @@ import json
 from pathlib import Path
 from typing import Any
 
-# Bump when the serialized layout changes incompatibly.
-SCHEMA_VERSION = 1
+# Bump when the serialized layout changes incompatibly. Files written by older
+# (lower) versions are still accepted on load; panels handle field-level
+# back-compat (e.g. a v1 single cue maps into the first multi-slot cue).
+SCHEMA_VERSION = 2
 
 
 def save_study(path: str | Path, state: dict[str, Any]) -> None:
@@ -33,9 +35,10 @@ def load_study(path: str | Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("Malformed study file: expected a JSON object.")
     version = payload.get("schema_version")
-    if version != SCHEMA_VERSION:
+    # Accept any known (current-or-older) version; panels migrate field shapes.
+    if not isinstance(version, int) or not (1 <= version <= SCHEMA_VERSION):
         raise ValueError(
-            f"Unsupported study schema version {version!r} (expected {SCHEMA_VERSION})."
+            f"Unsupported study schema version {version!r} (expected 1..{SCHEMA_VERSION})."
         )
     state = payload.get("state")
     if not isinstance(state, dict):
