@@ -74,8 +74,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def init_main_window(self):
         """Initialize SMACC's main window: menu/status bars and the widget grid."""
         self._build_menu_bar()
-        toolBar = QtWidgets.QToolBar("Visual parameters", self)
-        self.addToolBar(QtCore.Qt.LeftToolBarArea, toolBar)
         self.statusBar().showMessage("Ready")
 
         # 3x2 grid of panels; menu must be built first (the log-viewer panel
@@ -98,7 +96,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
                 QtWidgets.QStyle.SP_ToolBarHorizontalExtensionButton
             )
         self.setWindowIcon(windowIcon)
-        self.resize(1200, 500)
+        self.resize(640, 560)
         # Always-on-top is off by default (toggle via File -> Always on top).
         self.show()
 
@@ -480,22 +478,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
             portcode = self.session.portcodes["Note"]
             port_msg = f"Note [{text}]"
             self.session.send_event_marker(portcode, port_msg)
-
-    @QtCore.pyqtSlot()
-    def handle_left2right_button(self):
-        self.rightList.addItem(self.leftList.takeItem(self.leftList.currentRow()))
-        self.rightList.sortItems()
-
-    @QtCore.pyqtSlot()
-    def handle_right2left_button(self):
-        self.leftList.addItem(self.rightList.takeItem(self.rightList.currentRow()))
-        self.leftList.sortItems()
-
-    def change_input_gain(self, value):
-        self.show_error_popup(
-            "Not implemented yet",
-            "This should eventually allow for increasing mic input volume.",
-        )
 
     def closeEvent(self, event):
         """customize exit.
