@@ -7,7 +7,6 @@ import os
 import queue
 import shutil
 import sys
-import time
 import webbrowser
 from collections.abc import Callable
 from pathlib import Path
@@ -93,6 +92,50 @@ class BorderWidget(QtWidgets.QFrame):
         self.setStyleSheet(
             "background-color: rgb(0,0,0,0); margin:0px; border:4px solid rgb(120, 120, 120); border-radius: 25px; "
         )
+
+
+class _LogSignaller(QtCore.QObject):
+    """QObject carrying the cross-thread signal for QtLogHandler."""
+
+    message = QtCore.pyqtSignal(str)
+
+
+class QtLogHandler(logging.Handler):
+    """Logging handler that appends records to the GUI log preview list.
+
+    Which records appear is governed by ``enabled_levels`` (an explicit set of
+    level numbers), driven by the File ▸ Log preview checkboxes so any subset of
+    levels can be shown. The file handler still receives every record. The widget
+    update is marshalled to the GUI thread via a Qt signal, so logging from a
+    non-GUI thread (e.g. the audio callback) is safe.
+    """
+
+    def __init__(self, list_widget: QtWidgets.QListWidget) -> None:
+        super().__init__()
+        self._list = list_widget
+        self.enabled_levels: set[int] = {
+            logging.INFO,
+            logging.WARNING,
+            logging.ERROR,
+            logging.CRITICAL,
+        }
+        self._signaller = _LogSignaller()
+        self._signaller.message.connect(self._append)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if record.levelno not in self.enabled_levels:
+            return
+        try:
+            msg = self.format(record)
+        except Exception:
+            self.handleError(record)
+            return
+        self._signaller.message.emit(msg)
+
+    def _append(self, msg: str) -> None:
+        self._list.addItem(msg)
+        self._list.scrollToBottom()
+        self._list.repaint()
 
 
 class SubjectSessionRequest(QtWidgets.QDialog):
@@ -187,7 +230,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.init_lsl_stream()
 
     def show_error_popup(self, short_msg, long_msg=None):
-        # self.log_info_msg("ERROR")
+        # Record the error in the log file (and preview if Error is enabled).
+        self.logger.error(short_msg if long_msg is None else f"{short_msg} {long_msg}")
         win = QtWidgets.QMessageBox(self)  # parent to self so it stacks above
         # # win.setIcon(QtWidgets.QMessageBox.Question)
         # win.setWindowIcon(QtGui.QIcon("./thumb-small.png"))
@@ -204,21 +248,16 @@ class SmaccWindow(QtWidgets.QMainWindow):
     #     em.exec()
 
     def log_info_msg(self, msg):
-        """wrapper just to make sure msg goes to viewer too
-        (should probably split up)
-        """
-        # log the message
+        """Log an INFO message (always to file; to the preview if INFO is on)."""
         self.logger.info(msg)
 
-        # print message to the GUI viewer box thing
-        self.logviewList.addItem(time.strftime("%H:%M:%S") + " - " + msg)
-        self.logviewList.repaint()
-        self.logviewList.scrollToBottom()
-        # item = pg.QtGui.QListWidgetItem(msg)
-        # if warning: # change txt color
-        #     item.setForeground(pg.QtCore.Qt.red)
-        # self.eventList.addItem(item)
-        # self.eventList.update()
+    def _update_preview_levels(self) -> None:
+        """Sync the preview handler's visible levels to the menu checkboxes."""
+        self.preview_handler.enabled_levels = {
+            level
+            for level, action in self._preview_level_actions.items()
+            if action.isChecked()
+        }
 
     def init_lsl_stream(self, stream_id: str = "myuidw43536") -> None:
         """Create the LSL marker stream and its outlet."""
@@ -240,10 +279,13 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.log_path = log_path  # kept for BIDS events export
         self.logger = logging.getLogger("smacc")
         self.logger.setLevel(logging.DEBUG)
+        # Don't bubble up to the root logger (keeps everything out of the
+        # terminal; the file/preview handlers are the only outputs).
+        self.logger.propagate = False
         # open file handler to save external file
         write_mode = "w" if self.subject == DEVELOPMENT_ID else "x"
         fh = logging.FileHandler(log_path, mode=write_mode, encoding="utf-8")
-        fh.setLevel(logging.DEBUG)  # this determines what gets written to file
+        fh.setLevel(logging.DEBUG)  # the file always records every level
         # create formatter and add it to the handlers
         formatter = logging.Formatter(
             fmt="%(asctime)s.%(msecs)03d, %(levelname)s, %(message)s",
@@ -313,6 +355,23 @@ class SmaccWindow(QtWidgets.QMainWindow):
         fileMenu.addAction(exportEventsAction)
         fileMenu.addSeparator()
         fileMenu.addAction(alwaysOnTopAction)
+        fileMenu.addSeparator()
+        # File -> Log preview: pick which log levels show in the preview pane.
+        # Everything is always written to the log file regardless of these.
+        previewMenu = fileMenu.addMenu("Log preview")
+        self._preview_level_actions: dict[int, QtWidgets.QAction] = {}
+        for levelname, levelno in (
+            ("Debug", logging.DEBUG),
+            ("Info", logging.INFO),
+            ("Warning", logging.WARNING),
+            ("Error", logging.ERROR),
+            ("Critical", logging.CRITICAL),
+        ):
+            levelAction = QtWidgets.QAction(levelname, self, checkable=True)
+            levelAction.setChecked(levelno != logging.DEBUG)  # all but Debug
+            levelAction.toggled.connect(self._update_preview_levels)
+            previewMenu.addAction(levelAction)
+            self._preview_level_actions[levelno] = levelAction
         fileMenu.addSeparator()
         fileMenu.addAction(aboutAction)
         fileMenu.addAction(quitAction)
@@ -730,6 +789,16 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # logviewList.setGeometry(20,20,100,700)
         self.logviewList = logviewList
 
+        # Route log records to the preview pane, filtered by the Log preview menu.
+        self.preview_handler = QtLogHandler(logviewList)
+        self.preview_handler.setFormatter(
+            logging.Formatter(
+                fmt="%(asctime)s  %(levelname)s  %(message)s", datefmt="%H:%M:%S"
+            )
+        )
+        self.logger.addHandler(self.preview_handler)
+        self._update_preview_levels()  # sync to the menu checkboxes
+
         logviewLayout = QtWidgets.QFormLayout()
         logviewLayout.addRow(logviewertitleLabel)
         logviewLayout.addRow(logviewList)
@@ -883,7 +952,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def set_new_speakers(self, text: str) -> None:
         """Handle a new audio-stimulation speaker selection."""
-        print(f"New speakers {text} selected!")
+        self.logger.debug(f"New speakers {text} selected!")
 
     def set_new_noisespeakers(self, text: str) -> None:
         """Text is the device name, with host api string appended to the end."""
@@ -891,7 +960,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def set_new_microphone(self, text: str) -> None:
         """Handle a new microphone selection."""
-        print(f"New microphone {text} selected!")
+        self.logger.debug(f"New microphone {text} selected!")
 
     ############################################################################
     # Functions for refreshing/searching for connected devices (inputs and outputs)
@@ -1127,7 +1196,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         def callback(outdata, frames, time, status):
             """frames is the number of frames (rate)"""
             if status:
-                print(status)
+                self.logger.warning(f"Audio output status: {status}")
             outdata[:] = (
                 self.noise_color_funcs(color)(rate).reshape(-1, 1)
                 * self.noise_stream_volume
