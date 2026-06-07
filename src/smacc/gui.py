@@ -6,10 +6,11 @@ import logging
 import os
 import queue
 import shutil
-import time
+import sys
 import webbrowser
 from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 import sounddevice as sd
 from pylsl import StreamInfo, StreamOutlet
@@ -30,6 +31,15 @@ try:
 except ImportError:
     blinkstick = None
 
+
+# Application icon, bundled as package data in smacc/assets/. Resolves to the
+# package dir in development and to the PyInstaller extraction dir in the frozen
+# build (where --add-data places it under smacc/assets/).
+if getattr(sys, "frozen", False):
+    _asset_dir = Path(getattr(sys, "_MEIPASS", "")) / "smacc" / "assets"
+else:
+    _asset_dir = Path(__file__).resolve().parent / "assets"
+LOGO_PATH = _asset_dir / "icon.png"
 
 # Define directories.
 data_directory = utils.get_data_directory()
@@ -53,8 +63,10 @@ COMMON_EVENT_CODES = {
 }
 
 COMMON_EVENT_TIPS = {
-    "Lights off": "Mark the beginning of sleep session",
-    "Lights on": "Mark the end of sleep session",
+    # "Lights off"/"Lights on" are intentionally omitted here: they are driven
+    # by the dedicated lightswitch toggle (which also flips the dark theme), not
+    # by the auto-generated event-marker grid. Their codes remain in
+    # COMMON_EVENT_CODES so send_event_marker still resolves them.
     "TLR training start": "Mark the start of Targeted Lucidity Reactivation training",
     "TLR training end": "Mark the end of Targeted Lucidity Reactivation training",
     "Tech in room": "Mark the entry of an experimenter/technician in the participant bedroom",
@@ -76,9 +88,54 @@ class BorderWidget(QtWidgets.QFrame):
 
     def __init__(self, *args):
         super().__init__(*args)
+        # Mid-grey border so it reads on both light and dark backgrounds.
         self.setStyleSheet(
-            "background-color: rgb(0,0,0,0); margin:0px; border:4px solid rgb(0, 0, 0); border-radius: 25px; "
+            "background-color: rgb(0,0,0,0); margin:0px; border:4px solid rgb(120, 120, 120); border-radius: 25px; "
         )
+
+
+class _LogSignaller(QtCore.QObject):
+    """QObject carrying the cross-thread signal for QtLogHandler."""
+
+    message = QtCore.pyqtSignal(str)
+
+
+class QtLogHandler(logging.Handler):
+    """Logging handler that appends records to the GUI log preview list.
+
+    Which records appear is governed by ``enabled_levels`` (an explicit set of
+    level numbers), driven by the File ▸ Log preview checkboxes so any subset of
+    levels can be shown. The file handler still receives every record. The widget
+    update is marshalled to the GUI thread via a Qt signal, so logging from a
+    non-GUI thread (e.g. the audio callback) is safe.
+    """
+
+    def __init__(self, list_widget: QtWidgets.QListWidget) -> None:
+        super().__init__()
+        self._list = list_widget
+        self.enabled_levels: set[int] = {
+            logging.INFO,
+            logging.WARNING,
+            logging.ERROR,
+            logging.CRITICAL,
+        }
+        self._signaller = _LogSignaller()
+        self._signaller.message.connect(self._append)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if record.levelno not in self.enabled_levels:
+            return
+        try:
+            msg = self.format(record)
+        except Exception:
+            self.handleError(record)
+            return
+        self._signaller.message.emit(msg)
+
+    def _append(self, msg: str) -> None:
+        self._list.addItem(msg)
+        self._list.scrollToBottom()
+        self._list.repaint()
 
 
 class SubjectSessionRequest(QtWidgets.QDialog):
@@ -97,12 +154,11 @@ class SubjectSessionRequest(QtWidgets.QDialog):
         self.session_id = QtWidgets.QLineEdit(self)
         self.subject_id.setText(str(DEVELOPMENT_ID))
         self.session_id.setText("1")
-        self.subject_id.setValidator(
-            QtGui.QIntValidator(0, 999)
-        )  # Require a 3-digit number
-        self.session_id.setValidator(
-            QtGui.QIntValidator(0, 999)
-        )  # Require a 3-digit number
+        # Allow letters, numbers, underscores, and hyphens, up to 30 characters.
+        id_validator = QtGui.QRegExpValidator(QtCore.QRegExp(r"[A-Za-z0-9_-]{1,30}"))
+        for field in (self.subject_id, self.session_id):
+            field.setValidator(id_validator)
+            field.setMaxLength(30)
         # Create buttons to accept values or cancel.
         buttonBox = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self
@@ -115,11 +171,9 @@ class SubjectSessionRequest(QtWidgets.QDialog):
         layout.addRow("Session ID", self.session_id)
         layout.addWidget(buttonBox)
 
-    def get_inputs(self) -> tuple[int, int]:
-        """Return user-specified subject and session IDs as integers."""
-        subject_int = int(self.subject_id.text())
-        session_int = int(self.session_id.text())
-        return subject_int, session_int
+    def get_inputs(self) -> tuple[str, str]:
+        """Return user-specified subject and session IDs as strings."""
+        return self.subject_id.text(), self.session_id.text()
 
 
 #####################################
@@ -130,7 +184,7 @@ class SubjectSessionRequest(QtWidgets.QDialog):
 class SmaccWindow(QtWidgets.QMainWindow):
     """Main interface."""
 
-    def __init__(self, subject_id: int, session_id: int) -> None:
+    def __init__(self, subject_id: str, session_id: str) -> None:
         super().__init__()
 
         self.n_report_counter = 0  # cumulative counter for determining filenames
@@ -149,6 +203,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         self.cues_directory = cues_directory
         # self.noise_directory = noise_directory
+
+        # Lights state drives the dark theme; sessions start with lights on.
+        self.lights_on = True
+        self._default_palette = cast(
+            QtWidgets.QApplication, QtWidgets.QApplication.instance()
+        ).palette()
 
         self.init_blinkstick()
         self.init_audio_stimulation_setup()
@@ -170,7 +230,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.init_lsl_stream()
 
     def show_error_popup(self, short_msg, long_msg=None):
-        # self.log_info_msg("ERROR")
+        # Record the error in the log file (and preview if Error is enabled).
+        self.logger.error(short_msg if long_msg is None else f"{short_msg} {long_msg}")
         win = QtWidgets.QMessageBox(self)  # parent to self so it stacks above
         # # win.setIcon(QtWidgets.QMessageBox.Question)
         # win.setWindowIcon(QtGui.QIcon("./thumb-small.png"))
@@ -187,21 +248,16 @@ class SmaccWindow(QtWidgets.QMainWindow):
     #     em.exec()
 
     def log_info_msg(self, msg):
-        """wrapper just to make sure msg goes to viewer too
-        (should probably split up)
-        """
-        # log the message
+        """Log an INFO message (always to file; to the preview if INFO is on)."""
         self.logger.info(msg)
 
-        # print message to the GUI viewer box thing
-        self.logviewList.addItem(time.strftime("%H:%M:%S") + " - " + msg)
-        self.logviewList.repaint()
-        self.logviewList.scrollToBottom()
-        # item = pg.QtGui.QListWidgetItem(msg)
-        # if warning: # change txt color
-        #     item.setForeground(pg.QtCore.Qt.red)
-        # self.eventList.addItem(item)
-        # self.eventList.update()
+    def _update_preview_levels(self) -> None:
+        """Sync the preview handler's visible levels to the menu checkboxes."""
+        self.preview_handler.enabled_levels = {
+            level
+            for level, action in self._preview_level_actions.items()
+            if action.isChecked()
+        }
 
     def init_lsl_stream(self, stream_id: str = "myuidw43536") -> None:
         """Create the LSL marker stream and its outlet."""
@@ -218,15 +274,18 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def init_logger(self) -> None:
         """Initialize the logger that writes to a per-session log file."""
-        path_name = f"sub-{self.subject:03d}_ses-{self.session:03d}_smacc-{VERSION}.log"
+        path_name = f"sub-{self.subject}_ses-{self.session}_smacc-{VERSION}.log"
         log_path = logs_directory / path_name
         self.log_path = log_path  # kept for BIDS events export
         self.logger = logging.getLogger("smacc")
         self.logger.setLevel(logging.DEBUG)
+        # Don't bubble up to the root logger (keeps everything out of the
+        # terminal; the file/preview handlers are the only outputs).
+        self.logger.propagate = False
         # open file handler to save external file
         write_mode = "w" if self.subject == DEVELOPMENT_ID else "x"
         fh = logging.FileHandler(log_path, mode=write_mode, encoding="utf-8")
-        fh.setLevel(logging.DEBUG)  # this determines what gets written to file
+        fh.setLevel(logging.DEBUG)  # the file always records every level
         # create formatter and add it to the handlers
         formatter = logging.Formatter(
             fmt="%(asctime)s.%(msecs)03d, %(levelname)s, %(message)s",
@@ -288,16 +347,34 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         menuBar = self.menuBar()
         # menuBar.setNativeMenuBar(False)  # needed for pyqt5 on Mac
+        # Single consolidated File menu holding all app actions.
         fileMenu = menuBar.addMenu("&File")
         fileMenu.addAction(saveStudyAction)
         fileMenu.addAction(loadStudyAction)
         fileMenu.addSeparator()
         fileMenu.addAction(exportEventsAction)
-        helpMenu = menuBar.addMenu("&Help")
-        helpMenu.addAction(aboutAction)
-        helpMenu.addAction(quitAction)
-        viewMenu = menuBar.addMenu("&View")
-        viewMenu.addAction(alwaysOnTopAction)
+        fileMenu.addSeparator()
+        fileMenu.addAction(alwaysOnTopAction)
+        fileMenu.addSeparator()
+        # File -> Log preview: pick which log levels show in the preview pane.
+        # Everything is always written to the log file regardless of these.
+        previewMenu = fileMenu.addMenu("Log preview")
+        self._preview_level_actions: dict[int, QtWidgets.QAction] = {}
+        for levelname, levelno in (
+            ("Debug", logging.DEBUG),
+            ("Info", logging.INFO),
+            ("Warning", logging.WARNING),
+            ("Error", logging.ERROR),
+            ("Critical", logging.CRITICAL),
+        ):
+            levelAction = QtWidgets.QAction(levelname, self, checkable=True)
+            levelAction.setChecked(levelno != logging.DEBUG)  # all but Debug
+            levelAction.toggled.connect(self._update_preview_levels)
+            previewMenu.addAction(levelAction)
+            self._preview_level_actions[levelno] = levelAction
+        fileMenu.addSeparator()
+        fileMenu.addAction(aboutAction)
+        fileMenu.addAction(quitAction)
 
         ########################################################################
         # TOOL BAR
@@ -317,10 +394,15 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # VISUAL STIMULATION WIDGETS AND LAYOUT (BUTTON STACK)
         ########################################################################
 
+        # Section headers use a QFont (not a stylesheet) so their text color
+        # follows the palette and stays legible when the dark theme toggles.
+        titleFont = QtGui.QFont()
+        titleFont.setPointSize(18)
+
         visualtitleLabel = QtWidgets.QLabel("Visual stimulation")
         visualtitleLabel.setAlignment(QtCore.Qt.AlignCenter)
         # titleLabel.setStyleSheet("font: 30pt Comic Sans MS")
-        visualtitleLabel.setStyleSheet("font: 18pt")
+        visualtitleLabel.setFont(titleFont)
 
         # Visual device picker: QComboBox signal --> update device slot
         available_blinksticks_dropdown = QtWidgets.QComboBox()
@@ -341,8 +423,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # Visual color picker: QPushButton signal --> QColorPicker slot
         colorpickerButton = QtWidgets.QPushButton("Select color", self)
         colorpickerButton.setStatusTip("Pick the visual stimulus color.")
-        colorpickerButton.setIcon(QtGui.QIcon("./color.png"))
         colorpickerButton.clicked.connect(self.pick_color)
+        self.colorpickerButton = colorpickerButton
+        self._update_color_swatch()  # show the current color from the start
 
         # Visual frequency selector: QDoubleSpinBox signal --> update visual parameters slot
         freqSpinBox = QtWidgets.QDoubleSpinBox(self)
@@ -375,7 +458,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         audiotitleLabel = QtWidgets.QLabel("Audio stimulation")
         audiotitleLabel.setAlignment(QtCore.Qt.AlignCenter)
-        audiotitleLabel.setStyleSheet("font: 18pt")
+        audiotitleLabel.setFont(titleFont)
 
         # Audio stimulation device picker: QComboBox signal --> update device slot
         available_speakers_dropdown = QtWidgets.QComboBox()
@@ -494,7 +577,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         recordingtitleLabel = QtWidgets.QLabel("Dream recording")
         recordingtitleLabel.setAlignment(QtCore.Qt.AlignCenter)
-        recordingtitleLabel.setStyleSheet("font: 18pt")
+        recordingtitleLabel.setFont(titleFont)
 
         # Microphone device picker: QComboBox signal --> update device slot
         available_microphones_dropdown = QtWidgets.QComboBox()
@@ -583,7 +666,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         noisetitleLabel = QtWidgets.QLabel("Noise machine")
         noisetitleLabel.setAlignment(QtCore.Qt.AlignCenter)
-        noisetitleLabel.setStyleSheet("font: 18pt")
+        noisetitleLabel.setFont(titleFont)
 
         # Noise device picker: QComboBox signal --> update device slot
         available_noisespeakers_dropdown = QtWidgets.QComboBox()
@@ -655,10 +738,25 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         eventmarkertitleLabel = QtWidgets.QLabel("Event logging")
         eventmarkertitleLabel.setAlignment(QtCore.Qt.AlignCenter)
-        eventmarkertitleLabel.setStyleSheet("font: 18pt")
+        eventmarkertitleLabel.setFont(titleFont)
+
+        # Lights toggle: a single switch replacing the two lights event buttons.
+        # It sends the lights marker and flips the dark theme. Connect the
+        # toggled signal only after setChecked so construction fires no marker.
+        self.lightswitchButton = QtWidgets.QPushButton(self)
+        self.lightswitchButton.setCheckable(True)
+        self.lightswitchButton.setShortcut("L")
+        self.lightswitchButton.setMinimumHeight(48)
+        self.lightswitchButton.setStatusTip(
+            "Toggle lights off/on (sends the lights event marker and switches theme)"
+        )
+        self.lightswitchButton.setChecked(True)
+        self._refresh_lightswitch_label()
+        self.lightswitchButton.toggled.connect(self.on_lightswitch_toggled)
 
         eventsLayout = QtWidgets.QGridLayout()
         eventsLayout.addWidget(eventmarkertitleLabel, 0, 0, 1, 2)
+        eventsLayout.addWidget(self.lightswitchButton, 1, 0, 1, 2)
         n_events = len(COMMON_EVENT_TIPS)
         for i, (event, tip) in enumerate(COMMON_EVENT_TIPS.items()):
             shortcut = str(i + 1)
@@ -671,7 +769,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
                 button.clicked.connect(self.open_note_marker_dialogue)
             else:
                 button.clicked.connect(self.handle_event_button)
-            row = 1 + i
+            row = 2 + i
             if i >= (halfsize := int(n_events / 2)):
                 row -= halfsize
             col = 1 if i >= halfsize else 0
@@ -683,13 +781,23 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         logviewertitleLabel = QtWidgets.QLabel("Log viewer")
         logviewertitleLabel.setAlignment(QtCore.Qt.AlignCenter)
-        logviewertitleLabel.setStyleSheet("font: 18pt")
+        logviewertitleLabel.setFont(titleFont)
 
         # Events log viewer --> gets updated when events are logged
         logviewList = QtWidgets.QListWidget()
         logviewList.setAutoScroll(True)
         # logviewList.setGeometry(20,20,100,700)
         self.logviewList = logviewList
+
+        # Route log records to the preview pane, filtered by the Log preview menu.
+        self.preview_handler = QtLogHandler(logviewList)
+        self.preview_handler.setFormatter(
+            logging.Formatter(
+                fmt="%(asctime)s  %(levelname)s  %(message)s", datefmt="%H:%M:%S"
+            )
+        )
+        self.logger.addHandler(self.preview_handler)
+        self._update_preview_levels()  # sync to the menu checkboxes
 
         logviewLayout = QtWidgets.QFormLayout()
         logviewLayout.addRow(logviewertitleLabel)
@@ -717,9 +825,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # self.setGeometry(*xywh)
         # self.setMinimumSize(300, 200)
         self.setWindowTitle("SMACC")
-        windowIcon = self.style().standardIcon(
-            QtWidgets.QStyle.SP_ToolBarHorizontalExtensionButton
-        )
+        if LOGO_PATH.is_file():
+            windowIcon = QtGui.QIcon(str(LOGO_PATH))
+        else:
+            windowIcon = self.style().standardIcon(
+                QtWidgets.QStyle.SP_ToolBarHorizontalExtensionButton
+            )
         self.setWindowIcon(windowIcon)
         # self.openAction = QAction(QIcon(":file-open.svg"), "&Open...", self)
         # self.setGeometry(100, 100, 600, 400)
@@ -754,6 +865,74 @@ class SmaccWindow(QtWidgets.QMainWindow):
         code = COMMON_EVENT_CODES[text]
         self.send_event_marker(code, text)
 
+    def on_lightswitch_toggled(self, checked: bool) -> None:
+        """Handle a user toggle of the lightswitch (``checked`` == lights on)."""
+        self.set_lights(checked, send_marker=True)
+
+    def set_lights(self, lights_on: bool, send_marker: bool = False) -> None:
+        """Update lights state, refresh the switch, and apply the theme.
+
+        ``send_marker`` stays False during setup so the event marker only fires
+        on real user interaction.
+        """
+        self.lights_on = lights_on
+        self._refresh_lightswitch_label()
+        self.apply_theme(dark=not lights_on)
+        if send_marker:
+            name = "Lights on" if lights_on else "Lights off"
+            self.send_event_marker(COMMON_EVENT_CODES[name], name)
+
+    def _refresh_lightswitch_label(self) -> None:
+        """Sync the lightswitch text/style to the current state."""
+        if self.lights_on:
+            self.lightswitchButton.setText(
+                "\U0001f4a1 Lights ON  (L) — click to turn OFF"
+            )
+            self.lightswitchButton.setStyleSheet(
+                "font: bold 14pt; padding: 8px; background-color: #f0d000; color: black;"
+            )
+        else:
+            self.lightswitchButton.setText(
+                "\U0001f319 Lights OFF  (L) — click to turn ON"
+            )
+            self.lightswitchButton.setStyleSheet(
+                "font: bold 14pt; padding: 8px; background-color: #303030; color: #dddddd;"
+            )
+
+    def apply_theme(self, dark: bool) -> None:
+        """Apply the dark or the default light palette to the whole application."""
+        app = cast("QtWidgets.QApplication | None", QtWidgets.QApplication.instance())
+        if app is None:
+            return
+        app.setPalette(self._dark_palette() if dark else self._default_palette)
+
+    @staticmethod
+    def _dark_palette() -> QtGui.QPalette:
+        """Build a dark, Fusion-friendly palette."""
+        p = QtGui.QPalette()
+        base = QtGui.QColor(53, 53, 53)
+        text = QtGui.QColor(220, 220, 220)
+        disabled = QtGui.QColor(127, 127, 127)
+        highlight = QtGui.QColor(42, 130, 218)
+        p.setColor(QtGui.QPalette.Window, base)
+        p.setColor(QtGui.QPalette.WindowText, text)
+        p.setColor(QtGui.QPalette.Base, QtGui.QColor(35, 35, 35))
+        p.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor(45, 45, 45))
+        p.setColor(QtGui.QPalette.ToolTipBase, base)
+        p.setColor(QtGui.QPalette.ToolTipText, text)
+        p.setColor(QtGui.QPalette.Text, text)
+        p.setColor(QtGui.QPalette.Button, base)
+        p.setColor(QtGui.QPalette.ButtonText, text)
+        p.setColor(QtGui.QPalette.Highlight, highlight)
+        p.setColor(QtGui.QPalette.HighlightedText, QtGui.QColor(0, 0, 0))
+        for role in (
+            QtGui.QPalette.WindowText,
+            QtGui.QPalette.Text,
+            QtGui.QPalette.ButtonText,
+        ):
+            p.setColor(QtGui.QPalette.Disabled, role, disabled)
+        return p
+
     def open_wav_selector(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, "Select a File", str(self.cues_directory), "Audio (*.wav)"
@@ -773,7 +952,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def set_new_speakers(self, text: str) -> None:
         """Handle a new audio-stimulation speaker selection."""
-        print(f"New speakers {text} selected!")
+        self.logger.debug(f"New speakers {text} selected!")
 
     def set_new_noisespeakers(self, text: str) -> None:
         """Text is the device name, with host api string appended to the end."""
@@ -781,7 +960,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def set_new_microphone(self, text: str) -> None:
         """Handle a new microphone selection."""
-        print(f"New microphone {text} selected!")
+        self.logger.debug(f"New microphone {text} selected!")
 
     ############################################################################
     # Functions for refreshing/searching for connected devices (inputs and outputs)
@@ -862,6 +1041,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
             Text of the menu item from the dropdown.
         See also: refresh_available_blinksticks
         """
+        if not text:  # dropdown cleared / no device selected
+            self.bstick = None
+            return
         serial_number = text.split(". ")[1].split(")")[0]
         self.bstick = blinkstick.find_by_serial(serial_number)
 
@@ -877,15 +1059,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         See also: set_new_blinkstick
         """
-        # Clear existing devices from the dropdown menu
+        # Clear existing devices from the dropdown menu. When the `blinkstick`
+        # package is missing or no device is connected, leave the dropdown empty
+        # silently — the error is raised only when visual stimulation is used
+        # (see _ensure_blinkstick), so non-BlinkStick users aren't nagged.
         self.available_blinksticks_dropdown.clear()
-        if blinkstick is None:
-            devices = []
-            self.show_error_popup(
-                "Use of visual stimulation requires `blinkstick` Python package. Unable to search for devices."
-            )
-        else:
-            devices = blinkstick.find_all()
+        devices = [] if blinkstick is None else blinkstick.find_all()
         # Add each device to the dropdown menu
         for d in devices:
             product_name = d.device.product_name
@@ -897,8 +1076,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
             self.available_blinksticks_dropdown.addItem(device_str)
         if devices:
             self.available_blinksticks_dropdown.setCurrentIndex(0)
-        else:
-            self.show_error_popup("No BlinkSticks found.")
 
     def update_input_device(self):
         # if the current input is re-selected it still "changes" here
@@ -929,9 +1106,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
             #         menu_item.setChecked(True)
 
     def init_blinkstick(self):
+        self.bstick = None  # selected device; None until one is found/selected
         self.bstick_blink_freq = 1.0
         self.set_blink_color(0, 0, 0)  # default color: black/off
-        # Draw button/icon/pixmap to show default color
 
     def set_blink_color(self, r: int, g: int, b: int) -> None:
         """Set the BlinkStick color from 0-255 RGB components.
@@ -942,6 +1119,32 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.bstick_rgb = (r, g, b, 255)
         self.bstick_hexcode = f"#{r:02x}{g:02x}{b:02x}"
         self.bstick_led_data = [g, r, b] * 32
+        # Keep the color picker's swatch in sync (once the button exists).
+        if hasattr(self, "colorpickerButton"):
+            self._update_color_swatch()
+
+    def _update_color_swatch(self) -> None:
+        """Show the currently selected blink color on the color picker button."""
+        size = 22
+        pixmap = QtGui.QPixmap(size, size)
+        pixmap.fill(QtGui.QColor(*self.bstick_rgb))
+        painter = QtGui.QPainter(pixmap)
+        painter.setPen(QtGui.QColor("#808080"))  # border so black/white read
+        painter.drawRect(0, 0, size - 1, size - 1)
+        painter.end()
+        self.colorpickerButton.setIcon(QtGui.QIcon(pixmap))
+        self.colorpickerButton.setIconSize(QtCore.QSize(size, size))
+
+    def _ensure_blinkstick(self) -> bool:
+        """Return True if a BlinkStick is usable, else show one error popup."""
+        if blinkstick is not None and self.bstick is not None:
+            return True
+        self.show_error_popup(
+            "Visual stimulation unavailable.",
+            "No BlinkStick device was found and/or the `blinkstick` Python "
+            "package is not installed.",
+        )
+        return False
 
     def init_audio_stimulation_setup(self):
         """Create media player for cue files."""
@@ -993,7 +1196,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         def callback(outdata, frames, time, status):
             """frames is the number of frames (rate)"""
             if status:
-                print(status)
+                self.logger.warning(f"Audio output status: {status}")
             outdata[:] = (
                 self.noise_color_funcs(color)(rate).reshape(-1, 1)
                 * self.noise_stream_volume
@@ -1245,7 +1448,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
             ### start a new recording
             # generate filename
             self.n_report_counter += 1
-            basename = f"sub-{self.subject:03d}_ses-{self.session:03d}_report-{self.n_report_counter:02d}.wav"
+            basename = f"sub-{self.subject}_ses-{self.session}_report-{self.n_report_counter:02d}.wav"
             export_fname = os.path.join(dreams_directory, basename)
             self.microphone.setOutputLocation(QtCore.QUrl.fromLocalFile(export_fname))
             self.microphone.record()
@@ -1388,7 +1591,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         for handler in self.logger.handlers:
             handler.flush()
         default = self.log_path.with_name(
-            f"sub-{self.subject:03d}_ses-{self.session:03d}_events.tsv"
+            f"sub-{self.subject}_ses-{self.session}_events.tsv"
         )
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "Export events (BIDS)", str(default), "BIDS events (*.tsv)"
@@ -1430,6 +1633,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot()
     def pick_color(self):
+        if not self._ensure_blinkstick():
+            return
         # Parent to self and seed with the current color so the dialog stacks
         # above the main window (even when always-on-top is enabled).
         color = QtWidgets.QColorDialog.getColor(QtGui.QColor(self.bstick_hexcode), self)
@@ -1508,6 +1713,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot()
     def stimulate_visual(self):
+        if not self._ensure_blinkstick():
+            return
         from time import sleep
 
         black = [0, 0, 0] * 32
