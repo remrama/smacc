@@ -364,8 +364,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # Visual color picker: QPushButton signal --> QColorPicker slot
         colorpickerButton = QtWidgets.QPushButton("Select color", self)
         colorpickerButton.setStatusTip("Pick the visual stimulus color.")
-        colorpickerButton.setIcon(QtGui.QIcon("./color.png"))
         colorpickerButton.clicked.connect(self.pick_color)
+        self.colorpickerButton = colorpickerButton
+        self._update_color_swatch()  # show the current color from the start
 
         # Visual frequency selector: QDoubleSpinBox signal --> update visual parameters slot
         freqSpinBox = QtWidgets.QDoubleSpinBox(self)
@@ -971,6 +972,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
             Text of the menu item from the dropdown.
         See also: refresh_available_blinksticks
         """
+        if not text:  # dropdown cleared / no device selected
+            self.bstick = None
+            return
         serial_number = text.split(". ")[1].split(")")[0]
         self.bstick = blinkstick.find_by_serial(serial_number)
 
@@ -986,15 +990,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         See also: set_new_blinkstick
         """
-        # Clear existing devices from the dropdown menu
+        # Clear existing devices from the dropdown menu. When the `blinkstick`
+        # package is missing or no device is connected, leave the dropdown empty
+        # silently — the error is raised only when visual stimulation is used
+        # (see _ensure_blinkstick), so non-BlinkStick users aren't nagged.
         self.available_blinksticks_dropdown.clear()
-        if blinkstick is None:
-            devices = []
-            self.show_error_popup(
-                "Use of visual stimulation requires `blinkstick` Python package. Unable to search for devices."
-            )
-        else:
-            devices = blinkstick.find_all()
+        devices = [] if blinkstick is None else blinkstick.find_all()
         # Add each device to the dropdown menu
         for d in devices:
             product_name = d.device.product_name
@@ -1006,8 +1007,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
             self.available_blinksticks_dropdown.addItem(device_str)
         if devices:
             self.available_blinksticks_dropdown.setCurrentIndex(0)
-        else:
-            self.show_error_popup("No BlinkSticks found.")
 
     def update_input_device(self):
         # if the current input is re-selected it still "changes" here
@@ -1038,9 +1037,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
             #         menu_item.setChecked(True)
 
     def init_blinkstick(self):
+        self.bstick = None  # selected device; None until one is found/selected
         self.bstick_blink_freq = 1.0
         self.set_blink_color(0, 0, 0)  # default color: black/off
-        # Draw button/icon/pixmap to show default color
 
     def set_blink_color(self, r: int, g: int, b: int) -> None:
         """Set the BlinkStick color from 0-255 RGB components.
@@ -1051,6 +1050,32 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.bstick_rgb = (r, g, b, 255)
         self.bstick_hexcode = f"#{r:02x}{g:02x}{b:02x}"
         self.bstick_led_data = [g, r, b] * 32
+        # Keep the color picker's swatch in sync (once the button exists).
+        if hasattr(self, "colorpickerButton"):
+            self._update_color_swatch()
+
+    def _update_color_swatch(self) -> None:
+        """Show the currently selected blink color on the color picker button."""
+        size = 22
+        pixmap = QtGui.QPixmap(size, size)
+        pixmap.fill(QtGui.QColor(*self.bstick_rgb))
+        painter = QtGui.QPainter(pixmap)
+        painter.setPen(QtGui.QColor("#808080"))  # border so black/white read
+        painter.drawRect(0, 0, size - 1, size - 1)
+        painter.end()
+        self.colorpickerButton.setIcon(QtGui.QIcon(pixmap))
+        self.colorpickerButton.setIconSize(QtCore.QSize(size, size))
+
+    def _ensure_blinkstick(self) -> bool:
+        """Return True if a BlinkStick is usable, else show one error popup."""
+        if blinkstick is not None and self.bstick is not None:
+            return True
+        self.show_error_popup(
+            "Visual stimulation unavailable.",
+            "No BlinkStick device was found and/or the `blinkstick` Python "
+            "package is not installed.",
+        )
+        return False
 
     def init_audio_stimulation_setup(self):
         """Create media player for cue files."""
@@ -1539,6 +1564,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot()
     def pick_color(self):
+        if not self._ensure_blinkstick():
+            return
         # Parent to self and seed with the current color so the dialog stacks
         # above the main window (even when always-on-top is enabled).
         color = QtWidgets.QColorDialog.getColor(QtGui.QColor(self.bstick_hexcode), self)
@@ -1617,6 +1644,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot()
     def stimulate_visual(self):
+        if not self._ensure_blinkstick():
+            return
         from time import sleep
 
         black = [0, 0, 0] * 32
