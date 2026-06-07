@@ -138,6 +138,24 @@ def read_loop(buf: np.ndarray, pos: int, frames: int) -> tuple[np.ndarray, int]:
     return np.concatenate(pieces), (pos + frames) % n
 
 
+def resample_to(samples: np.ndarray, src_rate: int, dst_rate: int) -> np.ndarray:
+    """Resample mono ``samples`` from ``src_rate`` to ``dst_rate`` as float32.
+
+    Used so a loaded noise file matches the output device's sample rate (WASAPI
+    shared mode only opens a stream at the device's own rate).
+    """
+    data = np.ascontiguousarray(samples, dtype=np.float32)
+    if src_rate == dst_rate:
+        return data
+    from math import gcd
+
+    from scipy.signal import resample_poly
+
+    divisor = gcd(int(src_rate), int(dst_rate))
+    resampled = resample_poly(data, dst_rate // divisor, src_rate // divisor)
+    return np.ascontiguousarray(resampled, dtype=np.float32)
+
+
 def _enveloped(
     samples: np.ndarray, rate: int, *, fade: float = 0.01, decay: bool = False
 ) -> np.ndarray:

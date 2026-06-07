@@ -206,19 +206,26 @@ class NoiseWindow(ModalityWindow):
 
     # ----- playback ---------------------------------------------------------
 
-    def _build_noise_buffer(self) -> tuple[np.ndarray, int]:
-        """Return a (mono float32 loop buffer, sample rate) for the current source."""
+    def _device_samplerate(self, device: str) -> int:
+        """Best output sample rate for ``device`` (WASAPI opens only at its own)."""
+        try:
+            return int(sd.query_devices(device, "output")["default_samplerate"])
+        except Exception:
+            return NOISE_RATE
+
+    def _build_noise_buffer(self, rate: int) -> np.ndarray:
+        """Return a mono float32 loop buffer for the current source at ``rate`` Hz."""
         if self._use_file_source():
             path = self.noiseFileEdit.text().strip()
             if not path or not Path(path).is_file():
                 raise FileNotFoundError("Choose a noise file to play.")
-            data, rate = sf.read(path, dtype="float32")
+            data, file_rate = sf.read(path, dtype="float32")
             if data.ndim > 1:  # down-mix to mono
                 data = data.mean(axis=1)
-            return np.ascontiguousarray(data, dtype=np.float32), int(rate)
+            return utils.resample_to(data, int(file_rate), rate)
         color = self.available_noisecolors_dropdown.currentText()
-        samples = self.noise_color_funcs(color)(NOISE_LOOP_SECONDS * NOISE_RATE)
-        return utils.normalize_audio(samples), NOISE_RATE
+        samples = self.noise_color_funcs(color)(int(NOISE_LOOP_SECONDS * rate))
+        return utils.normalize_audio(samples)
 
     def _noise_callback(self, outdata, frames, time, status) -> None:
         """Fill ``outdata`` from the loop buffer, scaled by the live volume."""
@@ -236,8 +243,9 @@ class NoiseWindow(ModalityWindow):
         if self.noise_stream is not None:
             return  # already playing
         device = self.available_noisespeakers_dropdown.currentText()
+        rate = self._device_samplerate(device)
         try:
-            buf, rate = self._build_noise_buffer()
+            buf = self._build_noise_buffer(rate)
         except Exception as err:
             self.session.show_error_popup(
                 "Could not load noise audio", str(err), parent=self

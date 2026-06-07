@@ -206,3 +206,17 @@ def test_normalize_audio_handles_silence():
     out = utils.normalize_audio(np.zeros(5, dtype=np.float32))
     assert out.dtype == np.float32
     assert np.all(out == 0)
+
+
+def test_resample_to_noop_when_rates_match():
+    sig = np.arange(100, dtype=np.float32)
+    out = utils.resample_to(sig, 44100, 44100)
+    assert out.dtype == np.float32
+    np.testing.assert_array_equal(out, sig)
+
+
+def test_resample_to_changes_length_by_ratio():
+    sig = np.zeros(1000, dtype=np.float32)
+    out = utils.resample_to(sig, 8000, 16000)
+    assert out.dtype == np.float32
+    assert abs(out.shape[0] - 2000) <= 2  # ~2x as many samples at 2x the rate
