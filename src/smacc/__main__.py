@@ -5,7 +5,9 @@ import sys
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication
 
-from .gui import LOGO_PATH, SmaccWindow, SubjectSessionRequest
+from .dialogs import SubjectSessionRequest
+from .gui import SmaccWindow
+from .paths import LOGO_PATH
 
 
 def main() -> None:

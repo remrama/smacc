@@ -6,7 +6,6 @@ import logging
 import os
 import queue
 import shutil
-import sys
 import webbrowser
 from collections.abc import Callable
 from pathlib import Path
@@ -19,161 +18,27 @@ from PyQt5 import QtCore, QtGui, QtMultimedia, QtWidgets
 from smacc import audio, bids, study, utils
 
 from .config import (
+    COMMON_EVENT_CODES,
+    COMMON_EVENT_TIPS,
     DEVELOPMENT_ID,
     PPORT_ADDRESS,
     PPORT_CODES,
     SURVEY_OPTIONS,
     VERSION,
 )
+from .paths import (
+    LOGO_PATH,
+    cues_directory,
+    data_directory,
+    dreams_directory,
+    logs_directory,
+)
+from .qtlog import QtLogHandler
 
 try:
     from blinkstick import blinkstick
 except ImportError:
     blinkstick = None
-
-
-# Application icon, bundled as package data in smacc/assets/. Resolves to the
-# package dir in development and to the PyInstaller extraction dir in the frozen
-# build (where --add-data places it under smacc/assets/).
-if getattr(sys, "frozen", False):
-    _asset_dir = Path(getattr(sys, "_MEIPASS", "")) / "smacc" / "assets"
-else:
-    _asset_dir = Path(__file__).resolve().parent / "assets"
-LOGO_PATH = _asset_dir / "icon.png"
-
-# Define directories.
-data_directory = utils.get_data_directory()
-logs_directory = data_directory / "logs"
-cues_directory = data_directory / "cues"
-dreams_directory = data_directory / "dreams"
-logs_directory.mkdir(exist_ok=True)
-cues_directory.mkdir(exist_ok=True)
-dreams_directory.mkdir(exist_ok=True)
-
-COMMON_EVENT_CODES = {
-    "REM detected": 41,
-    "Tech in room": 42,
-    "TLR training start": 43,
-    "TLR training end": 44,
-    "LRLR detected": 45,
-    "Sleep onset": 46,
-    "Lights off": 47,
-    "Lights on": 48,
-    "Clapper": 49,
-}
-
-COMMON_EVENT_TIPS = {
-    # "Lights off"/"Lights on" are intentionally omitted here: they are driven
-    # by the dedicated lightswitch toggle (which also flips the dark theme), not
-    # by the auto-generated event-marker grid. Their codes remain in
-    # COMMON_EVENT_CODES so send_event_marker still resolves them.
-    "TLR training start": "Mark the start of Targeted Lucidity Reactivation training",
-    "TLR training end": "Mark the end of Targeted Lucidity Reactivation training",
-    "Tech in room": "Mark the entry of an experimenter/technician in the participant bedroom",
-    "Sleep onset": "Mark observed sleep onset",
-    "REM detected": "Mark observed REM",
-    "LRLR detected": "Mark an observed left-right-left-right lucid signal",
-    "Clapper": "Synchronize a marker with EEG",
-    "Note": "Mark a note and enter free text",
-}
-
-
-#########################################################
-#########    Create some custom PyQt classes    #########
-#########################################################
-
-
-class BorderWidget(QtWidgets.QFrame):
-    """thing to make a border https://stackoverflow.com/a/7351943"""
-
-    def __init__(self, *args):
-        super().__init__(*args)
-        # Mid-grey border so it reads on both light and dark backgrounds.
-        self.setStyleSheet(
-            "background-color: rgb(0,0,0,0); margin:0px; border:4px solid rgb(120, 120, 120); border-radius: 25px; "
-        )
-
-
-class _LogSignaller(QtCore.QObject):
-    """QObject carrying the cross-thread signal for QtLogHandler."""
-
-    message = QtCore.pyqtSignal(str)
-
-
-class QtLogHandler(logging.Handler):
-    """Logging handler that appends records to the GUI log preview list.
-
-    Which records appear is governed by ``enabled_levels`` (an explicit set of
-    level numbers), driven by the File ▸ Log preview checkboxes so any subset of
-    levels can be shown. The file handler still receives every record. The widget
-    update is marshalled to the GUI thread via a Qt signal, so logging from a
-    non-GUI thread (e.g. the audio callback) is safe.
-    """
-
-    def __init__(self, list_widget: QtWidgets.QListWidget) -> None:
-        super().__init__()
-        self._list = list_widget
-        self.enabled_levels: set[int] = {
-            logging.INFO,
-            logging.WARNING,
-            logging.ERROR,
-            logging.CRITICAL,
-        }
-        self._signaller = _LogSignaller()
-        self._signaller.message.connect(self._append)
-
-    def emit(self, record: logging.LogRecord) -> None:
-        if record.levelno not in self.enabled_levels:
-            return
-        try:
-            msg = self.format(record)
-        except Exception:
-            self.handleError(record)
-            return
-        self._signaller.message.emit(msg)
-
-    def _append(self, msg: str) -> None:
-        self._list.addItem(msg)
-        self._list.scrollToBottom()
-        self._list.repaint()
-
-
-class SubjectSessionRequest(QtWidgets.QDialog):
-    """A popup window that pops up once during initialization
-    to get subject and session IDs from the user.
-    """
-
-    def __init__(self, parent=None) -> None:
-        super().__init__(parent)
-        self.setWindowTitle("Subject and session information")
-        # Removes the default "What's this?" question mark icon from the titlebar.
-        self.setWindowFlags(self.windowFlags() ^ QtCore.Qt.WindowContextHelpButtonHint)
-        # self.setWhatsThis("What's this?")
-        # Create subject and session text inputs.
-        self.subject_id = QtWidgets.QLineEdit(self)
-        self.session_id = QtWidgets.QLineEdit(self)
-        self.subject_id.setText(str(DEVELOPMENT_ID))
-        self.session_id.setText("1")
-        # Allow letters, numbers, underscores, and hyphens, up to 30 characters.
-        id_validator = QtGui.QRegExpValidator(QtCore.QRegExp(r"[A-Za-z0-9_-]{1,30}"))
-        for field in (self.subject_id, self.session_id):
-            field.setValidator(id_validator)
-            field.setMaxLength(30)
-        # Create buttons to accept values or cancel.
-        buttonBox = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self
-        )
-        buttonBox.accepted.connect(self.accept)
-        buttonBox.rejected.connect(self.reject)
-        # Put everything in a layout.
-        layout = QtWidgets.QFormLayout(self)
-        layout.addRow("Subject ID", self.subject_id)
-        layout.addRow("Session ID", self.session_id)
-        layout.addWidget(buttonBox)
-
-    def get_inputs(self) -> tuple[str, str]:
-        """Return user-specified subject and session IDs as strings."""
-        return self.subject_id.text(), self.session_id.text()
 
 
 #####################################
@@ -296,16 +161,55 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.logger.addHandler(fh)
 
     def init_main_window(self):
-        """
-        Initialize SMACC's main window, just the frame.
-        This is the "bars" (menu bar, tool bar, status bar)
-        And the widgets.
-        """
+        """Initialize SMACC's main window: menu/status bars and the widget grid."""
+        self._build_menu_bar()
+        toolBar = QtWidgets.QToolBar("Visual parameters", self)
+        self.addToolBar(QtCore.Qt.LeftToolBarArea, toolBar)
+        self.statusBar().showMessage("Ready")
 
-        ########################################################################
-        # MENU BAR
-        ########################################################################
+        # 3x2 grid of panels; menu must be built first (the log-viewer panel
+        # syncs the preview handler to the Log preview menu checkboxes).
+        central_layout = QtWidgets.QGridLayout()
+        central_layout.addLayout(self._build_visual_section(), 0, 0)
+        central_layout.addLayout(self._build_audio_section(), 1, 0)
+        central_layout.addLayout(self._build_noise_section(), 2, 0)
+        central_layout.addLayout(self._build_log_viewer_section(), 0, 1)
+        central_layout.addLayout(self._build_recording_section(), 1, 1)
+        central_layout.addLayout(self._build_events_section(), 2, 1)
+        central_widget = QtWidgets.QWidget()
+        central_widget.setContentsMargins(5, 5, 5, 5)
+        central_widget.move(100, 100)
+        central_widget.setLayout(central_layout)
+        self.setCentralWidget(central_widget)
 
+        self.setWindowTitle("SMACC")
+        if LOGO_PATH.is_file():
+            windowIcon = QtGui.QIcon(str(LOGO_PATH))
+        else:
+            windowIcon = self.style().standardIcon(
+                QtWidgets.QStyle.SP_ToolBarHorizontalExtensionButton
+            )
+        self.setWindowIcon(windowIcon)
+        self.resize(1200, 500)
+        # Always-on-top is off by default (toggle via File -> Always on top).
+        self.show()
+
+    @staticmethod
+    def _make_section_title(text: str) -> QtWidgets.QLabel:
+        """Build a centered 18pt section header.
+
+        Uses a QFont (not a stylesheet) so the text color follows the palette
+        and stays legible when the dark theme toggles.
+        """
+        label = QtWidgets.QLabel(text)
+        label.setAlignment(QtCore.Qt.AlignCenter)
+        font = QtGui.QFont()
+        font.setPointSize(18)
+        label.setFont(font)
+        return label
+
+    def _build_menu_bar(self) -> None:
+        """Build the consolidated File menu (actions + log-preview levels)."""
         aboutAction = QtWidgets.QAction(
             self.style().standardIcon(QtWidgets.QStyle.SP_MessageBoxInformation),
             "&About",
@@ -367,7 +271,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
             ("Error", logging.ERROR),
             ("Critical", logging.CRITICAL),
         ):
-            levelAction = QtWidgets.QAction(levelname, self, checkable=True)
+            levelAction = QtWidgets.QAction(levelname, self)
+            levelAction.setCheckable(True)
             levelAction.setChecked(levelno != logging.DEBUG)  # all but Debug
             levelAction.toggled.connect(self._update_preview_levels)
             previewMenu.addAction(levelAction)
@@ -376,33 +281,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         fileMenu.addAction(aboutAction)
         fileMenu.addAction(quitAction)
 
-        ########################################################################
-        # TOOL BAR
-        ########################################################################
-
-        toolBar = QtWidgets.QToolBar("Visual parameters", self)
-        self.addToolBar(QtCore.Qt.LeftToolBarArea, toolBar)
-        # toolBar.addAction(colorpickerAction)
-
-        ########################################################################
-        # STATUS BAR
-        ########################################################################
-
-        self.statusBar().showMessage("Ready")
-
-        ########################################################################
-        # VISUAL STIMULATION WIDGETS AND LAYOUT (BUTTON STACK)
-        ########################################################################
-
-        # Section headers use a QFont (not a stylesheet) so their text color
-        # follows the palette and stays legible when the dark theme toggles.
-        titleFont = QtGui.QFont()
-        titleFont.setPointSize(18)
-
-        visualtitleLabel = QtWidgets.QLabel("Visual stimulation")
-        visualtitleLabel.setAlignment(QtCore.Qt.AlignCenter)
-        # titleLabel.setStyleSheet("font: 30pt Comic Sans MS")
-        visualtitleLabel.setFont(titleFont)
+    def _build_visual_section(self) -> QtWidgets.QLayout:
+        """Build the visual-stimulation (BlinkStick) panel."""
+        visualtitleLabel = self._make_section_title("Visual stimulation")
 
         # Visual device picker: QComboBox signal --> update device slot
         available_blinksticks_dropdown = QtWidgets.QComboBox()
@@ -451,14 +332,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
         visualstimLayout.addRow("Color:", colorpickerButton)
         visualstimLayout.addRow("Length:", freqSpinBox)
         visualstimLayout.addRow(blinkButton)
+        return visualstimLayout
 
-        ########################################################################
-        # AUDIO STIMULATION WIDGET
-        ########################################################################
-
-        audiotitleLabel = QtWidgets.QLabel("Audio stimulation")
-        audiotitleLabel.setAlignment(QtCore.Qt.AlignCenter)
-        audiotitleLabel.setFont(titleFont)
+    def _build_audio_section(self) -> QtWidgets.QLayout:
+        """Build the audio-stimulation (cue player) panel."""
+        audiotitleLabel = self._make_section_title("Audio stimulation")
 
         # Audio stimulation device picker: QComboBox signal --> update device slot
         available_speakers_dropdown = QtWidgets.QComboBox()
@@ -565,19 +443,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
         audiostimLayout.addRow(loopCheckBox)
         audiostimLayout.addRow(playstopcueLayout)
         audiostimLayout.addRow(cueStatusLabel)
+        return audiostimLayout
 
-        # #### audio device list menu
-        # audioMenu = menuBar.addMenu("&Audio")
-        # inputMenu = audioMenu.addMenu(inputIcon, "&Input device")
-        # # outputMenu = audioMenu.addMenu(QtGui.QIcon("./img/output.png"), "&Output device")
-
-        ########################################################################
-        # DREAM REPORT WIDGET
-        ########################################################################
-
-        recordingtitleLabel = QtWidgets.QLabel("Dream recording")
-        recordingtitleLabel.setAlignment(QtCore.Qt.AlignCenter)
-        recordingtitleLabel.setFont(titleFont)
+    def _build_recording_section(self) -> QtWidgets.QLayout:
+        """Build the dream-recording panel (mic, level meter, intercom, survey)."""
+        recordingtitleLabel = self._make_section_title("Dream recording")
 
         # Microphone device picker: QComboBox signal --> update device slot
         available_microphones_dropdown = QtWidgets.QComboBox()
@@ -659,14 +529,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
         microphoneLayout.addRow("Show input level:", levelLayout)
         microphoneLayout.addRow("To participant:", intercom_output_dropdown)
         microphoneLayout.addRow("Intercom:", intercomButton)
+        return microphoneLayout
 
-        ########################################################################
-        # NOISE PLAYER WIDGET
-        ########################################################################
-
-        noisetitleLabel = QtWidgets.QLabel("Noise machine")
-        noisetitleLabel.setAlignment(QtCore.Qt.AlignCenter)
-        noisetitleLabel.setFont(titleFont)
+    def _build_noise_section(self) -> QtWidgets.QLayout:
+        """Build the noise-machine panel."""
+        noisetitleLabel = self._make_section_title("Noise machine")
 
         # Noise device picker: QComboBox signal --> update device slot
         available_noisespeakers_dropdown = QtWidgets.QComboBox()
@@ -731,14 +598,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
         noiseLayout.addRow("Color/Type:", available_noisecolors_dropdown)
         noiseLayout.addRow("Volume:", noisevolumeSpinBox)
         noiseLayout.addRow(playstopnoiseLayout)
+        return noiseLayout
 
-        ########################################################################
-        # COMMON EVENT MARKERS WIDGET
-        ########################################################################
-
-        eventmarkertitleLabel = QtWidgets.QLabel("Event logging")
-        eventmarkertitleLabel.setAlignment(QtCore.Qt.AlignCenter)
-        eventmarkertitleLabel.setFont(titleFont)
+    def _build_events_section(self) -> QtWidgets.QLayout:
+        """Build the event-marker grid (lightswitch + common event buttons)."""
+        eventmarkertitleLabel = self._make_section_title("Event logging")
 
         # Lights toggle: a single switch replacing the two lights event buttons.
         # It sends the lights marker and flips the dark theme. Connect the
@@ -774,14 +638,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
                 row -= halfsize
             col = 1 if i >= halfsize else 0
             eventsLayout.addWidget(button, row, col)
+        return eventsLayout
 
-        ########################################################################
-        # LOG VIEWER WIDGET
-        ########################################################################
-
-        logviewertitleLabel = QtWidgets.QLabel("Log viewer")
-        logviewertitleLabel.setAlignment(QtCore.Qt.AlignCenter)
-        logviewertitleLabel.setFont(titleFont)
+    def _build_log_viewer_section(self) -> QtWidgets.QLayout:
+        """Build the log-viewer panel and attach the preview log handler."""
+        logviewertitleLabel = self._make_section_title("Log viewer")
 
         # Events log viewer --> gets updated when events are logged
         logviewList = QtWidgets.QListWidget()
@@ -802,41 +663,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         logviewLayout = QtWidgets.QFormLayout()
         logviewLayout.addRow(logviewertitleLabel)
         logviewLayout.addRow(logviewList)
-
-        ########################################################################
-        # COMPILE ALL WIDGETS INTO CENTRAL WIDGET
-        ########################################################################
-
-        central_layout = QtWidgets.QGridLayout()
-        central_layout.addLayout(visualstimLayout, 0, 0)
-        central_layout.addLayout(audiostimLayout, 1, 0)
-        central_layout.addLayout(noiseLayout, 2, 0)
-        central_layout.addLayout(logviewLayout, 0, 1)
-        central_layout.addLayout(microphoneLayout, 1, 1)
-        central_layout.addLayout(eventsLayout, 2, 1)
-        central_widget = QtWidgets.QWidget()
-        central_widget.setContentsMargins(5, 5, 5, 5)
-        central_widget.move(100, 100)
-        central_widget.setLayout(central_layout)
-        self.setCentralWidget(central_widget)
-
-        # # main window stuff
-        # xywh = (50, 100, self.winWidth, self.winHeight) # xloc, yloc, width, height
-        # self.setGeometry(*xywh)
-        # self.setMinimumSize(300, 200)
-        self.setWindowTitle("SMACC")
-        if LOGO_PATH.is_file():
-            windowIcon = QtGui.QIcon(str(LOGO_PATH))
-        else:
-            windowIcon = self.style().standardIcon(
-                QtWidgets.QStyle.SP_ToolBarHorizontalExtensionButton
-            )
-        self.setWindowIcon(windowIcon)
-        # self.openAction = QAction(QIcon(":file-open.svg"), "&Open...", self)
-        # self.setGeometry(100, 100, 600, 400)
-        self.resize(1200, 500)
-        # Always-on-top is off by default (toggle via View -> Always on top).
-        self.show()
+        return logviewLayout
 
     def toggle_always_on_top(self, enabled: bool) -> None:
         """Toggle the window's always-on-top hint (from the View menu)."""
