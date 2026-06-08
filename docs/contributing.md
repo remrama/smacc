@@ -15,13 +15,17 @@ instructions live here once rather than being duplicated across files.
 
 ```sh
 uv sync --extra dev        # create the environment with dev tools
-uv run python entry.py     # launch the app
+uv run python -m smacc     # launch the app
 uv run pytest              # run the test suite
 uv run ruff check .        # lint
 uv run ruff format .       # format
 uv run mypy                # type-check
 pre-commit install         # enable the lint/format/type-check git hooks
 ```
+
+`uv run smacc` also works once the environment is synced — it's the installed GUI
+launcher and opens no console window, so prefer `python -m smacc` when you want
+terminal output (e.g. tracebacks).
 
 ## Building the executable
 

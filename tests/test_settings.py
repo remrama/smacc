@@ -21,8 +21,11 @@ SAMPLE_SETTINGS = {
     "noise_file": "",
     "blink_color": "#ff8800",
     "blink_length": 2.5,
-    "survey_url": "",
-    "survey_options": {"Morning": "https://example.com/survey"},
+    "survey_url": "https://example.com/post",
+    "survey_options": {
+        "Post-dream survey": "https://example.com/post",
+        "Pre-sleep questionnaire": "https://example.com/pre",
+    },
 }
 
 SAMPLE_METADATA = {"subject": "001", "session": "2", "notes": "n", "created": "x"}

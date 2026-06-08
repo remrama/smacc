@@ -9,6 +9,7 @@ from PyQt5 import QtCore, QtMultimedia, QtWidgets
 
 from .. import audio
 from ..config import SURVEY_OPTIONS
+from ..dialogs import ManageSurveysDialog
 from ..session import SmaccSession
 from .base import ModalityWindow, make_section_title
 
@@ -77,11 +78,19 @@ class RecordingWindow(ModalityWindow):
             surveyComboBox.addItem(label, url)
         self.surveyComboBox = surveyComboBox
 
+        # "Manage…" opens the add/edit/remove dialog; saved surveys persist in YAML.
+        manageSurveysButton = QtWidgets.QPushButton("Manage…", self)
+        manageSurveysButton.setStatusTip("Add, edit, or remove saved survey URLs.")
+        manageSurveysButton.clicked.connect(self.manage_surveys)
+        surveyRow = QtWidgets.QHBoxLayout()
+        surveyRow.addWidget(surveyComboBox, 1)
+        surveyRow.addWidget(manageSurveysButton)
+
         layout = QtWidgets.QFormLayout()
         layout.setLabelAlignment(QtCore.Qt.AlignRight)
         layout.addRow(make_section_title("Dream recording"))
         layout.addRow("Device:", available_microphones_dropdown)
-        layout.addRow("Survey:", surveyComboBox)
+        layout.addRow("Survey:", surveyRow)
         layout.addRow(micrecordButton)
         layout.addRow(self.recordingIndicatorLabel)
         layout.addRow("Show input level:", levelLayout)
@@ -151,7 +160,7 @@ class RecordingWindow(ModalityWindow):
         self.record()  # starts OR stops, whichever isn't currently happening
         if self.sender().isChecked():
             if survey_url := self.current_survey_url():
-                webbrowser.open(survey_url, new=1, autoraise=False)
+                self.open_survey_url(survey_url, self.surveyComboBox.currentText())
             port_msg = "DreamReportStarted"
         else:
             port_msg = "DreamReportStopped"
@@ -242,6 +251,40 @@ class RecordingWindow(ModalityWindow):
             return str(data)
         return self.surveyComboBox.currentText().strip()
 
+    def open_survey_url(self, url: str, name: str | None = None) -> None:
+        """Open ``url`` in the browser and log a SurveyOpened event marker.
+
+        Shared by the record-start auto-open and the File → Surveys standalone
+        open, so every survey launch surfaces a marker (``name`` labels the line).
+        """
+        webbrowser.open(url, new=1, autoraise=False)
+        self.session.send_event_marker(
+            self.session.portcodes["SurveyOpened"], f"Survey opened: {name or url}"
+        )
+
+    def _current_survey_options(self) -> dict[str, str]:
+        """The dropdown's saved presets as a ``{name: url}`` mapping."""
+        return {
+            self.surveyComboBox.itemText(i): self.surveyComboBox.itemData(i)
+            for i in range(self.surveyComboBox.count())
+            if self.surveyComboBox.itemData(i)
+        }
+
+    def saved_surveys(self) -> dict[str, str]:
+        """Public view of the saved survey presets (for the File → Surveys menu)."""
+        return self._current_survey_options()
+
+    def manage_surveys(self) -> None:
+        """Add/edit/remove saved surveys, then rebuild the dropdown in place."""
+        dialog = ManageSurveysDialog(self._current_survey_options(), parent=self)
+        if dialog.exec():
+            self._apply_survey_state(
+                {
+                    "survey_options": dialog.get_options(),
+                    "survey_url": self.current_survey_url(),
+                }
+            )
+
     def _apply_survey_state(self, state: dict) -> None:
         """Rebuild the survey dropdown from saved presets and select the saved URL."""
         options = state.get("survey_options") or {}
@@ -259,14 +302,9 @@ class RecordingWindow(ModalityWindow):
         self.surveyComboBox.setEditText(survey_url)
 
     def gather_state(self) -> dict:
-        survey_options = {
-            self.surveyComboBox.itemText(i): self.surveyComboBox.itemData(i)
-            for i in range(self.surveyComboBox.count())
-            if self.surveyComboBox.itemData(i)
-        }
         return {
             "survey_url": self.current_survey_url(),
-            "survey_options": survey_options,
+            "survey_options": self._current_survey_options(),
         }
 
     def apply_state(self, state: dict) -> None:
