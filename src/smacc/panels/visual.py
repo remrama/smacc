@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
+from blinkstick import blinkstick
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 from ..session import SmaccSession
 from .base import ModalityWindow, make_section_title
-
-try:
-    from blinkstick import blinkstick
-except ImportError:
-    blinkstick = None
 
 
 class VisualWindow(ModalityWindow):
@@ -86,7 +82,7 @@ class VisualWindow(ModalityWindow):
         _ensure_blinkstick), so non-BlinkStick users aren't nagged at startup.
         """
         self.available_blinksticks_dropdown.clear()
-        devices = [] if blinkstick is None else blinkstick.find_all()
+        devices = blinkstick.find_all()
         for d in devices:
             product_name = d.device.product_name
             serial_number = d.device.serial_number
@@ -125,13 +121,12 @@ class VisualWindow(ModalityWindow):
         self.colorpickerButton.setIconSize(QtCore.QSize(size, size))
 
     def _ensure_blinkstick(self) -> bool:
-        """Return True if a BlinkStick is usable, else show one error popup."""
-        if blinkstick is not None and self.bstick is not None:
+        """Return True if a BlinkStick device is selected, else show one error popup."""
+        if self.bstick is not None:
             return True
         self.session.show_error_popup(
             "Visual stimulation unavailable.",
-            "No BlinkStick device was found and/or the `blinkstick` Python "
-            "package is not installed.",
+            "No BlinkStick device was found. Connect one and restart SMACC.",
             parent=self,
         )
         return False

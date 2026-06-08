@@ -1153,6 +1153,7 @@ wheels = [
 name = "smacc"
 source = { editable = "." }
 dependencies = [
+    { name = "blinkstick", marker = "sys_platform == 'win32'" },
     { name = "numpy" },
     { name = "pylsl" },
     { name = "pyqt5" },
@@ -1177,13 +1178,10 @@ docs = [
     { name = "mike" },
     { name = "mkdocs-material" },
 ]
-visual = [
-    { name = "blinkstick" },
-]
 
 [package.metadata]
 requires-dist = [
-    { name = "blinkstick", marker = "extra == 'visual'" },
+    { name = "blinkstick", marker = "sys_platform == 'win32'" },
     { name = "mike", marker = "extra == 'docs'" },
     { name = "mkdocs-material", marker = "extra == 'docs'" },
     { name = "mypy", marker = "extra == 'dev'" },
@@ -1202,7 +1200,7 @@ requires-dist = [
     { name = "soundfile", specifier = ">=0.12" },
     { name = "types-pyyaml", marker = "extra == 'dev'" },
 ]
-provides-extras = ["visual", "docs", "dev"]
+provides-extras = ["docs", "dev"]
 
 [[package]]
 name = "sounddevice"
