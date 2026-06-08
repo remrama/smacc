@@ -125,10 +125,16 @@ class LauncherWindow(QtWidgets.QMainWindow):
         openButton = QtWidgets.QPushButton("Open…", self)
         openButton.setStatusTip("Open an existing study folder.")
         openButton.clicked.connect(self.open_study)
+        editButton = QtWidgets.QPushButton("Edit…", self)
+        editButton.setStatusTip(
+            "Edit the current study's configuration in the designer."
+        )
+        editButton.clicked.connect(self.edit_study)
         grid.addWidget(self.studyLabel, 0, 0, 1, 2)
         grid.addWidget(QtWidgets.QLabel("Recent:"), 1, 0)
         grid.addWidget(self.recentCombo, 1, 1)
-        grid.addWidget(openButton, 2, 0, 1, 2)
+        grid.addWidget(openButton, 2, 0)
+        grid.addWidget(editButton, 2, 1)
         return box
 
     # ----- study selection --------------------------------------------------
@@ -205,12 +211,20 @@ class LauncherWindow(QtWidgets.QMainWindow):
         except OSError as exc:
             QtWidgets.QMessageBox.critical(self, "New study", str(exc))
             return
-        self._set_study(study)
-        QtWidgets.QMessageBox.information(
-            self,
-            "Study created",
-            f"Created study '{name}'.\n\nStart a session to configure and use it.",
-        )
+        # Drop straight into the designer to configure the new study.
+        self._open_designer(study)
+
+    def edit_study(self) -> None:
+        """Edit the current study's configuration in the designer."""
+        self._open_designer(self._study)
+
+    def _open_designer(self, study: Study) -> None:
+        """Open the study designer on ``study`` (loading its config if it has one)."""
+        session = SmaccSession(study, design=True)
+        settings_path = str(study.config_path) if study.has_config() else None
+        window = SmaccWindow(session, settings_path=settings_path)
+        self._set_study(study)  # make it current so the launcher reflects it on return
+        self._open_tool(window)
 
     # ----- actions ----------------------------------------------------------
 

@@ -13,15 +13,16 @@ SMACC opens to a small launcher (its opening menu) rather than dropping straight
 into a session. From here you:
 
 - **pick a study** — the current study is shown at the top, with **Open…** to
-  choose another study folder and a **Recent** dropdown to switch between ones you
-  have used. Until you pick one, SMACC uses an auto-managed `default` study, so it
-  works out of the box. (See [Study config](#study-config-smacc) for what a study
-  holds.)
+  choose another study folder, **Edit…** to open the current study in the designer,
+  and a **Recent** dropdown to switch between ones you have used. Until you pick
+  one, SMACC uses an auto-managed `default` study, so it works out of the box.
+  (See [Study config](#study-config-smacc) for what a study holds.)
 - **Start session** — open the live session interface for the selected study,
   loading its saved `study.smacc` if it has one. A session's run folder and log
   are created only now, when the session starts.
-- **Create study** — set up a new study folder (its own cues and sessions) you can
-  then configure and run.
+- **Create study** — name a new study and set it up in the **study designer**:
+  configure its tools (cues, noise, visual, event codes, surveys) and save them to
+  the study's `study.smacc`. Use **Edit…** to reopen an existing study there.
 - **Analyze session** — export a past session's events (e.g. to a BIDS
   `events.tsv`) without starting a new session.
 
@@ -108,9 +109,12 @@ events and settings for that session.
 
 A **study** captures your reusable setup — cue files, volumes, noise, BlinkStick
 color, survey presets, event codes — in a single portable `.smacc` file (plain YAML you
-can read and edit). Save it with **File &rsaquo; Export study (.smacc)…** and reload it with
-**File &rsaquo; Load study (.smacc)…**. You can also pull the initial or final setup
-back out of a session `.log` with **File &rsaquo; Load study from log…**.
+can read and edit). The easiest way to build one is the **study designer** (the
+launcher's **Create study**, or **Edit…** for an existing one), which configures all
+the tools and saves them to the study's `study.smacc`. You can also save the current
+setup from a live session with **File &rsaquo; Export study (.smacc)…** and reload it
+with **File &rsaquo; Load study (.smacc)…**, or pull the initial or final setup back
+out of a session `.log` with **File &rsaquo; Load study from log…**.
 
 Cue/noise files are *referenced*, never copied. When a referenced sound sits in or
 below the same folder as the `.smacc` file, its path is stored **relative**, so a

@@ -41,6 +41,13 @@ class RecordingWindow(ModalityWindow):
         micrecordButton.setStatusTip("Ask for a dream report and start recording.")
         micrecordButton.setCheckable(True)
         micrecordButton.clicked.connect(self.start_or_stop_recording)
+        if not self.session.can_record:
+            # The study designer has no run folder to record into; configuring the
+            # device and surveys still works, so only the recording itself is off.
+            micrecordButton.setEnabled(False)
+            micrecordButton.setToolTip(
+                "Recording is available when running a session, not in the designer."
+            )
 
         # Recording indicator (replaces the old log-viewer red border).
         self.recordingIndicatorLabel = QtWidgets.QLabel("■ idle", self)
@@ -131,7 +138,8 @@ class RecordingWindow(ModalityWindow):
             self.available_microphones_dropdown.addItem(description, name)
         if names:
             self.available_microphones_dropdown.setCurrentIndex(0)
-        else:
+        elif self.session.can_record:
+            # In the designer there's no recording, so don't nag about missing mics.
             self.session.show_error_popup("No microphones found.", parent=self)
 
     def record(self):

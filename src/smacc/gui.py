@@ -39,6 +39,10 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def __init__(self, session: SmaccSession, settings_path: str | None = None) -> None:
         super().__init__()
         self.session = session
+        # Design mode reuses this window to configure a study (no live run): the
+        # log viewer, lights, and recording are hidden/disabled, and the right
+        # column becomes a study-designer panel. Derived from the session.
+        self.design = session.design
         # Operator/machine preferences (window/theme/log-preview); never raises.
         self._prefs = preferences.load_preferences(preferences_path)
 
@@ -66,12 +70,15 @@ class SmaccWindow(QtWidgets.QMainWindow):
             self._load_initial_settings(settings_path)
         self.show()  # single show, after window flags + geometry are applied
 
-        # Panels (and any launch-file overrides) are in place, so capture the
-        # initial state into the log header (also emits the "Opened SMACC" line).
-        self.session.begin_log(self.gather_settings())
-        self._maybe_prompt_association()
-        # Startup widget setup is done; from here on, log soft interactions.
-        self.session.log_interactions = True
+        # The designer records no run, so it skips the log header, the file
+        # association prompt, and interaction logging — it only edits config.
+        if not self.design:
+            # Panels (and any launch-file overrides) are in place, so capture the
+            # initial state into the log header (also emits the "Opened SMACC" line).
+            self.session.begin_log(self.gather_settings())
+            self._maybe_prompt_association()
+            # Startup widget setup is done; from here on, log soft interactions.
+            self.session.log_interactions = True
 
     def show_error_popup(self, short_msg, long_msg=None):
         """Show an error dialog parented to this window (logs via the session)."""
@@ -79,6 +86,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def _update_preview_levels(self) -> None:
         """Sync the preview handler's visible levels to the menu checkboxes."""
+        # The designer has no log viewer (and no preview handler) to sync.
+        if self.design:
+            return
         self.preview_handler.enabled_levels = {
             level
             for level, action in self._preview_level_actions.items()
@@ -90,19 +100,25 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self._build_menu_bar()
         self.statusBar().showMessage("Ready")
 
-        # Two columns: the launcher tools (with the lights toggle filling the
-        # bottom) and the log viewer. The menu is built first so the log-viewer
+        # Two columns: the tools column (with the lights toggle filling the bottom)
+        # and a right column — the live log viewer in a session, or the save/open
+        # study panel in the designer. The menu is built first so the log-viewer
         # panel can sync the preview handler to the Log preview menu checkboxes.
         central_layout = QtWidgets.QGridLayout()
         central_layout.addLayout(self._build_launcher_buttons(), 0, 0)
-        central_layout.addLayout(self._build_log_viewer_section(), 0, 1)
-        central_layout.setColumnStretch(1, 1)  # the log viewer takes the extra width
+        right_column = (
+            self._build_designer_section()
+            if self.design
+            else self._build_log_viewer_section()
+        )
+        central_layout.addLayout(right_column, 0, 1)
+        central_layout.setColumnStretch(1, 1)  # the right column takes the extra width
         central_widget = QtWidgets.QWidget()
         central_widget.setContentsMargins(5, 5, 5, 5)
         central_widget.setLayout(central_layout)
         self.setCentralWidget(central_widget)
 
-        self.setWindowTitle("SMACC")
+        self.setWindowTitle("SMACC — Study designer" if self.design else "SMACC")
         if LOGO_PATH.is_file():
             windowIcon = QtGui.QIcon(str(LOGO_PATH))
         else:
@@ -170,6 +186,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self.lightswitchButton.setChecked(True)
         self._refresh_lightswitch_label()
         self.lightswitchButton.toggled.connect(self.on_lightswitch_toggled)
+        # Lights are a live-session concept; the designer hides the toggle (it's
+        # still built so preference application stays uniform across both modes).
+        self.lightswitchButton.setVisible(not self.design)
         layout.addWidget(self.lightswitchButton, 1)
         return layout
 
@@ -192,11 +211,15 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         quitAction = QtWidgets.QAction(
             self.style().standardIcon(QtWidgets.QStyle.SP_BrowserStop),
-            "End sessio&n",
+            "Close &designer" if self.design else "End sessio&n",
             self,
         )
         quitAction.setShortcut("Ctrl+Q")
-        quitAction.setStatusTip("End this session and return to the SMACC menu")
+        quitAction.setStatusTip(
+            "Close the study designer and return to the SMACC menu"
+            if self.design
+            else "End this session and return to the SMACC menu"
+        )
         quitAction.triggered.connect(self.close)  # close goes to closeEvent
 
         # File -> Export/Load settings: persist the current setup to a portable
@@ -271,30 +294,36 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # surveys are added/edited/removed.
         surveysMenu = fileMenu.addMenu("Sur&veys")
         surveysMenu.aboutToShow.connect(lambda: self._rebuild_surveys_menu(surveysMenu))
-        fileMenu.addSeparator()
-        fileMenu.addAction(exportEventsAction)
-        fileMenu.addAction(exportEventsFromLogAction)
+        # Exporting events needs a recorded run, so it's session-only; the designer
+        # omits it (events can still be exported later from the Analyze menu).
+        self._preview_level_actions: dict[int, QtWidgets.QAction] = {}
+        if not self.design:
+            fileMenu.addSeparator()
+            fileMenu.addAction(exportEventsAction)
+            fileMenu.addAction(exportEventsFromLogAction)
         fileMenu.addSeparator()
         fileMenu.addAction(alwaysOnTopAction)
         fileMenu.addAction(associateAction)
-        fileMenu.addSeparator()
         # File -> Log preview: pick which log levels show in the preview pane.
-        # Everything is always written to the log file regardless of these.
-        previewMenu = fileMenu.addMenu("Log preview")
-        self._preview_level_actions: dict[int, QtWidgets.QAction] = {}
-        for levelname, levelno in (
-            ("Debug", logging.DEBUG),
-            ("Info", logging.INFO),
-            ("Warning", logging.WARNING),
-            ("Error", logging.ERROR),
-            ("Critical", logging.CRITICAL),
-        ):
-            levelAction = QtWidgets.QAction(levelname, self)
-            levelAction.setCheckable(True)
-            levelAction.setChecked(levelno != logging.DEBUG)  # all but Debug
-            levelAction.toggled.connect(self._update_preview_levels)
-            previewMenu.addAction(levelAction)
-            self._preview_level_actions[levelno] = levelAction
+        # Everything is always written to the log file regardless of these. The
+        # designer has no log viewer, so it omits this menu (and keeps the actions
+        # map empty, which _apply_preferences tolerates).
+        if not self.design:
+            fileMenu.addSeparator()
+            previewMenu = fileMenu.addMenu("Log preview")
+            for levelname, levelno in (
+                ("Debug", logging.DEBUG),
+                ("Info", logging.INFO),
+                ("Warning", logging.WARNING),
+                ("Error", logging.ERROR),
+                ("Critical", logging.CRITICAL),
+            ):
+                levelAction = QtWidgets.QAction(levelname, self)
+                levelAction.setCheckable(True)
+                levelAction.setChecked(levelno != logging.DEBUG)  # all but Debug
+                levelAction.toggled.connect(self._update_preview_levels)
+                previewMenu.addAction(levelAction)
+                self._preview_level_actions[levelno] = levelAction
         fileMenu.addSeparator()
         fileMenu.addAction(aboutAction)
         fileMenu.addAction(quitAction)
@@ -340,6 +369,34 @@ class SmaccWindow(QtWidgets.QMainWindow):
         logviewLayout.addRow(logviewertitleLabel)
         logviewLayout.addRow(logviewList)
         return logviewLayout
+
+    def _build_designer_section(self) -> QtWidgets.QLayout:
+        """Build the study-designer right column: guidance plus save/open actions.
+
+        Replaces the live log viewer when this window is a study designer. The
+        tools column at the left configures the study; these buttons persist it to
+        the study's ``study.smacc`` (or load an existing config to start from).
+        """
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(self._make_section_title("Study designer"))
+        info = QtWidgets.QLabel(
+            "Configure each tool on the left (cues, noise, visual, events, …), "
+            "then save the setup to this study's <b>study.smacc</b>. Start a "
+            "session from the menu to record with it."
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+        layout.addSpacing(8)
+        saveButton = QtWidgets.QPushButton("Save study (.smacc)", self)
+        saveButton.setStatusTip("Save the current setup to this study's study.smacc.")
+        saveButton.clicked.connect(self.export_settings)
+        openButton = QtWidgets.QPushButton("Open study (.smacc)…", self)
+        openButton.setStatusTip("Load an existing study config into the designer.")
+        openButton.clicked.connect(self.load_settings)
+        layout.addWidget(saveButton)
+        layout.addWidget(openButton)
+        layout.addStretch(1)
+        return layout
 
     def toggle_always_on_top(self, enabled: bool) -> None:
         """Toggle the window's always-on-top hint (from the View menu)."""
@@ -617,6 +674,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
             self.show_error_popup("Could not export study.", str(exc))
             return
         self.session.log_info_msg(f"Exported study to {path}")
+        # Status-bar confirmation: the designer has no log viewer to show the line.
+        self.statusBar().showMessage(f"Saved study to {Path(path).name}", 5000)
 
     def load_settings(self) -> None:
         """Prompt for a .smacc (or .yaml) study file and apply it."""
@@ -765,19 +824,23 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def export_events_bids(self) -> None:
         """Convert this session's log to a BIDS events.tsv (+ JSON sidecar)."""
-        if not self.session.log_path.is_file():
+        # log_path/session_dir are None only in design mode, where this action is
+        # not offered; guard anyway so the types stay honest.
+        log_path = self.session.log_path
+        session_dir = self.session.session_dir
+        if log_path is None or session_dir is None or not log_path.is_file():
             self.show_error_popup("No log file to export yet.")
             return
         # Flush handlers so the on-disk log includes the latest events.
         for handler in self.session.logger.handlers:
             handler.flush()
-        default = self.session.session_dir / self._events_basename()
+        default = session_dir / self._events_basename()
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "Export events (BIDS)", str(default), "BIDS events (*.tsv)"
         )
         if not path:
             return
-        self._write_events(self.session.log_path, Path(path))
+        self._write_events(log_path, Path(path))
 
     def export_events_from_log(self) -> None:
         """Convert any chosen SMACC .log file into a BIDS events.tsv (+ sidecar)."""
@@ -814,27 +877,55 @@ class SmaccWindow(QtWidgets.QMainWindow):
             return
         self.session.log_info_msg(f"Exported {count} events to {out_path}")
 
+    def _teardown_panels(self) -> None:
+        """Stop and close every modality window (called when this window closes)."""
+        for panel in self.panels.values():
+            panel._quitting = True
+            panel.cleanup()
+            panel.close()
+
     def closeEvent(self, event):
-        """End the session and hand control back to the launcher.
+        """End the session (or close the designer) and return control to the launcher.
 
         closeEvent is a default method used in pyqt to close, so this overrides it.
-        Closing no longer quits the app — it ends this session and emits ``closed``
-        so the launcher (the persistent root window) can reappear.
+        Closing no longer quits the app — it ends this window and emits ``closed`` so
+        the launcher (the persistent root window) can reappear.
         """
+        if self.design:
+            confirmed = (
+                QtWidgets.QMessageBox.question(
+                    self,
+                    "Close designer",
+                    "Close the study designer and return to the menu?\n\n"
+                    "Save the study first if you have unsaved changes.",
+                )
+                == QtWidgets.QMessageBox.Yes
+            )
+            if not confirmed:
+                event.ignore()
+                return
+            # No run to finalize and no operator prefs to write from the designer.
+            self._teardown_panels()
+            self.session.close()
+            event.accept()
+            self.closed.emit()
+            return
+
         response = QtWidgets.QMessageBox.question(
             self, "End session", "End this session and return to the SMACC menu?"
         )
         if response == QtWidgets.QMessageBox.Yes:
-            for panel in self.panels.values():
-                panel._quitting = True
-                panel.cleanup()
-                panel.close()
+            self._teardown_panels()
             # Persist this window's operator/UI preferences for next launch, merging
             # so we don't clobber keys other windows own (best-effort, never raises).
             preferences.update_preferences(preferences_path, self._preference_changes())
             self.session.log_info_msg("Session ended")
             # Record the final settings (incl. any mid-session edits) as the tail.
             self.session.end_log(self.gather_settings())
+            # Detach this window's preview handler and release the session's log
+            # handler + outlet so the next session in this process starts clean.
+            self.session.logger.removeHandler(self.preview_handler)
+            self.session.close()
             event.accept()
             self.closed.emit()
         else:
