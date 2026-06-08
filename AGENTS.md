@@ -11,36 +11,8 @@ assistants working on SMACC.
 
 ## Development
 
-```sh
-uv sync --extra dev        # create the environment with dev tools
-uv run python entry.py     # launch the app
-uv run pytest              # run the test suite
-uv run ruff check .        # lint
-uv run ruff format .       # format
-uv run mypy                # type-check
-pre-commit install         # enable the lint/format/type-check git hooks
-```
+The full development guide — environment setup, running the app, tests, linting,
+building the executable, and building the docs — lives in the Contributing page
+so it is not duplicated here: [docs/contributing.md](./docs/contributing.md).
 
-Build the standalone Windows executable:
-
-```sh
-uv run pyinstaller entry.py --name SMACC --onefile --noconsole \
-  --icon src/smacc/assets/icon.ico \
-  --add-data "src/smacc/assets/icon.png:smacc/assets" \
-  --add-data "src/smacc/assets/cues:smacc/assets/cues"
-```
-
-`--icon` sets the executable's file icon; `--add-data` bundles the runtime
-window/taskbar icon, which SMACC resolves via `sys._MEIPASS`. On Windows the
-`--add-data` separator is `;` rather than `:` (i.e. `...png;smacc/assets`).
-
-PyYAML (settings export/import) is pure Python and is picked up automatically by
-PyInstaller; if a frozen build ever fails to import `yaml`, add
-`--hidden-import yaml`.
-
-## Project notes
-
-- `src/` layout: the package lives in `src/smacc/`.
-- The single source of truth for the version is `__version__` in
-  `src/smacc/__init__.py`; `config.py` and the packaging metadata both read from it.
-- See the [README](./README.md) for user-facing project information.
+See the [README](./README.md) for user-facing project information.

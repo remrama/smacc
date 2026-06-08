@@ -29,29 +29,13 @@ Note that for some features, you will need to open SMACC with Administrator priv
 
 * There is a `Record Dream Report` button that will start to record from whatever external recording device is selected from the SMACC menubar. There is also an option to have it pop open a website URL. I use this to open up a dream report survey I have set up on Qualtrics. If you want it to open something, update the `SURVEY_URL` variable in `config.py`. If planning to record dreams, choose sound device for recording audio from the menubar (`Audio > Input device > [choose device]`).
 
+## Documentation
+
+Full user and developer documentation is published at
+<https://remrama.github.io/smacc/>.
+
 ## Development
 
 This project uses [uv](https://docs.astral.sh/uv/) for environment management.
-
-```sh
-uv sync --extra dev        # create the environment with dev tools
-uv run python entry.py     # launch the app
-uv run pytest              # run the test suite
-uv run ruff check .        # lint
-uv run ruff format .       # format
-uv run mypy                # type-check
-pre-commit install         # enable the lint/format/type-check git hooks
-```
-
-Build the standalone Windows executable:
-
-```sh
-uv run pyinstaller entry.py --name SMACC --onefile --noconsole \
-  --icon src/smacc/assets/icon.ico \
-  --add-data "src/smacc/assets/icon.png:smacc/assets" \
-  --add-data "src/smacc/assets/cues:smacc/assets/cues"
-```
-
-Releases are built automatically: pushing a `v*` tag (e.g. `v0.0.7`) triggers the
-[release workflow](.github/workflows/release.yaml), which builds `SMACC.exe` and
-attaches it to the GitHub Release.
+See the [Contributing guide](docs/contributing.md) for environment setup, running
+the app, tests, linting, building the executable, and building the docs locally.

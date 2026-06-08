@@ -6,3 +6,4 @@ build/
 .venv/
 .*_cache/
 NOTES.txt
+site/
