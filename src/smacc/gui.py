@@ -9,7 +9,7 @@ from typing import cast
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-from smacc import bids, settings
+from smacc import bids, preferences, settings, winassoc
 
 from .config import (
     COMMON_EVENT_CODES,
@@ -23,7 +23,7 @@ from .panels.intercom import IntercomWindow
 from .panels.noise import NoiseWindow
 from .panels.recording import RecordingWindow
 from .panels.visual import VisualWindow
-from .paths import LOGO_PATH, data_directory, sessions_directory
+from .paths import LOGO_PATH, data_directory, preferences_path, sessions_directory
 from .qtlog import QtLogHandler
 from .session import SmaccSession
 
@@ -35,9 +35,11 @@ from .session import SmaccSession
 class SmaccWindow(QtWidgets.QMainWindow):
     """Main interface."""
 
-    def __init__(self, session: SmaccSession) -> None:
+    def __init__(self, session: SmaccSession, settings_path: str | None = None) -> None:
         super().__init__()
         self.session = session
+        # Operator/machine preferences (window/theme/log-preview); never raises.
+        self._prefs = preferences.load_preferences(preferences_path)
 
         # Lights state drives the dark theme; sessions start with lights on.
         self.lights_on = True
@@ -55,11 +57,17 @@ class SmaccWindow(QtWidgets.QMainWindow):
             "intercom": IntercomWindow(self.session),
         }
 
-        self.init_main_window()
+        self.init_main_window()  # builds the menu + log handler (does not show yet)
+        self._apply_preferences(self._prefs)
+        # A study file passed on launch becomes this session's initial setup.
+        if settings_path:
+            self._load_initial_settings(settings_path)
+        self.show()  # single show, after window flags + geometry are applied
 
-        # Panels exist now, so capture their initial state into the log header
-        # (this also emits the "Opened SMACC" line, after the settings block).
+        # Panels (and any launch-file overrides) are in place, so capture the
+        # initial state into the log header (also emits the "Opened SMACC" line).
         self.session.begin_log(self.gather_settings())
+        self._maybe_prompt_association()
 
     def show_error_popup(self, short_msg, long_msg=None):
         """Show an error dialog parented to this window (logs via the session)."""
@@ -86,7 +94,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         central_layout.addLayout(self._build_events_section(), 1, 0, 1, 2)
         central_widget = QtWidgets.QWidget()
         central_widget.setContentsMargins(5, 5, 5, 5)
-        central_widget.move(100, 100)
         central_widget.setLayout(central_layout)
         self.setCentralWidget(central_widget)
 
@@ -98,9 +105,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
                 QtWidgets.QStyle.SP_ToolBarHorizontalExtensionButton
             )
         self.setWindowIcon(windowIcon)
-        self.resize(640, 560)
-        # Always-on-top is off by default (toggle via File -> Always on top).
-        self.show()
+        # Window size/position, theme, always-on-top, and log-preview levels come
+        # from saved preferences (applied by _apply_preferences); __init__ shows
+        # the window afterwards.
 
     @staticmethod
     def _make_section_title(text: str) -> QtWidgets.QLabel:
@@ -164,17 +171,17 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         # File -> Export/Load settings: persist the current setup to a portable
         # settings.yaml (and reload it from a .yaml or from a .log's header block).
-        exportSettingsAction = QtWidgets.QAction("&Export settings (YAML)…", self)
+        exportSettingsAction = QtWidgets.QAction("&Export study (.smacc)…", self)
         exportSettingsAction.setStatusTip(
-            "Save the current setup to a settings .yaml file."
+            "Save the current setup to a portable .smacc study file."
         )
         exportSettingsAction.triggered.connect(self.export_settings)
-        loadSettingsAction = QtWidgets.QAction("&Load settings (YAML)…", self)
-        loadSettingsAction.setStatusTip("Load a setup from a settings .yaml file.")
+        loadSettingsAction = QtWidgets.QAction("&Load study (.smacc)…", self)
+        loadSettingsAction.setStatusTip("Load a setup from a .smacc study file.")
         loadSettingsAction.triggered.connect(self.load_settings)
-        loadSettingsFromLogAction = QtWidgets.QAction("Load settings from &log…", self)
+        loadSettingsFromLogAction = QtWidgets.QAction("Load study from &log…", self)
         loadSettingsFromLogAction.setStatusTip(
-            "Load the initial or final settings recorded in a SMACC .log file."
+            "Load the initial or final setup recorded in a SMACC .log file."
         )
         loadSettingsFromLogAction.triggered.connect(self.load_settings_from_log)
 
@@ -204,6 +211,13 @@ class SmaccWindow(QtWidgets.QMainWindow):
         alwaysOnTopAction.setCheckable(True)
         alwaysOnTopAction.setChecked(False)
         alwaysOnTopAction.toggled.connect(self.toggle_always_on_top)
+        self._always_on_top_action = alwaysOnTopAction
+
+        associateAction = QtWidgets.QAction("&Associate .smacc files (Windows)", self)
+        associateAction.setStatusTip(
+            "Register SMACC as the handler for .smacc files (double-click to open)."
+        )
+        associateAction.triggered.connect(self.associate_files)
 
         menuBar = self.menuBar()
         # menuBar.setNativeMenuBar(False)  # needed for pyqt5 on Mac
@@ -224,6 +238,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         fileMenu.addAction(exportEventsFromLogAction)
         fileMenu.addSeparator()
         fileMenu.addAction(alwaysOnTopAction)
+        fileMenu.addAction(associateAction)
         fileMenu.addSeparator()
         # File -> Log preview: pick which log levels show in the preview pane.
         # Everything is always written to the log file regardless of these.
@@ -444,38 +459,163 @@ class SmaccWindow(QtWidgets.QMainWindow):
         for panel in self.panels.values():
             panel.apply_state(state)
 
+    # ----- preferences / launch-file / file association ----------------------
+
+    def _apply_preferences(self, prefs: dict) -> None:
+        """Apply saved operator/UI preferences to the freshly built window.
+
+        Runs after the menu + log handler exist and before the window is shown.
+        Signals are blocked while setting checked states so the handlers don't
+        fire during setup (which would log spurious lines or re-show the window).
+        """
+        # Always-on-top: set the flag directly (the toggled handler re-shows + logs).
+        self._always_on_top_action.blockSignals(True)
+        self._always_on_top_action.setChecked(bool(prefs["always_on_top"]))
+        self._always_on_top_action.blockSignals(False)
+        if prefs["always_on_top"]:
+            self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
+
+        # Log-preview levels (preview_handler exists now, built in init_main_window).
+        wanted = preferences.names_to_levels(prefs.get("preview_levels", []))
+        for level, action in self._preview_level_actions.items():
+            action.blockSignals(True)
+            action.setChecked(level in wanted)
+            action.blockSignals(False)
+        self._update_preview_levels()
+
+        # Lights/theme startup state (no event marker; keep the switch in sync).
+        lights_on = bool(prefs["lights_on"])
+        self.lightswitchButton.blockSignals(True)
+        self.lightswitchButton.setChecked(lights_on)
+        self.lightswitchButton.blockSignals(False)
+        self.set_lights(lights_on, send_marker=False)
+
+        self._restore_geometry(prefs.get("window") or {})
+
+    def _restore_geometry(self, window: dict) -> None:
+        """Restore saved window size/position, ignoring fully off-screen positions."""
+        width = int(window.get("w") or 640)
+        height = int(window.get("h") or 560)
+        self.resize(width, height)
+        x, y = window.get("x"), window.get("y")
+        if x is None or y is None:
+            return
+        rect = QtCore.QRect(int(x), int(y), width, height)
+        screens = QtWidgets.QApplication.screens()
+        if any(screen.availableGeometry().intersects(rect) for screen in screens):
+            self.move(int(x), int(y))
+
+    def _current_preferences(self) -> dict:
+        """Snapshot the current operator/UI state for saving to preferences.yaml."""
+        checked = {
+            level
+            for level, action in self._preview_level_actions.items()
+            if action.isChecked()
+        }
+        # Start from the loaded prefs so flags we don't surface here (e.g. the
+        # association first-run marker) are carried forward.
+        prefs = dict(self._prefs)
+        prefs.update(
+            {
+                "always_on_top": self._always_on_top_action.isChecked(),
+                "lights_on": self.lights_on,
+                "preview_levels": preferences.levels_to_names(checked),
+                "window": {
+                    "x": self.x(),
+                    "y": self.y(),
+                    "w": self.width(),
+                    "h": self.height(),
+                },
+            }
+        )
+        return prefs
+
+    def _load_initial_settings(self, settings_path: str) -> None:
+        """Load a study file given on launch and apply it as the initial setup."""
+        try:
+            state, metadata = settings.load_settings(settings_path)
+            state = settings.resolve_paths(state, Path(settings_path).parent)
+        except (OSError, ValueError) as exc:
+            self.show_error_popup("Could not open study file.", str(exc))
+            return
+        self._apply_loaded_settings(state, metadata)
+        self.session.log_info_msg(f"Loaded study from {settings_path}")
+
+    def associate_files(self) -> None:
+        """Register SMACC as the Windows handler for .smacc files (packaged build)."""
+        if not winassoc.is_associatable():
+            QtWidgets.QMessageBox.information(
+                self,
+                "File association",
+                "Associating .smacc files is only available in the installed "
+                "Windows build of SMACC.",
+            )
+            return
+        try:
+            winassoc.register_smacc()
+        except OSError as exc:
+            self.show_error_popup("Could not associate .smacc files.", str(exc))
+            return
+        self.session.log_info_msg("Associated .smacc files with SMACC")
+        QtWidgets.QMessageBox.information(
+            self,
+            "File association",
+            "SMACC now handles .smacc files — double-click a study to open it.",
+        )
+
+    def _maybe_prompt_association(self) -> None:
+        """Once, on the first packaged-build launch, offer to associate .smacc files."""
+        if not winassoc.is_associatable() or self._prefs.get("association_prompted"):
+            return
+        self._prefs["association_prompted"] = True  # one-time, whatever they choose
+        reply = QtWidgets.QMessageBox.question(
+            self,
+            "Associate .smacc files?",
+            "Associate .smacc study files with SMACC so double-clicking one opens "
+            "the app already configured?",
+        )
+        if reply == QtWidgets.QMessageBox.Yes:
+            try:
+                winassoc.register_smacc()
+                self.session.log_info_msg("Associated .smacc files with SMACC")
+            except OSError as exc:
+                self.show_error_popup("Could not associate .smacc files.", str(exc))
+
     def export_settings(self) -> None:
-        """Prompt for a path and write the current setup to a settings .yaml."""
-        default = self.session.session_dir / "settings.yaml"
+        """Prompt for a path and write the current setup to a .smacc study file."""
+        default = self.session.session_dir / "study.smacc"
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "Export settings (YAML)", str(default), "Settings (*.yaml)"
+            self, "Export study (.smacc)", str(default), "SMACC study (*.smacc)"
         )
         if not path:
             return
+        # Make referenced cue/noise paths relative to the chosen file when possible.
+        portable = settings.relativize_paths(self.gather_settings(), Path(path).parent)
         try:
-            settings.save_settings(path, self.gather_settings(), self.session.metadata)
+            settings.save_settings(path, portable, self.session.metadata)
         except (OSError, ValueError) as exc:
-            self.show_error_popup("Could not export settings.", str(exc))
+            self.show_error_popup("Could not export study.", str(exc))
             return
-        self.session.log_info_msg(f"Exported settings to {path}")
+        self.session.log_info_msg(f"Exported study to {path}")
 
     def load_settings(self) -> None:
-        """Prompt for a settings .yaml (or legacy study.json) and apply it."""
+        """Prompt for a .smacc (or .yaml) study file and apply it."""
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
-            "Load settings (YAML)",
+            "Load study (.smacc)",
             str(data_directory),
-            "Settings (*.yaml *.yml *.json)",
+            "SMACC study (*.smacc *.yaml *.yml)",
         )
         if not path:
             return
         try:
             state, metadata = settings.load_settings(path)
+            state = settings.resolve_paths(state, Path(path).parent)
         except (OSError, ValueError) as exc:
-            self.show_error_popup("Could not load settings.", str(exc))
+            self.show_error_popup("Could not load study.", str(exc))
             return
         self._apply_loaded_settings(state, metadata)
-        self.session.log_info_msg(f"Loaded settings from {path}")
+        self.session.log_info_msg(f"Loaded study from {path}")
 
     def load_settings_from_log(self) -> None:
         """Load the initial or final settings recorded in a SMACC .log file."""
@@ -624,6 +764,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
                 panel._quitting = True
                 panel.cleanup()
                 panel.close()
+            # Persist operator/UI preferences for next launch (best-effort).
+            preferences.save_preferences(preferences_path, self._current_preferences())
             self.session.log_info_msg("Program closed")
             # Record the final settings (incl. any mid-session edits) as the tail.
             self.session.end_log(self.gather_settings())

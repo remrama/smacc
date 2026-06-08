@@ -23,7 +23,16 @@ Each run gets its own timestamped folder under `~/SMACC/sessions/`
 (e.g. `smacc-20260607-223015/`) holding that run's `.log`, dream-report
 recordings, and any exports. Subject/session are optional metadata (set from
 **File &rsaquo; Session info…**) recorded inside the log/exports rather than in
-filenames.
+filenames. Window/theme/log-preview choices are remembered in
+`~/SMACC/preferences.yaml`.
+
+### Study files (`.smacc`)
+
+A reusable setup can be saved to a portable `.smacc` study file (see
+[Usage](usage.md#study-config-smacc)). On the Windows build, the first launch
+offers to associate `.smacc` files so you can **double-click one to open SMACC with
+that study loaded**; you can also (re)enable this from
+**File &rsaquo; Associate .smacc files (Windows)**.
 
 ### Audio cues
 

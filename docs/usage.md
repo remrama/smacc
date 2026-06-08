@@ -35,9 +35,29 @@ delivery and your neural data in sync.
 Every run writes a detailed `.log` to its own timestamped folder under
 `~/SMACC/sessions/`, capturing the events and settings for that session.
 
-## Settings (YAML)
+## Study config (`.smacc`)
 
-Save the current setup with **File &rsaquo; Export settings (YAML)…** and reload
-it later with **File &rsaquo; Load settings (YAML)…**. You can also pull the
-initial/final settings back out of a `.log` with
-**File &rsaquo; Load settings from log…**.
+A **study** captures your reusable setup — cue files, volumes, noise, BlinkStick
+color, survey presets — in a single portable `.smacc` file (plain YAML you can read
+and edit). Save it with **File &rsaquo; Export study (.smacc)…** and reload it with
+**File &rsaquo; Load study (.smacc)…**. You can also pull the initial or final setup
+back out of a session `.log` with **File &rsaquo; Load study from log…**.
+
+Cue/noise files are *referenced*, never copied. When a referenced sound sits in the
+same folder as the `.smacc` file, its path is stored **relative**, so a study folder
+(the `.smacc` plus its WAVs) stays valid if you move or share it. Sounds elsewhere
+(e.g. the shared `~/SMACC/cues`) are stored as absolute paths.
+
+### Opening a study
+
+On the Windows build you can **double-click a `.smacc` file** to launch SMACC with
+that study already loaded — the first launch offers to set up this association, and
+you can (re)enable it any time from **File &rsaquo; Associate .smacc files
+(Windows)**. From a terminal, `SMACC path/to/study.smacc` does the same.
+
+## Preferences
+
+SMACC remembers operator/machine choices — window size and position, light/dark
+theme, always-on-top, and which log levels show in the preview — in
+`~/SMACC/preferences.yaml`, restored on the next launch. These are separate from a
+portable study; they stay with this machine.

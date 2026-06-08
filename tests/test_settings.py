@@ -1,6 +1,7 @@
 """Tests for settings YAML save/load (no GUI required)."""
 
 import json
+from pathlib import Path
 
 import pytest
 import yaml
@@ -40,28 +41,31 @@ def test_save_load_round_trip(tmp_path):
 
 
 def test_saved_file_is_tagged_yaml(tmp_path):
-    path = tmp_path / "settings.yaml"
+    path = tmp_path / "study.smacc"
     settings.save_settings(path, {"cue_attack": 0.2}, {})
-    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    text = path.read_text(encoding="utf-8")
+    assert text.splitlines()[0].startswith("#")  # self-identifying header comment
+    payload = yaml.safe_load(text)  # comment is ignored, so it still parses
     assert payload["kind"] == settings.KIND
     assert payload["schema_version"] == settings.SCHEMA_VERSION == 3
     assert payload["smacc_version"] == smacc.__version__
     assert payload["settings"] == {"cue_attack": 0.2}
 
 
-def test_load_accepts_legacy_study_json(tmp_path):
-    # Old study.json (no kind, schema 1/2, "state" key) still loads: YAML is a
-    # superset of JSON, so the YAML loader reads it directly.
+def test_load_rejects_legacy_state_key(tmp_path):
+    # The legacy study.json "state" key fallback was dropped (intended breaking
+    # change), so old study.json files no longer load.
     path = tmp_path / "study.json"
-    state = {"cue_file": "cue.wav", "cue_volume": 0.3}
-    path.write_text(json.dumps({"schema_version": 1, "state": state}), encoding="utf-8")
-    loaded_state, metadata = settings.load_settings(path)
-    assert loaded_state == state
-    assert metadata == {}
+    path.write_text(
+        json.dumps({"schema_version": 1, "state": {"cue_volume": 0.3}}),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="settings"):
+        settings.load_settings(path)
 
 
 def test_load_accepts_current_schema(tmp_path):
-    path = tmp_path / "settings.yaml"
+    path = tmp_path / "study.smacc"
     settings.save_settings(path, {"cue_attack": 1.0}, {})
     state, _ = settings.load_settings(path)
     assert state == {"cue_attack": 1.0}
@@ -111,9 +115,55 @@ def test_load_rejects_empty_file(tmp_path):
 
 def test_save_handles_none_values(tmp_path):
     # A None survey value (no preset selected) must serialize cleanly.
-    path = tmp_path / "settings.yaml"
+    path = tmp_path / "study.smacc"
     settings.save_settings(
         path, {"survey_url": "", "survey_options": {}, "preset": None}, {}
     )
     state, _ = settings.load_settings(path)
     assert state["preset"] is None
+
+
+# ----- relative-path portability --------------------------------------------
+
+
+def _cue_state(file: str) -> dict:
+    return {"cues": [{"name": "c", "file": file, "volume": 0.2, "loop": False}]}
+
+
+def test_relativize_path_under_base_becomes_relative_posix(tmp_path):
+    wav = tmp_path / "sounds" / "cue.wav"
+    wav.parent.mkdir()
+    wav.write_bytes(b"x")
+    state = _cue_state(str(wav))
+    out = settings.relativize_paths(state, tmp_path)
+    assert out["cues"][0]["file"] == "sounds/cue.wav"  # relative, forward slashes
+    assert state["cues"][0]["file"] == str(wav)  # input not mutated (deep copy)
+
+
+def test_relativize_path_outside_base_stays_absolute(tmp_path):
+    other = tmp_path / "other"
+    other.mkdir()
+    wav = other / "cue.wav"
+    wav.write_bytes(b"x")
+    base = tmp_path / "study"
+    base.mkdir()
+    out = settings.relativize_paths(_cue_state(str(wav)), base)
+    assert Path(out["cues"][0]["file"]).is_absolute()
+
+
+def test_relativize_and_resolve_round_trip(tmp_path):
+    wav = tmp_path / "cue.wav"
+    wav.write_bytes(b"x")
+    state = {**_cue_state(str(wav)), "noise_file": str(wav)}
+    rel = settings.relativize_paths(state, tmp_path)
+    resolved = settings.resolve_paths(rel, tmp_path)
+    assert Path(resolved["cues"][0]["file"]) == wav.resolve()
+    assert Path(resolved["noise_file"]) == wav.resolve()
+
+
+def test_resolve_keeps_absolute_and_skips_empty(tmp_path):
+    wav = tmp_path / "cue.wav"
+    state = {**_cue_state(str(wav)), "noise_file": ""}
+    out = settings.resolve_paths(state, tmp_path / "elsewhere")
+    assert out["cues"][0]["file"] == str(wav)  # absolute unchanged
+    assert out["noise_file"] == ""  # empty untouched

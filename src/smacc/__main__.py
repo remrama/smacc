@@ -4,6 +4,7 @@ import logging
 import sys
 import threading
 import traceback
+from pathlib import Path
 from types import TracebackType
 
 from PyQt5.QtGui import QIcon
@@ -13,6 +14,24 @@ from .gui import SmaccWindow
 from .paths import BUNDLED_CUES_DIR, LOGO_PATH, cues_directory
 from .session import SmaccSession
 from .utils import seed_demo_cues
+
+# Study-file extensions SMACC will open when launched with a file (or double-click).
+_STUDY_SUFFIXES = {".smacc", ".yaml", ".yml"}
+
+
+def pick_settings_path(args: list[str]) -> str | None:
+    """Return the study file to open from CLI args, or ``None``.
+
+    Picks the last argument with a recognized study extension, ignoring the
+    program name and any flags. Existence is left to the window so the user sees
+    a clear error if the path is bad.
+    """
+    candidates = [
+        arg
+        for arg in args[1:]
+        if not arg.startswith("-") and Path(arg).suffix.lower() in _STUDY_SUFFIXES
+    ]
+    return candidates[-1] if candidates else None
 
 
 def _install_excepthook() -> None:
@@ -78,11 +97,14 @@ def main() -> None:
     # Application-wide icon (taskbar + windows).
     if LOGO_PATH.is_file():
         app.setWindowIcon(QIcon(str(LOGO_PATH)))
+    # A .smacc study passed on the command line (or via a double-clicked file)
+    # is loaded as the session's initial setup.
+    settings_path = pick_settings_path(app.arguments())
     # Subject/session are now optional metadata (set via File -> Session info…),
     # so a session starts straight away with a timestamped run folder.
     session = SmaccSession()
     # Keep a reference so Qt doesn't garbage-collect the window.
-    win = SmaccWindow(session)  # noqa: F841
+    win = SmaccWindow(session, settings_path=settings_path)  # noqa: F841
     sys.exit(app.exec())
 
 
