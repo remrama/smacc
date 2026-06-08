@@ -102,21 +102,24 @@ class RecordingWindow(ModalityWindow):
         self.microphone = microphone
 
     def set_new_microphone(self, text: str) -> None:
-        """Handle a new microphone selection."""
-        self.session.logger.debug(f"New microphone {text} selected!")
+        """Apply the selected microphone to the recorder and live level meter."""
+        name = self.available_microphones_dropdown.currentData()
+        if name:
+            self.microphone.setAudioInput(name)
+        self._restart_meter_if_monitoring()  # switch a live meter over too
 
     def refresh_available_microphones(self):
-        """Populate the microphone dropdown with available audio input devices."""
+        """Populate the microphone dropdown with available audio input devices.
+
+        Items carry the raw input name (the value ``setAudioInput`` expects) as data
+        and show a friendlier description as text.
+        """
         self.available_microphones_dropdown.clear()
-        devices = QtMultimedia.QAudioDeviceInfo.availableDevices(
-            QtMultimedia.QAudio.AudioInput
-        )
-        for device in devices:
-            device_name = device.deviceName()
-            device_realm = device.realm()
-            device_str = f"{device_name} [{device_realm}]"
-            self.available_microphones_dropdown.addItem(device_str)
-        if devices:
+        names = self.microphone.audioInputs()
+        for name in names:
+            description = self.microphone.audioInputDescription(name) or name
+            self.available_microphones_dropdown.addItem(description, name)
+        if names:
             self.available_microphones_dropdown.setCurrentIndex(0)
         else:
             self.session.show_error_popup("No microphones found.", parent=self)
@@ -164,12 +167,43 @@ class RecordingWindow(ModalityWindow):
         self.meter_timer.setInterval(50)  # ~20 Hz display refresh
         self.meter_timer.timeout.connect(self.update_level_meter)
 
+    def _meter_device(self) -> int | None:
+        """Best-effort PortAudio index for the selected recorder input.
+
+        Qt and PortAudio name devices differently, so match the selected input name
+        against PortAudio input devices by substring; return ``None`` (the default
+        input) when there's no confident match.
+        """
+        name = self.available_microphones_dropdown.currentData()
+        if not name:
+            return None
+        try:
+            devices = sd.query_devices()
+        except Exception:
+            return None
+        name_low = name.lower()
+        for idx, dev in enumerate(devices):
+            dev_low = dev["name"].lower()
+            if dev["max_input_channels"] > 0 and (
+                name_low in dev_low or dev_low in name_low
+            ):
+                return idx
+        return None
+
+    def _restart_meter_if_monitoring(self) -> None:
+        """Re-open the level meter on the current device if it's running."""
+        if self.meter_stream is not None:
+            self.toggle_level_monitor(False)
+            self.toggle_level_monitor(True)
+
     def toggle_level_monitor(self, enabled: bool) -> None:
-        """Start/stop monitoring the default input device's level."""
+        """Start/stop monitoring the selected input device's level."""
         if enabled:
             try:
                 self.meter_stream = sd.InputStream(
-                    channels=1, callback=self._meter_callback
+                    channels=1,
+                    device=self._meter_device(),
+                    callback=self._meter_callback,
                 )
                 self.meter_stream.start()
             except Exception as exc:  # PortAudio errors, no device, etc.
