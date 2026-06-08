@@ -86,12 +86,13 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self._build_menu_bar()
         self.statusBar().showMessage("Ready")
 
-        # 3x2 grid of panels; menu must be built first (the log-viewer panel
-        # syncs the preview handler to the Log preview menu checkboxes).
+        # Two columns: the launcher tools (with the lights toggle filling the
+        # bottom) and the log viewer. The menu is built first so the log-viewer
+        # panel can sync the preview handler to the Log preview menu checkboxes.
         central_layout = QtWidgets.QGridLayout()
         central_layout.addLayout(self._build_launcher_buttons(), 0, 0)
         central_layout.addLayout(self._build_log_viewer_section(), 0, 1)
-        central_layout.addLayout(self._build_events_section(), 1, 0, 1, 2)
+        central_layout.setColumnStretch(1, 1)  # the log viewer takes the extra width
         central_widget = QtWidgets.QWidget()
         central_widget.setContentsMargins(5, 5, 5, 5)
         central_widget.setLayout(central_layout)
@@ -134,7 +135,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
     }
 
     def _build_launcher_buttons(self) -> QtWidgets.QLayout:
-        """Build the 'Open tools' column with a button per extracted panel."""
+        """Build the 'Open tools' column: panel launchers + the lights toggle.
+
+        The lights toggle sits at the bottom and expands to fill the column's
+        leftover height (so it lines up with the log viewer); it sends the lights
+        event marker and flips the dark theme.
+        """
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self._make_section_title("Open tools"))
         for key, label in self.PANEL_LABELS.items():
@@ -143,7 +149,24 @@ class SmaccWindow(QtWidgets.QMainWindow):
             button = QtWidgets.QPushButton(label, self)
             button.clicked.connect(partial(self._open_panel, key))
             layout.addWidget(button)
-        layout.addStretch(1)
+        layout.addSpacing(8)
+
+        # Connect the toggled signal only after setChecked so construction fires
+        # no marker. Expanding vertical policy + stretch fills the empty space.
+        self.lightswitchButton = QtWidgets.QPushButton(self)
+        self.lightswitchButton.setCheckable(True)
+        self.lightswitchButton.setShortcut("L")  # still toggles with L
+        self.lightswitchButton.setSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding
+        )
+        self.lightswitchButton.setMinimumHeight(64)
+        self.lightswitchButton.setStatusTip(
+            "Toggle lights off/on (sends the lights event marker and switches theme)"
+        )
+        self.lightswitchButton.setChecked(True)
+        self._refresh_lightswitch_label()
+        self.lightswitchButton.toggled.connect(self.on_lightswitch_toggled)
+        layout.addWidget(self.lightswitchButton, 1)
         return layout
 
     def _open_panel(self, key: str) -> None:
@@ -287,32 +310,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         manageAction = menu.addAction("Manage surveys…")
         manageAction.triggered.connect(recording.manage_surveys)
 
-    def _build_events_section(self) -> QtWidgets.QLayout:
-        """Build the lights toggle (the event buttons live in the Event logging panel)."""
-        lightsTitleLabel = self._make_section_title("Lights")
-
-        # Lights toggle: a single switch replacing the two lights event buttons.
-        # It sends the lights marker and flips the dark theme. Connect the
-        # toggled signal only after setChecked so construction fires no marker.
-        self.lightswitchButton = QtWidgets.QPushButton(self)
-        self.lightswitchButton.setCheckable(True)
-        self.lightswitchButton.setShortcut("L")
-        self.lightswitchButton.setMinimumHeight(48)
-        self.lightswitchButton.setStatusTip(
-            "Toggle lights off/on (sends the lights event marker and switches theme)"
-        )
-        self.lightswitchButton.setChecked(True)
-        self._refresh_lightswitch_label()
-        self.lightswitchButton.toggled.connect(self.on_lightswitch_toggled)
-
-        # The manual event buttons live in the Event logging panel (openable from
-        # the launcher) so a study's custom buttons can be added/removed and the
-        # grid resized; the lights switch stays here, double-wide.
-        eventsLayout = QtWidgets.QGridLayout()
-        eventsLayout.addWidget(lightsTitleLabel, 0, 0, 1, 2)
-        eventsLayout.addWidget(self.lightswitchButton, 1, 0, 1, 2)
-        return eventsLayout
-
     def _build_log_viewer_section(self) -> QtWidgets.QLayout:
         """Build the log-viewer panel and attach the preview log handler."""
         logviewertitleLabel = self._make_section_title("Log viewer")
@@ -378,20 +375,24 @@ class SmaccWindow(QtWidgets.QMainWindow):
             self.session.emit_event("LightsOn" if lights_on else "LightsOff")
 
     def _refresh_lightswitch_label(self) -> None:
-        """Sync the lightswitch text/style to the current state."""
+        """Sync the lightswitch text/style to the current state.
+
+        Three centered lines — state, a sun/moon glyph, and the action — to suit
+        the narrow single-column button.
+        """
         if self.lights_on:
             self.lightswitchButton.setText(
-                "\U0001f4a1 Lights ON  (L) — click to turn OFF"
+                "Lights are ON\n\U0001f31e\nclick to turn OFF"
             )
             self.lightswitchButton.setStyleSheet(
-                "font: bold 14pt; padding: 8px; background-color: #f0d000; color: black;"
+                "font: bold 13pt; padding: 8px; background-color: #f0d000; color: black;"
             )
         else:
             self.lightswitchButton.setText(
-                "\U0001f319 Lights OFF  (L) — click to turn ON"
+                "Lights are OFF\n\U0001f319\nclick to turn ON"
             )
             self.lightswitchButton.setStyleSheet(
-                "font: bold 14pt; padding: 8px; background-color: #303030; color: #dddddd;"
+                "font: bold 13pt; padding: 8px; background-color: #303030; color: #dddddd;"
             )
 
     def apply_theme(self, dark: bool) -> None:
