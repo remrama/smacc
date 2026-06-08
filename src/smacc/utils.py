@@ -29,6 +29,21 @@ def get_data_directory() -> Path:
     return data_directory
 
 
+def normalize_survey_url(text: str) -> str:
+    """Normalize a survey URL for storing and opening in the browser.
+
+    Trims surrounding whitespace, returns ``""`` for blank input, and prepends
+    ``https://`` when no scheme is present so a typed ``example.com/survey`` still
+    opens correctly.
+    """
+    text = text.strip()
+    if not text:
+        return ""
+    if "://" not in text:
+        text = f"https://{text}"
+    return text
+
+
 def ensure_wav(src: Path, cache_dir: Path) -> Path:
     """Return a QSoundEffect-playable PCM WAV for ``src``.
 
