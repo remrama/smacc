@@ -11,7 +11,7 @@ license = { text = "GPL-3.0-or-later" }
 authors = [{ name = "Remington Mallett", email = "mallett.remy@gmail.com" }]
 dynamic = ["version"]
 classifiers = [
-    "Environment :: Console",
+    "Environment :: Win32 (MS Windows)",
     "Operating System :: OS Independent",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Programming Language :: Python :: 3",
@@ -48,6 +48,11 @@ dev = [
     "PyQt5-stubs",
     "types-PyYAML",
 ]
+
+# A GUI launcher (no console window): exposes a `smacc` command after install.
+# `python -m smacc` runs the same main(); see src/smacc/__main__.py.
+[project.gui-scripts]
+smacc = "smacc.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/remrama/smacc"
