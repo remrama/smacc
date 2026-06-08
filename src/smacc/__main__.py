@@ -10,10 +10,10 @@ from types import TracebackType
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QMessageBox
 
-from .gui import SmaccWindow
-from .paths import LOGO_PATH, studies_directory
-from .session import SmaccSession
-from .study import Study, default_study
+from . import preferences
+from .launcher import LauncherWindow, resolve_initial_study
+from .paths import LOGO_PATH, preferences_path, studies_directory
+from .study import Study
 
 # Study-file extensions SMACC will open when launched with a file (or double-click).
 _STUDY_SUFFIXES = {".smacc", ".yaml", ".yml"}
@@ -86,36 +86,38 @@ def _install_excepthook() -> None:
 
 
 def main() -> None:
-    """Open SMACC: resolve the active study, then start a session within it.
+    """Open SMACC at its launcher (the FSL-style opening menu).
 
-    A ``.smacc`` passed on the command line (or a double-clicked study) opens its
-    folder as the study and loads that file as the initial setup; otherwise the
-    auto-managed ``default`` study is used (scaffolded with demo cues on first
-    run), loading its own ``study.smacc`` when present. The run folder and log are
-    created under the study only now — not the instant the app launches.
+    The launcher is the persistent root window: it lets the operator pick a study
+    and then start a session, create a study, or analyze a past one. A ``.smacc``
+    passed on the command line (or a double-clicked study) skips the menu and goes
+    straight to a session for that study's folder; closing it returns to the
+    launcher. Run folders and logs are created only when a session starts, not the
+    instant the app launches.
     """
     app = QApplication(sys.argv)
     _install_excepthook()
     # Fusion honors the full QPalette consistently across platforms, which the
     # native Windows style does not — required for the lights-off dark theme.
     app.setStyle("Fusion")
+    # The launcher owns app lifetime: tool windows come and go without quitting, so
+    # closing the last tool returns to the launcher rather than exiting.
+    app.setQuitOnLastWindowClosed(False)
     # Application-wide icon (taskbar + windows).
     if LOGO_PATH.is_file():
         app.setWindowIcon(QIcon(str(LOGO_PATH)))
-    # Resolve which study this launch belongs to and the config to load as the
-    # initial setup. A study folder owns its cues and its session runs.
     file_arg = pick_settings_path(app.arguments())
     if file_arg:
-        study = Study.open(Path(file_arg).parent)
-        settings_path: str | None = file_arg
+        # A double-clicked / CLI .smacc opens its folder as the study and goes
+        # straight to a session; the launcher reappears when that session ends.
+        launcher = LauncherWindow(Study.open(Path(file_arg).parent))
+        launcher.start_session(settings_path=file_arg)
     else:
-        study = default_study(studies_directory)
-        settings_path = str(study.config_path) if study.has_config() else None
-    # Subject/session are optional metadata (set via File -> Session info…), so a
-    # session starts straight away with a timestamped run folder under the study.
-    session = SmaccSession(study)
-    # Keep a reference so Qt doesn't garbage-collect the window.
-    win = SmaccWindow(session, settings_path=settings_path)  # noqa: F841
+        prefs = preferences.load_preferences(preferences_path)
+        launcher = LauncherWindow(resolve_initial_study(prefs, studies_directory))
+        launcher.show()
+    # `launcher` stays referenced for the life of main() (until app.exec returns),
+    # so Qt won't garbage-collect the root window.
     sys.exit(app.exec())
 
 

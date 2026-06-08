@@ -32,6 +32,10 @@ from .session import SmaccSession
 class SmaccWindow(QtWidgets.QMainWindow):
     """Main interface."""
 
+    # Emitted after a session is ended and the window closed, so the launcher can
+    # bring itself back (the launcher is the app's persistent root window).
+    closed = QtCore.pyqtSignal()
+
     def __init__(self, session: SmaccSession, settings_path: str | None = None) -> None:
         super().__init__()
         self.session = session
@@ -187,10 +191,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
         aboutAction.triggered.connect(self.show_about_popup)
 
         quitAction = QtWidgets.QAction(
-            self.style().standardIcon(QtWidgets.QStyle.SP_BrowserStop), "&Quit", self
+            self.style().standardIcon(QtWidgets.QStyle.SP_BrowserStop),
+            "End sessio&n",
+            self,
         )
         quitAction.setShortcut("Ctrl+Q")
-        quitAction.setStatusTip("Quit/close interface")
+        quitAction.setStatusTip("End this session and return to the SMACC menu")
         quitAction.triggered.connect(self.close)  # close goes to closeEvent
 
         # File -> Export/Load settings: persist the current setup to a portable
@@ -516,29 +522,28 @@ class SmaccWindow(QtWidgets.QMainWindow):
         if any(screen.availableGeometry().intersects(rect) for screen in screens):
             self.move(int(x), int(y))
 
-    def _current_preferences(self) -> dict:
-        """Snapshot the current operator/UI state for saving to preferences.yaml."""
+    def _preference_changes(self) -> dict:
+        """The operator/UI keys this window owns, for a non-clobbering prefs update.
+
+        Only the keys the session window manages are returned; merging them with
+        :func:`preferences.update_preferences` leaves other writers' keys (e.g. the
+        launcher's recent-studies list) untouched.
+        """
         checked = {
             level
             for level, action in self._preview_level_actions.items()
             if action.isChecked()
         }
-        # Start from the loaded prefs so flags we don't surface here (e.g. the
-        # association first-run marker) are carried forward.
-        prefs = dict(self._prefs)
-        prefs.update(
-            {
-                "always_on_top": self._always_on_top_action.isChecked(),
-                "preview_levels": preferences.levels_to_names(checked),
-                "window": {
-                    "x": self.x(),
-                    "y": self.y(),
-                    "w": self.width(),
-                    "h": self.height(),
-                },
-            }
-        )
-        return prefs
+        return {
+            "always_on_top": self._always_on_top_action.isChecked(),
+            "preview_levels": preferences.levels_to_names(checked),
+            "window": {
+                "x": self.x(),
+                "y": self.y(),
+                "w": self.width(),
+                "h": self.height(),
+            },
+        }
 
     def _load_initial_settings(self, settings_path: str) -> None:
         """Load a study file given on launch and apply it as the initial setup."""
@@ -578,6 +583,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         if not winassoc.is_associatable() or self._prefs.get("association_prompted"):
             return
         self._prefs["association_prompted"] = True  # one-time, whatever they choose
+        # Persist the one-time flag immediately so it survives even if multiple
+        # windows write preferences this run (the launcher also writes recents).
+        preferences.update_preferences(preferences_path, {"association_prompted": True})
         reply = QtWidgets.QMessageBox.question(
             self,
             "Associate .smacc files?",
@@ -800,32 +808,34 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def _write_events(self, log_path: Path, out_path: Path) -> None:
         """Parse ``log_path`` into BIDS events and write ``out_path`` (+ sidecar)."""
         try:
-            log_text = log_path.read_text(encoding="utf-8")
-            events = bids.log_to_events(log_text)
-            bids.write_events_tsv(events, out_path)
-            bids.write_events_json(out_path.with_suffix(".json"))
+            count = bids.convert_log_file(log_path, out_path)
         except OSError as exc:
             self.show_error_popup("Could not export events.", str(exc))
             return
-        self.session.log_info_msg(f"Exported {len(events)} events to {out_path}")
+        self.session.log_info_msg(f"Exported {count} events to {out_path}")
 
     def closeEvent(self, event):
-        """customize exit.
-        closeEvent is a default method used in pyqt to close, so this overrides it
+        """End the session and hand control back to the launcher.
+
+        closeEvent is a default method used in pyqt to close, so this overrides it.
+        Closing no longer quits the app — it ends this session and emits ``closed``
+        so the launcher (the persistent root window) can reappear.
         """
         response = QtWidgets.QMessageBox.question(
-            self, "Quit", "Do you want to quit/close SMACC?"
+            self, "End session", "End this session and return to the SMACC menu?"
         )
         if response == QtWidgets.QMessageBox.Yes:
             for panel in self.panels.values():
                 panel._quitting = True
                 panel.cleanup()
                 panel.close()
-            # Persist operator/UI preferences for next launch (best-effort).
-            preferences.save_preferences(preferences_path, self._current_preferences())
-            self.session.log_info_msg("Program closed")
+            # Persist this window's operator/UI preferences for next launch, merging
+            # so we don't clobber keys other windows own (best-effort, never raises).
+            preferences.update_preferences(preferences_path, self._preference_changes())
+            self.session.log_info_msg("Session ended")
             # Record the final settings (incl. any mid-session edits) as the tail.
             self.session.end_log(self.gather_settings())
             event.accept()
+            self.closed.emit()
         else:
             event.ignore()

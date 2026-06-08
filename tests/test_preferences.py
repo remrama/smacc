@@ -59,6 +59,38 @@ def test_save_to_unwritable_path_does_not_raise(tmp_path):
     preferences.save_preferences(tmp_path, {"always_on_top": True})  # no exception
 
 
+def test_update_preferences_merges_without_clobbering(tmp_path):
+    path = tmp_path / "preferences.yaml"
+    preferences.update_preferences(path, {"always_on_top": True})
+    preferences.update_preferences(path, {"recent_studies": ["/a", "/b"]})
+    prefs = preferences.load_preferences(path)
+    assert prefs["always_on_top"] is True  # first writer's key preserved
+    assert prefs["recent_studies"] == ["/a", "/b"]  # second writer's key applied
+    assert prefs["last_study"] is None  # untouched default
+
+
+def test_recent_study_keys_round_trip(tmp_path):
+    path = tmp_path / "preferences.yaml"
+    preferences.update_preferences(path, {"last_study": "/x", "recent_studies": ["/x"]})
+    prefs = preferences.load_preferences(path)
+    assert prefs["last_study"] == "/x"
+    assert prefs["recent_studies"] == ["/x"]
+
+
+def test_push_recent_moves_to_front_and_dedupes():
+    assert preferences.push_recent(["/a", "/b"], "/b") == ["/b", "/a"]
+    assert preferences.push_recent([], "/a") == ["/a"]
+    assert preferences.push_recent(["/a"], "/a") == ["/a"]  # no duplicate
+
+
+def test_push_recent_caps_length():
+    recents = [f"/{i}" for i in range(8)]
+    out = preferences.push_recent(recents, "/new", limit=8)
+    assert out[0] == "/new"
+    assert len(out) == 8
+    assert "/7" not in out  # oldest dropped to make room
+
+
 def test_level_name_int_round_trip():
     levels = {logging.INFO, logging.ERROR}
     names = preferences.levels_to_names(levels)

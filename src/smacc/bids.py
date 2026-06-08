@@ -104,6 +104,24 @@ def write_events_json(path: str | Path) -> None:
     Path(path).write_text(json.dumps(events_sidecar(), indent=2), encoding="utf-8")
 
 
+def convert_log_file(log_path: str | Path, out_path: str | Path) -> int:
+    """Convert a SMACC ``.log`` to a BIDS ``events.tsv`` + JSON sidecar at ``out_path``.
+
+    Reads the log, parses its marker lines into events, writes the TSV plus the
+    sidecar (``out_path`` with a ``.json`` suffix), and returns the event count.
+    Shared by the session window's exporters and the analyze flow.
+
+    Raises:
+        OSError: if the log can't be read or the outputs can't be written.
+    """
+    log_text = Path(log_path).read_text(encoding="utf-8")
+    events = log_to_events(log_text)
+    out = Path(out_path)
+    write_events_tsv(events, out)
+    write_events_json(out.with_suffix(".json"))
+    return len(events)
+
+
 def format_settings_block(payload: dict[str, Any], which: str) -> str:
     """Render ``payload`` as a fully ``#``-commented, sentinel-fenced log block.
 

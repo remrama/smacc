@@ -34,6 +34,19 @@ def test_empty_log_yields_no_events():
     assert bids.log_to_events("") == []
 
 
+def test_convert_log_file_writes_tsv_and_sidecar(tmp_path):
+    log = tmp_path / "smacc-20260605-220000.log"
+    log.write_text(SAMPLE_LOG, encoding="utf-8")
+    out = tmp_path / "events.tsv"
+    count = bids.convert_log_file(log, out)
+    assert count == 2  # returns the event count
+    assert out.is_file()
+    assert out.with_suffix(".json").is_file()  # sidecar beside the tsv
+    header, *rows = out.read_text(encoding="utf-8").splitlines()
+    assert header.split("\t") == bids.EVENT_COLUMNS
+    assert len(rows) == 2
+
+
 INCREMENT_LOG = """2026-06-05 22:00:00.000, INFO, Opened SMACC v0.0.7
 2026-06-05 22:01:00.000, INFO, Noise volume set to 0.30
 2026-06-05 22:02:00.000, INFO, Dream report started - portcode 201

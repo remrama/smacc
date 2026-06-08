@@ -1,10 +1,33 @@
 # Usage
 
-SMACC presents a single clickable window for running sleep-related experiments.
-This page walks through the main features.
+SMACC opens to a small **launcher** where you pick a study and choose what to do;
+from there you run a live session for collecting data. This page walks through the
+main features.
 
-<!-- Add an annotated screenshot of the main window here once available, e.g.:
-![SMACC main window](assets/screenshot-main.png) -->
+<!-- Add an annotated screenshot of the launcher + main window here once available,
+e.g.: ![SMACC main window](assets/screenshot-main.png) -->
+
+## Opening SMACC
+
+SMACC opens to a small launcher (its opening menu) rather than dropping straight
+into a session. From here you:
+
+- **pick a study** — the current study is shown at the top, with **Open…** to
+  choose another study folder and a **Recent** dropdown to switch between ones you
+  have used. Until you pick one, SMACC uses an auto-managed `default` study, so it
+  works out of the box. (See [Study config](#study-config-smacc) for what a study
+  holds.)
+- **Start session** — open the live session interface for the selected study,
+  loading its saved `study.smacc` if it has one. A session's run folder and log
+  are created only now, when the session starts.
+- **Create study** — set up a new study folder (its own cues and sessions) you can
+  then configure and run.
+- **Analyze session** — export a past session's events (e.g. to a BIDS
+  `events.tsv`) without starting a new session.
+
+Closing a session (or other tool) returns you to the launcher; closing the
+launcher quits SMACC. On the Windows build you can also **double-click a `.smacc`**
+to jump straight into a session for that study — closing it returns to the launcher.
 
 ## Audio cues
 
@@ -64,9 +87,9 @@ and fade changes — as plain log lines (no portcode), so the session record is 
 ### Event logging panel
 
 The manual event buttons (REM detected, Sleep onset, your custom events, …) live in the
-**Event logging** panel — open it from the launcher; the first nine buttons take the
-1–9 keyboard shortcuts while it's focused. The **Lights** toggle stays on the main
-window (it also flips the dark theme).
+**Event logging** panel — open it from the session window's **Open tools** column; the
+first nine buttons take the 1–9 keyboard shortcuts while it's focused. The **Lights**
+toggle stays on the main window (it also flips the dark theme).
 
 ### Where codes live
 

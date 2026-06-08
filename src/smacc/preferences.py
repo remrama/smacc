@@ -28,6 +28,10 @@ DEFAULTS: dict[str, Any] = {
     "preview_levels": ["INFO", "WARNING", "ERROR", "CRITICAL"],  # names, not ints
     "window": {"x": None, "y": None, "w": 640, "h": 560},
     "association_prompted": False,
+    # Launcher state: recently used study folders (paths, most-recent first) and
+    # the last one opened, so the launcher can preselect it and offer quick switching.
+    "recent_studies": [],
+    "last_study": None,
 }
 
 _logger = logging.getLogger("smacc")
@@ -72,6 +76,28 @@ def save_preferences(path: str | Path, prefs: dict[str, Any]) -> None:
         Path(path).write_text(text, encoding="utf-8")
     except (OSError, yaml.YAMLError):
         _logger.exception("Could not save preferences")
+
+
+def update_preferences(path: str | Path, changes: dict[str, Any]) -> None:
+    """Merge ``changes`` into the saved preferences on disk (load → update → save).
+
+    Lets independent writers — the launcher's recents and the session window's
+    window geometry — each persist only their own keys without clobbering the
+    other's. Best-effort like :func:`save_preferences`: it never raises.
+    """
+    prefs = load_preferences(path)
+    prefs.update(changes)
+    save_preferences(path, prefs)
+
+
+def push_recent(recents: list[str], path: str, limit: int = 8) -> list[str]:
+    """Return ``recents`` with ``path`` at the front, de-duplicated and capped.
+
+    Most-recent first; an existing entry for the same path moves up rather than
+    duplicating, and the list is trimmed to ``limit`` entries.
+    """
+    out = [path] + [p for p in recents if p != path]
+    return out[:limit]
 
 
 def levels_to_names(levels: set[int]) -> list[str]:
