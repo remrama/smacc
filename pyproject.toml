@@ -6,17 +6,17 @@ build-backend = "setuptools.build_meta"
 name = "smacc"
 description = "Sleep manipulation and communication clickything"
 readme = "README.md"
-requires-python = ">=3.10"
+# Build/runtime Python is pinned to 3.12 via .python-version. 3.12 is the last
+# line supporting Windows 8.1; moving to 3.13+ would raise the floor to Win10.
+requires-python = ">=3.12"
 license = { text = "GPL-3.0-or-later" }
 authors = [{ name = "Remington Mallett", email = "mallett.remy@gmail.com" }]
 dynamic = ["version"]
 classifiers = [
     "Environment :: Win32 (MS Windows)",
-    "Operating System :: OS Independent",
+    "Operating System :: Microsoft :: Windows",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Intended Audience :: Science/Research",
 ]
@@ -70,7 +70,7 @@ where = ["src"]
 smacc = ["assets/*", "assets/cues/*"]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 line-length = 88
 src = ["src", "tests"]
 
@@ -86,7 +86,7 @@ line-ending = "lf"
 quote-style = "double"
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.12"
 ignore_missing_imports = true
 files = ["src"]
 
