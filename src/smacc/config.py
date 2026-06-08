@@ -7,8 +7,6 @@ VERSION = __version__
 DEVELOPMENT_ID = "999"
 DEFAULT_VOLUME = 0.5
 
-SURVEY_URL = None
-
 # Named survey presets shown in the dream-recording panel's survey dropdown.
 # Maps a display label to its URL. Extend per study (persisted in settings YAML).
 SURVEY_OPTIONS: dict[str, str] = {}
@@ -27,6 +25,7 @@ PPORT_CODES = {
     "IntercomStarted": 209,
     "IntercomStopped": 210,
     "CueStarted": 211,
+    "SurveyOpened": 212,
 }
 
 # LSL event-marker codes, looked up by name in send_event_marker.

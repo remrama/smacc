@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/remrama/smacc/actions/workflows/ci.yaml/badge.svg)](https://github.com/remrama/smacc/actions/workflows/ci.yaml)
 [![Release](https://github.com/remrama/smacc/actions/workflows/release.yaml/badge.svg)](https://github.com/remrama/smacc/actions/workflows/release.yaml)
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 A clickable interface for running sleep-related experiments.
@@ -17,6 +17,8 @@ A clickable interface for running sleep-related experiments.
 
 To install SMACC, go to the [releases page](https://github.com/remrama/smacc/releases), click the _Assets_ dropdown for the latest release, and download the _SMACC.exe_ file. Once downloaded, double-clicking this file will run SMACC.
 
+SMACC requires 64-bit Windows 8.1 or later.
+
 Note that for some features, you will need to open SMACC with Administrator privileges (Right-click to open and select `Run as administrator`).
 
 ## Optional setup
@@ -29,7 +31,7 @@ Note that for some features, you will need to open SMACC with Administrator priv
 
 * You can save a reusable setup to a portable `.smacc` study file with `File > Export study (.smacc)…` and reload it with `File > Load study (.smacc)…` (or pull the initial/final setup back out of a `.log` with `File > Load study from log…`). Cue files are referenced (not copied), stored relative to the `.smacc` when they sit beside it so a study folder is portable. On Windows you can double-click a `.smacc` to open it. Operator/machine choices (window size/position, theme, always-on-top, log-preview levels) are remembered in `~/SMACC/preferences.yaml`.
 
-* There is a `Record Dream Report` button that will start to record from whatever external recording device is selected from the SMACC menubar. There is also an option to have it pop open a website URL. I use this to open up a dream report survey I have set up on Qualtrics. If you want it to open something, update the `SURVEY_URL` variable in `config.py`. If planning to record dreams, choose sound device for recording audio from the menubar (`Audio > Input device > [choose device]`).
+* There is a `Record Dream Report` button that will start to record from whatever external recording device is selected from the SMACC menubar. It can also pop open a survey URL — I use this to open a dream report survey I have set up on Qualtrics. Add your surveys with the `Manage…` button next to the survey dropdown (each has a name and URL, saved to your settings YAML); pick one to open automatically when recording starts, or open any saved survey on its own from `File > Surveys`. If planning to record dreams, choose sound device for recording audio from the menubar (`Audio > Input device > [choose device]`).
 
 ## Documentation
 

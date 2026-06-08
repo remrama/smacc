@@ -10,7 +10,10 @@ permissions:
 
 jobs:
   build-exe:
-    runs-on: windows-latest
+    # Pinned (not windows-latest) for a reproducible build and the oldest hosted
+    # Windows runner, maximizing compatibility for labs on older Windows. CI's
+    # test job (ci.yaml) uses the same runner so it validates this exact env.
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5

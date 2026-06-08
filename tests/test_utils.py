@@ -220,3 +220,27 @@ def test_resample_to_changes_length_by_ratio():
     out = utils.resample_to(sig, 8000, 16000)
     assert out.dtype == np.float32
     assert abs(out.shape[0] - 2000) <= 2  # ~2x as many samples at 2x the rate
+
+
+@pytest.mark.parametrize("text", ["", "   ", "\t\n"])
+def test_normalize_survey_url_blank_returns_empty(text):
+    assert utils.normalize_survey_url(text) == ""
+
+
+def test_normalize_survey_url_adds_https_when_scheme_missing():
+    assert (
+        utils.normalize_survey_url("example.com/survey") == "https://example.com/survey"
+    )
+
+
+@pytest.mark.parametrize(
+    "url", ["https://example.com", "http://example.com", "ftp://host/x"]
+)
+def test_normalize_survey_url_keeps_existing_scheme(url):
+    assert utils.normalize_survey_url(url) == url
+
+
+def test_normalize_survey_url_strips_surrounding_whitespace():
+    assert (
+        utils.normalize_survey_url("  https://example.com  ") == "https://example.com"
+    )

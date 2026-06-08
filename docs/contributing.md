@@ -15,13 +15,17 @@ instructions live here once rather than being duplicated across files.
 
 ```sh
 uv sync --extra dev        # create the environment with dev tools
-uv run python entry.py     # launch the app
+uv run python -m smacc     # launch the app
 uv run pytest              # run the test suite
 uv run ruff check .        # lint
 uv run ruff format .       # format
 uv run mypy                # type-check
 pre-commit install         # enable the lint/format/type-check git hooks
 ```
+
+`uv run smacc` also works once the environment is synced — it's the installed GUI
+launcher and opens no console window, so prefer `python -m smacc` when you want
+terminal output (e.g. tracebacks).
 
 ## Building the executable
 
@@ -70,3 +74,11 @@ on each `v*` release tag.
 * The single source of truth for the version is `__version__` in
   `src/smacc/__init__.py`; `config.py` and the packaging metadata both read from
   it.
+* The build/runtime Python is pinned to **3.12** in `.python-version`. This is
+  deliberate: 3.12 is the last Python line that supports Windows 8.1, so it keeps
+  SMACC runnable on older lab machines. Bumping to 3.13+ would raise the minimum
+  to Windows 10 — don't do it without accepting that trade-off.
+* SMACC is distributed only as a frozen `SMACC.exe` (no PyPI), so CI tests what
+  ships rather than a version range: the `test` job in `ci.yaml` runs on the same
+  `windows-2022` + Python 3.12 + locked dependencies as the release build
+  (`release.yaml`), in a single job rather than a multi-version matrix.

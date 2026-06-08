@@ -228,6 +228,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
         fileMenu.addAction(loadSettingsFromLogAction)
         fileMenu.addSeparator()
         fileMenu.addAction(sessionInfoAction)
+        # File -> Surveys: open any saved survey standalone (not tied to a dream
+        # report). Rebuilt each time it opens, since the saved list changes as
+        # surveys are added/edited/removed.
+        surveysMenu = fileMenu.addMenu("Sur&veys")
+        surveysMenu.aboutToShow.connect(lambda: self._rebuild_surveys_menu(surveysMenu))
         fileMenu.addSeparator()
         fileMenu.addAction(exportEventsAction)
         fileMenu.addAction(exportEventsFromLogAction)
@@ -255,6 +260,23 @@ class SmaccWindow(QtWidgets.QMainWindow):
         fileMenu.addSeparator()
         fileMenu.addAction(aboutAction)
         fileMenu.addAction(quitAction)
+
+    def _rebuild_surveys_menu(self, menu: QtWidgets.QMenu) -> None:
+        """Fill File → Surveys with each saved survey (open standalone) + Manage."""
+        menu.clear()
+        recording = cast(RecordingWindow, self.panels["recording"])
+        surveys = recording.saved_surveys()
+        if surveys:
+            for name, url in surveys.items():
+                action = menu.addAction(name)
+                action.setStatusTip(url)
+                action.triggered.connect(partial(recording.open_survey_url, url, name))
+        else:
+            empty = menu.addAction("(no surveys saved)")
+            empty.setEnabled(False)
+        menu.addSeparator()
+        manageAction = menu.addAction("Manage surveys…")
+        manageAction.triggered.connect(recording.manage_surveys)
 
     def _build_events_section(self) -> QtWidgets.QLayout:
         """Build the event-marker grid (lightswitch + common event buttons)."""

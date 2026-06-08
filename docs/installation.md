@@ -4,6 +4,9 @@ To install SMACC, go to the [releases page](https://github.com/remrama/smacc/rel
 click the _Assets_ dropdown for the latest release, and download the _SMACC.exe_
 file. Once downloaded, double-clicking this file will run SMACC.
 
+!!! note "System requirements"
+    SMACC runs on 64-bit Windows 8.1 or later.
+
 !!! note "Administrator privileges"
     For some features you will need to open SMACC with Administrator privileges
     (right-click the file and select **Run as administrator**).
@@ -40,9 +43,12 @@ also place your own sound files there — `.wav`, `.mp3`, `.flac`, `.ogg`, and
 
 ### Dream report survey
 
-The **Record Dream Report** button can optionally pop open a website URL — for
-example a dream-report survey hosted on Qualtrics. To enable this, set the
-`SURVEY_URL` variable in `config.py`.
+The **Record Dream Report** button can optionally pop open a survey URL — for
+example a dream-report survey hosted on Qualtrics or REDCap. Add surveys from the
+Dream-recording panel's **Manage…** button (each has a name and a URL); they are
+saved to your settings YAML and restored next session. Pick one from the survey
+dropdown to open it automatically when recording starts, or open any saved survey
+on its own from **File &rsaquo; Surveys**.
 
 ### Recording device
 
