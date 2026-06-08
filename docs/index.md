@@ -16,6 +16,7 @@ running sleep-related experiments.
 
 * [Installation](installation.md) — download and run SMACC.
 * [Usage](usage.md) — trigger cues, record dream reports, send portcodes, and more.
+* [Devices](devices.md) — connect compatible hardware such as a BlinkStick.
 * [Contributing](contributing.md) — develop SMACC and build these docs locally.
 
 SMACC is free software released under the
