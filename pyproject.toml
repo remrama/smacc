@@ -35,6 +35,10 @@ dependencies = [
 
 [project.optional-dependencies]
 visual = ["blinkstick"]
+docs = [
+    "mkdocs-material",
+    "mike",
+]
 dev = [
     "pytest",
     "ruff",
