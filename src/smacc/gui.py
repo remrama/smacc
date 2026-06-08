@@ -381,9 +381,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         the narrow single-column button.
         """
         if self.lights_on:
-            self.lightswitchButton.setText(
-                "Lights are ON\n\U0001f31e\nclick to turn OFF"
-            )
+            self.lightswitchButton.setText("Lights are ON\n☀️\nclick to turn OFF")
             self.lightswitchButton.setStyleSheet(
                 "font: bold 13pt; padding: 8px; background-color: #f0d000; color: black;"
             )
