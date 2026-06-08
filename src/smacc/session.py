@@ -2,9 +2,10 @@
 
 The launcher and every modality window hold a reference to one ``SmaccSession``
 so they all emit event markers and log lines through a single place. Each run
-gets its own folder under ``sessions/`` (named by a launch-timestamp stem) that
-holds the log, dream reports, and any exports together. Subject/session are kept
-as optional metadata inside the log/exports rather than baked into filenames.
+gets its own folder under its study's ``sessions/`` (named by a launch-timestamp
+stem) that holds the log, dream reports, and any exports together. Subject/session
+are kept as optional metadata inside the log/exports rather than baked into
+filenames.
 """
 
 from __future__ import annotations
@@ -12,13 +13,16 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pylsl import StreamInfo, StreamOutlet
 from PyQt5 import QtWidgets
 
 from . import bids, events, settings
 from .config import PPORT_ADDRESS, VERSION
-from .paths import sessions_directory
+
+if TYPE_CHECKING:
+    from .study import Study
 
 
 def make_session_dir(base: Path, now: datetime) -> Path:
@@ -41,8 +45,11 @@ def make_session_dir(base: Path, now: datetime) -> Path:
 class SmaccSession:
     """Shared session context: run folder, optional metadata, logger, LSL outlet."""
 
-    def __init__(self, metadata: dict | None = None) -> None:
+    def __init__(self, study: Study, metadata: dict | None = None) -> None:
         now = datetime.now()
+        # The study this run belongs to: its folder owns the cues and the sessions/
+        # parent under which this run's folder is created.
+        self.study = study
         # Subject/session/notes are optional metadata recorded inside the log and
         # exports (blank by default); they no longer drive filenames.
         self.metadata = {
@@ -53,7 +60,7 @@ class SmaccSession:
         }
         if metadata:
             self.metadata.update(metadata)
-        self.session_dir = make_session_dir(sessions_directory, now)
+        self.session_dir = make_session_dir(study.sessions_dir, now)
         self.stem = self.session_dir.name
         self.log_path = self.session_dir / f"{self.stem}.log"
         self.pport_address = PPORT_ADDRESS

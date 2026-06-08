@@ -16,15 +16,21 @@ file. Once downloaded, double-clicking this file will run SMACC.
 ### Data directory
 
 By default SMACC stores everything under `~/SMACC`. To use a different location,
-set an environment variable called `SMACC_DATA_DIRECTORY` to whatever directory
-you want. SMACC will create it and all of the subfolders (if not already present).
+set an environment variable called `SMACC_DIRECTORY` to whatever directory you
+want (the older `SMACC_DATA_DIRECTORY` is still honored as a fallback). SMACC
+will create it and all of the subfolders (if not already present).
 
-Each run gets its own timestamped folder under `~/SMACC/sessions/`
+SMACC organizes work into **studies**, each its own folder under
+`~/SMACC/studies/` holding that study's `study.smacc` config, its `cues/` sounds,
+and its `sessions/` runs. Unless you open a specific study (by double-clicking its
+`.smacc`), SMACC uses an auto-managed `default` study, so it works out of the box.
+
+Each run gets its own timestamped folder under its study's `sessions/`
 (e.g. `smacc-20260607-223015/`) holding that run's `.log`, dream-report
 recordings, and any exports. Subject/session are optional metadata (set from
 **File &rsaquo; Session info…**) recorded inside the log/exports rather than in
-filenames. Window/theme/log-preview choices are remembered in
-`~/SMACC/preferences.yaml`.
+filenames. Window/theme/log-preview choices are machine-level and remembered
+globally in `~/SMACC/preferences.yaml`, separate from any study.
 
 ### Study files (`.smacc`)
 
@@ -36,10 +42,10 @@ that study loaded**; you can also (re)enable this from
 
 ### Audio cues
 
-SMACC seeds a few `demo-*` cue files into `~/SMACC/cues` on first launch
-(restored if you delete them), so there is always something to test with. You can
-also place your own sound files there — `.wav`, `.mp3`, `.flac`, `.ogg`, and
-`.aiff` are all supported.
+SMACC seeds a few `demo-*` cue files into each study's `cues/` folder (restored
+if you delete them), so there is always something to test with. You can also
+place your own sound files there — `.wav`, `.mp3`, `.flac`, `.ogg`, and `.aiff`
+are all supported.
 
 ### Dream report survey
 

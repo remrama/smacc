@@ -11,9 +11,9 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QMessageBox
 
 from .gui import SmaccWindow
-from .paths import BUNDLED_CUES_DIR, LOGO_PATH, cues_directory
+from .paths import LOGO_PATH, studies_directory
 from .session import SmaccSession
-from .utils import seed_demo_cues
+from .study import Study, default_study
 
 # Study-file extensions SMACC will open when launched with a file (or double-click).
 _STUDY_SUFFIXES = {".smacc", ".yaml", ".yml"}
@@ -86,23 +86,34 @@ def _install_excepthook() -> None:
 
 
 def main() -> None:
-    """Open the main window for a new timestamped session (no setup prompt)."""
+    """Open SMACC: resolve the active study, then start a session within it.
+
+    A ``.smacc`` passed on the command line (or a double-clicked study) opens its
+    folder as the study and loads that file as the initial setup; otherwise the
+    auto-managed ``default`` study is used (scaffolded with demo cues on first
+    run), loading its own ``study.smacc`` when present. The run folder and log are
+    created under the study only now — not the instant the app launches.
+    """
     app = QApplication(sys.argv)
     _install_excepthook()
-    # Make sure there's always something to play: seed demo cues on launch.
-    seed_demo_cues(cues_directory, BUNDLED_CUES_DIR)
     # Fusion honors the full QPalette consistently across platforms, which the
     # native Windows style does not — required for the lights-off dark theme.
     app.setStyle("Fusion")
     # Application-wide icon (taskbar + windows).
     if LOGO_PATH.is_file():
         app.setWindowIcon(QIcon(str(LOGO_PATH)))
-    # A .smacc study passed on the command line (or via a double-clicked file)
-    # is loaded as the session's initial setup.
-    settings_path = pick_settings_path(app.arguments())
-    # Subject/session are now optional metadata (set via File -> Session info…),
-    # so a session starts straight away with a timestamped run folder.
-    session = SmaccSession()
+    # Resolve which study this launch belongs to and the config to load as the
+    # initial setup. A study folder owns its cues and its session runs.
+    file_arg = pick_settings_path(app.arguments())
+    if file_arg:
+        study = Study.open(Path(file_arg).parent)
+        settings_path: str | None = file_arg
+    else:
+        study = default_study(studies_directory)
+        settings_path = str(study.config_path) if study.has_config() else None
+    # Subject/session are optional metadata (set via File -> Session info…), so a
+    # session starts straight away with a timestamped run folder under the study.
+    session = SmaccSession(study)
     # Keep a reference so Qt doesn't garbage-collect the window.
     win = SmaccWindow(session, settings_path=settings_path)  # noqa: F841
     sys.exit(app.exec())

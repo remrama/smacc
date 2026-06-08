@@ -17,15 +17,14 @@ LOGO_PATH = _asset_dir / "icon.png"
 # copied into the user's cues directory on first launch.
 BUNDLED_CUES_DIR = _asset_dir / "cues"
 
-# Define directories.
-data_directory = utils.get_data_directory()
-cues_directory = data_directory / "cues"
-# Each run gets its own folder under sessions/ (named by a launch-timestamp stem),
-# holding that run's log, dream reports, and any exports together. SmaccSession
-# creates the per-run child; here we only ensure the shared parents exist.
-sessions_directory = data_directory / "sessions"
-cues_directory.mkdir(exist_ok=True)
-sessions_directory.mkdir(exist_ok=True)
+# The SMACC root directory ($SMACC_DIRECTORY, else ~/SMACC). It holds the per-study
+# workspaces under studies/ and the global, machine-level preferences.yaml. A
+# study's own cues and session runs live inside its own folder (see smacc.study),
+# not directly under this root.
+smacc_directory = utils.get_smacc_directory()
+studies_directory = smacc_directory / "studies"
+studies_directory.mkdir(exist_ok=True)
 
 # Operator/machine preferences (window/theme/log-preview), auto-managed by the app.
-preferences_path = data_directory / "preferences.yaml"
+# These stay global to the machine, separate from a portable per-study config.
+preferences_path = smacc_directory / "preferences.yaml"

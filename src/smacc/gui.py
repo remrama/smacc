@@ -20,7 +20,7 @@ from .panels.intercom import IntercomWindow
 from .panels.noise import NoiseWindow
 from .panels.recording import RecordingWindow
 from .panels.visual import VisualWindow
-from .paths import LOGO_PATH, data_directory, preferences_path, sessions_directory
+from .paths import LOGO_PATH, preferences_path, studies_directory
 from .qtlog import QtLogHandler
 from .session import SmaccSession
 
@@ -593,7 +593,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def export_settings(self) -> None:
         """Prompt for a path and write the current setup to a .smacc study file."""
-        default = self.session.session_dir / "study.smacc"
+        # Default to this study's own study.smacc at its root, where it auto-loads
+        # next launch and its relative cue paths resolve against the study folder.
+        default = self.session.study.config_path
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "Export study (.smacc)", str(default), "SMACC study (*.smacc)"
         )
@@ -613,7 +615,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
             "Load study (.smacc)",
-            str(data_directory),
+            str(studies_directory),
             "SMACC study (*.smacc *.yaml *.yml)",
         )
         if not path:
@@ -630,7 +632,10 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def load_settings_from_log(self) -> None:
         """Load the initial or final settings recorded in a SMACC .log file."""
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Load settings from log", str(sessions_directory), "SMACC log (*.log)"
+            self,
+            "Load settings from log",
+            str(self.session.study.sessions_dir),
+            "SMACC log (*.log)",
         )
         if not path:
             return
@@ -769,7 +774,10 @@ class SmaccWindow(QtWidgets.QMainWindow):
     def export_events_from_log(self) -> None:
         """Convert any chosen SMACC .log file into a BIDS events.tsv (+ sidecar)."""
         log_path, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Choose a log file", str(sessions_directory), "SMACC log (*.log)"
+            self,
+            "Choose a log file",
+            str(self.session.study.sessions_dir),
+            "SMACC log (*.log)",
         )
         if not log_path:
             return

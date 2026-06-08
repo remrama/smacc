@@ -23,11 +23,11 @@ Note that for some features, you will need to open SMACC with Administrator priv
 
 ## Optional setup
 
-* If you don't want to use the default `~/SMACC` folder, you can change this by setting a new environment variable called `SMACC_DATA_DIRECTORY` equal to whatever directory you want to use. SMACC will create it and all the subfolders (if not already present).
+* If you don't want to use the default `~/SMACC` folder, you can change this by setting an environment variable called `SMACC_DIRECTORY` equal to whatever directory you want to use (the older `SMACC_DATA_DIRECTORY` is still honored as a fallback). SMACC will create it and all the subfolders (if not already present).
 
-* SMACC seeds a few `demo-*` cue files into `~/SMACC/cues` on first launch (restored if you delete them), so there's always something to test with. You can also place your own sound files there (`.wav`, `.mp3`, `.flac`, `.ogg`, and `.aiff` are all supported).
+* SMACC organizes work into **studies**, each its own folder under `~/SMACC/studies/` holding that study's `study.smacc` config, its `cues/` sounds, and its `sessions/` runs. Unless you open a specific study (by double-clicking its `.smacc`), SMACC uses an auto-managed `default` study, so it works out of the box. A few `demo-*` cue files are seeded into each study's `cues/` (restored if you delete them); you can also drop your own sound files there (`.wav`, `.mp3`, `.flac`, `.ogg`, and `.aiff` are all supported).
 
-* Each run gets its own timestamped folder under `~/SMACC/sessions/` (e.g. `smacc-20260607-223015/`) holding that run's `.log`, dream-report recordings, and any exports. Subject/session are now optional metadata (set from `File > Session info…`) recorded inside the log/exports rather than in filenames. Any older `~/SMACC/logs` and `~/SMACC/dreams` folders are left untouched.
+* Each run gets its own timestamped folder under its study's `sessions/` (e.g. `smacc-20260607-223015/`) holding that run's `.log`, dream-report recordings, and any exports. Subject/session are now optional metadata (set from `File > Session info…`) recorded inside the log/exports rather than in filenames. Any older flat `~/SMACC/cues`, `~/SMACC/sessions`, `~/SMACC/logs`, and `~/SMACC/dreams` folders from earlier versions are left untouched.
 
 * You can save a reusable setup to a portable `.smacc` study file with `File > Export study (.smacc)…` and reload it with `File > Load study (.smacc)…` (or pull the initial/final setup back out of a `.log` with `File > Load study from log…`). Cue files are referenced (not copied), stored relative to the `.smacc` when they sit beside it so a study folder is portable. On Windows you can double-click a `.smacc` to open it. Operator/machine choices (window size/position, theme, always-on-top, log-preview levels) are remembered in `~/SMACC/preferences.yaml`.
 

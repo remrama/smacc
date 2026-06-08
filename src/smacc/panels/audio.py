@@ -16,7 +16,6 @@ from pathlib import Path
 
 from PyQt5 import QtCore, QtMultimedia, QtWidgets
 
-from ..paths import cues_directory
 from ..session import SmaccSession
 from ..utils import ensure_wav
 from .base import ModalityWindow, make_section_title
@@ -233,7 +232,7 @@ class AudioCueWindow(ModalityWindow):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
             "Select a File",
-            str(cues_directory),
+            str(self.session.study.cues_dir),
             "Audio (*.wav *.mp3 *.flac *.ogg *.oga *.aif *.aiff);;All files (*)",
         )
         if filename:

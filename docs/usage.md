@@ -8,9 +8,10 @@ This page walks through the main features.
 
 ## Audio cues
 
-Place sound files in `~/SMACC/cues` (`.wav`, `.mp3`, `.flac`, `.ogg`, and
-`.aiff` are supported) and trigger them from the cue controls. SMACC ships a few
-`demo-*` cues so there is always something to test with.
+Place sound files in your study's `cues/` folder (e.g.
+`~/SMACC/studies/default/cues/`; `.wav`, `.mp3`, `.flac`, `.ogg`, and `.aiff` are
+supported) and trigger them from the cue controls. SMACC seeds a few `demo-*`
+cues into each study so there is always something to test with.
 
 ## Dream reports
 
@@ -76,8 +77,9 @@ mid-study.
 
 ## Event log
 
-Every run writes a detailed `.log` to its own timestamped folder under
-`~/SMACC/sessions/`, capturing the events and settings for that session.
+Every run writes a detailed `.log` to its own timestamped folder under its
+study's `sessions/` (e.g. `~/SMACC/studies/default/sessions/`), capturing the
+events and settings for that session.
 
 ## Study config (`.smacc`)
 
@@ -87,10 +89,10 @@ can read and edit). Save it with **File &rsaquo; Export study (.smacc)…** and 
 **File &rsaquo; Load study (.smacc)…**. You can also pull the initial or final setup
 back out of a session `.log` with **File &rsaquo; Load study from log…**.
 
-Cue/noise files are *referenced*, never copied. When a referenced sound sits in the
-same folder as the `.smacc` file, its path is stored **relative**, so a study folder
-(the `.smacc` plus its WAVs) stays valid if you move or share it. Sounds elsewhere
-(e.g. the shared `~/SMACC/cues`) are stored as absolute paths.
+Cue/noise files are *referenced*, never copied. When a referenced sound sits in or
+below the same folder as the `.smacc` file, its path is stored **relative**, so a
+study folder (the `.smacc` plus its `cues/`) stays valid if you move, copy, or zip
+it. Sounds outside the study folder are stored as absolute paths.
 
 ### Opening a study
 
