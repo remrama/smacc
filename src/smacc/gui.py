@@ -11,12 +11,8 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 
 from smacc import bids, preferences, settings, winassoc
 
-from .config import (
-    COMMON_EVENT_CODES,
-    COMMON_EVENT_TIPS,
-    VERSION,
-)
-from .dialogs import SessionInfoDialog
+from .config import VERSION
+from .dialogs import EventCodesDialog, SessionInfoDialog
 from .panels.audio import AudioCueWindow
 from .panels.base import ModalityWindow
 from .panels.intercom import IntercomWindow
@@ -68,6 +64,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # initial state into the log header (also emits the "Opened SMACC" line).
         self.session.begin_log(self.gather_settings())
         self._maybe_prompt_association()
+        # Startup widget setup is done; from here on, log soft interactions.
+        self.session.log_interactions = True
 
     def show_error_popup(self, short_msg, long_msg=None):
         """Show an error dialog parented to this window (logs via the session)."""
@@ -191,6 +189,13 @@ class SmaccWindow(QtWidgets.QMainWindow):
         )
         sessionInfoAction.triggered.connect(self.session_info)
 
+        eventCodesAction = QtWidgets.QAction("&Event codes…", self)
+        eventCodesAction.setStatusTip(
+            "View/edit event-marker port codes and what's logged vs. triggered."
+        )
+        eventCodesAction.triggered.connect(self.edit_event_codes)
+        self._event_codes_action = eventCodesAction
+
         exportEventsAction = QtWidgets.QAction("&Export events (BIDS)…", self)
         exportEventsAction.setStatusTip(
             "Export this session's events log as a BIDS events.tsv."
@@ -228,6 +233,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         fileMenu.addAction(loadSettingsFromLogAction)
         fileMenu.addSeparator()
         fileMenu.addAction(sessionInfoAction)
+        fileMenu.addAction(eventCodesAction)
         # File -> Surveys: open any saved survey standalone (not tied to a dream
         # report). Rebuilt each time it opens, since the saved list changes as
         # surveys are added/edited/removed.
@@ -299,18 +305,22 @@ class SmaccWindow(QtWidgets.QMainWindow):
         eventsLayout = QtWidgets.QGridLayout()
         eventsLayout.addWidget(eventmarkertitleLabel, 0, 0, 1, 2)
         eventsLayout.addWidget(self.lightswitchButton, 1, 0, 1, 2)
-        n_events = len(COMMON_EVENT_TIPS)
-        for i, (event, tip) in enumerate(COMMON_EVENT_TIPS.items()):
+        # Buttons are generated from the registry's "manual" events; the lights
+        # codes also live in the registry but are driven by the switch above, so
+        # they're excluded here. Codes/labels edit via File -> Event codes….
+        manual_events = [
+            e for e in self.session.events.values() if e.category == "manual"
+        ]
+        n_events = len(manual_events)
+        for i, event in enumerate(manual_events):
             shortcut = str(i + 1)
-            label = f"{event} ({shortcut})"
-            button = QtWidgets.QPushButton(label, self)
-            button.setStatusTip(tip)
+            button = QtWidgets.QPushButton(f"{event.label} ({shortcut})", self)
+            button.setStatusTip(event.tooltip)
             button.setShortcut(shortcut)
-            # button.setCheckable(False)
-            if event == "Note":
+            if event.key == "Note":
                 button.clicked.connect(self.open_note_marker_dialogue)
             else:
-                button.clicked.connect(self.handle_event_button)
+                button.clicked.connect(partial(self.handle_event_button, event.key))
             row = 2 + i
             if i >= (halfsize := int(n_events / 2)):
                 row -= halfsize
@@ -366,11 +376,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # win.setGeometry(200, 150, 100, 40)
         win.exec()
 
-    def handle_event_button(self):
-        sender = self.sender()
-        text = sender.text().split("(")[0].strip()
-        code = COMMON_EVENT_CODES[text]
-        self.session.send_event_marker(code, text)
+    def handle_event_button(self, key: str, _checked: bool = False) -> None:
+        """Emit the registry event bound to a clicked manual event button."""
+        self.session.emit_event(key)
 
     def on_lightswitch_toggled(self, checked: bool) -> None:
         """Handle a user toggle of the lightswitch (``checked`` == lights on)."""
@@ -386,8 +394,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self._refresh_lightswitch_label()
         self.apply_theme(dark=not lights_on)
         if send_marker:
-            name = "Lights on" if lights_on else "Lights off"
-            self.session.send_event_marker(COMMON_EVENT_CODES[name], name)
+            self.session.emit_event("LightsOn" if lights_on else "LightsOff")
 
     def _refresh_lightswitch_label(self) -> None:
         """Sync the lightswitch text/style to the current state."""
@@ -452,12 +459,29 @@ class SmaccWindow(QtWidgets.QMainWindow):
         state: dict = {}
         for panel in self.panels.values():
             state.update(panel.gather_state())
+        # The event-code registry isn't a panel; persist it at the window level.
+        state["event_codes"] = self.session.event_codes_as_list()
+        state["event_code_safe_max"] = self.session.event_code_safe_max
         return state
 
     def apply_settings(self, state: dict) -> None:
-        """Apply a settings ``state`` dict to every panel (each reads its own keys)."""
-        for panel in self.panels.values():
-            panel.apply_state(state)
+        """Apply a settings ``state`` dict to every panel (each reads its own keys).
+
+        Soft interaction logging is suppressed while panels reload their widgets,
+        so a study load doesn't spam the log with volume/color/device lines.
+        """
+        was_logging = self.session.log_interactions
+        self.session.log_interactions = False
+        try:
+            for panel in self.panels.values():
+                panel.apply_state(state)
+            # Apply the study's event-code registry (or defaults for a pre-v4
+            # study with no event_codes) to the live session.
+            self.session.set_event_codes(
+                state.get("event_codes"), state.get("event_code_safe_max")
+            )
+        finally:
+            self.session.log_interactions = was_logging
 
     # ----- preferences / launch-file / file association ----------------------
 
@@ -690,6 +714,48 @@ class SmaccWindow(QtWidgets.QMainWindow):
             meta["notes"] = notes
             self.session.log_info_msg("Updated session metadata")
 
+    def edit_event_codes(self) -> None:
+        """Open the event-code editor; apply edits live and log every change.
+
+        The editor stays available throughout a session (there's no reliable
+        lock point yet), so each change is logged loudly (WARNING) to keep the
+        code map traceable for the session even if it changes mid-study.
+        """
+        before = {e.key: e for e in self.session.events.values()}
+        dialog = EventCodesDialog(
+            list(self.session.events.values()),
+            self.session.event_code_safe_max,
+            parent=self,
+        )
+        if not dialog.exec():
+            return
+        new_events = dialog.get_events()
+        safe_max = dialog.get_safe_max()
+        for event in new_events:
+            old = before.get(event.key)
+            if old is None:
+                continue
+            changes = []
+            if old.code != event.code:
+                changes.append(f"code {old.code}->{event.code}")
+            if old.trigger != event.trigger:
+                changes.append(f"trigger {'on' if event.trigger else 'off'}")
+            if old.log != event.log:
+                changes.append(f"log {'on' if event.log else 'off'}")
+            if old.increment != event.increment:
+                changes.append(f"increment {'on' if event.increment else 'off'}")
+            if changes:
+                self.session.logger.warning(
+                    f"Port code changed: {event.label} ({', '.join(changes)})"
+                )
+        if safe_max != self.session.event_code_safe_max:
+            self.session.logger.warning(
+                f"Event-code safe max changed: "
+                f"{self.session.event_code_safe_max} -> {safe_max}"
+            )
+        self.session.events = {e.key: e for e in new_events}
+        self.session.event_code_safe_max = safe_max
+
     def export_events_bids(self) -> None:
         """Convert this session's log to a BIDS events.tsv (+ JSON sidecar)."""
         if not self.session.log_path.is_file():
@@ -747,10 +813,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
             self, "Text Input Dialog", "Custom note (no commas):"
         )
         # self.subject_id.setValidator(QtGui.QIntValidator(0, 999)) # must be a 3-digit number
-        if ok:  # True of OK button was hit, False otherwise (cancel button)
-            portcode = self.session.portcodes["Note"]
-            port_msg = f"Note [{text}]"
-            self.session.send_event_marker(portcode, port_msg)
+        if ok:  # True if OK was hit, False otherwise (cancel button)
+            self.session.emit_event("Note", detail=text)
 
     def closeEvent(self, event):
         """customize exit.

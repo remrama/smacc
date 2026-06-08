@@ -47,7 +47,7 @@ def test_saved_file_is_tagged_yaml(tmp_path):
     assert text.splitlines()[0].startswith("#")  # self-identifying header comment
     payload = yaml.safe_load(text)  # comment is ignored, so it still parses
     assert payload["kind"] == settings.KIND
-    assert payload["schema_version"] == settings.SCHEMA_VERSION == 3
+    assert payload["schema_version"] == settings.SCHEMA_VERSION == 4
     assert payload["smacc_version"] == smacc.__version__
     assert payload["settings"] == {"cue_attack": 0.2}
 
@@ -69,6 +69,24 @@ def test_load_accepts_current_schema(tmp_path):
     settings.save_settings(path, {"cue_attack": 1.0}, {})
     state, _ = settings.load_settings(path)
     assert state == {"cue_attack": 1.0}
+
+
+def test_load_accepts_older_schema_without_event_codes(tmp_path):
+    # A pre-v4 study (no event_codes) must still load; the GUI fills the default
+    # registry on apply via events.merge_event_codes.
+    path = tmp_path / "old.smacc"
+    path.write_text(
+        yaml.safe_dump(
+            {
+                "kind": settings.KIND,
+                "schema_version": 3,
+                "settings": {"cue_attack": 0.5},
+            }
+        ),
+        encoding="utf-8",
+    )
+    state, _ = settings.load_settings(path)
+    assert state == {"cue_attack": 0.5}
 
 
 def test_load_rejects_unsupported_schema(tmp_path):

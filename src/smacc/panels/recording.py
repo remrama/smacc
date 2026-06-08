@@ -115,6 +115,7 @@ class RecordingWindow(ModalityWindow):
         name = self.available_microphones_dropdown.currentData()
         if name:
             self.microphone.setAudioInput(name)
+        self.session.log_interaction(f"Microphone set to {text}")
         self._restart_meter_if_monitoring()  # switch a live meter over too
 
     def refresh_available_microphones(self):
@@ -161,10 +162,11 @@ class RecordingWindow(ModalityWindow):
         if self.sender().isChecked():
             if survey_url := self.current_survey_url():
                 self.open_survey_url(survey_url, self.surveyComboBox.currentText())
-            port_msg = "DreamReportStarted"
+            # Each report's start increments its code (201, 202, …) when the
+            # registry's increment flag is on, so reports are individually findable.
+            self.session.emit_event("DreamReportStarted", ordinal=self.n_report_counter)
         else:
-            port_msg = "DreamReportStopped"
-        self.session.send_event_marker(self.session.portcodes[port_msg], port_msg)
+            self.session.emit_event("DreamReportStopped")
 
     # ----- input level meter (#25) ------------------------------------------
 
@@ -207,6 +209,7 @@ class RecordingWindow(ModalityWindow):
 
     def toggle_level_monitor(self, enabled: bool) -> None:
         """Start/stop monitoring the selected input device's level."""
+        self.session.log_interaction(f"Input level meter {'on' if enabled else 'off'}")
         if enabled:
             try:
                 self.meter_stream = sd.InputStream(
@@ -258,9 +261,7 @@ class RecordingWindow(ModalityWindow):
         open, so every survey launch surfaces a marker (``name`` labels the line).
         """
         webbrowser.open(url, new=1, autoraise=False)
-        self.session.send_event_marker(
-            self.session.portcodes["SurveyOpened"], f"Survey opened: {name or url}"
-        )
+        self.session.emit_event("SurveyOpened", detail=name or url)
 
     def _current_survey_options(self) -> dict[str, str]:
         """The dropdown's saved presets as a ``{name: url}`` mapping."""

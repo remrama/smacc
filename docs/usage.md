@@ -27,8 +27,41 @@ survey on its own from **File &rsaquo; Surveys** (each open is logged as a
 
 ## EEG portcodes
 
-SMACC can trigger EEG portcodes to mark events in your recording, keeping cue
-delivery and your neural data in sync.
+SMACC marks experiment events — a cue played, a dream report, observed REM, the
+lights toggled — by sending a numeric **portcode** to its marker stream and writing a
+matching line to the session log, keeping cue delivery and your neural data in sync.
+
+### Configuring codes
+
+Open **File &rsaquo; Event codes…** to see every event in one table. For each event you
+can set:
+
+- **Code** — the 8-bit portcode (1–255) sent when the event triggers.
+- **Trigger** — whether the event is sent to the marker stream at all.
+- **Log** — whether the event is written to the session log. A *triggered* event is
+  always logged (so a sent marker is never untraceable), so this only matters for
+  events you don't trigger.
+- **Increment** — for **dream reports**, give each report a unique, increasing code
+  (201, 202, 203, …) so individual reports are findable in the trigger channel. Turn
+  it off to use one fixed code for every report.
+
+**Safe max code** raises a soft warning for codes above it — handy when your trigger
+hardware only accepts a limited range (some older systems do). Codes must be unique
+among triggered events and within 1–255; the editor blocks anything else.
+
+The editor stays available throughout a session. If you change a code mid-study, the
+change is written to the log with a timestamp, so the code-to-event mapping for that
+session is always recoverable.
+
+Beyond portcodes, SMACC logs the important interactions too — volume, color, device,
+and fade changes — as plain log lines (no portcode), so the session record is complete.
+
+### Where codes live
+
+Your codes are saved in the study `.smacc` file (so they travel with the study) and
+written into every session `.log` (both the initial and final settings blocks), so any
+session is self-documenting: you can decode its markers later even if the codes changed
+mid-study.
 
 ## Event log
 
@@ -38,8 +71,8 @@ Every run writes a detailed `.log` to its own timestamped folder under
 ## Study config (`.smacc`)
 
 A **study** captures your reusable setup — cue files, volumes, noise, BlinkStick
-color, survey presets — in a single portable `.smacc` file (plain YAML you can read
-and edit). Save it with **File &rsaquo; Export study (.smacc)…** and reload it with
+color, survey presets, event codes — in a single portable `.smacc` file (plain YAML you
+can read and edit). Save it with **File &rsaquo; Export study (.smacc)…** and reload it with
 **File &rsaquo; Load study (.smacc)…**. You can also pull the initial or final setup
 back out of a session `.log` with **File &rsaquo; Load study from log…**.
 

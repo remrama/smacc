@@ -9,7 +9,7 @@ reject YAML that wasn't written by it.
 The on-disk shape (a ``.smacc`` file is YAML text with a leading comment header)::
 
     kind: smacc/settings
-    schema_version: 3
+    schema_version: 4
     smacc_version: "0.0.7"
     metadata: {subject: "", session: "", notes: "", created: "..."}
     settings: { ...the panel state from SmaccWindow.gather_settings()... }
@@ -43,8 +43,9 @@ _FILE_HEADER = "# SMACC study config — YAML (.smacc). Edit with care.\n"
 
 # Bump when the serialized layout changes incompatibly. Files written by older
 # (lower) versions are still accepted on load; panels handle field-level
-# back-compat (e.g. a v1 single cue maps into the first multi-slot cue).
-SCHEMA_VERSION = 3
+# back-compat (e.g. a v1 single cue maps into the first multi-slot cue, and a
+# pre-v4 file with no event_codes falls back to the default registry).
+SCHEMA_VERSION = 4
 
 
 def build_payload(settings: dict[str, Any], metadata: dict) -> dict[str, Any]:

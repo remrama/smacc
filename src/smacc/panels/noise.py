@@ -105,10 +105,10 @@ class NoiseWindow(ModalityWindow):
         # Stacked Play/Stop transport (mixing-board style).
         playnoiseButton = QtWidgets.QPushButton("Play noise", self)
         playnoiseButton.setStatusTip("Play the selected noise.")
-        playnoiseButton.clicked.connect(self.play_noise)
+        playnoiseButton.clicked.connect(self.on_play_noise_clicked)
         stopnoiseButton = QtWidgets.QPushButton("Stop noise", self)
         stopnoiseButton.setStatusTip("Stop the noise.")
-        stopnoiseButton.clicked.connect(self.stop_noise)
+        stopnoiseButton.clicked.connect(self.on_stop_noise_clicked)
         transport = QtWidgets.QVBoxLayout()
         transport.addWidget(playnoiseButton)
         transport.addWidget(stopnoiseButton)
@@ -152,6 +152,8 @@ class NoiseWindow(ModalityWindow):
     def on_noise_source_changed(self, checked: bool) -> None:
         """Built-in/file toggled: update enabled controls and restart if playing."""
         self._sync_source_enabled()
+        source = "file" if self._use_file_source() else "built-in"
+        self.session.log_interaction(f"Noise source set to {source}")
         self._restart_if_playing()
 
     def on_noise_file_changed(self) -> None:
@@ -170,11 +172,13 @@ class NoiseWindow(ModalityWindow):
     def set_new_noisecolor(self, text: str) -> None:
         """Restart noise playback when the noise color changes (``text``)."""
         if not self._use_file_source():
+            self.session.log_interaction(f"Noise color set to {text}")
             self._restart_if_playing()
 
     def set_new_noisespeakers(self, text: str) -> None:
         """Text is the device name, with host api string appended to the end."""
         self.noiseplayer_device = text
+        self.session.log_interaction(f"Noise device set to {text}")
         self._restart_if_playing()  # switch a live stream over to the new device
 
     def refresh_available_noisespeakers(self):
@@ -239,6 +243,24 @@ class NoiseWindow(ModalityWindow):
         chunk, self._noise_pos = utils.read_loop(buf, self._noise_pos, frames)
         np.multiply(chunk, self.noise_stream_volume, out=outdata[:, 0])
 
+    def on_play_noise_clicked(self, _checked: bool = False) -> None:
+        """User pressed Play: start the noise and mark it (NoiseStarted).
+
+        The marker fires only on a real user start, not on the silent stop+start
+        restart used when the color/device/source changes mid-playback.
+        """
+        already_playing = self.noise_stream is not None
+        self.play_noise()
+        if not already_playing and self.noise_stream is not None:
+            self.session.emit_event("NoiseStarted")
+
+    def on_stop_noise_clicked(self, _checked: bool = False) -> None:
+        """User pressed Stop: stop the noise and mark it (NoiseStopped)."""
+        was_playing = self.noise_stream is not None
+        self.stop_noise()
+        if was_playing:
+            self.session.emit_event("NoiseStopped")
+
     def play_noise(self) -> None:
         """Start streaming the selected noise (built-in color or file) on loop."""
         if self.noise_stream is not None:
@@ -286,6 +308,7 @@ class NoiseWindow(ModalityWindow):
     def update_noise_volume(self, value: float) -> None:
         """Catch the noise volume spinbox signal (value is a 0-1 float)."""
         self.noise_stream_volume = value
+        self.session.log_interaction(f"Noise volume set to {value:.2f}")
 
     def gather_state(self) -> dict:
         return {
