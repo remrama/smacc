@@ -8,6 +8,8 @@ whatever was playing); fade-in/out is shared at the panel level.
 
 from __future__ import annotations
 
+import shutil
+import tempfile
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
@@ -16,6 +18,7 @@ from PyQt5 import QtCore, QtMultimedia, QtWidgets
 
 from ..paths import cues_directory
 from ..session import SmaccSession
+from ..utils import ensure_wav
 from .base import ModalityWindow, make_section_title
 
 N_CUE_SLOTS = 4
@@ -44,6 +47,8 @@ class AudioCueWindow(ModalityWindow):
 
     def __init__(self, session: SmaccSession, parent: QtWidgets.QWidget | None = None):
         super().__init__(session, parent)
+        # Scratch dir for WAVs decoded from compressed cue files (removed on close).
+        self._cue_cache_dir = Path(tempfile.mkdtemp(prefix="smacc-cues-"))
         # Shared fade (attack/release) durations in seconds; 0 == instant.
         self.cue_attack_s = 0.0
         self.cue_release_s = 0.0
@@ -92,7 +97,7 @@ class AudioCueWindow(ModalityWindow):
             fileEdit.editingFinished.connect(partial(self.update_slot_source, i))
             volumeSpinBox.valueChanged.connect(partial(self.update_slot_volume, i))
             loopCheckBox.toggled.connect(partial(self.update_slot_loop, i))
-            browseButton.clicked.connect(partial(self.open_wav_selector, i))
+            browseButton.clicked.connect(partial(self.open_audio_selector, i))
             playButton.clicked.connect(partial(self.play_slot, i))
             stopButton.clicked.connect(partial(self.stop_slot, i))
             volumeSpinBox.setValue(0.2)  # fires update_slot_volume -> player
@@ -216,17 +221,37 @@ class AudioCueWindow(ModalityWindow):
 
     # ----- per-slot controls -------------------------------------------------
 
-    def open_wav_selector(self, index: int) -> None:
+    def open_audio_selector(self, index: int) -> None:
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Select a File", str(cues_directory), "Audio (*.wav)"
+            self,
+            "Select a File",
+            str(cues_directory),
+            "Audio (*.wav *.mp3 *.flac *.ogg *.oga *.aif *.aiff);;All files (*)",
         )
         if filename:
             self.slots[index].fileEdit.setText(str(Path(filename)))
 
     def update_slot_source(self, index: int) -> None:
-        """Set a slot player's source from its file line edit."""
-        filepath = self.slots[index].fileEdit.text()
-        self.slots[index].player.setSource(QtCore.QUrl.fromLocalFile(filepath))
+        """Set a slot player's source from its file line edit.
+
+        Non-WAV files are decoded to a cached WAV first, since QSoundEffect only
+        plays uncompressed WAV. Fired on every keystroke, so missing/partial paths
+        are skipped silently; only a genuine decode failure raises a popup.
+        """
+        player = self.slots[index].player
+        filepath = self.slots[index].fileEdit.text().strip()
+        if not filepath or not Path(filepath).is_file():
+            player.setSource(QtCore.QUrl())  # clear: nothing loaded
+            return
+        try:
+            wav = ensure_wav(Path(filepath), self._cue_cache_dir)
+        except Exception as err:
+            player.setSource(QtCore.QUrl())
+            self.session.show_error_popup(
+                "Could not load audio file", str(err), parent=self
+            )
+            return
+        player.setSource(QtCore.QUrl.fromLocalFile(str(wav)))
 
     def update_slot_volume(self, index: int, value: float | None = None) -> None:
         """Set a slot player's volume (0-1) from its spinbox."""
@@ -351,3 +376,4 @@ class AudioCueWindow(ModalityWindow):
     def cleanup(self) -> None:
         for slot in self.slots:
             slot.player.stop()
+        shutil.rmtree(self._cue_cache_dir, ignore_errors=True)
