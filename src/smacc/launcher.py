@@ -15,12 +15,14 @@ from pathlib import Path
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-from . import bids, preferences
+from . import preferences
+from .analyze import AnalyzeWindow
 from .config import VERSION
 from .gui import SmaccWindow
 from .paths import LOGO_PATH, preferences_path, studies_directory
 from .session import SmaccSession
 from .study import Study, default_study
+from .toolwindow import ToolWindow
 
 # Characters disallowed in a new study folder name (kept to a portable subset).
 _INVALID_NAME_CHARS = set('<>:"/\\|?*')
@@ -46,7 +48,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self._study = study
         # Held so Qt doesn't garbage-collect the open tool window; replaced (not
         # cleared) when the next tool opens, so it survives its own closeEvent.
-        self._tool: QtWidgets.QMainWindow | None = None
+        self._tool: ToolWindow | None = None
         self.setWindowTitle("SMACC")
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
@@ -94,7 +96,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
             (
                 "Analyze session",
                 self.analyze_session,
-                "Export a past session's events to a BIDS events.tsv.",
+                "Summarize a past session, export its events, or recover its study.",
             ),
         ):
             button = QtWidgets.QPushButton(label, self)
@@ -240,35 +242,12 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self._open_tool(window)
 
     def analyze_session(self) -> None:
-        """Export a chosen session log to a BIDS events.tsv (+ JSON sidecar)."""
-        log_path, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self,
-            "Choose a SMACC log",
-            str(self._study.sessions_dir),
-            "SMACC log (*.log)",
-        )
-        if not log_path:
-            return
-        out_path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self,
-            "Export events (BIDS)",
-            str(Path(log_path).with_suffix(".tsv")),
-            "BIDS events (*.tsv)",
-        )
-        if not out_path:
-            return
-        try:
-            count = bids.convert_log_file(log_path, out_path)
-        except OSError as exc:
-            QtWidgets.QMessageBox.critical(self, "Analyze", str(exc))
-            return
-        QtWidgets.QMessageBox.information(
-            self, "Analyze", f"Exported {count} events to\n{out_path}"
-        )
+        """Open the analyze window over the current study's past sessions."""
+        self._open_tool(AnalyzeWindow(self._study))
 
     # ----- tool-window lifecycle -------------------------------------------
 
-    def _open_tool(self, window: SmaccWindow) -> None:
+    def _open_tool(self, window: ToolWindow) -> None:
         """Show a tool window (it shows itself) and hide the launcher until it closes."""
         self._tool = window
         window.closed.connect(self._on_tool_closed)

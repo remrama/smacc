@@ -23,8 +23,10 @@ into a session. From here you:
 - **Create study** — name a new study and set it up in the **study designer**:
   configure its tools (cues, noise, visual, event codes, surveys) and save them to
   the study's `study.smacc`. Use **Edit…** to reopen an existing study there.
-- **Analyze session** — export a past session's events (e.g. to a BIDS
-  `events.tsv`) without starting a new session.
+- **Analyze session** — open a past session (a `.log`, a session folder, or a
+  zipped session/study) to see a summary (events, duration, subject/session, dream
+  reports), export its events to a BIDS `events.tsv`, or recover its study config to
+  a `.smacc` — all without starting a new session.
 
 Closing a session (or other tool) returns you to the launcher; closing the
 launcher quits SMACC. On the Windows build you can also **double-click a `.smacc`**
@@ -103,7 +105,9 @@ mid-study.
 
 Every run writes a detailed `.log` to its own timestamped folder under its
 study's `sessions/` (e.g. `~/SMACC/studies/default/sessions/`), capturing the
-events and settings for that session.
+events and settings for that session. Open one later from the launcher's
+**Analyze session** to see a summary, export its events to BIDS, or recover its
+study config.
 
 ## Study config (`.smacc`)
 

@@ -12,7 +12,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from smacc import bids, preferences, settings, winassoc
 
 from .config import VERSION
-from .dialogs import EventCodesDialog, SessionInfoDialog
+from .dialogs import EventCodesDialog, SessionInfoDialog, ask_initial_or_final
 from .panels.audio import AudioCueWindow
 from .panels.base import ModalityWindow
 from .panels.events import EventsWindow
@@ -23,18 +23,15 @@ from .panels.visual import VisualWindow
 from .paths import LOGO_PATH, preferences_path, studies_directory
 from .qtlog import QtLogHandler
 from .session import SmaccSession
+from .toolwindow import ToolWindow
 
 #####################################
 #########    Main window    #########
 #####################################
 
 
-class SmaccWindow(QtWidgets.QMainWindow):
-    """Main interface."""
-
-    # Emitted after a session is ended and the window closed, so the launcher can
-    # bring itself back (the launcher is the app's persistent root window).
-    closed = QtCore.pyqtSignal()
+class SmaccWindow(ToolWindow):
+    """Main interface (a launcher-managed tool window; emits ``closed`` on close)."""
 
     def __init__(self, session: SmaccSession, settings_path: str | None = None) -> None:
         super().__init__()
@@ -732,19 +729,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     def _ask_initial_or_final(self) -> str | None:
         """Ask whether to load the initial or final settings block (None on cancel)."""
-        box = QtWidgets.QMessageBox(self)
-        box.setWindowTitle("Load settings from log")
-        box.setText("Load which settings snapshot from the log?")
-        initial_btn = box.addButton("Initial", QtWidgets.QMessageBox.AcceptRole)
-        final_btn = box.addButton("Final", QtWidgets.QMessageBox.AcceptRole)
-        box.addButton(QtWidgets.QMessageBox.Cancel)
-        box.exec()
-        clicked = box.clickedButton()
-        if clicked is initial_btn:
-            return "initial"
-        if clicked is final_btn:
-            return "final"
-        return None
+        return ask_initial_or_final(self, title="Load settings from log")
 
     def _apply_loaded_settings(self, state: dict, metadata: dict) -> None:
         """Apply panel state and merge any non-empty loaded metadata into the session."""

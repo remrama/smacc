@@ -122,6 +122,28 @@ def convert_log_file(log_path: str | Path, out_path: str | Path) -> int:
     return len(events)
 
 
+def summarize_log(log_text: str) -> dict[str, Any]:
+    """Summarize a SMACC log for the analyze view (pure; no filesystem access).
+
+    Returns ``event_count`` (marker lines), ``duration_seconds`` (first to last
+    parseable line), and the ``subject``/``session`` recorded in the log's initial
+    settings block (empty strings when absent). The GUI layers file-derived
+    details (e.g. dream-report recordings) on top.
+    """
+    rows = parse_log(log_text)
+    events = log_to_events(log_text)
+    payload = extract_settings_from_log(log_text, "initial")
+    meta = payload.get("metadata") if isinstance(payload, dict) else None
+    meta = meta if isinstance(meta, dict) else {}
+    duration = round((rows[-1][0] - rows[0][0]).total_seconds(), 3) if rows else 0.0
+    return {
+        "event_count": len(events),
+        "duration_seconds": duration,
+        "subject": str(meta.get("subject") or ""),
+        "session": str(meta.get("session") or ""),
+    }
+
+
 def format_settings_block(payload: dict[str, Any], which: str) -> str:
     """Render ``payload`` as a fully ``#``-commented, sentinel-fenced log block.
 

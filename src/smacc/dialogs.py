@@ -8,6 +8,27 @@ from . import events
 from .utils import normalize_survey_url
 
 
+def ask_initial_or_final(parent=None, title: str = "Settings snapshot") -> str | None:
+    """Ask whether to use the log's ``initial`` or ``final`` settings block.
+
+    Returns ``"initial"``/``"final"``, or ``None`` if cancelled. Shared by loading a
+    study from a log (session window) and recovering one (analyze window).
+    """
+    box = QtWidgets.QMessageBox(parent)
+    box.setWindowTitle(title)
+    box.setText("Use which settings snapshot from the log?")
+    initial_btn = box.addButton("Initial", QtWidgets.QMessageBox.AcceptRole)
+    final_btn = box.addButton("Final", QtWidgets.QMessageBox.AcceptRole)
+    box.addButton(QtWidgets.QMessageBox.Cancel)
+    box.exec()
+    clicked = box.clickedButton()
+    if clicked is initial_btn:
+        return "initial"
+    if clicked is final_btn:
+        return "final"
+    return None
+
+
 class SessionInfoDialog(QtWidgets.QDialog):
     """Edit the session's optional metadata: subject, session, and free-text notes.
 
