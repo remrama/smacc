@@ -579,13 +579,16 @@ instructions live here once rather than being duplicated across files.</p>
 </ul>
 <h2 id="development">Development</h2>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>dev<span class="w">        </span><span class="c1"># create the environment with dev tools</span>
-uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>entry.py<span class="w">     </span><span class="c1"># launch the app</span>
+uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>smacc<span class="w">     </span><span class="c1"># launch the app</span>
 uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w">              </span><span class="c1"># run the test suite</span>
 uv<span class="w"> </span>run<span class="w"> </span>ruff<span class="w"> </span>check<span class="w"> </span>.<span class="w">        </span><span class="c1"># lint</span>
 uv<span class="w"> </span>run<span class="w"> </span>ruff<span class="w"> </span>format<span class="w"> </span>.<span class="w">       </span><span class="c1"># format</span>
 uv<span class="w"> </span>run<span class="w"> </span>mypy<span class="w">                </span><span class="c1"># type-check</span>
 pre-commit<span class="w"> </span>install<span class="w">         </span><span class="c1"># enable the lint/format/type-check git hooks</span>
 </code></pre></div>
+<p><code>uv run smacc</code> also works once the environment is synced — it's the installed GUI
+launcher and opens no console window, so prefer <code>python -m smacc</code> when you want
+terminal output (e.g. tracebacks).</p>
 <h2 id="building-the-executable">Building the executable</h2>
 <p>Build the standalone Windows executable:</p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>pyinstaller<span class="w"> </span>entry.py<span class="w"> </span>--name<span class="w"> </span>SMACC<span class="w"> </span>--onefile<span class="w"> </span>--noconsole<span class="w"> </span><span class="se">\</span>
