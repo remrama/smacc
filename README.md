@@ -25,6 +25,8 @@ Note that for some features, you will need to open SMACC with Administrator priv
 
 * SMACC seeds a few `demo-*` cue files into `~/SMACC/cues` on first launch (restored if you delete them), so there's always something to test with. You can also place your own sound files there (`.wav`, `.mp3`, `.flac`, `.ogg`, and `.aiff` are all supported).
 
+* Each run gets its own timestamped folder under `~/SMACC/sessions/` (e.g. `smacc-20260607-223015/`) holding that run's `.log`, dream-report recordings, and any exports. Subject/session are now optional metadata (set from `File > Session info…`) recorded inside the log/exports rather than in filenames. Any older `~/SMACC/logs` and `~/SMACC/dreams` folders are left untouched. You can save the current setup with `File > Export settings (YAML)…` and reload it later with `File > Load settings (YAML)…` (or pull the initial/final settings back out of a `.log` with `File > Load settings from log…`).
+
 * There is a `Record Dream Report` button that will start to record from whatever external recording device is selected from the SMACC menubar. There is also an option to have it pop open a website URL. I use this to open up a dream report survey I have set up on Qualtrics. If you want it to open something, update the `SURVEY_URL` variable in `config.py`. If planning to record dreams, choose sound device for recording audio from the menubar (`Audio > Input device > [choose device]`).
 
 ## Development

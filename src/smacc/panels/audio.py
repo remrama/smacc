@@ -326,7 +326,7 @@ class AudioCueWindow(ModalityWindow):
                 self.nowPlayingLabel.setText("■ stopped")
                 self.nowPlayingLabel.setStyleSheet("")
 
-    # ----- study state -------------------------------------------------------
+    # ----- settings state ----------------------------------------------------
 
     def gather_state(self) -> dict:
         return {
