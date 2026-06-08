@@ -11,14 +11,11 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 
 from smacc import bids, preferences, settings, winassoc
 
-from .config import (
-    COMMON_EVENT_CODES,
-    COMMON_EVENT_TIPS,
-    VERSION,
-)
-from .dialogs import SessionInfoDialog
+from .config import VERSION
+from .dialogs import EventCodesDialog, SessionInfoDialog
 from .panels.audio import AudioCueWindow
 from .panels.base import ModalityWindow
+from .panels.events import EventsWindow
 from .panels.intercom import IntercomWindow
 from .panels.noise import NoiseWindow
 from .panels.recording import RecordingWindow
@@ -50,6 +47,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # Modality windows, constructed up front (hidden) and opened on demand
         # from the launcher buttons. Each holds its own state for settings save/load.
         self.panels: dict[str, ModalityWindow] = {
+            "events": EventsWindow(self.session),
             "visual": VisualWindow(self.session),
             "audio": AudioCueWindow(self.session),
             "noise": NoiseWindow(self.session),
@@ -68,6 +66,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # initial state into the log header (also emits the "Opened SMACC" line).
         self.session.begin_log(self.gather_settings())
         self._maybe_prompt_association()
+        # Startup widget setup is done; from here on, log soft interactions.
+        self.session.log_interactions = True
 
     def show_error_popup(self, short_msg, long_msg=None):
         """Show an error dialog parented to this window (logs via the session)."""
@@ -86,12 +86,13 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self._build_menu_bar()
         self.statusBar().showMessage("Ready")
 
-        # 3x2 grid of panels; menu must be built first (the log-viewer panel
-        # syncs the preview handler to the Log preview menu checkboxes).
+        # Two columns: the launcher tools (with the lights toggle filling the
+        # bottom) and the log viewer. The menu is built first so the log-viewer
+        # panel can sync the preview handler to the Log preview menu checkboxes.
         central_layout = QtWidgets.QGridLayout()
         central_layout.addLayout(self._build_launcher_buttons(), 0, 0)
         central_layout.addLayout(self._build_log_viewer_section(), 0, 1)
-        central_layout.addLayout(self._build_events_section(), 1, 0, 1, 2)
+        central_layout.setColumnStretch(1, 1)  # the log viewer takes the extra width
         central_widget = QtWidgets.QWidget()
         central_widget.setContentsMargins(5, 5, 5, 5)
         central_widget.setLayout(central_layout)
@@ -125,6 +126,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
     # Modality windows openable from the launcher (key -> button label).
     PANEL_LABELS = {
+        "events": "Event logging",
         "visual": "Visual stimulation",
         "audio": "Audio cue",
         "noise": "Noise machine",
@@ -133,7 +135,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
     }
 
     def _build_launcher_buttons(self) -> QtWidgets.QLayout:
-        """Build the 'Open tools' column with a button per extracted panel."""
+        """Build the 'Open tools' column: panel launchers + the lights toggle.
+
+        The lights toggle sits at the bottom and expands to fill the column's
+        leftover height (so it lines up with the log viewer); it sends the lights
+        event marker and flips the dark theme.
+        """
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self._make_section_title("Open tools"))
         for key, label in self.PANEL_LABELS.items():
@@ -142,7 +149,24 @@ class SmaccWindow(QtWidgets.QMainWindow):
             button = QtWidgets.QPushButton(label, self)
             button.clicked.connect(partial(self._open_panel, key))
             layout.addWidget(button)
-        layout.addStretch(1)
+        layout.addSpacing(8)
+
+        # Connect the toggled signal only after setChecked so construction fires
+        # no marker. Expanding vertical policy + stretch fills the empty space.
+        self.lightswitchButton = QtWidgets.QPushButton(self)
+        self.lightswitchButton.setCheckable(True)
+        self.lightswitchButton.setShortcut("L")  # still toggles with L
+        self.lightswitchButton.setSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding
+        )
+        self.lightswitchButton.setMinimumHeight(64)
+        self.lightswitchButton.setStatusTip(
+            "Toggle lights off/on (sends the lights event marker and switches theme)"
+        )
+        self.lightswitchButton.setChecked(True)
+        self._refresh_lightswitch_label()
+        self.lightswitchButton.toggled.connect(self.on_lightswitch_toggled)
+        layout.addWidget(self.lightswitchButton, 1)
         return layout
 
     def _open_panel(self, key: str) -> None:
@@ -191,6 +215,13 @@ class SmaccWindow(QtWidgets.QMainWindow):
         )
         sessionInfoAction.triggered.connect(self.session_info)
 
+        eventCodesAction = QtWidgets.QAction("&Event codes…", self)
+        eventCodesAction.setStatusTip(
+            "View/edit event-marker port codes and what's logged vs. triggered."
+        )
+        eventCodesAction.triggered.connect(self.edit_event_codes)
+        self._event_codes_action = eventCodesAction
+
         exportEventsAction = QtWidgets.QAction("&Export events (BIDS)…", self)
         exportEventsAction.setStatusTip(
             "Export this session's events log as a BIDS events.tsv."
@@ -228,6 +259,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         fileMenu.addAction(loadSettingsFromLogAction)
         fileMenu.addSeparator()
         fileMenu.addAction(sessionInfoAction)
+        fileMenu.addAction(eventCodesAction)
         # File -> Surveys: open any saved survey standalone (not tied to a dream
         # report). Rebuilt each time it opens, since the saved list changes as
         # surveys are added/edited/removed.
@@ -278,46 +310,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         manageAction = menu.addAction("Manage surveys…")
         manageAction.triggered.connect(recording.manage_surveys)
 
-    def _build_events_section(self) -> QtWidgets.QLayout:
-        """Build the event-marker grid (lightswitch + common event buttons)."""
-        eventmarkertitleLabel = self._make_section_title("Event logging")
-
-        # Lights toggle: a single switch replacing the two lights event buttons.
-        # It sends the lights marker and flips the dark theme. Connect the
-        # toggled signal only after setChecked so construction fires no marker.
-        self.lightswitchButton = QtWidgets.QPushButton(self)
-        self.lightswitchButton.setCheckable(True)
-        self.lightswitchButton.setShortcut("L")
-        self.lightswitchButton.setMinimumHeight(48)
-        self.lightswitchButton.setStatusTip(
-            "Toggle lights off/on (sends the lights event marker and switches theme)"
-        )
-        self.lightswitchButton.setChecked(True)
-        self._refresh_lightswitch_label()
-        self.lightswitchButton.toggled.connect(self.on_lightswitch_toggled)
-
-        eventsLayout = QtWidgets.QGridLayout()
-        eventsLayout.addWidget(eventmarkertitleLabel, 0, 0, 1, 2)
-        eventsLayout.addWidget(self.lightswitchButton, 1, 0, 1, 2)
-        n_events = len(COMMON_EVENT_TIPS)
-        for i, (event, tip) in enumerate(COMMON_EVENT_TIPS.items()):
-            shortcut = str(i + 1)
-            label = f"{event} ({shortcut})"
-            button = QtWidgets.QPushButton(label, self)
-            button.setStatusTip(tip)
-            button.setShortcut(shortcut)
-            # button.setCheckable(False)
-            if event == "Note":
-                button.clicked.connect(self.open_note_marker_dialogue)
-            else:
-                button.clicked.connect(self.handle_event_button)
-            row = 2 + i
-            if i >= (halfsize := int(n_events / 2)):
-                row -= halfsize
-            col = 1 if i >= halfsize else 0
-            eventsLayout.addWidget(button, row, col)
-        return eventsLayout
-
     def _build_log_viewer_section(self) -> QtWidgets.QLayout:
         """Build the log-viewer panel and attach the preview log handler."""
         logviewertitleLabel = self._make_section_title("Log viewer")
@@ -366,12 +358,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # win.setGeometry(200, 150, 100, 40)
         win.exec()
 
-    def handle_event_button(self):
-        sender = self.sender()
-        text = sender.text().split("(")[0].strip()
-        code = COMMON_EVENT_CODES[text]
-        self.session.send_event_marker(code, text)
-
     def on_lightswitch_toggled(self, checked: bool) -> None:
         """Handle a user toggle of the lightswitch (``checked`` == lights on)."""
         self.set_lights(checked, send_marker=True)
@@ -386,24 +372,25 @@ class SmaccWindow(QtWidgets.QMainWindow):
         self._refresh_lightswitch_label()
         self.apply_theme(dark=not lights_on)
         if send_marker:
-            name = "Lights on" if lights_on else "Lights off"
-            self.session.send_event_marker(COMMON_EVENT_CODES[name], name)
+            self.session.emit_event("LightsOn" if lights_on else "LightsOff")
 
     def _refresh_lightswitch_label(self) -> None:
-        """Sync the lightswitch text/style to the current state."""
+        """Sync the lightswitch text/style to the current state.
+
+        Three centered lines — state, a sun/moon glyph, and the action — to suit
+        the narrow single-column button.
+        """
         if self.lights_on:
-            self.lightswitchButton.setText(
-                "\U0001f4a1 Lights ON  (L) — click to turn OFF"
-            )
+            self.lightswitchButton.setText("Lights are ON\n☀️\nclick to turn OFF")
             self.lightswitchButton.setStyleSheet(
-                "font: bold 14pt; padding: 8px; background-color: #f0d000; color: black;"
+                "font: bold 13pt; padding: 8px; background-color: #f0d000; color: black;"
             )
         else:
             self.lightswitchButton.setText(
-                "\U0001f319 Lights OFF  (L) — click to turn ON"
+                "Lights are OFF\n\U0001f319\nclick to turn ON"
             )
             self.lightswitchButton.setStyleSheet(
-                "font: bold 14pt; padding: 8px; background-color: #303030; color: #dddddd;"
+                "font: bold 13pt; padding: 8px; background-color: #303030; color: #dddddd;"
             )
 
     def apply_theme(self, dark: bool) -> None:
@@ -452,12 +439,36 @@ class SmaccWindow(QtWidgets.QMainWindow):
         state: dict = {}
         for panel in self.panels.values():
             state.update(panel.gather_state())
+        # The event-code registry isn't a panel; persist it at the window level.
+        state["event_codes"] = self.session.event_codes_as_list()
+        state["event_code_safe_max"] = self.session.event_code_safe_max
         return state
 
     def apply_settings(self, state: dict) -> None:
-        """Apply a settings ``state`` dict to every panel (each reads its own keys)."""
-        for panel in self.panels.values():
-            panel.apply_state(state)
+        """Apply a settings ``state`` dict to every panel (each reads its own keys).
+
+        Soft interaction logging is suppressed while panels reload their widgets,
+        so a study load doesn't spam the log with volume/color/device lines.
+        """
+        was_logging = self.session.log_interactions
+        self.session.log_interactions = False
+        try:
+            for panel in self.panels.values():
+                panel.apply_state(state)
+            # Apply the study's event-code registry (or defaults for a pre-v4
+            # study with no event_codes) to the live session.
+            self.session.set_event_codes(
+                state.get("event_codes"), state.get("event_code_safe_max")
+            )
+            self._rebuild_events_panel()  # a loaded study may add/remove buttons
+        finally:
+            self.session.log_interactions = was_logging
+
+    def _rebuild_events_panel(self) -> None:
+        """Rebuild the Event logging panel's buttons after the registry changes."""
+        panel = self.panels.get("events")
+        if isinstance(panel, EventsWindow):
+            panel.rebuild()
 
     # ----- preferences / launch-file / file association ----------------------
 
@@ -483,12 +494,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
             action.blockSignals(False)
         self._update_preview_levels()
 
-        # Lights/theme startup state (no event marker; keep the switch in sync).
-        lights_on = bool(prefs["lights_on"])
+        # Lights always start ON each launch — the dark theme is per-session
+        # state, not a saved preference. Keep the switch in sync, fire no marker.
         self.lightswitchButton.blockSignals(True)
-        self.lightswitchButton.setChecked(lights_on)
+        self.lightswitchButton.setChecked(True)
         self.lightswitchButton.blockSignals(False)
-        self.set_lights(lights_on, send_marker=False)
+        self.set_lights(True, send_marker=False)
 
         self._restore_geometry(prefs.get("window") or {})
 
@@ -518,7 +529,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         prefs.update(
             {
                 "always_on_top": self._always_on_top_action.isChecked(),
-                "lights_on": self.lights_on,
                 "preview_levels": preferences.levels_to_names(checked),
                 "window": {
                     "x": self.x(),
@@ -690,6 +700,56 @@ class SmaccWindow(QtWidgets.QMainWindow):
             meta["notes"] = notes
             self.session.log_info_msg("Updated session metadata")
 
+    def edit_event_codes(self) -> None:
+        """Open the event-code editor; apply edits live and log every change.
+
+        The editor stays available throughout a session (there's no reliable
+        lock point yet), so each change is logged loudly (WARNING) to keep the
+        code map traceable for the session even if it changes mid-study.
+        """
+        before = {e.key: e for e in self.session.events.values()}
+        dialog = EventCodesDialog(
+            list(self.session.events.values()),
+            self.session.event_code_safe_max,
+            parent=self,
+        )
+        if not dialog.exec():
+            return
+        new_events = dialog.get_events()
+        safe_max = dialog.get_safe_max()
+        new_by_key = {e.key: e for e in new_events}
+        for event in new_events:
+            old = before.get(event.key)
+            if old is None:
+                self.session.logger.warning(
+                    f"Event added: {event.label} (code {event.code})"
+                )
+                continue
+            changes = []
+            if old.code != event.code:
+                changes.append(f"code {old.code}->{event.code}")
+            if old.trigger != event.trigger:
+                changes.append(f"trigger {'on' if event.trigger else 'off'}")
+            if old.preview != event.preview:
+                changes.append(f"preview {'on' if event.preview else 'off'}")
+            if old.increment != event.increment:
+                changes.append(f"increment {'on' if event.increment else 'off'}")
+            if changes:
+                self.session.logger.warning(
+                    f"Port code changed: {event.label} ({', '.join(changes)})"
+                )
+        for key, old in before.items():
+            if key not in new_by_key:
+                self.session.logger.warning(f"Event removed: {old.label}")
+        if safe_max != self.session.event_code_safe_max:
+            self.session.logger.warning(
+                f"Event-code safe max changed: "
+                f"{self.session.event_code_safe_max} -> {safe_max}"
+            )
+        self.session.events = new_by_key
+        self.session.event_code_safe_max = safe_max
+        self._rebuild_events_panel()
+
     def export_events_bids(self) -> None:
         """Convert this session's log to a BIDS events.tsv (+ JSON sidecar)."""
         if not self.session.log_path.is_file():
@@ -740,17 +800,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
             self.show_error_popup("Could not export events.", str(exc))
             return
         self.session.log_info_msg(f"Exported {len(events)} events to {out_path}")
-
-    @QtCore.pyqtSlot()
-    def open_note_marker_dialogue(self):
-        text, ok = QtWidgets.QInputDialog.getText(
-            self, "Text Input Dialog", "Custom note (no commas):"
-        )
-        # self.subject_id.setValidator(QtGui.QIntValidator(0, 999)) # must be a 3-digit number
-        if ok:  # True of OK button was hit, False otherwise (cancel button)
-            portcode = self.session.portcodes["Note"]
-            port_msg = f"Note [{text}]"
-            self.session.send_event_marker(portcode, port_msg)
 
     def closeEvent(self, event):
         """customize exit.

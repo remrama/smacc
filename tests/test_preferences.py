@@ -35,7 +35,12 @@ def test_partial_file_merges_over_defaults(tmp_path):
     preferences.save_preferences(path, {"always_on_top": True})
     prefs = preferences.load_preferences(path)
     assert prefs["always_on_top"] is True  # from file
-    assert prefs["lights_on"] is True  # default still present
+    assert prefs["preview_levels"] == [
+        "INFO",
+        "WARNING",
+        "ERROR",
+        "CRITICAL",
+    ]  # default
     assert "association_prompted" in prefs  # every default key present
 
 

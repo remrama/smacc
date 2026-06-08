@@ -34,6 +34,24 @@ def test_empty_log_yields_no_events():
     assert bids.log_to_events("") == []
 
 
+INCREMENT_LOG = """2026-06-05 22:00:00.000, INFO, Opened SMACC v0.0.7
+2026-06-05 22:01:00.000, INFO, Noise volume set to 0.30
+2026-06-05 22:02:00.000, INFO, Dream report started - portcode 201
+2026-06-05 22:05:00.000, INFO, Dream report stopped - portcode 200
+2026-06-05 22:40:00.000, INFO, Dream report started - portcode 202
+2026-06-05 22:43:00.000, INFO, Dream report stopped - portcode 200
+"""
+
+
+def test_incrementing_dream_codes_and_soft_logs():
+    events = bids.log_to_events(INCREMENT_LOG)
+    # The soft "Noise volume set to" line has no portcode, so it's not an event.
+    assert len(events) == 4  # 2 starts + 2 stops only
+    assert all("set to" not in e["trial_type"] for e in events)
+    started = [e["value"] for e in events if e["trial_type"] == "Dream report started"]
+    assert started == [201, 202]  # distinct, incrementing codes per report
+
+
 def test_write_events_tsv_round_trip(tmp_path):
     events = bids.log_to_events(SAMPLE_LOG)
     path = tmp_path / "sub-001_ses-001_events.tsv"

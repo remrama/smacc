@@ -27,8 +27,52 @@ survey on its own from **File &rsaquo; Surveys** (each open is logged as a
 
 ## EEG portcodes
 
-SMACC can trigger EEG portcodes to mark events in your recording, keeping cue
-delivery and your neural data in sync.
+SMACC marks experiment events — a cue played, a dream report, observed REM, the
+lights toggled — by sending a numeric **portcode** to its marker stream and writing a
+matching line to the session log, keeping cue delivery and your neural data in sync.
+
+### Configuring codes
+
+Open **File &rsaquo; Event codes…** to see every event in one table. For each event you
+can set:
+
+- **Code** — the 8-bit portcode (1–255) sent when the event triggers.
+- **Trigger** — whether the event is sent to the marker stream at all.
+- **Preview** — whether the event shows in the live log viewer. The session log
+  *file* always records every event regardless; this only controls the on-screen
+  preview.
+- **Increment** — give an event a unique, increasing code on each firing (e.g. **dream
+  reports**: 201, 202, 203, …) so individual occurrences are findable in the trigger
+  channel. Off uses one fixed code each time.
+
+**Safe max code** raises a soft warning for codes above it — handy when your trigger
+hardware only accepts a limited range (some older systems do). Codes must be unique
+among triggered events and within 1–255; the editor blocks anything else.
+
+**Custom events.** Use **Add event…** to create your own button events (a label and a
+code); they appear in the **Event logging** panel alongside the built-ins and can be
+removed again with **Remove**. Built-in events can be retuned but not removed or renamed.
+
+The editor stays available throughout a session. If you change a code mid-study, the
+change is written to the log with a timestamp, so the code-to-event mapping for that
+session is always recoverable.
+
+Beyond portcodes, SMACC logs the important interactions too — volume, color, device,
+and fade changes — as plain log lines (no portcode), so the session record is complete.
+
+### Event logging panel
+
+The manual event buttons (REM detected, Sleep onset, your custom events, …) live in the
+**Event logging** panel — open it from the launcher; the first nine buttons take the
+1–9 keyboard shortcuts while it's focused. The **Lights** toggle stays on the main
+window (it also flips the dark theme).
+
+### Where codes live
+
+Your codes are saved in the study `.smacc` file (so they travel with the study) and
+written into every session `.log` (both the initial and final settings blocks), so any
+session is self-documenting: you can decode its markers later even if the codes changed
+mid-study.
 
 ## Event log
 
@@ -38,8 +82,8 @@ Every run writes a detailed `.log` to its own timestamped folder under
 ## Study config (`.smacc`)
 
 A **study** captures your reusable setup — cue files, volumes, noise, BlinkStick
-color, survey presets — in a single portable `.smacc` file (plain YAML you can read
-and edit). Save it with **File &rsaquo; Export study (.smacc)…** and reload it with
+color, survey presets, event codes — in a single portable `.smacc` file (plain YAML you
+can read and edit). Save it with **File &rsaquo; Export study (.smacc)…** and reload it with
 **File &rsaquo; Load study (.smacc)…**. You can also pull the initial or final setup
 back out of a session `.log` with **File &rsaquo; Load study from log…**.
 

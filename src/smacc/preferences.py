@@ -1,6 +1,6 @@
 """Persist and restore operator/machine preferences as ``preferences.yaml``.
 
-Preferences are the *operator/machine* layer — window geometry, theme, always-on-top,
+Preferences are the *operator/machine* layer — window geometry, always-on-top, and
 which log levels show in the preview pane — distinct from a portable study config
 (:mod:`smacc.settings`) and from a per-run session record. They are auto-loaded at
 startup and saved on quit, and must never break the app: a missing or corrupt file
@@ -23,7 +23,8 @@ SCHEMA_VERSION = 1
 # file's keys over a copy of this, so older/partial files still yield every key.
 DEFAULTS: dict[str, Any] = {
     "always_on_top": False,
-    "lights_on": True,
+    # Lights state is intentionally NOT persisted: SMACC always opens with lights
+    # on (the dark theme is per-session, not a saved preference).
     "preview_levels": ["INFO", "WARNING", "ERROR", "CRITICAL"],  # names, not ints
     "window": {"x": None, "y": None, "w": 640, "h": 560},
     "association_prompted": False,

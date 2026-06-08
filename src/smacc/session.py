@@ -16,8 +16,8 @@ from pathlib import Path
 from pylsl import StreamInfo, StreamOutlet
 from PyQt5 import QtWidgets
 
-from . import bids, settings
-from .config import PPORT_ADDRESS, PPORT_CODES, VERSION
+from . import bids, events, settings
+from .config import PPORT_ADDRESS, VERSION
 from .paths import sessions_directory
 
 
@@ -57,7 +57,16 @@ class SmaccSession:
         self.stem = self.session_dir.name
         self.log_path = self.session_dir / f"{self.stem}.log"
         self.pport_address = PPORT_ADDRESS
-        self.portcodes = PPORT_CODES
+        # The live event-marker registry (codes + routing flags), keyed by event
+        # key. Defaults here; a loaded study overrides them via set_event_codes().
+        self.events = {e.key: e for e in events.default_events()}
+        self.event_code_safe_max = events.DEFAULT_SAFE_MAX
+        # Per-event firing counts so an incrementing event advances its code.
+        self._event_counts: dict[str, int] = {}
+        # Soft interaction logs (volume/color/device/…) are gated off until the
+        # main window finishes startup, so construction and study loads don't
+        # spam the log; the window flips this on afterwards.
+        self.log_interactions = False
         self.init_logger()
         self.init_lsl_stream()
 
@@ -87,6 +96,8 @@ class SmaccSession:
         """
         self._append_settings_block(settings_state, "initial")
         self.log_info_msg("Opened SMACC v" + VERSION)
+        # Optional connection-test marker; a no-op unless a study enables it.
+        self.emit_event("TriggerInitialization")
 
     def end_log(self, settings_state: dict) -> None:
         """Append the final settings (post-edits) as the log's tail, at quit."""
@@ -112,14 +123,61 @@ class SmaccSession:
         self.info = StreamInfo("MyMarkerStream", "Markers", 1, 0, "string", stream_id)
         self.outlet = StreamOutlet(self.info)
 
-    def send_event_marker(self, portcode: int, port_msg: str) -> None:
-        """Push an LSL marker and log it to the file + preview."""
-        self.outlet.push_sample([str(portcode)])
-        self.log_info_msg(f"{port_msg} - portcode {portcode}")
+    def emit_event(self, key: str, detail: str | None = None) -> None:
+        """Route a registry event: send its marker (if triggered) and log it.
+
+        ``detail`` appends a free-text suffix to the log label (e.g. a cue name).
+        Every event is written to the log file; the event's ``preview`` flag (with
+        the level filter) controls whether it also shows in the live preview. An
+        ``increment`` event advances its code on each firing (by the per-key firing
+        count), so each occurrence is individually findable in the trigger channel.
+        """
+        event = self.events.get(key)
+        if event is None:
+            self.logger.warning(f"Unknown event {key!r}; nothing emitted.")
+            return
+        self._event_counts[key] = self._event_counts.get(key, 0) + 1
+        ordinal = self._event_counts[key]
+        code = events.runtime_code(event, ordinal)
+        if event.increment and event.code + (ordinal - 1) > events.CODE_MAX:
+            self.logger.warning(
+                f"{event.label}: code band exhausted (>{events.CODE_MAX}); "
+                f"reusing {code}."
+            )
+        label = f"{event.label}: {detail}" if detail else event.label
+        line = f"{label} - portcode {code}" if event.trigger else label
+        if event.trigger:
+            self.outlet.push_sample([str(code)])
+        # Every event is written to the log file; the preview flag (+ level filter)
+        # gates whether it also appears in the live log viewer.
+        self.logger.info(line, extra={"smacc_preview": event.preview})
+
+    def set_event_codes(self, event_codes, safe_max: int | None = None) -> None:
+        """Replace the live registry from a loaded/edited list of code overrides."""
+        self.events = {e.key: e for e in events.merge_event_codes(event_codes)}
+        if safe_max is not None:
+            try:
+                self.event_code_safe_max = int(safe_max)
+            except (TypeError, ValueError):
+                self.event_code_safe_max = events.DEFAULT_SAFE_MAX
+
+    def event_codes_as_list(self) -> list[dict]:
+        """Return the current registry as the compact list persisted in a study."""
+        return events.events_to_list(self.events.values())
 
     def log_info_msg(self, msg: str) -> None:
         """Log an INFO message (always to file; to the preview if INFO is on)."""
         self.logger.info(msg)
+
+    def log_interaction(self, msg: str) -> None:
+        """Log a soft interaction (volume/color/device/…) once the session is live.
+
+        Gated by ``log_interactions`` so the programmatic widget setup that runs
+        during construction or a study load doesn't spam the log; the main window
+        flips the gate on after startup. These lines never carry a portcode.
+        """
+        if self.log_interactions:
+            self.log_info_msg(msg)
 
     def show_error_popup(self, short_msg, long_msg=None, parent=None) -> None:
         """Record an error in the log and show a dialog (parented if given)."""

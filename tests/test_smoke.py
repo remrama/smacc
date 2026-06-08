@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import smacc
-from smacc import config
+from smacc import config, events
 
 
 def test_package_exposes_version():
@@ -16,7 +16,8 @@ def test_config_version_is_single_sourced():
     assert config.VERSION == smacc.__version__
 
 
-def test_portcodes_are_unique_ints():
-    codes = list(config.PPORT_CODES.values())
+def test_default_event_codes_are_unique_ints():
+    codes = [e.code for e in events.default_events()]
     assert all(isinstance(code, int) for code in codes)
-    assert len(codes) == len(set(codes))
+    triggered = [e.code for e in events.default_events() if e.trigger]
+    assert len(triggered) == len(set(triggered))  # no triggered-code collisions

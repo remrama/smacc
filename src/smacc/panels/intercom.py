@@ -94,13 +94,9 @@ class IntercomWindow(ModalityWindow):
             if not self._start_intercom_streams(output_device):
                 self.intercomButton.setChecked(False)
                 return
-            self.session.send_event_marker(
-                self.session.portcodes["IntercomStarted"], "Intercom unmuted (talking)"
-            )
+            self.session.emit_event("IntercomStarted")
         elif self._stop_intercom_streams():
-            self.session.send_event_marker(
-                self.session.portcodes["IntercomStopped"], "Intercom remuted"
-            )
+            self.session.emit_event("IntercomStopped")
 
     def _start_intercom_streams(self, output_device: str | None) -> bool:
         """Build and start the mic/output streams; return True on success.
@@ -148,6 +144,9 @@ class IntercomWindow(ModalityWindow):
         record). A no-op when the intercom isn't running, which also covers the
         programmatic dropdown population in ``refresh_intercom_outputs``.
         """
+        self.session.log_interaction(
+            f"Intercom output set to {self.intercom_output_dropdown.currentText()}"
+        )
         if not self._stop_intercom_streams():
             return  # intercom not running; nothing to switch over
         output_device = self.intercom_output_dropdown.currentText() or None

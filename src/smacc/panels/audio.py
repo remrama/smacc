@@ -204,10 +204,12 @@ class AudioCueWindow(ModalityWindow):
     def update_cue_attack(self, value: float) -> None:
         """Set the shared cue fade-in (attack) time in seconds."""
         self.cue_attack_s = value
+        self.session.log_interaction(f"Cue fade-in set to {value:.1f}s")
 
     def update_cue_release(self, value: float) -> None:
         """Set the shared cue fade-out (release) time in seconds."""
         self.cue_release_s = value
+        self.session.log_interaction(f"Cue fade-out set to {value:.1f}s")
 
     def _fade_volume(
         self,
@@ -261,13 +263,22 @@ class AudioCueWindow(ModalityWindow):
 
     def update_slot_volume(self, index: int, value: float | None = None) -> None:
         """Set a slot player's volume (0-1) from its spinbox."""
-        self.slots[index].player.setVolume(self.slots[index].volumeSpinBox.value())
+        slot = self.slots[index]
+        vol = slot.volumeSpinBox.value()
+        slot.player.setVolume(vol)
+        self.session.log_interaction(
+            f"Cue '{slot.nameEdit.text()}' volume set to {vol:.2f}"
+        )
 
     def update_slot_loop(self, index: int, enabled: bool | None = None) -> None:
         """Set a slot player's loop count from its checkbox."""
-        looping = self.slots[index].loopCheckBox.isChecked()
+        slot = self.slots[index]
+        looping = slot.loopCheckBox.isChecked()
         count = QtMultimedia.QSoundEffect.Infinite if looping else 1
-        self.slots[index].player.setLoopCount(count)
+        slot.player.setLoopCount(count)
+        self.session.log_interaction(
+            f"Cue '{slot.nameEdit.text()}' loop {'on' if looping else 'off'}"
+        )
 
     def play_slot(self, index: int) -> None:
         """Play one slot (stopping any other playing slot first) with fade-in."""
@@ -286,9 +297,7 @@ class AudioCueWindow(ModalityWindow):
         else:
             slot.player.setVolume(target)
             slot.player.play()
-        self.session.send_event_marker(
-            self.session.portcodes["CueStarted"], f"Cue started: {slot.nameEdit.text()}"
-        )
+        self.session.emit_event("CueStarted", detail=slot.nameEdit.text())
 
     def stop_slot(self, index: int) -> None:
         """Stop a slot (with fade-out) if it is the one currently playing."""
@@ -323,10 +332,7 @@ class AudioCueWindow(ModalityWindow):
             self.nowPlayingLabel.setStyleSheet("color: red; font-weight: bold;")
         elif not playing and slot.was_playing:
             slot.was_playing = False
-            self.session.send_event_marker(
-                self.session.portcodes["CueStopped"],
-                f"Cue stopped: {slot.nameEdit.text()}",
-            )
+            self.session.emit_event("CueStopped", detail=slot.nameEdit.text())
             if self._playing_index == index:
                 self._playing_index = None
                 self.nowPlayingLabel.setText("■ stopped")

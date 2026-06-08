@@ -91,7 +91,11 @@ def events_sidecar() -> dict[str, Any]:
             "Units": "second",
         },
         "trial_type": {"Description": "Event label as logged by SMACC."},
-        "value": {"Description": "SMACC portcode / LSL marker value."},
+        "value": {
+            "Description": "SMACC event-marker port code. The full code-to-event "
+            "map for the session is recorded in its .log settings block "
+            "(under event_codes)."
+        },
     }
 
 

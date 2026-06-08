@@ -106,6 +106,7 @@ class VisualWindow(ModalityWindow):
         # Keep the color picker's swatch in sync (once the button exists).
         if hasattr(self, "colorpickerButton"):
             self._update_color_swatch()
+        self.session.log_interaction(f"Blink color set to {self.bstick_hexcode}")
 
     def _update_color_swatch(self) -> None:
         """Show the currently selected blink color on the color picker button."""
@@ -139,8 +140,9 @@ class VisualWindow(ModalityWindow):
             self.set_blink_color(r, g, b)
 
     def handle_freq_change(self, freq: float) -> None:
-        """Takes frequency as a float, coming from user selection. In Hz."""
+        """Takes the blink length in seconds from the spinbox."""
         self.bstick_blink_freq = freq
+        self.session.log_interaction(f"Blink length set to {freq:.1f}s")
 
     def stimulate_visual(self):
         if not self._ensure_blinkstick():
@@ -149,6 +151,7 @@ class VisualWindow(ModalityWindow):
 
         black = [0, 0, 0] * 32
         freq = self.bstick_blink_freq
+        self.session.emit_event("VisualStarted")
         self.bstick.set_led_data(channel=0, data=self.bstick_led_data)
         sleep(freq)
         self.bstick.set_led_data(channel=0, data=black)
