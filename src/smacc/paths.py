@@ -26,3 +26,6 @@ cues_directory = data_directory / "cues"
 sessions_directory = data_directory / "sessions"
 cues_directory.mkdir(exist_ok=True)
 sessions_directory.mkdir(exist_ok=True)
+
+# Operator/machine preferences (window/theme/log-preview), auto-managed by the app.
+preferences_path = data_directory / "preferences.yaml"
