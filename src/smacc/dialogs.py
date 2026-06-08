@@ -1,7 +1,6 @@
 """Dialogs shown by SMACC outside the main window."""
 
 from dataclasses import replace
-from functools import partial
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
@@ -195,12 +194,12 @@ class ManageSurveysDialog(QtWidgets.QDialog):
 class EventCodesDialog(QtWidgets.QDialog):
     """View and edit the event-marker registry: codes and per-event routing.
 
-    One row per event shows its (editable) port code plus two checkboxes —
-    Trigger (send to the marker stream) and Log (write to the session log) — and
-    an Increment toggle for events that support it (the dream-report start). A
-    triggered event is always logged, so Log is forced on and disabled while
-    Trigger is checked. Codes are unique 8-bit values (1-255); a soft "safe max"
-    flags values that older trigger hardware may not accept.
+    One row per event shows its (editable) port code plus two independent
+    checkboxes — Trigger (send to the marker stream) and Preview (show in the live
+    log viewer) — and an Increment toggle (advance the code on each firing). The
+    log *file* always records every event regardless of Preview. Codes are unique
+    8-bit values (1-255); a soft "safe max" flags values older trigger hardware may
+    not accept.
 
     The dialog edits copies; the caller reads :meth:`get_events` /
     :meth:`get_safe_max` only when the dialog is accepted.
@@ -215,15 +214,26 @@ class EventCodesDialog(QtWidgets.QDialog):
 
         self.table = QtWidgets.QTableWidget(len(self._events), 5, self)
         self.table.setHorizontalHeaderLabels(
-            ["Event", "Code", "Trigger", "Log", "Increment"]
+            ["Event", "Code", "Trigger", "Preview", "Increment"]
         )
+        for col, tip in (
+            (2, "Send this event's code to the marker stream (EEG)."),
+            (
+                3,
+                "Show this event in the live log viewer (the log file always records it).",
+            ),
+            (4, "Advance the code on each firing (e.g. dream reports: 201, 202, …)."),
+        ):
+            header_item = self.table.horizontalHeaderItem(col)
+            if header_item is not None:
+                header_item.setToolTip(tip)
         self.table.verticalHeader().setVisible(False)
         self.table.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
         self.table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
 
         self._code_spins: list[QtWidgets.QSpinBox] = []
         self._trigger_boxes: list[QtWidgets.QCheckBox] = []
-        self._log_boxes: list[QtWidgets.QCheckBox] = []
+        self._preview_boxes: list[QtWidgets.QCheckBox] = []
         self._increment_boxes: list[QtWidgets.QCheckBox] = []
         for row, event in enumerate(self._events):
             label_item = QtWidgets.QTableWidgetItem(event.label)
@@ -239,18 +249,14 @@ class EventCodesDialog(QtWidgets.QDialog):
             self._code_spins.append(code_spin)
 
             trig_cell, trig_box = self._checkbox_cell(event.trigger)
-            log_cell, log_box = self._checkbox_cell(event.log)
+            preview_cell, preview_box = self._checkbox_cell(event.preview)
             inc_cell, inc_box = self._checkbox_cell(event.increment)
-            inc_box.setEnabled(event.key in events.INCREMENTABLE_KEYS)
             self.table.setCellWidget(row, 2, trig_cell)
-            self.table.setCellWidget(row, 3, log_cell)
+            self.table.setCellWidget(row, 3, preview_cell)
             self.table.setCellWidget(row, 4, inc_cell)
             self._trigger_boxes.append(trig_box)
-            self._log_boxes.append(log_box)
+            self._preview_boxes.append(preview_box)
             self._increment_boxes.append(inc_box)
-            # A triggered event is always logged (keep markers traceable).
-            trig_box.toggled.connect(partial(self._sync_log_enabled, log_box))
-            self._sync_log_enabled(log_box, trig_box.isChecked())
 
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
@@ -277,7 +283,7 @@ class EventCodesDialog(QtWidgets.QDialog):
 
         hint = QtWidgets.QLabel(
             "Codes are 8-bit (1-255) and must be unique among triggered events. "
-            "A triggered event is always logged."
+            "The log file records every event; Preview only controls the live viewer."
         )
         hint.setWordWrap(True)
         layout = QtWidgets.QVBoxLayout(self)
@@ -298,23 +304,14 @@ class EventCodesDialog(QtWidgets.QDialog):
         lay.setContentsMargins(0, 0, 0, 0)
         return container, box
 
-    @staticmethod
-    def _sync_log_enabled(log_box: QtWidgets.QCheckBox, triggered: bool) -> None:
-        """Force Log on+disabled while Trigger is checked; free it otherwise."""
-        if triggered:
-            log_box.setChecked(True)
-            log_box.setEnabled(False)
-        else:
-            log_box.setEnabled(True)
-
     def get_events(self) -> list:
         """Return the edits as new EventDef objects (the originals are untouched)."""
         out = []
-        for event, code_spin, trig, log, inc in zip(
+        for event, code_spin, trig, preview, inc in zip(
             self._events,
             self._code_spins,
             self._trigger_boxes,
-            self._log_boxes,
+            self._preview_boxes,
             self._increment_boxes,
             strict=True,
         ):
@@ -323,7 +320,7 @@ class EventCodesDialog(QtWidgets.QDialog):
                     event,
                     code=code_spin.value(),
                     trigger=trig.isChecked(),
-                    log=log.isChecked(),
+                    preview=preview.isChecked(),
                     increment=inc.isChecked(),
                 )
             )

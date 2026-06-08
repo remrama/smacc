@@ -81,7 +81,7 @@ def test_merge_event_codes_coerces_types():
 def test_events_to_list_is_compact_and_round_trips():
     compact = events.events_to_list(events.default_events())
     assert all(
-        set(d) == {"key", "code", "trigger", "log", "increment"} for d in compact
+        set(d) == {"key", "code", "trigger", "preview", "increment"} for d in compact
     )
     merged = {e.key: e for e in events.merge_event_codes(compact)}
     for e in events.default_events():

@@ -162,9 +162,9 @@ class RecordingWindow(ModalityWindow):
         if self.sender().isChecked():
             if survey_url := self.current_survey_url():
                 self.open_survey_url(survey_url, self.surveyComboBox.currentText())
-            # Each report's start increments its code (201, 202, …) when the
-            # registry's increment flag is on, so reports are individually findable.
-            self.session.emit_event("DreamReportStarted", ordinal=self.n_report_counter)
+            # When the registry's increment flag is on, each start advances its
+            # code (201, 202, …) automatically, so reports are individually findable.
+            self.session.emit_event("DreamReportStarted")
         else:
             self.session.emit_event("DreamReportStopped")
 

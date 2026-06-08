@@ -38,12 +38,12 @@ can set:
 
 - **Code** — the 8-bit portcode (1–255) sent when the event triggers.
 - **Trigger** — whether the event is sent to the marker stream at all.
-- **Log** — whether the event is written to the session log. A *triggered* event is
-  always logged (so a sent marker is never untraceable), so this only matters for
-  events you don't trigger.
-- **Increment** — for **dream reports**, give each report a unique, increasing code
-  (201, 202, 203, …) so individual reports are findable in the trigger channel. Turn
-  it off to use one fixed code for every report.
+- **Preview** — whether the event shows in the live log viewer. The session log
+  *file* always records every event regardless; this only controls the on-screen
+  preview.
+- **Increment** — give an event a unique, increasing code on each firing (e.g. **dream
+  reports**: 201, 202, 203, …) so individual occurrences are findable in the trigger
+  channel. Off uses one fixed code each time.
 
 **Safe max code** raises a soft warning for codes above it — handy when your trigger
 hardware only accepts a limited range (some older systems do). Codes must be unique

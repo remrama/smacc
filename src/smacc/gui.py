@@ -740,8 +740,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
                 changes.append(f"code {old.code}->{event.code}")
             if old.trigger != event.trigger:
                 changes.append(f"trigger {'on' if event.trigger else 'off'}")
-            if old.log != event.log:
-                changes.append(f"log {'on' if event.log else 'off'}")
+            if old.preview != event.preview:
+                changes.append(f"preview {'on' if event.preview else 'off'}")
             if old.increment != event.increment:
                 changes.append(f"increment {'on' if event.increment else 'off'}")
             if changes:

@@ -61,6 +61,8 @@ class SmaccSession:
         # key. Defaults here; a loaded study overrides them via set_event_codes().
         self.events = {e.key: e for e in events.default_events()}
         self.event_code_safe_max = events.DEFAULT_SAFE_MAX
+        # Per-event firing counts so an incrementing event advances its code.
+        self._event_counts: dict[str, int] = {}
         # Soft interaction logs (volume/color/device/…) are gated off until the
         # main window finishes startup, so construction and study loads don't
         # spam the log; the window flips this on afterwards.
@@ -121,33 +123,34 @@ class SmaccSession:
         self.info = StreamInfo("MyMarkerStream", "Markers", 1, 0, "string", stream_id)
         self.outlet = StreamOutlet(self.info)
 
-    def emit_event(
-        self, key: str, detail: str | None = None, ordinal: int | None = None
-    ) -> None:
-        """Route a registry event: push its marker and/or log it per its flags.
+    def emit_event(self, key: str, detail: str | None = None) -> None:
+        """Route a registry event: send its marker (if triggered) and log it.
 
         ``detail`` appends a free-text suffix to the log label (e.g. a cue name).
-        ``ordinal`` is the 1-based firing count for incrementing events (dream
-        reports). A *triggered* event is always logged so the sent marker stays
-        traceable; a non-triggered event is logged only when its ``log`` flag is
-        on (and never carries a portcode).
+        Every event is written to the log file; the event's ``preview`` flag (with
+        the level filter) controls whether it also shows in the live preview. An
+        ``increment`` event advances its code on each firing (by the per-key firing
+        count), so each occurrence is individually findable in the trigger channel.
         """
         event = self.events.get(key)
         if event is None:
             self.logger.warning(f"Unknown event {key!r}; nothing emitted.")
             return
+        self._event_counts[key] = self._event_counts.get(key, 0) + 1
+        ordinal = self._event_counts[key]
         code = events.runtime_code(event, ordinal)
-        if event.increment and ordinal and event.code + (ordinal - 1) > events.CODE_MAX:
+        if event.increment and event.code + (ordinal - 1) > events.CODE_MAX:
             self.logger.warning(
                 f"{event.label}: code band exhausted (>{events.CODE_MAX}); "
                 f"reusing {code}."
             )
         label = f"{event.label}: {detail}" if detail else event.label
+        line = f"{label} - portcode {code}" if event.trigger else label
         if event.trigger:
             self.outlet.push_sample([str(code)])
-            self.log_info_msg(f"{label} - portcode {code}")
-        elif event.log:
-            self.log_info_msg(label)
+        # Every event is written to the log file; the preview flag (+ level filter)
+        # gates whether it also appears in the live log viewer.
+        self.logger.info(line, extra={"smacc_preview": event.preview})
 
     def set_event_codes(self, event_codes, safe_max: int | None = None) -> None:
         """Replace the live registry from a loaded/edited list of code overrides."""

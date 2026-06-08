@@ -16,9 +16,11 @@ class QtLogHandler(logging.Handler):
 
     Which records appear is governed by ``enabled_levels`` (an explicit set of
     level numbers), driven by the File ▸ Log preview checkboxes so any subset of
-    levels can be shown. The file handler still receives every record. The widget
-    update is marshalled to the GUI thread via a Qt signal, so logging from a
-    non-GUI thread (e.g. the audio callback) is safe.
+    levels can be shown. A record may also opt out of the preview with a falsey
+    ``smacc_preview`` attribute (set per event in the Event codes editor); the file
+    handler still receives every record regardless. The widget update is marshalled
+    to the GUI thread via a Qt signal, so logging from a non-GUI thread (e.g. the
+    audio callback) is safe.
     """
 
     def __init__(self, list_widget: QtWidgets.QListWidget) -> None:
@@ -35,6 +37,9 @@ class QtLogHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord) -> None:
         if record.levelno not in self.enabled_levels:
+            return
+        # An event may be sent/logged to file but hidden from the live preview.
+        if not getattr(record, "smacc_preview", True):
             return
         try:
             msg = self.format(record)

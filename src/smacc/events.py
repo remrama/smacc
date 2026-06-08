@@ -10,14 +10,14 @@ Each :class:`EventDef` carries:
 
 * ``code`` — the 8-bit portcode (``1..255``) sent on a trigger.
 * ``trigger`` — whether to push the code to the marker stream.
-* ``log`` — whether to write a log line. A *triggered* event is always logged (a
-  sent marker must stay traceable), so this flag only matters when ``trigger`` is
-  off.
+* ``preview`` — whether the event shows in the live log preview. Everything is
+  written to the session log file regardless; this flag only gates the on-screen
+  viewer.
 * ``category`` — ``"manual"`` (the auto-built event-grid buttons), ``"control"``
   (panel/lightswitch driven), or ``"system"`` (startup/init; not shown in the grid).
-* ``increment`` — when set (the dream-report start), successive firings use an
-  increasing code (``code``, ``code + 1``, …) so each report is individually
-  findable in the trigger channel.
+* ``increment`` — when set, successive firings use an increasing code (``code``,
+  ``code + 1``, …) so each occurrence is individually findable in the trigger
+  channel (e.g. the dream-report start).
 
 Pure data and helpers, no Qt — directly unit-testable.
 """
@@ -34,10 +34,6 @@ CODE_MAX = 255
 # Default soft ceiling; a study can lower it to match older trigger hardware.
 DEFAULT_SAFE_MAX = 255
 
-# Only these events meaningfully take an ``ordinal`` at emit time, so only they
-# expose the "increment" toggle in the editor.
-INCREMENTABLE_KEYS = frozenset({"DreamReportStarted"})
-
 
 @dataclass
 class EventDef:
@@ -47,7 +43,7 @@ class EventDef:
     label: str
     code: int
     trigger: bool = True
-    log: bool = True
+    preview: bool = True
     category: str = "control"
     tooltip: str = ""
     increment: bool = False
@@ -55,7 +51,7 @@ class EventDef:
 
 # The fields a study may override (keyed by ``key``); labels/tooltips/categories
 # stay app-defined so improvements to them reach old studies on load.
-_PERSIST_FIELDS = ("key", "code", "trigger", "log", "increment")
+_PERSIST_FIELDS = ("key", "code", "trigger", "preview", "increment")
 _FIELD_NAMES = {f.name for f in fields(EventDef)}
 
 
@@ -141,7 +137,7 @@ def default_events() -> list[EventDef]:
             "SMACC initialized",
             100,
             trigger=False,
-            log=False,
+            preview=False,
             category="system",
             tooltip="Optional connection-test marker sent once at startup",
         ),
@@ -186,7 +182,7 @@ def merge_event_codes(loaded: Any) -> list[EventDef]:
                         value = int(value)
                     except (TypeError, ValueError):
                         continue
-                elif name in ("trigger", "log", "increment"):
+                elif name in ("trigger", "preview", "increment"):
                     value = bool(value)
                 overrides[name] = value
             defaults[key] = replace(defaults[key], **overrides)
