@@ -422,10 +422,38 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#settings-yaml" class="md-nav__link">
+  <a href="#study-config-smacc" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Settings (YAML)
+        Study config (.smacc)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Study config (.smacc)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#opening-a-study" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Opening a study
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#preferences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preferences
       
     </span>
   </a>
@@ -538,10 +566,38 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#settings-yaml" class="md-nav__link">
+  <a href="#study-config-smacc" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Settings (YAML)
+        Study config (.smacc)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Study config (.smacc)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#opening-a-study" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Opening a study
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#preferences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preferences
       
     </span>
   </a>
@@ -594,11 +650,26 @@ delivery and your neural data in sync.</p>
 <h2 id="event-log">Event log</h2>
 <p>Every run writes a detailed <code>.log</code> to its own timestamped folder under
 <code>~/SMACC/sessions/</code>, capturing the events and settings for that session.</p>
-<h2 id="settings-yaml">Settings (YAML)</h2>
-<p>Save the current setup with <strong>File &rsaquo; Export settings (YAML)…</strong> and reload
-it later with <strong>File &rsaquo; Load settings (YAML)…</strong>. You can also pull the
-initial/final settings back out of a <code>.log</code> with
-<strong>File &rsaquo; Load settings from log…</strong>.</p>
+<h2 id="study-config-smacc">Study config (<code>.smacc</code>)</h2>
+<p>A <strong>study</strong> captures your reusable setup — cue files, volumes, noise, BlinkStick
+color, survey presets — in a single portable <code>.smacc</code> file (plain YAML you can read
+and edit). Save it with <strong>File &rsaquo; Export study (.smacc)…</strong> and reload it with
+<strong>File &rsaquo; Load study (.smacc)…</strong>. You can also pull the initial or final setup
+back out of a session <code>.log</code> with <strong>File &rsaquo; Load study from log…</strong>.</p>
+<p>Cue/noise files are <em>referenced</em>, never copied. When a referenced sound sits in the
+same folder as the <code>.smacc</code> file, its path is stored <strong>relative</strong>, so a study folder
+(the <code>.smacc</code> plus its WAVs) stays valid if you move or share it. Sounds elsewhere
+(e.g. the shared <code>~/SMACC/cues</code>) are stored as absolute paths.</p>
+<h3 id="opening-a-study">Opening a study</h3>
+<p>On the Windows build you can <strong>double-click a <code>.smacc</code> file</strong> to launch SMACC with
+that study already loaded — the first launch offers to set up this association, and
+you can (re)enable it any time from <strong>File &rsaquo; Associate .smacc files
+(Windows)</strong>. From a terminal, <code>SMACC path/to/study.smacc</code> does the same.</p>
+<h2 id="preferences">Preferences</h2>
+<p>SMACC remembers operator/machine choices — window size and position, light/dark
+theme, always-on-top, and which log levels show in the preview — in
+<code>~/SMACC/preferences.yaml</code>, restored on the next launch. These are separate from a
+portable study; they stay with this machine.</p>
 
 
 
