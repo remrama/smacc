@@ -494,12 +494,12 @@ class SmaccWindow(QtWidgets.QMainWindow):
             action.blockSignals(False)
         self._update_preview_levels()
 
-        # Lights/theme startup state (no event marker; keep the switch in sync).
-        lights_on = bool(prefs["lights_on"])
+        # Lights always start ON each launch — the dark theme is per-session
+        # state, not a saved preference. Keep the switch in sync, fire no marker.
         self.lightswitchButton.blockSignals(True)
-        self.lightswitchButton.setChecked(lights_on)
+        self.lightswitchButton.setChecked(True)
         self.lightswitchButton.blockSignals(False)
-        self.set_lights(lights_on, send_marker=False)
+        self.set_lights(True, send_marker=False)
 
         self._restore_geometry(prefs.get("window") or {})
 
@@ -529,7 +529,6 @@ class SmaccWindow(QtWidgets.QMainWindow):
         prefs.update(
             {
                 "always_on_top": self._always_on_top_action.isChecked(),
-                "lights_on": self.lights_on,
                 "preview_levels": preferences.levels_to_names(checked),
                 "window": {
                     "x": self.x(),
