@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://remrama.github.io/smacc/dev/contributing/">
       
       
-        <link rel="prev" href="../usage/">
+        <link rel="prev" href="../devices/">
       
       
       
@@ -340,6 +340,33 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Devices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -602,6 +629,11 @@ window/taskbar icon, which SMACC resolves via <code>sys._MEIPASS</code>. On Wind
 <p>PyYAML (settings export/import) is pure Python and is picked up automatically by
 PyInstaller; if a frozen build ever fails to import <code>yaml</code>, add
 <code>--hidden-import yaml</code>.</p>
+<p>The <code>blinkstick</code> driver (BlinkStick visual cues) and its Windows backend
+<code>pywinusb</code> are pure Python and bundle the same way. PyInstaller may warn that
+<code>usb.core</code> is missing — that is BlinkStick's non-Windows backend, which SMACC
+never uses, so the warning is harmless. If a frozen build ever fails to import
+the driver, add <code>--hidden-import pywinusb</code>.</p>
 <p>Releases are built automatically: pushing a <code>v*</code> tag (e.g. <code>v0.0.7</code>) triggers the
 <a href="https://github.com/remrama/smacc/blob/main/.github/workflows/release.yaml">release workflow</a>,
 which builds <code>SMACC.exe</code> and attaches it to the GitHub Release.</p>
