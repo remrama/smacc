@@ -175,6 +175,7 @@ class NoiseWindow(ModalityWindow):
     def set_new_noisespeakers(self, text: str) -> None:
         """Text is the device name, with host api string appended to the end."""
         self.noiseplayer_device = text
+        self._restart_if_playing()  # switch a live stream over to the new device
 
     def refresh_available_noisespeakers(self):
         """Populate the noise device selection menu with available speakers."""

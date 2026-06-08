@@ -39,6 +39,10 @@ class IntercomWindow(ModalityWindow):
         )
         self.intercom_output_dropdown = intercom_output_dropdown
         self.refresh_intercom_outputs()
+        # Switch a live intercom over to a newly selected output device.
+        intercom_output_dropdown.currentTextChanged.connect(
+            self._on_intercom_device_changed
+        )
 
         intercomButton = QtWidgets.QPushButton("Intercom (talk)", self)
         intercomButton.setStatusTip(
@@ -87,34 +91,7 @@ class IntercomWindow(ModalityWindow):
         """
         if enabled:
             output_device = self.intercom_output_dropdown.currentText() or None
-            try:
-                in_rate = int(sd.query_devices(kind="input")["default_samplerate"])
-                out_info = (
-                    sd.query_devices(output_device, "output")
-                    if output_device
-                    else sd.query_devices(kind="output")
-                )
-                out_rate = int(out_info["default_samplerate"])
-                self._intercom_queue = queue.Queue(maxsize=32)
-                self._intercom_resampler = audio.LinearResampler(in_rate, out_rate)
-                self.intercom_input_stream = sd.InputStream(
-                    samplerate=in_rate,
-                    channels=1,
-                    callback=self._intercom_in_callback,
-                )
-                self.intercom_output_stream = sd.OutputStream(
-                    samplerate=out_rate,
-                    channels=1,
-                    device=output_device,
-                    callback=self._intercom_out_callback,
-                )
-                self.intercom_input_stream.start()
-                self.intercom_output_stream.start()
-            except Exception as exc:  # PortAudio errors, no device, etc.
-                self._stop_intercom_streams()
-                self.session.show_error_popup(
-                    "Could not start intercom.", str(exc), parent=self
-                )
+            if not self._start_intercom_streams(output_device):
                 self.intercomButton.setChecked(False)
                 return
             self.session.send_event_marker(
@@ -124,6 +101,58 @@ class IntercomWindow(ModalityWindow):
             self.session.send_event_marker(
                 self.session.portcodes["IntercomStopped"], "Intercom remuted"
             )
+
+    def _start_intercom_streams(self, output_device: str | None) -> bool:
+        """Build and start the mic/output streams; return True on success.
+
+        On any PortAudio error (no device, busy, etc.) the partial streams are torn
+        down and an error popup is shown; the caller is responsible for resetting any
+        UI state (e.g. unchecking the talk button).
+        """
+        try:
+            in_rate = int(sd.query_devices(kind="input")["default_samplerate"])
+            out_info = (
+                sd.query_devices(output_device, "output")
+                if output_device
+                else sd.query_devices(kind="output")
+            )
+            out_rate = int(out_info["default_samplerate"])
+            self._intercom_queue = queue.Queue(maxsize=32)
+            self._intercom_resampler = audio.LinearResampler(in_rate, out_rate)
+            self.intercom_input_stream = sd.InputStream(
+                samplerate=in_rate,
+                channels=1,
+                callback=self._intercom_in_callback,
+            )
+            self.intercom_output_stream = sd.OutputStream(
+                samplerate=out_rate,
+                channels=1,
+                device=output_device,
+                callback=self._intercom_out_callback,
+            )
+            self.intercom_input_stream.start()
+            self.intercom_output_stream.start()
+        except Exception as exc:  # PortAudio errors, no device, etc.
+            self._stop_intercom_streams()
+            self.session.show_error_popup(
+                "Could not start intercom.", str(exc), parent=self
+            )
+            return False
+        return True
+
+    def _on_intercom_device_changed(self, _text: str) -> None:
+        """Switch a live intercom over to the newly selected output device.
+
+        Only a device swap, not a talk toggle, so the streams are quietly restarted
+        without emitting Intercom start/stop markers (that would corrupt the EEG
+        record). A no-op when the intercom isn't running, which also covers the
+        programmatic dropdown population in ``refresh_intercom_outputs``.
+        """
+        if not self._stop_intercom_streams():
+            return  # intercom not running; nothing to switch over
+        output_device = self.intercom_output_dropdown.currentText() or None
+        if not self._start_intercom_streams(output_device):
+            self.intercomButton.setChecked(False)
 
     def _stop_intercom_streams(self) -> bool:
         """Tear down both intercom streams; return True if any were running."""

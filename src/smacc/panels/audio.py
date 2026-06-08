@@ -105,9 +105,19 @@ class AudioCueWindow(ModalityWindow):
     def _build(self) -> QtWidgets.QWidget:
         # Shared device + fade controls.
         available_speakers_dropdown = QtWidgets.QComboBox()
-        available_speakers_dropdown.setStatusTip("Select audio stimulation device")
         available_speakers_dropdown.setPlaceholderText("No speaker devices were found.")
-        available_speakers_dropdown.currentTextChanged.connect(self.set_new_speakers)
+        # Qt5's QSoundEffect has no output-device selection, so this picker can't
+        # route cues. Disabled (but populated) until the playback engine is moved
+        # onto a backend that supports device selection; see the follow-up issue.
+        available_speakers_dropdown.setEnabled(False)
+        available_speakers_dropdown.setStatusTip(
+            "Device selection isn't supported for cues yet; they play on the system "
+            "default output."
+        )
+        available_speakers_dropdown.setToolTip(
+            "Qt5 can't route cue playback to a specific device; cues use the system "
+            "default output."
+        )
         self.available_speakers_dropdown = available_speakers_dropdown
         self.refresh_available_speakers()
 
@@ -173,10 +183,6 @@ class AudioCueWindow(ModalityWindow):
         return central
 
     # ----- shared device + fade ---------------------------------------------
-
-    def set_new_speakers(self, text: str) -> None:
-        """Handle a new audio-stimulation speaker selection."""
-        self.session.logger.debug(f"New speakers {text} selected!")
 
     def refresh_available_speakers(self):
         """Populate the device dropdown with available audio outputs."""
