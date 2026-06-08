@@ -101,7 +101,7 @@ class VisualWindow(ModalityWindow):
     def set_blink_color(self, r: int, g: int, b: int) -> None:
         """Set the BlinkStick color from 0-255 RGB components.
 
-        Stores the hex code (for study save/load) and precomputes the LED data.
+        Stores the hex code (for settings save/load) and precomputes the LED data.
         blinkstick.set_led_data expects G/R swapped: 3 values per LED, 32 LEDs.
         """
         self.bstick_rgb = (r, g, b, 255)

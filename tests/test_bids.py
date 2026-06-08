@@ -1,6 +1,6 @@
 """Tests for the BIDS events exporter (no GUI required)."""
 
-from smacc import bids
+from smacc import bids, settings
 
 SAMPLE_LOG = """2026-06-05 22:00:00.000, INFO, Opened SMACC v0.0.7
 2026-06-05 22:00:05.500, INFO, Lights off - portcode 47
@@ -51,3 +51,48 @@ def test_write_events_json_sidecar(tmp_path):
 
     sidecar = json.loads(path.read_text(encoding="utf-8"))
     assert set(sidecar) == set(bids.EVENT_COLUMNS)
+
+
+# ----- embedded settings block ----------------------------------------------
+
+PAYLOAD = {"kind": "smacc/settings", "schema_version": 3, "settings": {"v": 0.1}}
+
+
+def test_settings_block_is_ignored_by_event_parsing():
+    # A fully-commented settings block (initial + final) must not perturb event
+    # extraction or the onset origin (the first timestamped log line).
+    log = (
+        bids.format_settings_block(PAYLOAD, "initial")
+        + SAMPLE_LOG
+        + bids.format_settings_block(PAYLOAD, "final")
+    )
+    events = bids.log_to_events(log)
+    assert [e["value"] for e in events] == [47, 201]
+    assert events[0]["onset"] == 5.5
+
+
+def test_extract_settings_initial_and_final():
+    initial = {"kind": "smacc/settings", "schema_version": 3, "settings": {"v": 0.1}}
+    final = {"kind": "smacc/settings", "schema_version": 3, "settings": {"v": 0.9}}
+    log = (
+        bids.format_settings_block(initial, "initial")
+        + SAMPLE_LOG
+        + bids.format_settings_block(final, "final")
+    )
+    assert bids.extract_settings_from_log(log, "initial") == initial
+    assert bids.extract_settings_from_log(log, "final") == final
+
+
+def test_extract_settings_missing_block_returns_none():
+    log = bids.format_settings_block(PAYLOAD, "initial") + SAMPLE_LOG
+    assert bids.extract_settings_from_log(log, "final") is None  # crashed session
+    assert bids.extract_settings_from_log("no blocks here", "initial") is None
+
+
+def test_extract_then_parse_round_trips():
+    payload = settings.build_payload({"noise_color": "pink"}, {"subject": "001"})
+    log = bids.format_settings_block(payload, "initial") + SAMPLE_LOG
+    extracted = bids.extract_settings_from_log(log, "initial")
+    state, metadata = settings.parse_settings_mapping(extracted)
+    assert state == {"noise_color": "pink"}
+    assert metadata == {"subject": "001"}

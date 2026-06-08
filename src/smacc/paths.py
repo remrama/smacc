@@ -19,9 +19,10 @@ BUNDLED_CUES_DIR = _asset_dir / "cues"
 
 # Define directories.
 data_directory = utils.get_data_directory()
-logs_directory = data_directory / "logs"
 cues_directory = data_directory / "cues"
-dreams_directory = data_directory / "dreams"
-logs_directory.mkdir(exist_ok=True)
+# Each run gets its own folder under sessions/ (named by a launch-timestamp stem),
+# holding that run's log, dream reports, and any exports together. SmaccSession
+# creates the per-run child; here we only ensure the shared parents exist.
+sessions_directory = data_directory / "sessions"
 cues_directory.mkdir(exist_ok=True)
-dreams_directory.mkdir(exist_ok=True)
+sessions_directory.mkdir(exist_ok=True)

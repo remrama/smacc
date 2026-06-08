@@ -9,7 +9,6 @@ from types import TracebackType
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QMessageBox
 
-from .dialogs import SubjectSessionRequest
 from .gui import SmaccWindow
 from .paths import BUNDLED_CUES_DIR, LOGO_PATH, cues_directory
 from .session import SmaccSession
@@ -68,7 +67,7 @@ def _install_excepthook() -> None:
 
 
 def main() -> None:
-    """Show the session-setup dialog and, on confirmation, open the main window."""
+    """Open the main window for a new timestamped session (no setup prompt)."""
     app = QApplication(sys.argv)
     _install_excepthook()
     # Make sure there's always something to play: seed demo cues on launch.
@@ -76,17 +75,15 @@ def main() -> None:
     # Fusion honors the full QPalette consistently across platforms, which the
     # native Windows style does not — required for the lights-off dark theme.
     app.setStyle("Fusion")
-    # Application-wide icon (taskbar + the subject/session dialog).
+    # Application-wide icon (taskbar + windows).
     if LOGO_PATH.is_file():
         app.setWindowIcon(QIcon(str(LOGO_PATH)))
-    inbox = SubjectSessionRequest()
-    inbox.exec()
-    if inbox.result():  # 1 if they hit Ok, 0 if cancel
-        subject_id, session_id = inbox.get_inputs()
-        session = SmaccSession(subject_id, session_id)
-        # Keep a reference so Qt doesn't garbage-collect the window.
-        win = SmaccWindow(session)  # noqa: F841
-        sys.exit(app.exec())
+    # Subject/session are now optional metadata (set via File -> Session info…),
+    # so a session starts straight away with a timestamped run folder.
+    session = SmaccSession()
+    # Keep a reference so Qt doesn't garbage-collect the window.
+    win = SmaccWindow(session)  # noqa: F841
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":

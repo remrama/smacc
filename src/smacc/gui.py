@@ -9,20 +9,21 @@ from typing import cast
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-from smacc import bids, study
+from smacc import bids, settings
 
 from .config import (
     COMMON_EVENT_CODES,
     COMMON_EVENT_TIPS,
     VERSION,
 )
+from .dialogs import SessionInfoDialog
 from .panels.audio import AudioCueWindow
 from .panels.base import ModalityWindow
 from .panels.intercom import IntercomWindow
 from .panels.noise import NoiseWindow
 from .panels.recording import RecordingWindow
 from .panels.visual import VisualWindow
-from .paths import LOGO_PATH, data_directory
+from .paths import LOGO_PATH, data_directory, sessions_directory
 from .qtlog import QtLogHandler
 from .session import SmaccSession
 
@@ -45,7 +46,7 @@ class SmaccWindow(QtWidgets.QMainWindow):
         ).palette()
 
         # Modality windows, constructed up front (hidden) and opened on demand
-        # from the launcher buttons. Each holds its own state for study save/load.
+        # from the launcher buttons. Each holds its own state for settings save/load.
         self.panels: dict[str, ModalityWindow] = {
             "visual": VisualWindow(self.session),
             "audio": AudioCueWindow(self.session),
@@ -56,7 +57,9 @@ class SmaccWindow(QtWidgets.QMainWindow):
 
         self.init_main_window()
 
-        self.session.log_info_msg("Opened SMACC v" + VERSION)
+        # Panels exist now, so capture their initial state into the log header
+        # (this also emits the "Opened SMACC" line, after the settings block).
+        self.session.begin_log(self.gather_settings())
 
     def show_error_popup(self, short_msg, long_msg=None):
         """Show an error dialog parented to this window (logs via the session)."""
@@ -159,19 +162,38 @@ class SmaccWindow(QtWidgets.QMainWindow):
         quitAction.setStatusTip("Quit/close interface")
         quitAction.triggered.connect(self.close)  # close goes to closeEvent
 
-        # File -> Save/Load study: persist session setup to a reusable study.json.
-        saveStudyAction = QtWidgets.QAction("&Save study…", self)
-        saveStudyAction.setStatusTip("Save the current setup to a study folder.")
-        saveStudyAction.triggered.connect(self.save_study)
-        loadStudyAction = QtWidgets.QAction("&Load study…", self)
-        loadStudyAction.setStatusTip("Load setup from a saved study.json.")
-        loadStudyAction.triggered.connect(self.load_study)
+        # File -> Export/Load settings: persist the current setup to a portable
+        # settings.yaml (and reload it from a .yaml or from a .log's header block).
+        exportSettingsAction = QtWidgets.QAction("&Export settings (YAML)…", self)
+        exportSettingsAction.setStatusTip(
+            "Save the current setup to a settings .yaml file."
+        )
+        exportSettingsAction.triggered.connect(self.export_settings)
+        loadSettingsAction = QtWidgets.QAction("&Load settings (YAML)…", self)
+        loadSettingsAction.setStatusTip("Load a setup from a settings .yaml file.")
+        loadSettingsAction.triggered.connect(self.load_settings)
+        loadSettingsFromLogAction = QtWidgets.QAction("Load settings from &log…", self)
+        loadSettingsFromLogAction.setStatusTip(
+            "Load the initial or final settings recorded in a SMACC .log file."
+        )
+        loadSettingsFromLogAction.triggered.connect(self.load_settings_from_log)
+
+        sessionInfoAction = QtWidgets.QAction("Session &info…", self)
+        sessionInfoAction.setStatusTip(
+            "Edit optional subject/session/notes metadata for this session."
+        )
+        sessionInfoAction.triggered.connect(self.session_info)
 
         exportEventsAction = QtWidgets.QAction("&Export events (BIDS)…", self)
         exportEventsAction.setStatusTip(
             "Export this session's events log as a BIDS events.tsv."
         )
         exportEventsAction.triggered.connect(self.export_events_bids)
+        exportEventsFromLogAction = QtWidgets.QAction("Export events from lo&g…", self)
+        exportEventsFromLogAction.setStatusTip(
+            "Convert any SMACC .log file into a BIDS events.tsv."
+        )
+        exportEventsFromLogAction.triggered.connect(self.export_events_from_log)
 
         # View -> Always on top: keep the control window above other apps. Off by
         # default; app dialogs are parented to the window so they still stack above it.
@@ -187,10 +209,14 @@ class SmaccWindow(QtWidgets.QMainWindow):
         # menuBar.setNativeMenuBar(False)  # needed for pyqt5 on Mac
         # Single consolidated File menu holding all app actions.
         fileMenu = menuBar.addMenu("&File")
-        fileMenu.addAction(saveStudyAction)
-        fileMenu.addAction(loadStudyAction)
+        fileMenu.addAction(exportSettingsAction)
+        fileMenu.addAction(loadSettingsAction)
+        fileMenu.addAction(loadSettingsFromLogAction)
+        fileMenu.addSeparator()
+        fileMenu.addAction(sessionInfoAction)
         fileMenu.addSeparator()
         fileMenu.addAction(exportEventsAction)
+        fileMenu.addAction(exportEventsFromLogAction)
         fileMenu.addSeparator()
         fileMenu.addAction(alwaysOnTopAction)
         fileMenu.addSeparator()
@@ -378,11 +404,11 @@ class SmaccWindow(QtWidgets.QMainWindow):
         return p
 
     ############################################################################
-    # Study config save/resume (study.json bundles)
+    # Settings export/import (settings.yaml) and event export
     ############################################################################
 
-    def gather_study_state(self) -> dict:
-        """Collect each panel's parameters into one serializable study dict.
+    def gather_settings(self) -> dict:
+        """Collect each panel's parameters into one serializable settings dict.
 
         Audio devices are excluded on purpose (only the noise device routes today).
         """
@@ -391,72 +417,167 @@ class SmaccWindow(QtWidgets.QMainWindow):
             state.update(panel.gather_state())
         return state
 
-    def apply_study_state(self, state: dict) -> None:
-        """Apply a study ``state`` dict to every panel (each reads its own keys)."""
+    def apply_settings(self, state: dict) -> None:
+        """Apply a settings ``state`` dict to every panel (each reads its own keys)."""
         for panel in self.panels.values():
             panel.apply_state(state)
 
-    def save_study(self) -> None:
-        """Prompt for a study folder and write study.json.
-
-        Cue/audio files are referenced by their existing paths (not copied); a
-        richer, portable config format is planned (see #18).
-        """
-        folder = QtWidgets.QFileDialog.getExistingDirectory(
-            self, "Select a study folder", str(data_directory)
-        )
-        if not folder:
-            return
-        study_dir = Path(folder)
-        state = self.gather_study_state()
-        try:
-            study.save_study(study_dir / "study.json", state)
-        except OSError as exc:
-            self.show_error_popup("Could not save study.", str(exc))
-            return
-        self.session.log_info_msg(f"Saved study to {study_dir}")
-
-    def load_study(self) -> None:
-        """Prompt for a study.json and apply it to the panels."""
-        path, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Load study", str(data_directory), "Study (study.json)"
+    def export_settings(self) -> None:
+        """Prompt for a path and write the current setup to a settings .yaml."""
+        default = self.session.session_dir / "settings.yaml"
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Export settings (YAML)", str(default), "Settings (*.yaml)"
         )
         if not path:
             return
-        study_path = Path(path)
         try:
-            state = study.load_study(study_path)
+            settings.save_settings(path, self.gather_settings(), self.session.metadata)
         except (OSError, ValueError) as exc:
-            self.show_error_popup("Could not load study.", str(exc))
+            self.show_error_popup("Could not export settings.", str(exc))
             return
-        self.apply_study_state(state)
-        self.session.log_info_msg(f"Loaded study from {study_path}")
+        self.session.log_info_msg(f"Exported settings to {path}")
+
+    def load_settings(self) -> None:
+        """Prompt for a settings .yaml (or legacy study.json) and apply it."""
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Load settings (YAML)",
+            str(data_directory),
+            "Settings (*.yaml *.yml *.json)",
+        )
+        if not path:
+            return
+        try:
+            state, metadata = settings.load_settings(path)
+        except (OSError, ValueError) as exc:
+            self.show_error_popup("Could not load settings.", str(exc))
+            return
+        self._apply_loaded_settings(state, metadata)
+        self.session.log_info_msg(f"Loaded settings from {path}")
+
+    def load_settings_from_log(self) -> None:
+        """Load the initial or final settings recorded in a SMACC .log file."""
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Load settings from log", str(sessions_directory), "SMACC log (*.log)"
+        )
+        if not path:
+            return
+        which = self._ask_initial_or_final()
+        if which is None:
+            return
+        try:
+            log_text = Path(path).read_text(encoding="utf-8")
+        except OSError as exc:
+            self.show_error_popup("Could not read log.", str(exc))
+            return
+        payload = bids.extract_settings_from_log(log_text, which)
+        if payload is None:
+            self.show_error_popup(
+                f"No {which} settings found in that log.",
+                "The log may predate settings recording, or the session may have "
+                "ended before its final settings were written.",
+            )
+            return
+        try:
+            state, metadata = settings.parse_settings_mapping(payload)
+        except ValueError as exc:
+            self.show_error_popup("Could not load settings from log.", str(exc))
+            return
+        self._apply_loaded_settings(state, metadata)
+        self.session.log_info_msg(f"Loaded {which} settings from {path}")
+
+    def _ask_initial_or_final(self) -> str | None:
+        """Ask whether to load the initial or final settings block (None on cancel)."""
+        box = QtWidgets.QMessageBox(self)
+        box.setWindowTitle("Load settings from log")
+        box.setText("Load which settings snapshot from the log?")
+        initial_btn = box.addButton("Initial", QtWidgets.QMessageBox.AcceptRole)
+        final_btn = box.addButton("Final", QtWidgets.QMessageBox.AcceptRole)
+        box.addButton(QtWidgets.QMessageBox.Cancel)
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked is initial_btn:
+            return "initial"
+        if clicked is final_btn:
+            return "final"
+        return None
+
+    def _apply_loaded_settings(self, state: dict, metadata: dict) -> None:
+        """Apply panel state and merge any non-empty loaded metadata into the session."""
+        self.apply_settings(state)
+        for key in ("subject", "session", "notes"):
+            value = metadata.get(key)
+            if value:
+                self.session.metadata[key] = value
+
+    def session_info(self) -> None:
+        """Edit the session's optional subject/session/notes metadata."""
+        meta = self.session.metadata
+        dialog = SessionInfoDialog(
+            meta.get("subject", ""),
+            meta.get("session", ""),
+            meta.get("notes", ""),
+            parent=self,
+        )
+        if dialog.exec():
+            subject, session, notes = dialog.get_inputs()
+            # Updates the final log block and future exports; the initial block,
+            # already written at startup, is intentionally left as-is.
+            meta["subject"] = subject
+            meta["session"] = session
+            meta["notes"] = notes
+            self.session.log_info_msg("Updated session metadata")
 
     def export_events_bids(self) -> None:
-        """Convert the session log to a BIDS events.tsv (+ JSON sidecar)."""
+        """Convert this session's log to a BIDS events.tsv (+ JSON sidecar)."""
         if not self.session.log_path.is_file():
             self.show_error_popup("No log file to export yet.")
             return
         # Flush handlers so the on-disk log includes the latest events.
         for handler in self.session.logger.handlers:
             handler.flush()
-        default = self.session.log_path.with_name(
-            f"sub-{self.session.subject}_ses-{self.session.session}_events.tsv"
-        )
+        default = self.session.session_dir / self._events_basename()
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "Export events (BIDS)", str(default), "BIDS events (*.tsv)"
         )
         if not path:
             return
+        self._write_events(self.session.log_path, Path(path))
+
+    def export_events_from_log(self) -> None:
+        """Convert any chosen SMACC .log file into a BIDS events.tsv (+ sidecar)."""
+        log_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Choose a log file", str(sessions_directory), "SMACC log (*.log)"
+        )
+        if not log_path:
+            return
+        default = Path(log_path).with_suffix(".tsv")
+        out_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Export events (BIDS)", str(default), "BIDS events (*.tsv)"
+        )
+        if not out_path:
+            return
+        self._write_events(Path(log_path), Path(out_path))
+
+    def _events_basename(self) -> str:
+        """BIDS-style events name when subject+session are set, else a plain one."""
+        subject = self.session.metadata.get("subject")
+        session = self.session.metadata.get("session")
+        if subject and session:
+            return f"sub-{subject}_ses-{session}_events.tsv"
+        return "events.tsv"
+
+    def _write_events(self, log_path: Path, out_path: Path) -> None:
+        """Parse ``log_path`` into BIDS events and write ``out_path`` (+ sidecar)."""
         try:
-            log_text = self.session.log_path.read_text(encoding="utf-8")
+            log_text = log_path.read_text(encoding="utf-8")
             events = bids.log_to_events(log_text)
-            bids.write_events_tsv(events, path)
-            bids.write_events_json(Path(path).with_suffix(".json"))
+            bids.write_events_tsv(events, out_path)
+            bids.write_events_json(out_path.with_suffix(".json"))
         except OSError as exc:
             self.show_error_popup("Could not export events.", str(exc))
             return
-        self.session.log_info_msg(f"Exported {len(events)} events to {path}")
+        self.session.log_info_msg(f"Exported {len(events)} events to {out_path}")
 
     @QtCore.pyqtSlot()
     def open_note_marker_dialogue(self):
@@ -482,6 +603,8 @@ class SmaccWindow(QtWidgets.QMainWindow):
                 panel.cleanup()
                 panel.close()
             self.session.log_info_msg("Program closed")
+            # Record the final settings (incl. any mid-session edits) as the tail.
+            self.session.end_log(self.gather_settings())
             event.accept()
         else:
             event.ignore()

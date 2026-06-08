@@ -14,10 +14,20 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 _LOG_DATETIME_FMT = "%Y-%m-%d %H:%M:%S.%f"
 _PORTCODE_RE = re.compile(r"^(?P<label>.*) - portcode (?P<code>\d+)$")
 
 EVENT_COLUMNS = ["onset", "duration", "trial_type", "value"]
+
+# Sentinels fencing a settings front-matter block embedded in the log. The block
+# records the config a session ran with so it can be recovered later. Every line
+# is a ``#`` comment, so ``parse_log`` (which needs a 3-field timestamped line)
+# skips the whole block. ``which`` is "initial" (logged at start) or "final"
+# (appended at quit), letting a reader pick either snapshot.
+SETTINGS_BEGIN = "# --8<-- smacc/settings"
+SETTINGS_END = "# --8<-- end smacc/settings"
 
 
 def parse_log(log_text: str) -> list[tuple[datetime, str, str]]:
@@ -88,3 +98,57 @@ def events_sidecar() -> dict[str, Any]:
 def write_events_json(path: str | Path) -> None:
     """Write the events JSON sidecar to ``path``."""
     Path(path).write_text(json.dumps(events_sidecar(), indent=2), encoding="utf-8")
+
+
+def format_settings_block(payload: dict[str, Any], which: str) -> str:
+    """Render ``payload`` as a fully ``#``-commented, sentinel-fenced log block.
+
+    ``which`` ("initial"/"final") tags the sentinels so both snapshots can coexist
+    in one log. Commenting every line keeps the block invisible to ``parse_log``.
+    """
+    body = yaml.safe_dump(
+        payload, sort_keys=False, default_flow_style=False, allow_unicode=True
+    )
+    commented = "\n".join(f"# {line}" if line else "#" for line in body.splitlines())
+    return f"{SETTINGS_BEGIN} {which}\n{commented}\n{SETTINGS_END} {which}\n"
+
+
+def extract_settings_from_log(log_text: str, which: str = "initial") -> dict | None:
+    """Return the ``which`` settings payload embedded in ``log_text``, or ``None``.
+
+    Returns ``None`` when the requested block is absent (e.g. a crashed session
+    that never wrote its "final" block) or unparseable.
+    """
+    begin = f"{SETTINGS_BEGIN} {which}"
+    end = f"{SETTINGS_END} {which}"
+    lines = log_text.splitlines()
+    start = _index_of(lines, begin)
+    if start < 0:
+        return None
+    stop = _index_of(lines, end, start + 1)
+    if stop < 0:
+        return None
+    body = "\n".join(_uncomment(line) for line in lines[start + 1 : stop])
+    try:
+        payload = yaml.safe_load(body)
+    except yaml.YAMLError:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _index_of(lines: list[str], target: str, start: int = 0) -> int:
+    """Return the index of the first line equal to ``target`` (ignoring surrounding
+    whitespace) at or after ``start``, or -1 if none."""
+    for idx in range(start, len(lines)):
+        if lines[idx].strip() == target:
+            return idx
+    return -1
+
+
+def _uncomment(line: str) -> str:
+    """Strip a leading ``"# "`` (or bare ``"#"``) added by ``format_settings_block``."""
+    if line.startswith("# "):
+        return line[2:]
+    if line.startswith("#"):
+        return line[1:]
+    return line

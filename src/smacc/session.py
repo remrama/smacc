@@ -1,44 +1,75 @@
-"""Per-session shared state: identifiers, logging, and the LSL marker outlet.
+"""Per-session shared state: a run folder, logging, and the LSL marker outlet.
 
 The launcher and every modality window hold a reference to one ``SmaccSession``
-so they all emit event markers and log lines through a single place.
+so they all emit event markers and log lines through a single place. Each run
+gets its own folder under ``sessions/`` (named by a launch-timestamp stem) that
+holds the log, dream reports, and any exports together. Subject/session are kept
+as optional metadata inside the log/exports rather than baked into filenames.
 """
 
 from __future__ import annotations
 
 import logging
+from datetime import datetime
+from pathlib import Path
 
 from pylsl import StreamInfo, StreamOutlet
 from PyQt5 import QtWidgets
 
-from .config import DEVELOPMENT_ID, PPORT_ADDRESS, PPORT_CODES, VERSION
-from .paths import logs_directory
+from . import bids, settings
+from .config import PPORT_ADDRESS, PPORT_CODES, VERSION
+from .paths import sessions_directory
+
+
+def make_session_dir(base: Path, now: datetime) -> Path:
+    """Create and return a unique per-run folder under ``base``.
+
+    Named by a launch-timestamp stem (``smacc-YYYYmmdd-HHMMSS``); a numeric suffix
+    is appended when a folder for the same second already exists, so two launches
+    never collide.
+    """
+    stem = now.strftime("smacc-%Y%m%d-%H%M%S")
+    session_dir = base / stem
+    counter = 2
+    while session_dir.exists():
+        session_dir = base / f"{stem}-{counter}"
+        counter += 1
+    session_dir.mkdir(parents=True)
+    return session_dir
 
 
 class SmaccSession:
-    """Shared session context: subject/session IDs, logger, and LSL outlet."""
+    """Shared session context: run folder, optional metadata, logger, LSL outlet."""
 
-    def __init__(self, subject_id: str, session_id: str) -> None:
-        self.subject = subject_id
-        self.session = session_id
+    def __init__(self, metadata: dict | None = None) -> None:
+        now = datetime.now()
+        # Subject/session/notes are optional metadata recorded inside the log and
+        # exports (blank by default); they no longer drive filenames.
+        self.metadata = {
+            "subject": "",
+            "session": "",
+            "notes": "",
+            "created": now.isoformat(timespec="seconds"),
+        }
+        if metadata:
+            self.metadata.update(metadata)
+        self.session_dir = make_session_dir(sessions_directory, now)
+        self.stem = self.session_dir.name
+        self.log_path = self.session_dir / f"{self.stem}.log"
         self.pport_address = PPORT_ADDRESS
         self.portcodes = PPORT_CODES
         self.init_logger()
         self.init_lsl_stream()
 
     def init_logger(self) -> None:
-        """Initialize the logger that writes to a per-session log file."""
-        path_name = f"sub-{self.subject}_ses-{self.session}_smacc-{VERSION}.log"
-        log_path = logs_directory / path_name
-        self.log_path = log_path  # kept for BIDS events export
+        """Initialize the logger that writes to this run's log file."""
         self.logger = logging.getLogger("smacc")
         self.logger.setLevel(logging.DEBUG)
         # Don't bubble up to the root logger (keeps everything out of the
         # terminal; the file/preview handlers are the only outputs).
         self.logger.propagate = False
-        # open file handler to save external file
-        write_mode = "w" if self.subject == DEVELOPMENT_ID else "x"
-        fh = logging.FileHandler(log_path, mode=write_mode, encoding="utf-8")
+        # Per-run folders are unique, so a plain "w" never clobbers another run.
+        fh = logging.FileHandler(self.log_path, mode="w", encoding="utf-8")
         fh.setLevel(logging.DEBUG)  # the file always records every level
         formatter = logging.Formatter(
             fmt="%(asctime)s.%(msecs)03d, %(levelname)s, %(message)s",
@@ -46,6 +77,35 @@ class SmaccSession:
         )
         fh.setFormatter(formatter)
         self.logger.addHandler(fh)
+
+    def begin_log(self, settings_state: dict) -> None:
+        """Record the initial settings near the top of the log, then log startup.
+
+        Called once the window's panels exist so their state can be gathered. A
+        couple of device-enumeration debug lines may precede the block; that's
+        fine — the block is located by its sentinels, not its position.
+        """
+        self._append_settings_block(settings_state, "initial")
+        self.log_info_msg("Opened SMACC v" + VERSION)
+
+    def end_log(self, settings_state: dict) -> None:
+        """Append the final settings (post-edits) as the log's tail, at quit."""
+        self._append_settings_block(settings_state, "final")
+
+    def _append_settings_block(self, settings_state: dict, which: str) -> None:
+        """Write a commented settings block through the file handler's stream."""
+        payload = settings.build_payload(settings_state, self.metadata)
+        block = bids.format_settings_block(payload, which)
+        for handler in self.logger.handlers:
+            if isinstance(handler, logging.FileHandler):
+                handler.acquire()
+                try:
+                    handler.flush()
+                    if handler.stream is not None:  # always open (delay=False)
+                        handler.stream.write(block)
+                        handler.flush()
+                finally:
+                    handler.release()
 
     def init_lsl_stream(self, stream_id: str = "myuidw43536") -> None:
         """Create the LSL marker stream and its outlet."""

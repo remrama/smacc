@@ -42,11 +42,11 @@ class ModalityWindow(QtWidgets.QMainWindow):
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
 
     def gather_state(self) -> dict:
-        """Return this panel's contribution to the saved study state."""
+        """Return this panel's contribution to the saved settings state."""
         return {}
 
     def apply_state(self, state: dict) -> None:
-        """Apply the relevant keys of a loaded study ``state`` to this panel."""
+        """Apply the relevant keys of a loaded settings ``state`` to this panel."""
 
     def cleanup(self) -> None:
         """Stop any streams/timers this panel owns (called on app quit)."""

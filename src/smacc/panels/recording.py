@@ -9,7 +9,6 @@ from PyQt5 import QtCore, QtMultimedia, QtWidgets
 
 from .. import audio
 from ..config import SURVEY_OPTIONS
-from ..paths import dreams_directory
 from ..session import SmaccSession
 from .base import ModalityWindow, make_section_title
 
@@ -126,11 +125,10 @@ class RecordingWindow(ModalityWindow):
         state = self.microphone.state()  # recording / paused / stopped
         if state == QtMultimedia.QMediaRecorder.StoppedState:
             self.n_report_counter += 1
-            basename = (
-                f"sub-{self.session.subject}_ses-{self.session.session}"
-                f"_report-{self.n_report_counter:02d}.wav"
-            )
-            export_fname = dreams_directory / basename
+            # Reports live in this run's session folder; the folder already
+            # namespaces them, so a short report-NN name is enough.
+            basename = f"report-{self.n_report_counter:02d}.wav"
+            export_fname = self.session.session_dir / basename
             self.microphone.setOutputLocation(
                 QtCore.QUrl.fromLocalFile(str(export_fname))
             )
@@ -201,7 +199,7 @@ class RecordingWindow(ModalityWindow):
         self.levelMeterBar.setValue(audio.dbfs_to_meter(db))
         self.levelMeterBar.setFormat(f"{db:.0f} dBFS")
 
-    # ----- survey + study state ---------------------------------------------
+    # ----- survey + settings state ------------------------------------------
 
     def current_survey_url(self) -> str:
         """Resolve the survey URL from the dropdown (preset data or typed text)."""

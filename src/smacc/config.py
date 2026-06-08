@@ -10,7 +10,7 @@ DEFAULT_VOLUME = 0.5
 SURVEY_URL = None
 
 # Named survey presets shown in the dream-recording panel's survey dropdown.
-# Maps a display label to its URL. Extend per study (persisted via study.json).
+# Maps a display label to its URL. Extend per study (persisted in settings YAML).
 SURVEY_OPTIONS: dict[str, str] = {}
 
 PPORT_ADDRESS = "0x3FD8"

@@ -23,6 +23,7 @@ classifiers = [
 dependencies = [
     "numpy",
     "pylsl",
+    "pyyaml",
     "PyQt5",
     # pyqt5-qt5 5.15.19 dropped Windows wheels; pin to a version with
     # wheels for all platforms (win/linux/macos) so uv resolves everywhere.
@@ -41,6 +42,7 @@ dev = [
     "pre-commit",
     "pyinstaller",
     "PyQt5-stubs",
+    "types-PyYAML",
 ]
 
 [project.urls]

@@ -34,6 +34,10 @@ uv run pyinstaller entry.py --name SMACC --onefile --noconsole \
 window/taskbar icon, which SMACC resolves via `sys._MEIPASS`. On Windows the
 `--add-data` separator is `;` rather than `:` (i.e. `...png;smacc/assets`).
 
+PyYAML (settings export/import) is pure Python and is picked up automatically by
+PyInstaller; if a frozen build ever fails to import `yaml`, add
+`--hidden-import yaml`.
+
 ## Project notes
 
 - `src/` layout: the package lives in `src/smacc/`.
