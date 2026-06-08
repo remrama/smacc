@@ -581,9 +581,13 @@ This page walks through the main features.</p>
 <h2 id="dream-reports">Dream reports</h2>
 <p>Use the <strong>Record Dream Report</strong> button to record from the selected input device.
 Choose the device from <strong>Audio &rsaquo; Input device &rsaquo; [choose device]</strong>.
-Recordings are saved into the current session folder. If a survey URL is
-configured (see <a href="../installation/#dream-report-survey">Installation</a>), the button
-can also open that survey in your browser.</p>
+Recordings are saved into the current session folder.</p>
+<p>Surveys (e.g. a dream-report questionnaire on Qualtrics or REDCap) open in your
+browser. Manage your saved surveys with the <strong>Manage…</strong> button next to the survey
+dropdown — each has a name and URL and is stored in your settings YAML. Select one
+in the dropdown to open it automatically when recording starts, or open any saved
+survey on its own from <strong>File &rsaquo; Surveys</strong> (each open is logged as a
+<code>SurveyOpened</code> event).</p>
 <h2 id="eeg-portcodes">EEG portcodes</h2>
 <p>SMACC can trigger EEG portcodes to mark events in your recording, keeping cue
 delivery and your neural data in sync.</p>
