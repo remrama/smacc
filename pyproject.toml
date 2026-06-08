@@ -21,6 +21,9 @@ classifiers = [
     "Intended Audience :: Science/Research",
 ]
 dependencies = [
+    # BlinkStick LED device (visual cues). Its backend, pywinusb, is Windows-only,
+    # so scope to win32 to keep the cross-platform lock resolving everywhere.
+    "blinkstick; sys_platform == 'win32'",
     "numpy",
     "pylsl",
     "pyyaml",
@@ -34,7 +37,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-visual = ["blinkstick"]
 docs = [
     "mkdocs-material",
     "mike",

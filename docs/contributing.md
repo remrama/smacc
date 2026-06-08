@@ -46,6 +46,12 @@ PyYAML (settings export/import) is pure Python and is picked up automatically by
 PyInstaller; if a frozen build ever fails to import `yaml`, add
 `--hidden-import yaml`.
 
+The `blinkstick` driver (BlinkStick visual cues) and its Windows backend
+`pywinusb` are pure Python and bundle the same way. PyInstaller may warn that
+`usb.core` is missing — that is BlinkStick's non-Windows backend, which SMACC
+never uses, so the warning is harmless. If a frozen build ever fails to import
+the driver, add `--hidden-import pywinusb`.
+
 Releases are built automatically: pushing a `v*` tag (e.g. `v0.0.7`) triggers the
 [release workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/release.yaml),
 which builds `SMACC.exe` and attaches it to the GitHub Release.
