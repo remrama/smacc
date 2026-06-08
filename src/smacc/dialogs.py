@@ -191,15 +191,61 @@ class ManageSurveysDialog(QtWidgets.QDialog):
         return options
 
 
-class EventCodesDialog(QtWidgets.QDialog):
-    """View and edit the event-marker registry: codes and per-event routing.
+class AddEventDialog(QtWidgets.QDialog):
+    """Define a new custom event button: a label, a port code, and options."""
 
-    One row per event shows its (editable) port code plus two independent
-    checkboxes — Trigger (send to the marker stream) and Preview (show in the live
-    log viewer) — and an Increment toggle (advance the code on each firing). The
-    log *file* always records every event regardless of Preview. Codes are unique
-    8-bit values (1-255); a soft "safe max" flags values older trigger hardware may
-    not accept.
+    def __init__(self, default_code: int, parent=None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Add event")
+        self.setWindowFlags(self.windowFlags() ^ QtCore.Qt.WindowContextHelpButtonHint)
+        self.labelEdit = QtWidgets.QLineEdit(self)
+        self.labelEdit.setPlaceholderText("e.g. Spontaneous arousal")
+        self.codeSpin = QtWidgets.QSpinBox(self)
+        self.codeSpin.setRange(events.CODE_MIN, events.CODE_MAX)
+        self.codeSpin.setValue(default_code)
+        self.tooltipEdit = QtWidgets.QLineEdit(self)
+        self.tooltipEdit.setPlaceholderText("Optional status-bar hint")
+        self.incrementBox = QtWidgets.QCheckBox(
+            "Increment the code on each press", self
+        )
+        buttonBox = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self
+        )
+        buttonBox.accepted.connect(self._on_accept)
+        buttonBox.rejected.connect(self.reject)
+        form = QtWidgets.QFormLayout(self)
+        form.addRow("Label", self.labelEdit)
+        form.addRow("Code", self.codeSpin)
+        form.addRow("Tooltip", self.tooltipEdit)
+        form.addRow("", self.incrementBox)
+        form.addWidget(buttonBox)
+
+    def _on_accept(self) -> None:
+        if not self.labelEdit.text().strip():
+            QtWidgets.QMessageBox.warning(self, "Add event", "Please enter a label.")
+            return
+        self.accept()
+
+    def get_inputs(self) -> tuple[str, int, str, bool]:
+        """Return ``(label, code, tooltip, increment)``."""
+        return (
+            self.labelEdit.text().strip(),
+            self.codeSpin.value(),
+            self.tooltipEdit.text().strip(),
+            self.incrementBox.isChecked(),
+        )
+
+
+class EventCodesDialog(QtWidgets.QDialog):
+    """View and edit the event-marker registry: codes, routing, and custom events.
+
+    One row per event shows its port code plus independent Trigger (send to the
+    marker stream) and Preview (show in the live log viewer) checkboxes, and an
+    Increment toggle (advance the code on each firing). The log *file* always
+    records every event regardless of Preview. Built-in events can be retuned but
+    not removed or renamed; custom events (added here) have an editable label, can
+    be removed, and appear as buttons in the Event logging panel. Codes are unique
+    8-bit values (1-255); a soft "safe max" flags values older hardware may reject.
 
     The dialog edits copies; the caller reads :meth:`get_events` /
     :meth:`get_safe_max` only when the dialog is accepted.
@@ -209,10 +255,10 @@ class EventCodesDialog(QtWidgets.QDialog):
         super().__init__(parent)
         self.setWindowTitle("Event codes")
         self.setWindowFlags(self.windowFlags() ^ QtCore.Qt.WindowContextHelpButtonHint)
-        self.resize(560, 540)
+        self.resize(600, 560)
         self._events = [replace(e) for e in event_list]  # working copies
 
-        self.table = QtWidgets.QTableWidget(len(self._events), 5, self)
+        self.table = QtWidgets.QTableWidget(0, 5, self)
         self.table.setHorizontalHeaderLabels(
             ["Event", "Code", "Trigger", "Preview", "Increment"]
         )
@@ -228,40 +274,24 @@ class EventCodesDialog(QtWidgets.QDialog):
             if header_item is not None:
                 header_item.setToolTip(tip)
         self.table.verticalHeader().setVisible(False)
-        self.table.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
+        self.table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-
-        self._code_spins: list[QtWidgets.QSpinBox] = []
-        self._trigger_boxes: list[QtWidgets.QCheckBox] = []
-        self._preview_boxes: list[QtWidgets.QCheckBox] = []
-        self._increment_boxes: list[QtWidgets.QCheckBox] = []
-        for row, event in enumerate(self._events):
-            label_item = QtWidgets.QTableWidgetItem(event.label)
-            label_item.setFlags(label_item.flags() & ~QtCore.Qt.ItemIsEditable)
-            if event.tooltip:
-                label_item.setToolTip(event.tooltip)
-            self.table.setItem(row, 0, label_item)
-
-            code_spin = QtWidgets.QSpinBox(self)
-            code_spin.setRange(events.CODE_MIN, events.CODE_MAX)
-            code_spin.setValue(event.code)
-            self.table.setCellWidget(row, 1, code_spin)
-            self._code_spins.append(code_spin)
-
-            trig_cell, trig_box = self._checkbox_cell(event.trigger)
-            preview_cell, preview_box = self._checkbox_cell(event.preview)
-            inc_cell, inc_box = self._checkbox_cell(event.increment)
-            self.table.setCellWidget(row, 2, trig_cell)
-            self.table.setCellWidget(row, 3, preview_cell)
-            self.table.setCellWidget(row, 4, inc_cell)
-            self._trigger_boxes.append(trig_box)
-            self._preview_boxes.append(preview_box)
-            self._increment_boxes.append(inc_box)
-
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
         for col in range(1, 5):
             header.setSectionResizeMode(col, QtWidgets.QHeaderView.ResizeToContents)
+
+        addButton = QtWidgets.QPushButton("Add event…", self)
+        addButton.setStatusTip("Add a custom event button.")
+        addButton.clicked.connect(self._add_event)
+        self.removeButton = QtWidgets.QPushButton("Remove", self)
+        self.removeButton.setStatusTip("Remove the selected custom event.")
+        self.removeButton.clicked.connect(self._remove_selected)
+        addRemoveRow = QtWidgets.QHBoxLayout()
+        addRemoveRow.addWidget(addButton)
+        addRemoveRow.addWidget(self.removeButton)
+        addRemoveRow.addStretch(1)
 
         self.safeMaxSpin = QtWidgets.QSpinBox(self)
         self.safeMaxSpin.setRange(events.CODE_MIN, events.CODE_MAX)
@@ -289,8 +319,67 @@ class EventCodesDialog(QtWidgets.QDialog):
         layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(hint)
         layout.addWidget(self.table, 1)
+        layout.addLayout(addRemoveRow)
         layout.addLayout(safeRow)
         layout.addWidget(buttonBox)
+
+        self._populate()
+
+    # ----- table build / sync ------------------------------------------------
+
+    def _populate(self) -> None:
+        """(Re)build the table rows from ``self._events`` (called after add/remove)."""
+        self._code_spins: list[QtWidgets.QSpinBox] = []
+        self._trigger_boxes: list[QtWidgets.QCheckBox] = []
+        self._preview_boxes: list[QtWidgets.QCheckBox] = []
+        self._increment_boxes: list[QtWidgets.QCheckBox] = []
+        self._label_edits: list[QtWidgets.QLineEdit | None] = []
+        self.table.setRowCount(len(self._events))
+        for row, event in enumerate(self._events):
+            if event.builtin:
+                label_item = QtWidgets.QTableWidgetItem(event.label)
+                label_item.setFlags(label_item.flags() & ~QtCore.Qt.ItemIsEditable)
+                if event.tooltip:
+                    label_item.setToolTip(event.tooltip)
+                self.table.setItem(row, 0, label_item)
+                self._label_edits.append(None)
+            else:
+                label_edit = QtWidgets.QLineEdit(event.label, self)
+                label_edit.setPlaceholderText("Custom event label")
+                self.table.setCellWidget(row, 0, label_edit)
+                self._label_edits.append(label_edit)
+
+            code_spin = QtWidgets.QSpinBox(self)
+            code_spin.setRange(events.CODE_MIN, events.CODE_MAX)
+            code_spin.setValue(event.code)
+            self.table.setCellWidget(row, 1, code_spin)
+            self._code_spins.append(code_spin)
+
+            trig_cell, trig_box = self._checkbox_cell(event.trigger)
+            preview_cell, preview_box = self._checkbox_cell(event.preview)
+            inc_cell, inc_box = self._checkbox_cell(event.increment)
+            self.table.setCellWidget(row, 2, trig_cell)
+            self.table.setCellWidget(row, 3, preview_cell)
+            self.table.setCellWidget(row, 4, inc_cell)
+            self._trigger_boxes.append(trig_box)
+            self._preview_boxes.append(preview_box)
+            self._increment_boxes.append(inc_box)
+
+    def _sync(self) -> None:
+        """Read widget values back into ``self._events`` before add/remove/accept."""
+        for i, event in enumerate(self._events):
+            label = event.label
+            edit = self._label_edits[i]
+            if edit is not None:
+                label = edit.text().strip() or event.label
+            self._events[i] = replace(
+                event,
+                label=label,
+                code=self._code_spins[i].value(),
+                trigger=self._trigger_boxes[i].isChecked(),
+                preview=self._preview_boxes[i].isChecked(),
+                increment=self._increment_boxes[i].isChecked(),
+            )
 
     @staticmethod
     def _checkbox_cell(checked: bool):
@@ -304,27 +393,49 @@ class EventCodesDialog(QtWidgets.QDialog):
         lay.setContentsMargins(0, 0, 0, 0)
         return container, box
 
+    # ----- add / remove ------------------------------------------------------
+
+    def _suggested_code(self) -> int:
+        """A free-ish default code for a new event (one past the current max)."""
+        used = [e.code for e in self._events if isinstance(e.code, int)]
+        return min((max(used) + 1) if used else events.CODE_MIN, events.CODE_MAX)
+
+    def _add_event(self) -> None:
+        self._sync()
+        dialog = AddEventDialog(self._suggested_code(), parent=self)
+        if not dialog.exec():
+            return
+        label, code, tooltip, increment = dialog.get_inputs()
+        event = events.make_custom_event(
+            label,
+            code,
+            [e.key for e in self._events],
+            tooltip=tooltip,
+            increment=increment,
+        )
+        self._events.append(event)
+        self._populate()
+        self.table.selectRow(len(self._events) - 1)
+
+    def _remove_selected(self) -> None:
+        row = self.table.currentRow()
+        if row < 0:
+            return
+        self._sync()
+        if self._events[row].builtin:
+            QtWidgets.QMessageBox.information(
+                self, "Event codes", "Built-in events can't be removed."
+            )
+            return
+        del self._events[row]
+        self._populate()
+
+    # ----- result ------------------------------------------------------------
+
     def get_events(self) -> list:
         """Return the edits as new EventDef objects (the originals are untouched)."""
-        out = []
-        for event, code_spin, trig, preview, inc in zip(
-            self._events,
-            self._code_spins,
-            self._trigger_boxes,
-            self._preview_boxes,
-            self._increment_boxes,
-            strict=True,
-        ):
-            out.append(
-                replace(
-                    event,
-                    code=code_spin.value(),
-                    trigger=trig.isChecked(),
-                    preview=preview.isChecked(),
-                    increment=inc.isChecked(),
-                )
-            )
-        return out
+        self._sync()
+        return [replace(e) for e in self._events]
 
     def get_safe_max(self) -> int:
         """Return the chosen soft maximum code."""

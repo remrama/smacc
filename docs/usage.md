@@ -49,12 +49,23 @@ can set:
 hardware only accepts a limited range (some older systems do). Codes must be unique
 among triggered events and within 1–255; the editor blocks anything else.
 
+**Custom events.** Use **Add event…** to create your own button events (a label and a
+code); they appear in the **Event logging** panel alongside the built-ins and can be
+removed again with **Remove**. Built-in events can be retuned but not removed or renamed.
+
 The editor stays available throughout a session. If you change a code mid-study, the
 change is written to the log with a timestamp, so the code-to-event mapping for that
 session is always recoverable.
 
 Beyond portcodes, SMACC logs the important interactions too — volume, color, device,
 and fade changes — as plain log lines (no portcode), so the session record is complete.
+
+### Event logging panel
+
+The manual event buttons (REM detected, Sleep onset, your custom events, …) live in the
+**Event logging** panel — open it from the launcher; the first nine buttons take the
+1–9 keyboard shortcuts while it's focused. The **Lights** toggle stays on the main
+window (it also flips the dark theme).
 
 ### Where codes live
 

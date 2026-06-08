@@ -125,3 +125,55 @@ def test_validate_events_warns_on_increment_band_overlap():
     ]
     _, warnings = events.validate_events(defs)
     assert warnings  # the 60..255 band overlaps Other's code 62
+
+
+def test_validate_events_requires_label():
+    errors, _ = events.validate_events([events.EventDef("k", "", 50)])
+    assert any("label" in e.lower() for e in errors)
+
+
+# ----- custom events --------------------------------------------------------
+
+
+def test_default_events_are_all_builtin():
+    assert all(e.builtin for e in events.default_events())
+
+
+def test_make_custom_event_is_manual_and_unique():
+    existing = {e.key for e in events.default_events()}
+    e1 = events.make_custom_event("My Event", 70, existing)
+    assert e1.builtin is False
+    assert e1.category == "manual"
+    assert e1.key.startswith("customMyEvent")
+    e2 = events.make_custom_event("My Event", 71, existing | {e1.key})
+    assert e2.key != e1.key  # a uniqueness suffix is appended on collision
+
+
+def test_custom_event_round_trips_through_persistence():
+    custom = events.make_custom_event(
+        "Spont arousal", 70, set(), tooltip="hi", increment=True
+    )
+    registry = events.default_events() + [custom]
+    compact = events.events_to_list(registry)
+    # The custom entry persists its full definition (incl. builtin=False)...
+    custom_dict = next(d for d in compact if d["key"] == custom.key)
+    assert custom_dict["builtin"] is False
+    assert custom_dict["label"] == "Spont arousal"
+    assert custom_dict["category"] == "manual"
+    # ...while built-ins stay compact (no label key).
+    builtin_dict = next(d for d in compact if d["key"] == "REMDetected")
+    assert "label" not in builtin_dict
+    # Round-trip reconstructs the custom event.
+    merged = {e.key: e for e in events.merge_event_codes(compact)}
+    assert merged[custom.key].label == "Spont arousal"
+    assert merged[custom.key].increment is True
+    assert merged[custom.key].builtin is False
+
+
+def test_merge_ignores_unknown_key_without_custom_flag():
+    # An unknown key not marked builtin:false is dropped (e.g. a removed built-in),
+    # so stale entries don't resurrect as phantom buttons.
+    merged = {
+        e.key: e for e in events.merge_event_codes([{"key": "Ghost", "code": 90}])
+    }
+    assert "Ghost" not in merged

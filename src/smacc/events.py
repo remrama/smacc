@@ -24,6 +24,7 @@ Pure data and helpers, no Qt — directly unit-testable.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass, fields, replace
 from typing import Any
@@ -47,6 +48,7 @@ class EventDef:
     category: str = "control"
     tooltip: str = ""
     increment: bool = False
+    builtin: bool = True  # False for user-added custom events
 
 
 # The fields a study may override (keyed by ``key``); labels/tooltips/categories
@@ -148,45 +150,134 @@ def default_events() -> list[EventDef]:
 
 
 def events_to_list(events: Iterable[EventDef]) -> list[dict[str, Any]]:
-    """Serialize to the compact, user-editable subset persisted in a study file.
+    """Serialize the registry for a study file.
 
-    Only the fields a study can change (the code and routing flags, keyed by
-    ``key``) are written, so the ``.smacc`` stays readable and label/tooltip
-    improvements apply to old studies automatically.
+    A built-in event persists only the editable subset (code + routing flags,
+    keyed by ``key``), so the ``.smacc`` stays readable and label/tooltip
+    improvements reach old studies. A custom (user-added) event persists its full
+    definition so it can be reconstructed on load.
     """
-    return [{name: getattr(e, name) for name in _PERSIST_FIELDS} for e in events]
+    out: list[dict[str, Any]] = []
+    for e in events:
+        if e.builtin:
+            out.append({name: getattr(e, name) for name in _PERSIST_FIELDS})
+        else:
+            out.append(
+                {
+                    "key": e.key,
+                    "label": e.label,
+                    "code": e.code,
+                    "trigger": e.trigger,
+                    "preview": e.preview,
+                    "category": e.category,
+                    "tooltip": e.tooltip,
+                    "increment": e.increment,
+                    "builtin": False,
+                }
+            )
+    return out
+
+
+# A built-in entry only ever overrides these (its label/category/tooltip stay
+# app-defined); a hand-edited file can't rewrite them onto a built-in.
+_BUILTIN_OVERRIDE_FIELDS = ("code", "trigger", "preview", "increment")
+
+
+def _builtin_overrides(item: dict) -> dict[str, Any]:
+    """Coerce the overridable fields from a saved built-in entry."""
+    out: dict[str, Any] = {}
+    for name in _BUILTIN_OVERRIDE_FIELDS:
+        if name not in item:
+            continue
+        value = item[name]
+        if name == "code":
+            try:
+                value = int(value)
+            except (TypeError, ValueError):
+                continue
+        else:
+            value = bool(value)
+        out[name] = value
+    return out
+
+
+def _custom_from_dict(key: str, item: dict) -> EventDef | None:
+    """Reconstruct a custom EventDef from a saved full definition (or None)."""
+    try:
+        code = int(item["code"])
+    except (TypeError, ValueError, KeyError):
+        return None
+    return EventDef(
+        key=key,
+        label=str(item.get("label") or key),
+        code=code,
+        trigger=bool(item.get("trigger", True)),
+        preview=bool(item.get("preview", True)),
+        category=str(item.get("category") or "manual"),
+        tooltip=str(item.get("tooltip") or ""),
+        increment=bool(item.get("increment", False)),
+        builtin=False,
+    )
 
 
 def merge_event_codes(loaded: Any) -> list[EventDef]:
-    """Return the default registry with any saved per-event overrides applied.
+    """Return the default registry with saved overrides + custom events applied.
 
     Mirrors the merge-over-DEFAULTS approach in :mod:`smacc.preferences`: a study
-    with no ``event_codes`` (older schema) yields the full defaults, and a study
-    that overrides only a few codes keeps the rest. Saved entries for keys SMACC
-    no longer defines are ignored; default ordering is preserved.
+    with no ``event_codes`` (older schema) yields the full defaults; a study that
+    overrides only a few built-in codes keeps the rest; saved custom events
+    (``builtin: false``) are appended after the built-ins. Default ordering is
+    preserved.
     """
     defaults = {e.key: e for e in default_events()}
+    custom: list[EventDef] = []
+    seen_custom: set[str] = set()
     if isinstance(loaded, list):
         for item in loaded:
             if not isinstance(item, dict):
                 continue
             key = item.get("key")
-            if key not in defaults:
+            if not isinstance(key, str):
                 continue
-            overrides: dict[str, Any] = {}
-            for name, value in item.items():
-                if name == "key" or name not in _FIELD_NAMES:
-                    continue
-                if name == "code":
-                    try:
-                        value = int(value)
-                    except (TypeError, ValueError):
-                        continue
-                elif name in ("trigger", "preview", "increment"):
-                    value = bool(value)
-                overrides[name] = value
-            defaults[key] = replace(defaults[key], **overrides)
-    return list(defaults.values())
+            if key in defaults:
+                defaults[key] = replace(defaults[key], **_builtin_overrides(item))
+            elif item.get("builtin") is False and key not in seen_custom:
+                event = _custom_from_dict(key, item)
+                if event is not None:
+                    custom.append(event)
+                    seen_custom.add(key)
+    return list(defaults.values()) + custom
+
+
+def make_custom_event(
+    label: str,
+    code: int,
+    existing_keys: Iterable[str],
+    *,
+    tooltip: str = "",
+    increment: bool = False,
+    trigger: bool = True,
+    preview: bool = True,
+) -> EventDef:
+    """Build a custom (button) event with a unique key derived from ``label``."""
+    base = "custom" + (re.sub(r"[^A-Za-z0-9]+", "", label.title()) or "Event")
+    existing = set(existing_keys)
+    key = base
+    suffix = 2
+    while key in existing:
+        key = f"{base}{suffix}"
+        suffix += 1
+    return EventDef(
+        key=key,
+        label=label,
+        code=code,
+        trigger=trigger,
+        preview=preview,
+        category="manual",
+        tooltip=tooltip,
+        increment=increment,
+        builtin=False,
+    )
 
 
 def validate_events(
@@ -209,6 +300,8 @@ def validate_events(
         if e.key in seen_keys:
             errors.append(f"Duplicate event key {e.key!r}.")
         seen_keys.add(e.key)
+        if not (e.label and str(e.label).strip()):
+            errors.append(f"Event {e.key!r}: a label is required.")
         if isinstance(e.code, bool) or not isinstance(e.code, int):
             errors.append(f"{e.label}: code must be a whole number.")
             continue
