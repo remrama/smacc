@@ -9,12 +9,7 @@ from PyQt6 import QtCore, QtWidgets
 
 from .. import audio
 from ..session import SmaccSession
-from .base import (
-    ModalityWindow,
-    current_device_key,
-    make_section_title,
-    select_saved_device,
-)
+from .base import ModalityWindow, describe_target, make_section_title
 
 
 class IntercomWindow(ModalityWindow):
@@ -36,18 +31,12 @@ class IntercomWindow(ModalityWindow):
             app.installEventFilter(self)
 
     def _build(self) -> QtWidgets.QWidget:
-        # Output device the participant hears on (their speakers/headphones).
-        intercom_output_dropdown = QtWidgets.QComboBox()
-        intercom_output_dropdown.setStatusTip(
-            "Output device the participant hears the intercom on "
-            "(their speakers/headphones)."
+        # The participant's output device is chosen in the Devices window.
+        self.deviceLabel = QtWidgets.QLabel(self)
+        self.deviceLabel.setStatusTip(
+            "Set in the Devices window (Intercom → participant)."
         )
-        self.intercom_output_dropdown = intercom_output_dropdown
-        self.refresh_intercom_outputs()
-        # Switch a live intercom over to a newly selected output device.
-        intercom_output_dropdown.currentTextChanged.connect(
-            self._on_intercom_device_changed
-        )
+        self.refresh_device_indicator()
 
         intercomButton = QtWidgets.QPushButton("Intercom (talk)", self)
         intercomButton.setStatusTip(
@@ -61,38 +50,15 @@ class IntercomWindow(ModalityWindow):
         layout = QtWidgets.QFormLayout()
         layout.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         layout.addRow(make_section_title("Intercom"))
-        layout.addRow("To participant:", intercom_output_dropdown)
+        layout.addRow("To participant:", self.deviceLabel)
         layout.addRow(intercomButton)
         central = QtWidgets.QWidget()
         central.setLayout(layout)
         return central
 
-    def refresh_intercom_outputs(self) -> None:
-        """Populate the intercom output dropdown with available output devices."""
-        self.intercom_output_dropdown.clear()
-        host_api_name = "Windows WASAPI"
-        host_api_names = [api["name"] for api in sd.query_hostapis()]
-        hostapi = (
-            host_api_names.index(host_api_name)
-            if host_api_name in host_api_names
-            else None
-        )
-        for device in sd.query_devices():
-            if device["max_output_channels"] <= 0:
-                continue
-            if hostapi is not None and device["hostapi"] != hostapi:
-                continue
-            suffix = f", {host_api_name}" if hostapi is not None else ""
-            self.intercom_output_dropdown.addItem(f"{device['name']}{suffix}")
-        if self.intercom_output_dropdown.count():
-            self.intercom_output_dropdown.setCurrentIndex(0)
-
-    def refresh_devices(self) -> None:
-        """Re-enumerate outputs, keeping the current selection if still present."""
-        combo = self.intercom_output_dropdown
-        previous = current_device_key(combo)
-        self.refresh_intercom_outputs()
-        select_saved_device(combo, previous)
+    def refresh_device_indicator(self) -> None:
+        """Show where the participant output resolves (set in the Devices window)."""
+        self.deviceLabel.setText(describe_target(self.session, "intercom_talk"))
 
     def is_streaming(self) -> bool:
         """True while the intercom is live (mic/output streams open)."""
@@ -109,7 +75,7 @@ class IntercomWindow(ModalityWindow):
         in the EEG record via LSL. Warning: a mic near open speakers risks feedback.
         """
         if enabled:
-            output_device = self.intercom_output_dropdown.currentText() or None
+            output_device = self.session.devices.device_for("intercom_talk") or None
             if not self._start_intercom_streams(output_device):
                 self.intercomButton.setChecked(False)
                 return
@@ -154,23 +120,6 @@ class IntercomWindow(ModalityWindow):
             )
             return False
         return True
-
-    def _on_intercom_device_changed(self, _text: str) -> None:
-        """Switch a live intercom over to the newly selected output device.
-
-        Only a device swap, not a talk toggle, so the streams are quietly restarted
-        without emitting Intercom start/stop markers (that would corrupt the EEG
-        record). A no-op when the intercom isn't running, which also covers the
-        programmatic dropdown population in ``refresh_intercom_outputs``.
-        """
-        self.session.log_interaction(
-            f"Intercom output set to {self.intercom_output_dropdown.currentText()}"
-        )
-        if not self._stop_intercom_streams():
-            return  # intercom not running; nothing to switch over
-        output_device = self.intercom_output_dropdown.currentText() or None
-        if not self._start_intercom_streams(output_device):
-            self.intercomButton.setChecked(False)
 
     def _stop_intercom_streams(self) -> bool:
         """Tear down both intercom streams; return True if any were running."""
@@ -243,16 +192,6 @@ class IntercomWindow(ModalityWindow):
                 self.intercomButton.setChecked(False)  # -> toggle_intercom(False)
             return True  # consume so the focused widget doesn't also see space
         return super().eventFilter(obj, event)
-
-    def gather_state(self) -> dict:
-        return {
-            "intercom_output_device": current_device_key(self.intercom_output_dropdown),
-        }
-
-    def apply_state(self, state: dict) -> None:
-        saved = state.get("intercom_output_device")
-        if saved and not select_saved_device(self.intercom_output_dropdown, saved):
-            self.session.note_missing_device("Intercom output", saved)
 
     def cleanup(self) -> None:
         app = QtWidgets.QApplication.instance()

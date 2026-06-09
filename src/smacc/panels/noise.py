@@ -12,12 +12,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import utils
 from ..session import SmaccSession
-from .base import (
-    ModalityWindow,
-    current_device_key,
-    make_section_title,
-    select_saved_device,
-)
+from .base import ModalityWindow, describe_target, make_section_title
 
 NOISE_RATE = 44100
 # Seconds of colored noise pre-generated per Play and then looped. A single
@@ -36,7 +31,6 @@ class NoiseWindow(ModalityWindow):
         super().__init__(session, parent)
         self.noise_stream: sd.OutputStream | None = None
         self.noise_stream_volume = 0.2
-        self.noiseplayer_device = ""
         # Mono float32 loop buffer for the active stream, plus its read position.
         self._noise_buffer: np.ndarray | None = None
         self._noise_pos = 0
@@ -47,14 +41,10 @@ class NoiseWindow(ModalityWindow):
         self.noiseStatusLabel = QtWidgets.QLabel("■ stopped", self)
         self.noiseStatusLabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
-        # Noise device picker: QComboBox signal --> update device slot
-        available_noisespeakers_dropdown = QtWidgets.QComboBox()
-        available_noisespeakers_dropdown.setStatusTip("Select speakers for noise")
-        available_noisespeakers_dropdown.currentTextChanged.connect(
-            self.set_new_noisespeakers
-        )
-        self.available_noisespeakers_dropdown = available_noisespeakers_dropdown
-        self.refresh_available_noisespeakers()
+        # Device is chosen in the Devices window; show where noise resolves to.
+        self.deviceLabel = QtWidgets.QLabel(self)
+        self.deviceLabel.setStatusTip("Set in the Devices window (Noise → role).")
+        self.refresh_device_indicator()
 
         # Source toggle: built-in generated color vs. a loaded file.
         self.builtinRadio = QtWidgets.QRadioButton("Built-in", self)
@@ -119,7 +109,7 @@ class NoiseWindow(ModalityWindow):
 
         form = QtWidgets.QFormLayout()
         form.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-        form.addRow("Device:", available_noisespeakers_dropdown)
+        form.addRow("Device:", self.deviceLabel)
         form.addRow("Source:", sourceRow)
         form.addRow("Color/Type:", available_noisecolors_dropdown)
         form.addRow("File:", fileRow)
@@ -179,34 +169,9 @@ class NoiseWindow(ModalityWindow):
             self.session.log_interaction(f"Noise color set to {text}")
             self._restart_if_playing()
 
-    def set_new_noisespeakers(self, text: str) -> None:
-        """Text is the device name, with host api string appended to the end."""
-        self.noiseplayer_device = text
-        self.session.log_interaction(f"Noise device set to {text}")
-        self._restart_if_playing()  # switch a live stream over to the new device
-
-    def refresh_available_noisespeakers(self):
-        """Populate the noise device selection menu with available speakers."""
-        self.available_noisespeakers_dropdown.clear()
-        HOST_API = "Windows WASAPI"
-        hostapi = [api["name"] for api in sd.query_hostapis()].index(HOST_API)
-        devices = sd.query_devices()
-        for device in devices:
-            if device["hostapi"] == hostapi and device["max_output_channels"] > 0:
-                device_name = device["name"]
-                device_str = f"{device_name}, {HOST_API}"
-                self.available_noisespeakers_dropdown.addItem(device_str)
-        if devices:
-            self.available_noisespeakers_dropdown.setCurrentIndex(0)
-        else:
-            self.session.show_error_popup("No audio devices found.", parent=self)
-
-    def refresh_devices(self) -> None:
-        """Re-enumerate speakers, keeping the current selection if still present."""
-        combo = self.available_noisespeakers_dropdown
-        previous = current_device_key(combo)
-        self.refresh_available_noisespeakers()
-        select_saved_device(combo, previous)
+    def refresh_device_indicator(self) -> None:
+        """Show where noise output resolves (device chosen in the Devices window)."""
+        self.deviceLabel.setText(describe_target(self.session, "noise_out"))
 
     def is_streaming(self) -> bool:
         """True while noise is playing (an open output stream)."""
@@ -226,7 +191,7 @@ class NoiseWindow(ModalityWindow):
 
     # ----- playback ---------------------------------------------------------
 
-    def _device_samplerate(self, device: str) -> int:
+    def _device_samplerate(self, device: str | None) -> int:
         """Best output sample rate for ``device`` (WASAPI opens only at its own)."""
         try:
             return int(sd.query_devices(device, "output")["default_samplerate"])
@@ -280,7 +245,7 @@ class NoiseWindow(ModalityWindow):
         """Start streaming the selected noise (built-in color or file) on loop."""
         if self.noise_stream is not None:
             return  # already playing
-        device = self.available_noisespeakers_dropdown.currentText()
+        device = self.session.devices.device_for("noise_out") or None
         rate = self._device_samplerate(device)
         try:
             buf = self._build_noise_buffer(rate)
@@ -327,7 +292,6 @@ class NoiseWindow(ModalityWindow):
 
     def gather_state(self) -> dict:
         return {
-            "noise_device": current_device_key(self.available_noisespeakers_dropdown),
             "noise_volume": self.noisevolumeSpinBox.value(),
             "noise_color": self.available_noisecolors_dropdown.currentText(),
             "noise_source": "file" if self._use_file_source() else "builtin",
@@ -335,11 +299,6 @@ class NoiseWindow(ModalityWindow):
         }
 
     def apply_state(self, state: dict) -> None:
-        saved = state.get("noise_device")
-        if saved and not select_saved_device(
-            self.available_noisespeakers_dropdown, saved
-        ):
-            self.session.note_missing_device("Noise output", saved)
         if (v := state.get("noise_volume")) is not None:
             self.noisevolumeSpinBox.setValue(float(v))
         if color := state.get("noise_color"):

@@ -13,12 +13,7 @@ from ..config import SURVEY_OPTIONS
 from ..dialogs import ManageSurveysDialog
 from ..session import SmaccSession
 from ..utils import format_elapsed
-from .base import (
-    ModalityWindow,
-    current_device_key,
-    make_section_title,
-    select_saved_device,
-)
+from .base import ModalityWindow, describe_target, make_section_title
 
 
 class RecordingWindow(ModalityWindow):
@@ -40,15 +35,10 @@ class RecordingWindow(ModalityWindow):
         self.setCentralWidget(self._build())
 
     def _build(self) -> QtWidgets.QWidget:
-        # Microphone device picker: QComboBox signal --> update device slot
-        available_microphones_dropdown = QtWidgets.QComboBox()
-        available_microphones_dropdown.setStatusTip("Select microphone")
-        available_microphones_dropdown.setPlaceholderText("No microphones were found.")
-        available_microphones_dropdown.currentTextChanged.connect(
-            self.set_new_microphone
-        )
-        self.available_microphones_dropdown = available_microphones_dropdown
-        self.refresh_available_microphones()
+        # Microphone is chosen in the Devices window; show where it resolves to.
+        self.deviceLabel = QtWidgets.QLabel(self)
+        self.deviceLabel.setStatusTip("Set in the Devices window (Dream-report mic).")
+        self.refresh_device_indicator()
 
         micrecordButton = QtWidgets.QPushButton("Record dream report", self)
         micrecordButton.setStatusTip("Ask for a dream report and start recording.")
@@ -110,7 +100,7 @@ class RecordingWindow(ModalityWindow):
         layout = QtWidgets.QFormLayout()
         layout.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         layout.addRow(make_section_title("Dream recording"))
-        layout.addRow("Device:", available_microphones_dropdown)
+        layout.addRow("Device:", self.deviceLabel)
         layout.addRow("Survey:", surveyRow)
         layout.addRow(micrecordButton)
         layout.addRow(self.recordingIndicatorLabel)
@@ -127,50 +117,13 @@ class RecordingWindow(ModalityWindow):
         self._record_file: sf.SoundFile | None = None
 
     def _selected_input_device(self) -> str | None:
-        """The sounddevice device string for the selected mic (None == default)."""
-        return self.available_microphones_dropdown.currentText() or None
+        """The mic device for the dream-report role (None == system default)."""
+        return self.session.devices.device_for("report_in") or None
 
-    def set_new_microphone(self, text: str) -> None:
-        """Log the selected microphone and switch a live level meter over to it."""
-        self.session.log_interaction(f"Microphone set to {text}")
-        self._restart_meter_if_monitoring()  # switch a live meter over too
-
-    def refresh_available_microphones(self):
-        """Populate the microphone dropdown with available WASAPI input devices.
-
-        Each item shows (and is keyed by) the sounddevice device string — the same
-        value passed to the recording and level-meter streams — so there is a single
-        device identity throughout the panel.
-        """
-        self.available_microphones_dropdown.clear()
-        host_api_name = "Windows WASAPI"
-        host_api_names = [api["name"] for api in sd.query_hostapis()]
-        hostapi = (
-            host_api_names.index(host_api_name)
-            if host_api_name in host_api_names
-            else None
-        )
-        count = 0
-        for device in sd.query_devices():
-            if device["max_input_channels"] <= 0:
-                continue
-            if hostapi is not None and device["hostapi"] != hostapi:
-                continue
-            suffix = f", {host_api_name}" if hostapi is not None else ""
-            self.available_microphones_dropdown.addItem(f"{device['name']}{suffix}")
-            count += 1
-        if count:
-            self.available_microphones_dropdown.setCurrentIndex(0)
-        elif self.session.can_record:
-            # In the designer there's no recording, so don't nag about missing mics.
-            self.session.show_error_popup("No microphones found.", parent=self)
-
-    def refresh_devices(self) -> None:
-        """Re-enumerate microphones, keeping the current selection if still present."""
-        combo = self.available_microphones_dropdown
-        previous = current_device_key(combo)
-        self.refresh_available_microphones()
-        select_saved_device(combo, previous)
+    def refresh_device_indicator(self) -> None:
+        """Show where the mic resolves and switch a live meter over to it."""
+        self.deviceLabel.setText(describe_target(self.session, "report_in"))
+        self._restart_meter_if_monitoring()
 
     def is_streaming(self) -> bool:
         """True while the level meter is open or a dream report is recording."""
@@ -387,18 +340,12 @@ class RecordingWindow(ModalityWindow):
 
     def gather_state(self) -> dict:
         return {
-            "recording_device": current_device_key(self.available_microphones_dropdown),
             "survey_url": self.current_survey_url(),
             "survey_options": self._current_survey_options(),
         }
 
     def apply_state(self, state: dict) -> None:
         self._apply_survey_state(state)
-        saved = state.get("recording_device")
-        if saved and not select_saved_device(
-            self.available_microphones_dropdown, saved
-        ):
-            self.session.note_missing_device("Microphone", saved)
 
     def cleanup(self) -> None:
         self.meter_timer.stop()

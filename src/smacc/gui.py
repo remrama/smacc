@@ -10,12 +10,13 @@ from typing import cast
 import sounddevice as sd
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from smacc import bids, preferences, settings, winassoc
+from smacc import bids, devices, preferences, settings, winassoc
 
 from .config import VERSION
 from .dialogs import EventCodesDialog, SessionInfoDialog, ask_initial_or_final
 from .panels.audio import AudioCueWindow
 from .panels.base import ModalityWindow
+from .panels.devices import DevicesWindow
 from .panels.events import EventsWindow
 from .panels.intercom import IntercomWindow
 from .panels.noise import NoiseWindow
@@ -55,8 +56,11 @@ class SmaccWindow(ToolWindow):
             QtWidgets.QApplication, QtWidgets.QApplication.instance()
         ).palette()
 
-        # Modality windows, constructed up front (hidden) and opened on demand
-        # from the launcher buttons. Each holds its own state for settings save/load.
+        # Modality windows, constructed up front (hidden) and opened on demand from
+        # the launcher buttons. The Devices window owns all device selection; the
+        # others show a read-only indicator and resolve their device from
+        # session.devices, refreshed whenever the Devices window emits ``changed``.
+        self.devices_window = DevicesWindow(self.session)
         self.panels: dict[str, ModalityWindow] = {
             "events": EventsWindow(self.session),
             "visual": VisualWindow(self.session),
@@ -64,7 +68,9 @@ class SmaccWindow(ToolWindow):
             "noise": NoiseWindow(self.session),
             "recording": RecordingWindow(self.session),
             "intercom": IntercomWindow(self.session),
+            "devices": self.devices_window,
         }
+        self.devices_window.changed.connect(self._refresh_device_indicators)
 
         self.init_main_window()  # builds the menu + log handler (does not show yet)
         self._apply_preferences(self._prefs)
@@ -161,6 +167,7 @@ class SmaccWindow(ToolWindow):
         "noise": "Noise machine",
         "recording": "Dream recording",
         "intercom": "Intercom",
+        "devices": "Devices",
     }
 
     def _build_launcher_buttons(self) -> QtWidgets.QLayout:
@@ -582,13 +589,15 @@ class SmaccWindow(ToolWindow):
     def gather_settings(self) -> dict:
         """Collect each panel's parameters into one serializable settings dict.
 
-        Each routing panel's selected device travels with the settings (by name), so
-        a rig's device setup is restored on the next load; an unplugged saved device
-        is flagged on load rather than silently dropped.
+        Device roles + routing travel with the settings in a ``devices`` block (see
+        :mod:`smacc.devices`), so a rig's whole device setup is restored on the next
+        load; an unplugged bound device is flagged rather than silently dropped.
         """
         state: dict = {}
         for panel in self.panels.values():
             state.update(panel.gather_state())
+        # Device roles/routing live on the session, not a panel; persist the block.
+        state["devices"] = self.session.devices.to_dict()
         # The event-code registry isn't a panel; persist it at the window level.
         state["event_codes"] = self.session.event_codes_as_list()
         state["event_code_safe_max"] = self.session.event_code_safe_max
@@ -605,7 +614,9 @@ class SmaccWindow(ToolWindow):
         """
         was_logging = self.session.log_interactions
         self.session.log_interactions = False
-        self.session.missing_devices = []  # panels append any unplugged saved device
+        self.session.missing_devices = []  # filled by the Devices reload below
+        # Device roles/routing first, so panels resolve correctly (migrates old files).
+        self.session.devices = devices.load(state)
         try:
             for panel in self.panels.values():
                 panel.apply_state(state)
@@ -615,6 +626,8 @@ class SmaccWindow(ToolWindow):
                 state.get("event_codes"), state.get("event_code_safe_max")
             )
             self._rebuild_events_panel()  # a loaded study may add/remove buttons
+            self.devices_window.reload_from_config()  # sync widgets + flag missing
+            self._refresh_device_indicators()
         finally:
             self.session.log_interactions = was_logging
         self._notify_missing_devices()
@@ -624,6 +637,11 @@ class SmaccWindow(ToolWindow):
         panel = self.panels.get("events")
         if isinstance(panel, EventsWindow):
             panel.rebuild()
+
+    def _refresh_device_indicators(self) -> None:
+        """Re-render every panel's device indicator from session.devices."""
+        for panel in self.panels.values():
+            panel.refresh_device_indicator()
 
     def _notify_missing_devices(self) -> None:
         """Surface, once, any saved devices that weren't connected when settings loaded.
@@ -651,31 +669,31 @@ class SmaccWindow(ToolWindow):
         up by re-initializing it — which invalidates open streams, so that is done
         only while nothing is playing, recording, or monitoring.
         """
-        self.panels["visual"].refresh_devices()  # independent of PortAudio
-        if any(panel.is_streaming() for panel in self.panels.values()):
-            self.session.show_info_popup(
-                "Stop audio to rescan audio devices.",
-                "BlinkSticks were rescanned. To rescan audio devices, first stop "
-                "noise, the intercom, recording, and the input-level meter, then "
-                "choose Refresh devices again.",
-                parent=self,
-            )
-            return
         was_logging = self.session.log_interactions
-        self.session.log_interactions = False  # don't spam logs as pickers repopulate
+        self.session.log_interactions = False  # don't spam logs as lists repopulate
+        audio_active = any(panel.is_streaming() for panel in self.panels.values())
         try:
-            sd._terminate()
-            sd._initialize()  # rebuild PortAudio's cached device list
-            for key in ("noise", "recording", "intercom"):
-                self.panels[key].refresh_devices()
+            if not audio_active:
+                sd._terminate()
+                sd._initialize()  # rebuild PortAudio's cached device list
+            self.devices_window.refresh_device_lists()
+            self._refresh_device_indicators()
         except Exception as exc:  # PortAudio re-init can fail on odd configs
             self.session.show_error_popup(
-                "Could not rescan audio devices.", str(exc), parent=self
+                "Could not rescan devices.", str(exc), parent=self
+            )
+        finally:
+            self.session.log_interactions = was_logging
+        if audio_active:
+            self.session.show_info_popup(
+                "Audio devices not fully rescanned.",
+                "BlinkSticks were rescanned. To rescan audio devices too, stop "
+                "playback, recording, and the level meter, then choose Refresh "
+                "devices again.",
+                parent=self,
             )
         else:
             self.session.log_info_msg("Refreshed devices")
-        finally:
-            self.session.log_interactions = was_logging
 
     # ----- preferences / launch-file / file association ----------------------
 

@@ -23,12 +23,7 @@ from PyQt6 import QtCore, QtWidgets
 from .. import audio, utils
 from ..session import SmaccSession
 from ..utils import pick_random_demo_cue
-from .base import (
-    ModalityWindow,
-    current_device_key,
-    make_section_title,
-    select_saved_device,
-)
+from .base import ModalityWindow, describe_target, make_section_title
 
 # One cue is always required; the upper bound is generous (a session typically
 # uses 2-5) but capped so the grid and playback stay manageable (#65).
@@ -139,13 +134,10 @@ class AudioCueWindow(ModalityWindow):
         self._rebuild_grid()
 
     def _build(self) -> QtWidgets.QWidget:
-        # Shared output device + fade controls.
-        available_speakers_dropdown = QtWidgets.QComboBox()
-        available_speakers_dropdown.setStatusTip("Select speakers for cues")
-        available_speakers_dropdown.setPlaceholderText("No speaker devices were found.")
-        available_speakers_dropdown.currentTextChanged.connect(self.set_new_cue_device)
-        self.available_speakers_dropdown = available_speakers_dropdown
-        self.refresh_available_speakers()
+        # Shared output device (chosen in the Devices window) + fade controls.
+        self.deviceLabel = QtWidgets.QLabel(self)
+        self.deviceLabel.setStatusTip("Set in the Devices window (Audio cue → role).")
+        self.refresh_device_indicator()
 
         attackSpinBox = QtWidgets.QDoubleSpinBox(self)
         attackSpinBox.setStatusTip(
@@ -171,7 +163,7 @@ class AudioCueWindow(ModalityWindow):
 
         header = QtWidgets.QFormLayout()
         header.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-        header.addRow("Device:", available_speakers_dropdown)
+        header.addRow("Device:", self.deviceLabel)
         header.addRow("Fade in:", attackSpinBox)
         header.addRow("Fade out:", releaseSpinBox)
 
@@ -286,50 +278,13 @@ class AudioCueWindow(ModalityWindow):
 
     # ----- shared device + fade ---------------------------------------------
 
-    def refresh_available_speakers(self):
-        """Populate the cue device menu with available WASAPI output devices."""
-        self.available_speakers_dropdown.clear()
-        host_api_name = "Windows WASAPI"
-        host_api_names = [api["name"] for api in sd.query_hostapis()]
-        hostapi = (
-            host_api_names.index(host_api_name)
-            if host_api_name in host_api_names
-            else None
-        )
-        count = 0
-        for device in sd.query_devices():
-            if device["max_output_channels"] <= 0:
-                continue
-            if hostapi is not None and device["hostapi"] != hostapi:
-                continue
-            suffix = f", {host_api_name}" if hostapi is not None else ""
-            self.available_speakers_dropdown.addItem(f"{device['name']}{suffix}")
-            count += 1
-        if count:
-            self.available_speakers_dropdown.setCurrentIndex(0)
-        else:
-            self.session.show_error_popup("No audio devices found.", parent=self)
-
-    def refresh_devices(self) -> None:
-        """Re-enumerate speakers, keeping the current selection if still present."""
-        combo = self.available_speakers_dropdown
-        previous = current_device_key(combo)
-        self.refresh_available_speakers()
-        select_saved_device(combo, previous)
+    def refresh_device_indicator(self) -> None:
+        """Show where cue output resolves (device chosen in the Devices window)."""
+        self.deviceLabel.setText(describe_target(self.session, "cue_out"))
 
     def is_streaming(self) -> bool:
         """True while a cue is playing (an open output stream)."""
         return self._cue_stream is not None
-
-    def set_new_cue_device(self, text: str) -> None:
-        """Apply a newly selected output device; a playing cue is stopped first.
-
-        A cue is a one-shot (unlike continuous noise), so rather than reopen the
-        stream on the new device mid-cue, an active cue is stopped (and marked).
-        """
-        self.session.log_interaction(f"Cue device set to {text}")
-        if self._active_slot is not None:
-            self._finish_active()
 
     def _device_samplerate(self, device: str | None) -> int:
         """Best output sample rate for ``device`` (WASAPI opens only at its own)."""
@@ -411,7 +366,7 @@ class AudioCueWindow(ModalityWindow):
         # *different* cue is replaced (re-playing the same slot is just a restart).
         if self._active_slot is not None:
             self._finish_active(mark=self._active_slot is not slot)
-        device = self.available_speakers_dropdown.currentText() or None
+        device = self.session.devices.device_for("cue_out") or None
         rate = self._device_samplerate(device)
         buffer = utils.resample_to(slot.audio, slot.rate, rate)
         self._cue_mixer.start(
@@ -490,7 +445,6 @@ class AudioCueWindow(ModalityWindow):
 
     def gather_state(self) -> dict:
         return {
-            "cue_device": current_device_key(self.available_speakers_dropdown),
             "cues": [
                 {
                     "name": slot.nameEdit.text(),
@@ -505,9 +459,6 @@ class AudioCueWindow(ModalityWindow):
         }
 
     def apply_state(self, state: dict) -> None:
-        saved = state.get("cue_device")
-        if saved and not select_saved_device(self.available_speakers_dropdown, saved):
-            self.session.note_missing_device("Cue output", saved)
         cues = state.get("cues")
         if isinstance(cues, list) and cues:
             self._resize_slots(len(cues))
