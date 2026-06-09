@@ -92,6 +92,11 @@ class SmaccSession:
         # Devices window edits this; modality panels resolve their device from it.
         # A loaded study replaces it via devices.load() (migrating older files).
         self.devices = devices.default_config()
+        # Master output safety cap (0-1): a single ceiling multiplied into every
+        # stimulus (cue + noise) in the audio callback, so a cue at full volume on a
+        # calibrated rig can't blast a sleeping participant. 1.0 == no cap. Edited in
+        # the Volume window; read live by the audio threads.
+        self.volume_cap = 1.0
         # Soft interaction logs (volume/color/device/…) are gated off until the
         # main window finishes startup, so construction and study loads don't
         # spam the log; the window flips this on afterwards.

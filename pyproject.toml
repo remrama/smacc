@@ -27,6 +27,9 @@ dependencies = [
     # so scope to win32 to keep the cross-platform lock resolving everywhere.
     "blinkstick; sys_platform == 'win32'",
     "numpy",
+    # Read-only view of the Windows volume mixer (Core Audio COM); Windows-only, so
+    # scope to win32 like blinkstick. Pulls in comtypes.
+    "pycaw; sys_platform == 'win32'",
     "pylsl",
     "pyyaml",
     # Qt 6 GUI toolkit. Qt 6 requires Windows 10+, which is why SMACC's floor is

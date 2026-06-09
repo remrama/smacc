@@ -221,7 +221,9 @@ class NoiseWindow(ModalityWindow):
             outdata.fill(0)
             return
         chunk, self._noise_pos = utils.read_loop(buf, self._noise_pos, frames)
-        np.multiply(chunk, self.noise_stream_volume, out=outdata[:, 0])
+        # The master safety cap is the single final gain stage (read live).
+        gain = self.noise_stream_volume * self.session.volume_cap
+        np.multiply(chunk, gain, out=outdata[:, 0])
 
     def on_play_noise_clicked(self, _checked: bool = False) -> None:
         """User pressed Play: start the noise and mark it (NoiseStarted).
