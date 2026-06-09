@@ -35,6 +35,11 @@ settings:
   survey_url: ''
   survey_options: {}
   event_codes:
+  - key: RecordingStarted
+    code: 51
+    trigger: true
+    preview: true
+    increment: false
   - key: TLRTrainingStart
     code: 43
     trigger: true

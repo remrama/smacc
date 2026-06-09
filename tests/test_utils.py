@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 
 import numpy as np
@@ -261,3 +262,25 @@ def test_normalize_survey_url_strips_surrounding_whitespace():
     assert (
         utils.normalize_survey_url("  https://example.com  ") == "https://example.com"
     )
+
+
+# ----- elapsed-time formatting (#60) ----------------------------------------
+
+
+@pytest.mark.parametrize(
+    "seconds, expected",
+    [
+        (0, "00:00:00"),
+        (5, "00:00:05"),
+        (65, "00:01:05"),
+        (3661, "01:01:01"),
+        (90061, "25:01:01"),  # past 24h keeps counting hours, never wraps
+    ],
+)
+def test_format_elapsed_renders_hms(seconds, expected):
+    assert utils.format_elapsed(timedelta(seconds=seconds)) == expected
+
+
+def test_format_elapsed_truncates_subseconds_and_clamps_negative():
+    assert utils.format_elapsed(timedelta(seconds=5, milliseconds=999)) == "00:00:05"
+    assert utils.format_elapsed(timedelta(seconds=-5)) == "00:00:00"

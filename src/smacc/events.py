@@ -66,6 +66,16 @@ def default_events() -> list[EventDef]:
     return [
         # --- Manual / observational: the auto-built event-grid buttons --------
         EventDef(
+            "RecordingStarted",
+            "Start recording",
+            51,
+            category="manual",
+            tooltip=(
+                "Mark the start of the EEG recording; sets the reference clock "
+                "for dream-report timestamps"
+            ),
+        ),
+        EventDef(
             "TLRTrainingStart",
             "TLR training start",
             43,

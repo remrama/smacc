@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import shutil
 from collections.abc import Callable
+from datetime import timedelta
 from os import environ
 from pathlib import Path
 
@@ -15,6 +16,18 @@ from scipy.io.wavfile import write
 _WAV_SUFFIXES = {".wav", ".wave"}
 AUDIO_SUFFIXES = {".wav", ".wave", ".mp3", ".flac", ".ogg", ".oga", ".aif", ".aiff"}
 DEMO_RATE = 44100
+
+
+def format_elapsed(delta: timedelta) -> str:
+    """Format a duration as ``HH:MM:SS`` for dream-report timestamps (#60).
+
+    Hours are not capped, so an overnight session that runs past 24h still renders
+    correctly; sub-second precision is truncated and negative inputs clamp to zero.
+    """
+    total = int(max(delta.total_seconds(), 0))
+    hours, rem = divmod(total, 3600)
+    minutes, seconds = divmod(rem, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 
 def get_smacc_directory() -> Path:

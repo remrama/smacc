@@ -20,6 +20,17 @@ def test_default_events_validate_clean():
     assert warnings == []
 
 
+def test_recording_started_is_a_default_manual_marker():
+    # #60: the "Start recording" button comes from a manual registry event so it
+    # auto-appears in the grid, sends a portcode, and persists in a study.
+    rec = {e.key: e for e in events.default_events()}["RecordingStarted"]
+    assert rec.label == "Start recording"
+    assert rec.code == 51
+    assert rec.category == "manual"
+    assert rec.trigger is True
+    assert rec.increment is False
+
+
 def test_dream_start_increments_and_others_dont():
     defs = {e.key: e for e in events.default_events()}
     start = defs["DreamReportStarted"]
