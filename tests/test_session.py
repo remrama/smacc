@@ -290,3 +290,57 @@ def test_mark_recording_start_stamps_clock_and_emits_marker():
     # The marker routes through emit_event: triggered with code 51 and logged.
     assert sess.outlet.samples == [["51"]]
     assert records == [("Start recording - portcode 51", True)]
+
+
+# ----- log levels: preview-noise demotion (DEBUG vs INFO) --------------------
+
+
+def _level_capturing_session():
+    """A bare session whose logger records ``(levelno, message)`` per line.
+
+    Only the logging helpers are exercised, so the rest of the session can stay
+    unconfigured aside from the interaction gate (set per-test).
+    """
+    sess = SmaccSession.__new__(SmaccSession)
+    logger = logging.getLogger("smacc-test-levels")
+    logger.handlers.clear()
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = False
+    records: list[tuple[int, str]] = []
+
+    class _Capture(logging.Handler):
+        def emit(self, record):
+            records.append((record.levelno, record.getMessage()))
+
+    logger.addHandler(_Capture())
+    sess.logger = logger
+    return sess, records
+
+
+def test_log_debug_msg_logs_at_debug_level():
+    sess, records = _level_capturing_session()
+    sess.log_debug_msg("quiet line")
+    assert records == [(logging.DEBUG, "quiet line")]
+
+
+def test_log_interaction_defaults_to_info():
+    sess, records = _level_capturing_session()
+    sess.log_interactions = True
+    sess.log_interaction("an interaction")
+    assert records == [(logging.INFO, "an interaction")]
+
+
+def test_log_interaction_debug_demotes_to_debug():
+    sess, records = _level_capturing_session()
+    sess.log_interactions = True
+    sess.log_interaction("a noisy interaction", debug=True)
+    # Demoted lines still get logged (and so reach the file), just at DEBUG, so
+    # the INFO-gated live preview leaves them out.
+    assert records == [(logging.DEBUG, "a noisy interaction")]
+
+
+def test_log_interaction_debug_still_respects_the_gate():
+    sess, records = _level_capturing_session()
+    sess.log_interactions = False  # programmatic setup / study load
+    sess.log_interaction("a noisy interaction", debug=True)
+    assert records == []  # gated off entirely, regardless of level

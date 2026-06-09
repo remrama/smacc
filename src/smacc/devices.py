@@ -11,7 +11,7 @@ change.
 The config persists in a settings file's ``devices`` block::
 
     devices:
-      bindings: {bedroom_out: "Speakers …, Windows WASAPI", bedroom_mic: "…"}
+      bindings: {bedroom_out: "Speakers (Realtek …)", bedroom_mic: "Microphone …"}
       routing:  {cue_out: bedroom_out, noise_out: bedroom_out, report_in: bedroom_mic}
 
 A pre-roles study (no ``devices`` block) is migrated from its per-panel device
@@ -27,6 +27,27 @@ OUTPUT = "output"
 INPUT = "input"
 VISUAL = "visual"
 
+# SMACC enumerates only WASAPI audio devices, so device names used to carry a
+# redundant ", Windows WASAPI" suffix (the host-API name PortAudio appends). New
+# bindings store the bare name; this constant lets older settings that saved the
+# suffixed form still resolve. See :func:`strip_wasapi_suffix`.
+WASAPI_HOST_API = "Windows WASAPI"
+_WASAPI_SUFFIX = f", {WASAPI_HOST_API}"
+
+
+def strip_wasapi_suffix(device: str) -> str:
+    """Drop a trailing ", Windows WASAPI" from a stored device string.
+
+    Device names are no longer stored with the host-API suffix (SMACC only ever
+    lists WASAPI devices, so it added nothing). Older ``.smacc`` files saved the
+    suffixed form, though, so every place that matches a stored device string
+    normalizes through this first — the bare and suffixed forms then compare equal
+    and an existing binding keeps resolving to the same device.
+    """
+    if device.endswith(_WASAPI_SUFFIX):
+        return device[: -len(_WASAPI_SUFFIX)]
+    return device
+
 
 @dataclass(frozen=True)
 class Role:
@@ -38,11 +59,14 @@ class Role:
 
 
 # The fixed role set. Two outputs and one mic cover the issue's rig; BlinkStick is
-# its own (visual) role. Kept small on purpose — extra roles can be added later.
+# its own (visual) role. The monitor mic (#37) is a second, optional input so a lab
+# can place a dedicated, sensitive mic for verifying cues without disturbing the
+# (often cheaper) dream-report mic. Kept small on purpose — more can be added later.
 ROLES: tuple[Role, ...] = (
     Role("bedroom_out", "Bedroom speakers", OUTPUT),
     Role("control_out", "Control-room speakers", OUTPUT),
     Role("bedroom_mic", "Bedroom mic", INPUT),
+    Role("monitor_mic", "Monitor mic", INPUT),
     Role("blinkstick", "Bedroom lights", VISUAL),
 )
 
@@ -67,6 +91,9 @@ TARGETS: tuple[Target, ...] = (
     Target("intercom_talk", "Speak through intercom", OUTPUT, "bedroom_out"),
     Target("intercom_listen", "Listen through intercom", OUTPUT, "", optional=True),
     Target("report_in", "Capture dream report", INPUT, "bedroom_mic"),
+    # The room monitor (#37) defaults to the bedroom mic so the cue meter works out
+    # of the box; route it to the dedicated monitor mic for a more sensitive check.
+    Target("monitor_in", "Monitor room with", INPUT, "bedroom_mic", optional=True),
     Target("visual_out", "Present visual cue", VISUAL, "blinkstick"),
 )
 

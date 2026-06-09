@@ -58,6 +58,45 @@ def test_meter_mapping_endpoints_and_clamp():
     assert audio.dbfs_to_meter(0.0) == 100
     assert audio.dbfs_to_meter(audio.METER_FLOOR_DBFS) == 0
     assert audio.dbfs_to_meter(-1000.0) == 0  # clamped
+
+
+def test_ambient_baseline_tracks_a_quiet_floor():
+    base = audio.AmbientBaseline()
+    for _ in range(50):
+        base.update(-70.0)  # steady quiet room
+    assert base.floor == pytest.approx(-70.0, abs=0.5)
+
+
+def test_ambient_baseline_reports_rise_for_a_cue_above_the_floor():
+    base = audio.AmbientBaseline()
+    for _ in range(50):
+        base.update(-70.0)  # settle the floor at the room noise
+    rise = base.update(-40.0)  # a cue lifts the level 30 dB
+    assert rise == pytest.approx(30.0, abs=1.0)
+
+
+def test_ambient_baseline_drops_instantly_to_a_quieter_level():
+    base = audio.AmbientBaseline()
+    base.update(-40.0)
+    base.update(-80.0)  # quieter than the floor -> snaps down immediately
+    assert base.floor == pytest.approx(-80.0, abs=0.01)
+
+
+def test_ambient_baseline_floor_creeps_up_under_sustained_sound():
+    base = audio.AmbientBaseline(creep_db_per_update=0.15)
+    base.update(-70.0)  # floor starts low
+    for _ in range(100):  # a sustained louder sound
+        base.update(-40.0)
+    # The floor adapts upward toward the sustained level (so the rise shrinks).
+    assert base.floor > -70.0
+    assert base.update(-40.0) < 30.0
+
+
+def test_ambient_baseline_reset_forgets_the_floor():
+    base = audio.AmbientBaseline()
+    base.update(-30.0)
+    base.reset()
+    assert base.floor == audio.FLOOR_DBFS
     assert audio.dbfs_to_meter(50.0) == 100  # clamped
     midpoint = audio.METER_FLOOR_DBFS / 2
     assert audio.dbfs_to_meter(midpoint) == 50

@@ -8,12 +8,12 @@ import sounddevice as sd
 import soundfile as sf
 from PyQt6 import QtCore, QtWidgets
 
-from .. import audio
 from ..config import SURVEY_OPTIONS
 from ..dialogs import ManageSurveysDialog
 from ..session import SmaccSession
 from ..utils import format_elapsed
 from .base import ModalityWindow, describe_target, make_section_title
+from .meter import InputLevelMeter
 
 
 class RecordingWindow(ModalityWindow):
@@ -31,7 +31,9 @@ class RecordingWindow(ModalityWindow):
         super().__init__(session, parent)
         self.n_report_counter = 0  # cumulative counter for determining filenames
         self.init_recorder()
-        self.init_level_meter()
+        # Built before _build(): refresh_device_indicator() (called inside _build)
+        # restarts the meter, so the widget must already exist.
+        self.levelMeter = InputLevelMeter(self)
         self.setCentralWidget(self._build())
 
     def _build(self) -> QtWidgets.QWidget:
@@ -65,16 +67,9 @@ class RecordingWindow(ModalityWindow):
         monitorCheckBox.toggled.connect(self.toggle_level_monitor)
         self.monitorCheckBox = monitorCheckBox
 
-        levelMeterBar = QtWidgets.QProgressBar(self)
-        levelMeterBar.setRange(0, 100)
-        levelMeterBar.setValue(0)
-        levelMeterBar.setTextVisible(True)
-        levelMeterBar.setFormat("")
-        self.levelMeterBar = levelMeterBar
-
         levelLayout = QtWidgets.QHBoxLayout()
         levelLayout.addWidget(monitorCheckBox)
-        levelLayout.addWidget(levelMeterBar)
+        levelLayout.addWidget(self.levelMeter)
 
         # Survey selector: editable dropdown of named presets (or a typed-in URL).
         surveyComboBox = QtWidgets.QComboBox(self)
@@ -127,7 +122,7 @@ class RecordingWindow(ModalityWindow):
 
     def is_streaming(self) -> bool:
         """True while the level meter is open or a dream report is recording."""
-        return self.meter_stream is not None or self._record_stream is not None
+        return self.levelMeter.is_active() or self._record_stream is not None
 
     def start_or_stop_recording(self):
         """Start or stop a dream report (the button's checked state is the intent)."""
@@ -227,19 +222,11 @@ class RecordingWindow(ModalityWindow):
             self.recordingIndicatorLabel.setText("■ idle")
             self.recordingIndicatorLabel.setStyleSheet("")
 
-    # ----- input level meter (#25) ------------------------------------------
-
-    def init_level_meter(self) -> None:
-        """Set up the input level meter stream and its refresh timer."""
-        self.meter_stream: sd.InputStream | None = None
-        self._input_level_db = audio.FLOOR_DBFS
-        self.meter_timer = QtCore.QTimer(self)
-        self.meter_timer.setInterval(50)  # ~20 Hz display refresh
-        self.meter_timer.timeout.connect(self.update_level_meter)
+    # ----- input level meter (#25, shared widget #37) -----------------------
 
     def _restart_meter_if_monitoring(self) -> None:
         """Re-open the level meter on the current device if it's running."""
-        if self.meter_stream is not None:
+        if self.levelMeter.is_active():
             self.toggle_level_monitor(False)
             self.toggle_level_monitor(True)
 
@@ -248,38 +235,14 @@ class RecordingWindow(ModalityWindow):
         self.session.log_interaction(f"Input level meter {'on' if enabled else 'off'}")
         if enabled:
             try:
-                self.meter_stream = sd.InputStream(
-                    channels=1,
-                    device=self._selected_input_device(),
-                    callback=self._meter_callback,
-                )
-                self.meter_stream.start()
+                self.levelMeter.start(self._selected_input_device())
             except Exception as exc:  # PortAudio errors, no device, etc.
                 self.session.show_error_popup(
                     "Could not open input for monitoring.", str(exc), parent=self
                 )
                 self.monitorCheckBox.setChecked(False)
-                self.meter_stream = None
-                return
-            self.meter_timer.start()
         else:
-            self.meter_timer.stop()
-            if self.meter_stream is not None:
-                self.meter_stream.abort()
-                self.meter_stream.close()
-                self.meter_stream = None
-            self.levelMeterBar.setValue(0)
-            self.levelMeterBar.setFormat("")
-
-    def _meter_callback(self, indata, frames, time, status) -> None:
-        """sounddevice callback (audio thread): stash the latest input level."""
-        self._input_level_db = audio.rms_dbfs(indata)
-
-    def update_level_meter(self) -> None:
-        """GUI-thread timer: render the latest level onto the meter bar."""
-        db = self._input_level_db
-        self.levelMeterBar.setValue(audio.dbfs_to_meter(db))
-        self.levelMeterBar.setFormat(f"{db:.0f} dBFS")
+            self.levelMeter.stop()
 
     # ----- survey + settings state ------------------------------------------
 
@@ -348,9 +311,5 @@ class RecordingWindow(ModalityWindow):
         self._apply_survey_state(state)
 
     def cleanup(self) -> None:
-        self.meter_timer.stop()
-        if self.meter_stream is not None:
-            self.meter_stream.abort()
-            self.meter_stream.close()
-            self.meter_stream = None
+        self.levelMeter.stop()
         self._teardown_recording()
