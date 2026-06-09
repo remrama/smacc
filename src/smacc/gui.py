@@ -339,12 +339,6 @@ class SmaccWindow(ToolWindow):
         )
         triggerOutputAction.triggered.connect(self.edit_trigger_output)
 
-        exportEventsAction = QtGui.QAction("&Export events (BIDS)…", self)
-        exportEventsAction.setStatusTip(
-            "Export this session's events log as a BIDS events.tsv."
-        )
-        exportEventsAction.triggered.connect(self.export_events_bids)
-
         # Always-on-top is a per-window interface choice that travels with the study
         # (applied by _apply_always_on_top_settings). Built in both modes so settings
         # can set its state, but only surfaced in a session's menu (tool windows carry

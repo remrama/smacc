@@ -161,10 +161,6 @@ class LauncherWindow(QtWidgets.QMainWindow):
         assert menu_bar is not None
         fileMenu = menu_bar.addMenu("&File")
         assert fileMenu is not None
-        prefsAction = fileMenu.addAction("&Preferences…")
-        assert prefsAction is not None
-        prefsAction.setStatusTip("Edit interface preferences (theme, log preview, …).")
-        prefsAction.triggered.connect(self.edit_preferences)
         # Only the packaged Windows build can register the .smacc handler; hide the
         # action entirely on dev runs / other platforms (a dev run is python.exe).
         if winassoc.is_associatable():
@@ -174,7 +170,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
                 "Register SMACC as the handler for .smacc files (double-click to open)."
             )
             associateAction.triggered.connect(self.associate_files)
-        fileMenu.addSeparator()
+            fileMenu.addSeparator()
         aboutAction = fileMenu.addAction("&About")
         assert aboutAction is not None
         aboutAction.setStatusTip("About SMACC (version and links).")
@@ -318,13 +314,6 @@ class LauncherWindow(QtWidgets.QMainWindow):
     def analyze_session(self) -> None:
         """Open the analyze window over the current settings' data directory."""
         self._open_tool(AnalyzeWindow(self._data_dir()))
-
-    def edit_preferences(self) -> None:
-        """Edit interface preferences (theme, always-on-top, log-preview levels)."""
-        prefs = preferences.load_preferences(preferences_path)
-        dialog = PreferencesDialog(prefs, parent=self)
-        if dialog.exec():
-            preferences.update_preferences(preferences_path, dialog.changes())
 
     def associate_files(self) -> None:
         """Register SMACC as the Windows handler for .smacc files (packaged build)."""
