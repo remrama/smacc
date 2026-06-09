@@ -24,9 +24,9 @@ SMACC uses it for **visual cues** — lighting up a chosen color for a set durat
 ### Using it in SMACC
 
 1. Plug the BlinkStick into a USB port, then launch SMACC.
-2. Click **Visual stimulation** in the *Open tools* column.
+2. Click **Visual stimulation** in the *Tools* column.
 3. Bind your BlinkStick to the **BlinkStick** role in the **Devices** window (in
-   the *Open tools* column). Plug one in after launch? It's detected automatically,
+   the *Tools* column). Plug one in after launch? It's detected automatically,
    or choose **File ▸ Refresh devices** (or press `F5`) to rescan.
 4. Pick a **Color** and a **Length** (how long the light stays on, in seconds).
 5. Click **Play BlinkStick** to fire the cue.

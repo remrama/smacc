@@ -7,6 +7,7 @@ import traceback
 from pathlib import Path
 from types import TracebackType
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
@@ -107,6 +108,10 @@ def main() -> None:
     # Fusion honors the full QPalette consistently across platforms, which the
     # native Windows style does not — required for the lights-off dark theme.
     app.setStyle("Fusion")
+    # Always open in light mode. Qt 6's Fusion follows the OS color scheme, so on
+    # a dark-mode OS SMACC would otherwise open dark even with the lights "on";
+    # the lightswitch flips to the dark scheme on demand (see SmaccWindow).
+    app.styleHints().setColorScheme(Qt.ColorScheme.Light)
     # The launcher owns app lifetime: tool windows come and go without quitting, so
     # closing the last tool returns to the launcher rather than exiting.
     app.setQuitOnLastWindowClosed(False)

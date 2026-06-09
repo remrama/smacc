@@ -15,8 +15,8 @@ class QtLogHandler(logging.Handler):
     """Logging handler that appends records to the GUI log preview list.
 
     Which records appear is governed by ``enabled_levels`` (an explicit set of
-    level numbers), driven by the File ▸ Log preview checkboxes so any subset of
-    levels can be shown. A record may also opt out of the preview with a falsey
+    level numbers), driven by the level checkboxes above the preview so any
+    subset of levels can be shown. A record may also opt out of the preview with a falsey
     ``smacc_preview`` attribute (set per event in the Event codes editor); the file
     handler still receives every record regardless. The widget update is marshalled
     to the GUI thread via a Qt signal, so logging from a non-GUI thread (e.g. the

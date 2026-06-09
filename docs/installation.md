@@ -61,4 +61,4 @@ on its own from **File &rsaquo; Surveys**.
 ### Recording device
 
 If you plan to record dreams, bind your mic to the **Bedroom mic** role in the
-**Devices** window (in the *Open tools* column); the dream-report recorder uses it.
+**Devices** window (in the *Tools* column); the dream-report recorder uses it.

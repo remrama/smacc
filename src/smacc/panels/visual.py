@@ -20,6 +20,9 @@ class VisualWindow(ModalityWindow):
         self.bstick_blink_freq = 1.0
         self.set_blink_color(0, 0, 0)  # default color: black/off
         self.setCentralWidget(self._build())
+        # The panel's contents are narrow, so without a floor the window opens
+        # too thin to show its "Visual stimulation" titlebar text in full.
+        self.setMinimumWidth(340)
 
     def _build(self) -> QtWidgets.QWidget:
         # The BlinkStick is chosen in the Devices window; show where it resolves.

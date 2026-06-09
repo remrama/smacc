@@ -13,7 +13,6 @@ from PyQt6.QtMultimedia import QMediaDevices
 
 from smacc import bids, devices, preferences, settings, winassoc
 
-from .config import VERSION
 from .dialogs import EventCodesDialog, SessionInfoDialog, ask_initial_or_final
 from .panels.audio import AudioCueWindow
 from .panels.base import ModalityWindow
@@ -41,7 +40,7 @@ class SmaccWindow(ToolWindow):
         super().__init__()
         self.session = session
         # Design mode reuses this window to edit a settings file (no live run): the
-        # log viewer, lights, and recording are hidden/disabled, and the right
+        # log preview, lights, and recording are hidden/disabled, and the right
         # column becomes the settings-editor panel. Derived from the session.
         self.design = session.design
         # The .smacc this window loaded/edits (None until saved), so saving can
@@ -54,9 +53,9 @@ class SmaccWindow(ToolWindow):
 
         # Lights state drives the dark theme; sessions start with lights on.
         self.lights_on = True
-        self._default_palette = cast(
-            QtWidgets.QApplication, QtWidgets.QApplication.instance()
-        ).palette()
+        # Tool windows are positioned (cascading, right of this window) the first
+        # time each is opened; reopening leaves them where the operator put them.
+        self._positioned_panels: set[str] = set()
 
         # Modality windows, constructed up front (hidden) and opened on demand from
         # the launcher buttons. The Devices window owns all device selection; the
@@ -103,14 +102,12 @@ class SmaccWindow(ToolWindow):
         self.session.show_error_popup(short_msg, long_msg, parent=self)
 
     def _update_preview_levels(self) -> None:
-        """Sync the preview handler's visible levels to the menu checkboxes."""
+        """Sync the preview handler's visible levels to the level checkboxes."""
         # The designer has no log viewer (and no preview handler) to sync.
         if self.design:
             return
         self.preview_handler.enabled_levels = {
-            level
-            for level, action in self._preview_level_actions.items()
-            if action.isChecked()
+            level for level, box in self._preview_level_boxes.items() if box.isChecked()
         }
 
     def init_main_window(self):
@@ -118,11 +115,11 @@ class SmaccWindow(ToolWindow):
         self._build_menu_bar()
         self.statusBar().showMessage("Ready")
 
-        # Two columns: the tools column (with the lights toggle filling the bottom)
-        # and a right column — the live log viewer in a session, or the save panel
-        # in the editor. The editor also gets a banner spanning the top so it's
-        # obvious nothing is being recorded. The menu is built first so the
-        # log-viewer panel can sync the preview handler to the menu checkboxes.
+        # Two columns: the tools column (with the lights toggle pinned to the
+        # bottom) and a right column — the live log preview in a session, or the
+        # save panel in the editor. The editor also gets a banner spanning the top
+        # so it's obvious nothing is being recorded. The menu is built first so the
+        # preview-level checkbox dict it seeds is ready when the preview is built.
         central_layout = QtWidgets.QGridLayout()
         content_row = 0
         if self.design:
@@ -180,33 +177,52 @@ class SmaccWindow(ToolWindow):
         "volume": "Volume",
     }
 
-    def _build_launcher_buttons(self) -> QtWidgets.QLayout:
-        """Build the 'Open tools' column: panel launchers + the lights toggle.
+    # Hover/status-bar hints for each tool button (key -> tooltip).
+    PANEL_TOOLTIPS = {
+        "events": "Log experiment events and send their EEG trigger codes.",
+        "visual": "Flash a BlinkStick LED as a visual cue.",
+        "audio": "Play audio cues from a multi-slot cue board.",
+        "noise": "Stream continuous background noise (colored noise or a file).",
+        "recording": "Record a spoken dream report, monitor input level, open surveys.",
+        "intercom": "Talk to and listen to the participant over the intercom.",
+        "devices": "Bind devices to roles and route each modality to a role.",
+        "volume": "Set a master output volume safety cap.",
+    }
 
-        The lights toggle sits at the bottom and expands to fill the column's
-        leftover height (so it lines up with the log viewer); it sends the lights
-        event marker and flips the dark theme.
+    def _build_launcher_buttons(self) -> QtWidgets.QLayout:
+        """Build the 'Tools' column: panel launchers + the lights toggle.
+
+        The lights toggle is pinned to the bottom of the column at a fixed,
+        reasonable size (the stretch above absorbs extra height), so enlarging
+        the window for a bigger log preview no longer stretches the toggle; it
+        sends the lights event marker and flips the dark theme.
         """
         layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(self._make_section_title("Open tools"))
+        layout.addWidget(self._make_section_title("Tools"))
         for key, label in self.PANEL_LABELS.items():
             if key not in self.panels:
                 continue
             button = QtWidgets.QPushButton(label, self)
+            tip = self.PANEL_TOOLTIPS.get(key)
+            if tip:
+                button.setToolTip(tip)
+                button.setStatusTip(tip)
             button.clicked.connect(partial(self._open_panel, key))
             layout.addWidget(button)
-        layout.addSpacing(8)
+        # Extra height collects here, above the lightswitch, so the switch keeps
+        # its fixed size (like the buttons) instead of growing with the window.
+        layout.addStretch(1)
 
         # Connect the toggled signal only after setChecked so construction fires
-        # no marker. Expanding vertical policy + stretch fills the empty space.
+        # no marker. Fixed height keeps the switch a steady size on resize.
         self.lightswitchButton = QtWidgets.QPushButton(self)
         self.lightswitchButton.setCheckable(True)
         self.lightswitchButton.setShortcut("L")  # still toggles with L
         self.lightswitchButton.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Preferred,
-            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Fixed,
         )
-        self.lightswitchButton.setMinimumHeight(64)
+        self.lightswitchButton.setFixedHeight(96)
         self.lightswitchButton.setStatusTip(
             "Toggle lights off/on (sends the lights event marker and switches theme)"
         )
@@ -214,36 +230,50 @@ class SmaccWindow(ToolWindow):
         self._refresh_lightswitch_label()
         self.lightswitchButton.toggled.connect(self.on_lightswitch_toggled)
         # Lights are a live-session concept. The editor hides the toggle (still
-        # built, so preference application stays uniform) and just pushes the tool
-        # buttons to the top instead of leaving an expanding empty slot.
+        # built, so preference application stays uniform); the stretch above
+        # already pushes the tool buttons to the top in that mode.
         self.lightswitchButton.setVisible(not self.design)
-        if self.design:
-            layout.addStretch(1)
-        else:
-            layout.addWidget(self.lightswitchButton, 1)
+        if not self.design:
+            layout.addWidget(self.lightswitchButton)
         return layout
 
     def _open_panel(self, key: str) -> None:
-        """Show and focus the modality window for ``key``."""
+        """Show and focus the modality window for ``key`` (placing it on first open)."""
         window = self.panels[key]
+        if key not in self._positioned_panels:
+            self._position_panel(window, key)
+            self._positioned_panels.add(key)
         window.show()
         window.raise_()
         window.activateWindow()
 
+    def _position_panel(self, window: QtWidgets.QWidget, key: str) -> None:
+        """Cascade a tool window down-and-right of this window, in button order.
+
+        Tools open to the right of the session window so they don't cover it,
+        each stepped down-and-right from the last in the order the buttons
+        appear. With more tools than fit vertically they overlap by design; the
+        result is clamped to stay on-screen.
+        """
+        order = list(self.PANEL_LABELS)
+        index = order.index(key) if key in order else 0
+        frame = self.frameGeometry()
+        x = frame.right() + 12 + index * 28
+        y = frame.top() + index * 40
+        screen = self.screen() or QtWidgets.QApplication.primaryScreen()
+        if screen is not None:
+            avail = screen.availableGeometry()
+            hint = window.sizeHint()
+            w = max(window.width(), hint.width())
+            h = max(window.height(), hint.height())
+            x = max(avail.left(), min(x, avail.right() - w))
+            y = max(avail.top(), min(y, avail.bottom() - h))
+        window.move(x, y)
+
     def _build_menu_bar(self) -> None:
-        """Build the consolidated File menu (actions + log-preview levels)."""
+        """Build the consolidated File menu (About lives in the launcher's menu)."""
         style = self.style()
         assert style is not None
-        aboutAction = QtGui.QAction(
-            style.standardIcon(
-                QtWidgets.QStyle.StandardPixmap.SP_MessageBoxInformation
-            ),
-            "&About",
-            self,
-        )
-        aboutAction.setStatusTip("About SMACC")
-        aboutAction.triggered.connect(self.show_about_popup)
-
         quitAction = QtGui.QAction(
             style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_BrowserStop),
             "Close &editor" if self.design else "End sessio&n",
@@ -306,7 +336,10 @@ class SmaccWindow(ToolWindow):
         assert menu_bar is not None
         fileMenu = menu_bar.addMenu("&File")
         assert fileMenu is not None
-        self._preview_level_actions: dict[int, QtGui.QAction] = {}
+        # Log-preview level toggles live beside the preview now (built in
+        # _build_log_viewer_section), not in this menu. Initialized empty here so
+        # _apply_preferences can iterate it uniformly in both modes.
+        self._preview_level_boxes: dict[int, QtWidgets.QCheckBox] = {}
         if self.design:
             self._build_editor_file_menu(fileMenu, sessionInfoAction, eventCodesAction)
         else:
@@ -321,7 +354,6 @@ class SmaccWindow(ToolWindow):
         fileMenu.addSeparator()
         fileMenu.addAction(refreshDevicesAction)
         fileMenu.addSeparator()
-        fileMenu.addAction(aboutAction)
         fileMenu.addAction(quitAction)
 
     def _add_surveys_menu(self, fileMenu: QtWidgets.QMenu) -> None:
@@ -375,23 +407,6 @@ class SmaccWindow(ToolWindow):
         fileMenu.addSeparator()
         fileMenu.addAction(alwaysOnTopAction)
         fileMenu.addAction(associateAction)
-        fileMenu.addSeparator()
-        # File -> Log preview: which log levels show in the live preview (the log
-        # file always records every level).
-        previewMenu = fileMenu.addMenu("Log preview")
-        for levelname, levelno in (
-            ("Debug", logging.DEBUG),
-            ("Info", logging.INFO),
-            ("Warning", logging.WARNING),
-            ("Error", logging.ERROR),
-            ("Critical", logging.CRITICAL),
-        ):
-            levelAction = QtGui.QAction(levelname, self)
-            levelAction.setCheckable(True)
-            levelAction.setChecked(levelno != logging.DEBUG)  # all but Debug
-            levelAction.toggled.connect(self._update_preview_levels)
-            previewMenu.addAction(levelAction)
-            self._preview_level_actions[levelno] = levelAction
 
     def _rebuild_surveys_menu(self, menu: QtWidgets.QMenu) -> None:
         """Fill File → Surveys with each saved survey (open standalone) + Manage."""
@@ -414,16 +429,15 @@ class SmaccWindow(ToolWindow):
         manageAction.triggered.connect(recording.manage_surveys)
 
     def _build_log_viewer_section(self) -> QtWidgets.QLayout:
-        """Build the log-viewer panel and attach the preview log handler."""
-        logviewertitleLabel = self._make_section_title("Log viewer")
+        """Build the log-preview panel: header, level toggles, and the live list."""
+        titleLabel = self._make_section_title("Log preview")
 
-        # Events log viewer --> gets updated when events are logged
+        # Live preview list --> gets updated when events/messages are logged.
         logviewList = QtWidgets.QListWidget()
         logviewList.setAutoScroll(True)
-        # logviewList.setGeometry(20,20,100,700)
         self.logviewList = logviewList
 
-        # Route log records to the preview pane, filtered by the Log preview menu.
+        # Route log records to the preview pane, filtered by the level toggles.
         self.preview_handler = QtLogHandler(logviewList)
         self.preview_handler.setFormatter(
             logging.Formatter(
@@ -431,11 +445,34 @@ class SmaccWindow(ToolWindow):
             )
         )
         self.session.logger.addHandler(self.preview_handler)
-        self._update_preview_levels()  # sync to the menu checkboxes
 
-        logviewLayout = QtWidgets.QFormLayout()
-        logviewLayout.addRow(logviewertitleLabel)
-        logviewLayout.addRow(logviewList)
+        # Level toggles in a single row between the header and the list, so a
+        # level (e.g. DEBUG) can be flipped on the fly without a menu. The log
+        # file always records every level regardless of these.
+        levelRow = QtWidgets.QHBoxLayout()
+        levelRow.setContentsMargins(0, 0, 0, 0)
+        for levelname, levelno in (
+            ("Debug", logging.DEBUG),
+            ("Info", logging.INFO),
+            ("Warning", logging.WARNING),
+            ("Error", logging.ERROR),
+            ("Critical", logging.CRITICAL),
+        ):
+            box = QtWidgets.QCheckBox(levelname, self)
+            box.setChecked(levelno != logging.DEBUG)  # all but Debug, by default
+            box.setStatusTip(
+                "Show this level in the live preview (the log file records all levels)."
+            )
+            box.toggled.connect(self._update_preview_levels)
+            levelRow.addWidget(box)
+            self._preview_level_boxes[levelno] = box
+        levelRow.addStretch(1)
+        self._update_preview_levels()  # sync the handler to the boxes
+
+        logviewLayout = QtWidgets.QVBoxLayout()
+        logviewLayout.addWidget(titleLabel)
+        logviewLayout.addLayout(levelRow)
+        logviewLayout.addWidget(logviewList, 1)
         return logviewLayout
 
     def _build_editor_banner(self) -> QtWidgets.QLabel:
@@ -509,20 +546,6 @@ class SmaccWindow(ToolWindow):
             f"Always-on-top {'enabled' if enabled else 'disabled'}"
         )
 
-    def show_about_popup(self):
-        win = QtWidgets.QMessageBox(self)  # parent to self so it stacks above
-        # win.setIcon(QtWidgets.QMessageBox.Icon.Question)
-        # win.setWindowIcon(QtGui.QIcon("./thumb-small.png"))
-        # win.setIconPixmap(QtGui.QPixmap("./thumb.png"))
-        win.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
-        win.setWindowTitle("About SMACC")
-        win.setText("Sleep Manipulation and Communication Clickything")
-        win.setInformativeText(f"version: v{VERSION}\nhttps://github.com/remrama/smacc")
-        # win.setDetailedText("detailshere")
-        # win.setStyleSheet("QLabel{min-width:500 px; font-size: 24px;} QPushButton{ width:250px; font-size: 18px; }");
-        # win.setGeometry(200, 150, 100, 40)
-        win.exec()
-
     def on_lightswitch_toggled(self, checked: bool) -> None:
         """Handle a user toggle of the lightswitch (``checked`` == lights on)."""
         self.set_lights(checked, send_marker=True)
@@ -559,38 +582,16 @@ class SmaccWindow(ToolWindow):
             )
 
     def apply_theme(self, dark: bool) -> None:
-        """Apply the dark or the default light palette to the whole application."""
-        app = cast("QtWidgets.QApplication | None", QtWidgets.QApplication.instance())
-        if app is None:
-            return
-        app.setPalette(self._dark_palette() if dark else self._default_palette)
+        """Switch the whole app between Qt's light and dark color schemes.
 
-    @staticmethod
-    def _dark_palette() -> QtGui.QPalette:
-        """Build a dark, Fusion-friendly palette."""
-        p = QtGui.QPalette()
-        base = QtGui.QColor(53, 53, 53)
-        text = QtGui.QColor(220, 220, 220)
-        disabled = QtGui.QColor(127, 127, 127)
-        highlight = QtGui.QColor(42, 130, 218)
-        p.setColor(QtGui.QPalette.ColorRole.Window, base)
-        p.setColor(QtGui.QPalette.ColorRole.WindowText, text)
-        p.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor(35, 35, 35))
-        p.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor(45, 45, 45))
-        p.setColor(QtGui.QPalette.ColorRole.ToolTipBase, base)
-        p.setColor(QtGui.QPalette.ColorRole.ToolTipText, text)
-        p.setColor(QtGui.QPalette.ColorRole.Text, text)
-        p.setColor(QtGui.QPalette.ColorRole.Button, base)
-        p.setColor(QtGui.QPalette.ColorRole.ButtonText, text)
-        p.setColor(QtGui.QPalette.ColorRole.Highlight, highlight)
-        p.setColor(QtGui.QPalette.ColorRole.HighlightedText, QtGui.QColor(0, 0, 0))
-        for role in (
-            QtGui.QPalette.ColorRole.WindowText,
-            QtGui.QPalette.ColorRole.Text,
-            QtGui.QPalette.ColorRole.ButtonText,
-        ):
-            p.setColor(QtGui.QPalette.ColorGroup.Disabled, role, disabled)
-        return p
+        Qt 6's Fusion style renders a polished palette for either scheme, so the
+        lightswitch just asks for one — no hand-rolled palette needed. The app is
+        forced to Light at startup (see ``__main__``); this only diverges from
+        that when the operator turns the lights off.
+        """
+        QtGui.QGuiApplication.styleHints().setColorScheme(
+            QtCore.Qt.ColorScheme.Dark if dark else QtCore.Qt.ColorScheme.Light
+        )
 
     ############################################################################
     # Settings export/import (settings.yaml) and event export
@@ -742,12 +743,13 @@ class SmaccWindow(ToolWindow):
         if prefs["always_on_top"]:
             self.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, True)
 
-        # Log-preview levels (preview_handler exists now, built in init_main_window).
+        # Log-preview levels (the level checkboxes exist now, built in
+        # init_main_window). Empty in the editor, which has no preview.
         wanted = preferences.names_to_levels(prefs.get("preview_levels", []))
-        for level, action in self._preview_level_actions.items():
-            action.blockSignals(True)
-            action.setChecked(level in wanted)
-            action.blockSignals(False)
+        for level, box in self._preview_level_boxes.items():
+            box.blockSignals(True)
+            box.setChecked(level in wanted)
+            box.blockSignals(False)
         self._update_preview_levels()
 
         # Lights always start ON each launch — the dark theme is per-session
@@ -771,11 +773,25 @@ class SmaccWindow(ToolWindow):
         self.resize(width, height)
         x, y = window.get("x"), window.get("y")
         if x is None or y is None:
+            self._move_to_default_position()  # first run: sit by the launcher
             return
         rect = QtCore.QRect(int(x), int(y), width, height)
         screens = QtWidgets.QApplication.screens()
         if any(screen.availableGeometry().intersects(rect) for screen in screens):
             self.move(int(x), int(y))
+
+    def _move_to_default_position(self) -> None:
+        """Place a first-run session window just down-right of the launcher.
+
+        The launcher opens near the upper-left of the screen (see ``launcher``);
+        with no saved geometry the session window opens slightly inside that, so
+        the two read as a stack and there's room to the right for tool windows.
+        """
+        screen = self.screen() or QtWidgets.QApplication.primaryScreen()
+        if screen is None:
+            return
+        avail = screen.availableGeometry()
+        self.move(avail.left() + 88, avail.top() + 88)
 
     def _preference_changes(self) -> dict:
         """The operator/UI keys this window owns, for a non-clobbering prefs update.
@@ -785,9 +801,7 @@ class SmaccWindow(ToolWindow):
         launcher's recent-settings list) untouched.
         """
         checked = {
-            level
-            for level, action in self._preview_level_actions.items()
-            if action.isChecked()
+            level for level, box in self._preview_level_boxes.items() if box.isChecked()
         }
         return {
             "always_on_top": self._always_on_top_action.isChecked(),
