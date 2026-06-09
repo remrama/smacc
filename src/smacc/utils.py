@@ -241,6 +241,20 @@ def generate_demo_cues(dest_dir: Path) -> list[Path]:
     return paths
 
 
+def seed_default_settings(dest_path: Path, bundled_path: Path) -> None:
+    """Copy the shipped ``default.smacc`` to ``dest_path`` if absent (best-effort).
+
+    Keeps the out-of-the-box settings in a readable ``.smacc`` that doubles as an
+    example for technical users; restored if deleted. Never fatal.
+    """
+    try:
+        if not dest_path.exists() and bundled_path.is_file():
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(bundled_path, dest_path)
+    except Exception:
+        logging.getLogger("smacc").exception("Could not seed default settings")
+
+
 def seed_demo_cues(cues_dir: Path, bundled_dir: Path) -> None:
     """Ensure the demo cues exist in ``cues_dir`` (best-effort; never fatal).
 

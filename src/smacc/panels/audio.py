@@ -232,7 +232,7 @@ class AudioCueWindow(ModalityWindow):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
             "Select a File",
-            str(self.session.study.cues_dir),
+            str(self.session.cues_dir),
             "Audio (*.wav *.mp3 *.flac *.ogg *.oga *.aif *.aiff);;All files (*)",
         )
         if filename:

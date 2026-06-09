@@ -162,7 +162,7 @@ class NoiseWindow(ModalityWindow):
 
     def open_noise_selector(self) -> None:
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Select a noise file", str(self.session.study.cues_dir), AUDIO_FILTER
+            self, "Select a noise file", str(self.session.cues_dir), AUDIO_FILTER
         )
         if filename:
             self.noiseFileEdit.setText(str(Path(filename)))

@@ -52,6 +52,58 @@ def test_saved_file_is_tagged_yaml(tmp_path):
     assert payload["settings"] == {"cue_attack": 0.2}
 
 
+def test_data_directory_of_resolves_relative_absolute_and_default(tmp_path):
+    base = tmp_path / "cfg"
+    base.mkdir()
+    # Relative resolves against the .smacc's folder.
+    assert (
+        settings.data_directory_of({"data_directory": "data"}, base, tmp_path / "fb")
+        == (base / "data").resolve()
+    )
+    # Absolute is kept as-is.
+    elsewhere = tmp_path / "elsewhere"
+    assert (
+        settings.data_directory_of({"data_directory": str(elsewhere)}, base, tmp_path)
+        == elsewhere
+    )
+    # Missing/blank falls back to the default.
+    assert settings.data_directory_of({}, base, tmp_path / "fb") == tmp_path / "fb"
+
+
+def test_data_directory_relativized_when_beside_file(tmp_path):
+    # A data dir under the .smacc's folder is stored relative (so the folder is
+    # portable); resolve_paths turns it back into an absolute path on load.
+    base = tmp_path / "study"
+    (base / "data").mkdir(parents=True)
+    portable = settings.relativize_paths({"data_directory": str(base / "data")}, base)
+    assert portable["data_directory"] == "data"
+    resolved = settings.resolve_paths(portable, base)
+    assert Path(resolved["data_directory"]) == (base / "data").resolve()
+
+
+def test_load_data_directory_reads_file(tmp_path):
+    base = tmp_path / "cfg"
+    base.mkdir()
+    path = base / "peter.smacc"
+    settings.save_settings(path, {"data_directory": "data"}, {})
+    assert (
+        settings.load_data_directory(path, tmp_path / "fb") == (base / "data").resolve()
+    )
+    # An unreadable/missing file yields the default.
+    assert settings.load_data_directory(base / "nope.smacc", tmp_path / "fb") == (
+        tmp_path / "fb"
+    )
+
+
+def test_bundled_default_settings_is_valid_and_complete():
+    from smacc.paths import BUNDLED_DEFAULT_SETTINGS
+
+    assert BUNDLED_DEFAULT_SETTINGS.is_file()  # shipped example/default
+    state, _ = settings.load_settings(BUNDLED_DEFAULT_SETTINGS)
+    assert state["data_directory"] == "data"
+    assert state["event_codes"]  # carries the default event registry as an example
+
+
 def test_load_rejects_legacy_state_key(tmp_path):
     # The legacy study.json "state" key fallback was dropped (intended breaking
     # change), so old study.json files no longer load.

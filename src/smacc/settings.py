@@ -39,7 +39,7 @@ KIND = "smacc/settings"
 
 # Prepended to every saved file so it self-identifies even before parsing (YAML
 # ignores ``#`` comments, so this round-trips cleanly through ``safe_load``).
-_FILE_HEADER = "# SMACC study config — YAML (.smacc). Edit with care.\n"
+_FILE_HEADER = "# SMACC settings — YAML (.smacc). Edit with care.\n"
 
 # Bump when the serialized layout changes incompatibly. Files written by older
 # (lower) versions are still accepted on load; panels handle field-level
@@ -131,10 +131,11 @@ def load_settings(path: str | Path) -> tuple[dict, dict]:
 
 
 def _iter_path_slots(settings: dict) -> Iterator[tuple[dict, str]]:
-    """Yield ``(container, key)`` for each media-path slot present in ``settings``.
+    """Yield ``(container, key)`` for each path slot present in ``settings``.
 
-    The one place that knows the panel schema's path-bearing keys, so portability
-    rewriting stays out of the panels and out of the path-agnostic save/load core.
+    The one place that knows the schema's path-bearing keys (cue/noise files and the
+    data directory), so portability rewriting stays out of the panels and out of the
+    path-agnostic save/load core.
     """
     cues = settings.get("cues")
     if isinstance(cues, list):
@@ -143,6 +144,35 @@ def _iter_path_slots(settings: dict) -> Iterator[tuple[dict, str]]:
                 yield cue, "file"
     if "noise_file" in settings:
         yield settings, "noise_file"
+    # The data directory (where runs from this settings file are written) is stored
+    # relative to the .smacc when it sits alongside it, so a self-contained folder
+    # stays portable; absolute when it points elsewhere (e.g. a shared lab drive).
+    if "data_directory" in settings:
+        yield settings, "data_directory"
+
+
+def data_directory_of(
+    settings: dict, base_dir: str | Path, default: str | Path
+) -> Path:
+    """Return the data directory a settings mapping points at, resolved to absolute.
+
+    A relative ``data_directory`` resolves against ``base_dir`` (the .smacc's folder);
+    an absolute one is kept; a missing/blank one falls back to ``default``.
+    """
+    raw = settings.get("data_directory")
+    if not raw:
+        return Path(default)
+    path = Path(raw)
+    return path if path.is_absolute() else (Path(base_dir) / path).resolve()
+
+
+def load_data_directory(path: str | Path, default: str | Path) -> Path:
+    """Resolve the data directory of the settings file at ``path`` (``default`` on error)."""
+    try:
+        state, _ = load_settings(path)
+    except (OSError, ValueError):
+        return Path(default)
+    return data_directory_of(state, Path(path).parent, default)
 
 
 def relativize_paths(settings: dict, base_dir: str | Path) -> dict:

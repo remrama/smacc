@@ -2,10 +2,10 @@
 
 The launcher and every modality window hold a reference to one ``SmaccSession``
 so they all emit event markers and log lines through a single place. Each run
-gets its own folder under its study's ``sessions/`` (named by a launch-timestamp
-stem) that holds the log, dream reports, and any exports together. Subject/session
-are kept as optional metadata inside the log/exports rather than baked into
-filenames.
+gets its own folder under the settings file's data directory (named by a
+launch-timestamp stem) that holds the log, dream reports, and any exports together.
+Subject/session are kept as optional metadata inside the log/exports rather than
+baked into filenames.
 """
 
 from __future__ import annotations
@@ -13,16 +13,12 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from pylsl import StreamInfo, StreamOutlet
 from PyQt5 import QtWidgets
 
 from . import bids, events, settings
 from .config import PPORT_ADDRESS, VERSION
-
-if TYPE_CHECKING:
-    from .study import Study
 
 
 def make_session_dir(base: Path, now: datetime) -> Path:
@@ -53,12 +49,18 @@ class SmaccSession:
     """
 
     def __init__(
-        self, study: Study, metadata: dict | None = None, *, design: bool = False
+        self,
+        data_dir: str | Path,
+        metadata: dict | None = None,
+        *,
+        design: bool = False,
     ) -> None:
         now = datetime.now()
-        # The study this session belongs to: its folder owns the cues and (for a
-        # live run) the sessions/ parent under which this run's folder is created.
-        self.study = study
+        # The data directory this session belongs to: where its cue/noise pickers
+        # default and (for a live run) the parent under which this run's folder is
+        # created. Comes from the loaded settings file (or the default data dir).
+        self.data_dir = Path(data_dir)
+        self.cues_dir = self.data_dir / "cues"
         self.design = design
         # Recording a dream report needs a run folder; the designer has none.
         self.can_record = not design
@@ -94,7 +96,7 @@ class SmaccSession:
             self.outlet: StreamOutlet | None = None
             self.init_design_logger()
         else:
-            session_dir = make_session_dir(study.sessions_dir, now)
+            session_dir = make_session_dir(self.data_dir, now)
             self.session_dir = session_dir
             self.stem = session_dir.name
             log_path = session_dir / f"{session_dir.name}.log"

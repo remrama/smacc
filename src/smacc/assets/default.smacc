@@ -1,0 +1,144 @@
+# SMACC settings — YAML (.smacc). Edit with care.
+kind: smacc/settings
+schema_version: 4
+smacc_version: 0.0.7
+metadata:
+  subject: ''
+  session: ''
+  notes: ''
+settings:
+  blink_color: '#000000'
+  blink_length: 1.0
+  cues:
+  - name: Cue 1
+    file: ''
+    volume: 0.2
+    loop: false
+  - name: Cue 2
+    file: ''
+    volume: 0.2
+    loop: false
+  - name: Cue 3
+    file: ''
+    volume: 0.2
+    loop: false
+  - name: Cue 4
+    file: ''
+    volume: 0.2
+    loop: false
+  cue_attack: 0.0
+  cue_release: 0.0
+  noise_volume: 0.2
+  noise_color: white
+  noise_source: builtin
+  noise_file: ''
+  survey_url: ''
+  survey_options: {}
+  event_codes:
+  - key: TLRTrainingStart
+    code: 43
+    trigger: true
+    preview: true
+    increment: false
+  - key: TLRTrainingEnd
+    code: 44
+    trigger: true
+    preview: true
+    increment: false
+  - key: TechInRoom
+    code: 42
+    trigger: true
+    preview: true
+    increment: false
+  - key: SleepOnset
+    code: 46
+    trigger: true
+    preview: true
+    increment: false
+  - key: REMDetected
+    code: 41
+    trigger: true
+    preview: true
+    increment: false
+  - key: LRLRDetected
+    code: 45
+    trigger: true
+    preview: true
+    increment: false
+  - key: Clapper
+    code: 49
+    trigger: true
+    preview: true
+    increment: false
+  - key: Note
+    code: 50
+    trigger: true
+    preview: true
+    increment: false
+  - key: LightsOff
+    code: 47
+    trigger: true
+    preview: true
+    increment: false
+  - key: LightsOn
+    code: 48
+    trigger: true
+    preview: true
+    increment: false
+  - key: CueStarted
+    code: 60
+    trigger: true
+    preview: true
+    increment: false
+  - key: CueStopped
+    code: 61
+    trigger: true
+    preview: true
+    increment: false
+  - key: NoiseStarted
+    code: 62
+    trigger: true
+    preview: true
+    increment: false
+  - key: NoiseStopped
+    code: 63
+    trigger: true
+    preview: true
+    increment: false
+  - key: IntercomStarted
+    code: 64
+    trigger: true
+    preview: true
+    increment: false
+  - key: IntercomStopped
+    code: 65
+    trigger: true
+    preview: true
+    increment: false
+  - key: VisualStarted
+    code: 66
+    trigger: true
+    preview: true
+    increment: false
+  - key: SurveyOpened
+    code: 67
+    trigger: true
+    preview: true
+    increment: false
+  - key: TriggerInitialization
+    code: 100
+    trigger: false
+    preview: false
+    increment: false
+  - key: DreamReportStopped
+    code: 200
+    trigger: true
+    preview: true
+    increment: false
+  - key: DreamReportStarted
+    code: 201
+    trigger: true
+    preview: true
+    increment: true
+  event_code_safe_max: 255
+  data_directory: data

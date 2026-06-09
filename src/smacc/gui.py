@@ -20,7 +20,7 @@ from .panels.intercom import IntercomWindow
 from .panels.noise import NoiseWindow
 from .panels.recording import RecordingWindow
 from .panels.visual import VisualWindow
-from .paths import LOGO_PATH, preferences_path, studies_directory
+from .paths import LOGO_PATH, preferences_path
 from .qtlog import QtLogHandler
 from .session import SmaccSession
 from .toolwindow import ToolWindow
@@ -36,10 +36,13 @@ class SmaccWindow(ToolWindow):
     def __init__(self, session: SmaccSession, settings_path: str | None = None) -> None:
         super().__init__()
         self.session = session
-        # Design mode reuses this window to configure a study (no live run): the
+        # Design mode reuses this window to edit a settings file (no live run): the
         # log viewer, lights, and recording are hidden/disabled, and the right
-        # column becomes a study-designer panel. Derived from the session.
+        # column becomes the settings-editor panel. Derived from the session.
         self.design = session.design
+        # The .smacc this window loaded/edits (None until saved), so saving can
+        # write back to it rather than prompting every time.
+        self.settings_path = settings_path
         # Operator/machine preferences (window/theme/log-preview); never raises.
         self._prefs = preferences.load_preferences(preferences_path)
 
@@ -502,6 +505,8 @@ class SmaccWindow(ToolWindow):
         # The event-code registry isn't a panel; persist it at the window level.
         state["event_codes"] = self.session.event_codes_as_list()
         state["event_code_safe_max"] = self.session.event_code_safe_max
+        # The data directory (where runs are written) travels with the settings.
+        state["data_directory"] = str(self.session.data_dir)
         return state
 
     def apply_settings(self, state: dict) -> None:
@@ -654,33 +659,34 @@ class SmaccWindow(ToolWindow):
                 self.show_error_popup("Could not associate .smacc files.", str(exc))
 
     def export_settings(self) -> None:
-        """Prompt for a path and write the current setup to a .smacc study file."""
-        # Default to this study's own study.smacc at its root, where it auto-loads
-        # next launch and its relative cue paths resolve against the study folder.
-        default = self.session.study.config_path
+        """Prompt for a path and write the current setup to a .smacc settings file."""
+        # Default to the file we loaded (so saving updates it in place), else a
+        # settings.smacc beside this run's data directory.
+        default = self.settings_path or str(self.session.data_dir / "settings.smacc")
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "Export study (.smacc)", str(default), "SMACC study (*.smacc)"
+            self, "Save settings (.smacc)", str(default), "SMACC settings (*.smacc)"
         )
         if not path:
             return
-        # Make referenced cue/noise paths relative to the chosen file when possible.
+        # Make referenced cue/noise/data paths relative to the chosen file when possible.
         portable = settings.relativize_paths(self.gather_settings(), Path(path).parent)
         try:
             settings.save_settings(path, portable, self.session.metadata)
         except (OSError, ValueError) as exc:
-            self.show_error_popup("Could not export study.", str(exc))
+            self.show_error_popup("Could not save settings.", str(exc))
             return
-        self.session.log_info_msg(f"Exported study to {path}")
-        # Status-bar confirmation: the designer has no log viewer to show the line.
-        self.statusBar().showMessage(f"Saved study to {Path(path).name}", 5000)
+        self.settings_path = path  # subsequent saves update this file
+        self.session.log_info_msg(f"Saved settings to {path}")
+        # Status-bar confirmation: the editor has no log viewer to show the line.
+        self.statusBar().showMessage(f"Saved settings to {Path(path).name}", 5000)
 
     def load_settings(self) -> None:
-        """Prompt for a .smacc (or .yaml) study file and apply it."""
+        """Prompt for a .smacc (or .yaml) settings file and apply it."""
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
-            "Load study (.smacc)",
-            str(studies_directory),
-            "SMACC study (*.smacc *.yaml *.yml)",
+            "Open settings (.smacc)",
+            str(self.session.data_dir),
+            "SMACC settings (*.smacc *.yaml *.yml)",
         )
         if not path:
             return
@@ -688,17 +694,17 @@ class SmaccWindow(ToolWindow):
             state, metadata = settings.load_settings(path)
             state = settings.resolve_paths(state, Path(path).parent)
         except (OSError, ValueError) as exc:
-            self.show_error_popup("Could not load study.", str(exc))
+            self.show_error_popup("Could not open settings.", str(exc))
             return
         self._apply_loaded_settings(state, metadata)
-        self.session.log_info_msg(f"Loaded study from {path}")
+        self.session.log_info_msg(f"Loaded settings from {path}")
 
     def load_settings_from_log(self) -> None:
         """Load the initial or final settings recorded in a SMACC .log file."""
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
             "Load settings from log",
-            str(self.session.study.sessions_dir),
+            str(self.session.data_dir),
             "SMACC log (*.log)",
         )
         if not path:
@@ -832,7 +838,7 @@ class SmaccWindow(ToolWindow):
         log_path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
             "Choose a log file",
-            str(self.session.study.sessions_dir),
+            str(self.session.data_dir),
             "SMACC log (*.log)",
         )
         if not log_path:

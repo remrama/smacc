@@ -1,29 +1,28 @@
-"""Tests for launcher logic that needs no GUI (study resolution at launch)."""
+"""Tests for launcher logic that needs no GUI (initial-settings resolution)."""
 
 from __future__ import annotations
 
-from smacc.launcher import resolve_initial_study
-from smacc.study import Study
+from smacc import launcher
+from smacc.launcher import resolve_initial_settings
 
 
-def test_resolve_initial_study_opens_last_used(tmp_path):
-    studies = tmp_path / "studies"
-    studies.mkdir()
-    existing = Study.create(studies, "alpha")
-    study = resolve_initial_study({"last_study": str(existing.root)}, studies)
-    assert study.root == existing.root
+def test_resolve_initial_settings_prefers_last_used(tmp_path):
+    last = tmp_path / "peter.smacc"
+    last.write_text("kind: smacc/settings\n", encoding="utf-8")
+    assert resolve_initial_settings({"last_settings": str(last)}) == str(last)
 
 
-def test_resolve_initial_study_falls_back_to_default(tmp_path):
-    studies = tmp_path / "studies"
-    studies.mkdir()
-    study = resolve_initial_study({"last_study": None}, studies)
-    assert study.name == "default"
-    assert study.cues_dir.is_dir()
+def test_resolve_initial_settings_falls_back_to_default(tmp_path, monkeypatch):
+    default = tmp_path / "default.smacc"
+    default.write_text("kind: smacc/settings\n", encoding="utf-8")
+    monkeypatch.setattr(launcher, "DEFAULT_SETTINGS_PATH", default)
+    assert resolve_initial_settings({"last_settings": None}) == str(default)
 
 
-def test_resolve_initial_study_ignores_missing_last_study(tmp_path):
-    studies = tmp_path / "studies"
-    studies.mkdir()
-    study = resolve_initial_study({"last_study": str(tmp_path / "gone")}, studies)
-    assert study.name == "default"  # stale path ignored, default used
+def test_resolve_initial_settings_none_when_nothing_available(tmp_path, monkeypatch):
+    monkeypatch.setattr(launcher, "DEFAULT_SETTINGS_PATH", tmp_path / "missing.smacc")
+    # Stale last-settings path is ignored; no default present → built-in defaults.
+    assert (
+        resolve_initial_settings({"last_settings": str(tmp_path / "gone.smacc")})
+        is None
+    )

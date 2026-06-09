@@ -14,17 +14,19 @@ else:
     _asset_dir = Path(__file__).resolve().parent / "assets"
 LOGO_PATH = _asset_dir / "icon.png"
 # Demo cue files shipped with SMACC (resolved the same way as the icon above);
-# copied into the user's cues directory on first launch.
+# copied into the default data directory's cues on first launch.
 BUNDLED_CUES_DIR = _asset_dir / "cues"
+# Shipped example/default settings, copied to the SMACC root on first run so the
+# defaults live in a readable .smacc file (not in Python) — see smacc.settings.
+BUNDLED_DEFAULT_SETTINGS = _asset_dir / "default.smacc"
 
-# The SMACC root directory ($SMACC_DIRECTORY, else ~/SMACC). It holds the per-study
-# workspaces under studies/ and the global, machine-level preferences.yaml. A
-# study's own cues and session runs live inside its own folder (see smacc.study),
-# not directly under this root.
+# The SMACC root directory ($SMACC_DIRECTORY, else ~/SMACC). It holds the global
+# interface preferences, the seeded default.smacc, and the default data directory.
+# A settings (.smacc) file may point its own data directory anywhere.
 smacc_directory = utils.get_smacc_directory()
-studies_directory = smacc_directory / "studies"
-studies_directory.mkdir(exist_ok=True)
-
-# Operator/machine preferences (window/theme/log-preview), auto-managed by the app.
-# These stay global to the machine, separate from a portable per-study config.
+# Interface/machine preferences (theme, window, log-preview), global to this machine.
 preferences_path = smacc_directory / "preferences.yaml"
+# The default settings file, seeded on first run and opened when no other is chosen.
+DEFAULT_SETTINGS_PATH = smacc_directory / "default.smacc"
+# Where runs go when a settings file doesn't name its own data directory.
+DEFAULT_DATA_DIR = smacc_directory / "data"

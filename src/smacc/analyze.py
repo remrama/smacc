@@ -2,9 +2,9 @@
 
 Reached from the launcher's **Analyze session**. Point it at a session — a
 ``.log`` file, a session folder (its log is found automatically), or a zipped
-session/study — and it shows a summary (events, duration, subject/session, dream
-reports) and offers to export the events to BIDS or recover the study config from
-the log. All the parsing is done by the pure helpers in :mod:`smacc.bids`.
+session — and it shows a summary (events, duration, subject/session, dream
+reports) and offers to export the events to BIDS or recover the settings from the
+log. All the parsing is done by the pure helpers in :mod:`smacc.bids`.
 """
 
 from __future__ import annotations
@@ -13,18 +13,14 @@ import shutil
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 from . import bids, settings
 from .dialogs import ask_initial_or_final
 from .panels.base import make_section_title
-from .paths import LOGO_PATH, studies_directory
+from .paths import DEFAULT_DATA_DIR, LOGO_PATH
 from .toolwindow import ToolWindow
-
-if TYPE_CHECKING:
-    from .study import Study
 
 
 def format_duration(seconds: float) -> str:
@@ -71,13 +67,13 @@ def extract_zip(zip_path: Path, dest: Path) -> None:
 
 
 class AnalyzeWindow(ToolWindow):
-    """Summarize a past session and export its events / recover its study."""
+    """Summarize a past session and export its events / recover its settings."""
 
-    def __init__(self, study: Study | None = None) -> None:
+    def __init__(self, data_dir: str | Path | None = None) -> None:
         super().__init__()
-        # Default the open dialogs to the current study's runs when known.
+        # Default the open dialogs to the current settings' data directory when known.
         self._default_dir = (
-            str(study.sessions_dir) if study is not None else str(studies_directory)
+            str(data_dir) if data_dir is not None else str(DEFAULT_DATA_DIR)
         )
         self._log_path: Path | None = None
         self._base_dir: Path | None = None
@@ -98,7 +94,7 @@ class AnalyzeWindow(ToolWindow):
         layout.addWidget(make_section_title("Analyze session"))
 
         openFileButton = QtWidgets.QPushButton("Open log / zip…", self)
-        openFileButton.setStatusTip("Open a SMACC .log file or a zipped session/study.")
+        openFileButton.setStatusTip("Open a SMACC .log file or a zipped session.")
         openFileButton.clicked.connect(self.open_file)
         openFolderButton = QtWidgets.QPushButton("Open session folder…", self)
         openFolderButton.setStatusTip(
@@ -128,11 +124,11 @@ class AnalyzeWindow(ToolWindow):
             "Write the events to a BIDS events.tsv + sidecar."
         )
         self.exportButton.clicked.connect(self.export_events)
-        self.recoverButton = QtWidgets.QPushButton("Recover study (.smacc)…", self)
+        self.recoverButton = QtWidgets.QPushButton("Recover settings (.smacc)…", self)
         self.recoverButton.setStatusTip(
-            "Save the study config recorded in the log to a .smacc file."
+            "Save the settings recorded in the log to a .smacc file."
         )
-        self.recoverButton.clicked.connect(self.recover_study)
+        self.recoverButton.clicked.connect(self.recover_settings)
         self.revealButton = QtWidgets.QPushButton("Open session folder", self)
         self.revealButton.setStatusTip("Open the session's folder in the file browser.")
         self.revealButton.clicked.connect(self.reveal_folder)
@@ -243,10 +239,10 @@ class AnalyzeWindow(ToolWindow):
             self, "Analyze", f"Exported {count} events to\n{out_path}"
         )
 
-    def recover_study(self) -> None:
+    def recover_settings(self) -> None:
         if self._log_path is None:
             return
-        which = ask_initial_or_final(self, title="Recover study from log")
+        which = ask_initial_or_final(self, title="Recover settings from log")
         if which is None:
             return
         try:
@@ -265,24 +261,24 @@ class AnalyzeWindow(ToolWindow):
         try:
             state, metadata = settings.parse_settings_mapping(payload)
         except ValueError as exc:
-            self._error("Could not recover the study.", str(exc))
+            self._error("Could not recover the settings.", str(exc))
             return
         base = self._base_dir or Path(self._default_dir)
         out_path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self,
-            "Recover study (.smacc)",
+            "Recover settings (.smacc)",
             str(base / "recovered.smacc"),
-            "SMACC study (*.smacc)",
+            "SMACC settings (*.smacc)",
         )
         if not out_path:
             return
         try:
             settings.save_settings(out_path, state, metadata)
         except (OSError, ValueError) as exc:
-            self._error("Could not save the study.", str(exc))
+            self._error("Could not save the settings.", str(exc))
             return
         QtWidgets.QMessageBox.information(
-            self, "Analyze", f"Saved recovered study to\n{out_path}"
+            self, "Analyze", f"Saved recovered settings to\n{out_path}"
         )
 
     def reveal_folder(self) -> None:

@@ -28,10 +28,10 @@ DEFAULTS: dict[str, Any] = {
     "preview_levels": ["INFO", "WARNING", "ERROR", "CRITICAL"],  # names, not ints
     "window": {"x": None, "y": None, "w": 640, "h": 560},
     "association_prompted": False,
-    # Launcher state: recently used study folders (paths, most-recent first) and
+    # Launcher state: recently used settings files (paths, most-recent first) and
     # the last one opened, so the launcher can preselect it and offer quick switching.
-    "recent_studies": [],
-    "last_study": None,
+    "recent_settings": [],
+    "last_settings": None,
 }
 
 _logger = logging.getLogger("smacc")

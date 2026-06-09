@@ -8,6 +8,68 @@ from . import events
 from .utils import normalize_survey_url
 
 
+class PreferencesDialog(QtWidgets.QDialog):
+    """Edit interface preferences: always-on-top default and log-preview levels.
+
+    These are machine/interface choices (no data impact), stored in the global
+    ``preferences.yaml``. Edits a copy; the caller reads :meth:`changes` only when
+    the dialog is accepted and merges them with ``preferences.update_preferences``.
+    """
+
+    _LEVEL_NAMES = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+
+    def __init__(self, prefs: dict, parent=None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Preferences")
+        self.setWindowFlags(self.windowFlags() ^ QtCore.Qt.WindowContextHelpButtonHint)
+
+        self.alwaysOnTop = QtWidgets.QCheckBox(
+            "Keep SMACC windows above other applications", self
+        )
+        self.alwaysOnTop.setChecked(bool(prefs.get("always_on_top")))
+
+        wanted = {str(n) for n in prefs.get("preview_levels", [])}
+        levelGroup = QtWidgets.QGroupBox("Log preview levels", self)
+        levelGroup.setStatusTip(
+            "Which levels show in a session's live log viewer (the log file always "
+            "records every level)."
+        )
+        levelLayout = QtWidgets.QVBoxLayout(levelGroup)
+        self._levelBoxes: dict[str, QtWidgets.QCheckBox] = {}
+        for name in self._LEVEL_NAMES:
+            box = QtWidgets.QCheckBox(name.title(), self)
+            box.setChecked(name in wanted)
+            self._levelBoxes[name] = box
+            levelLayout.addWidget(box)
+
+        buttonBox = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self
+        )
+        buttonBox.accepted.connect(self.accept)
+        buttonBox.rejected.connect(self.reject)
+
+        hint = QtWidgets.QLabel(
+            "Interface preferences are stored on this machine and apply to every "
+            "session, separate from any settings (.smacc) file.",
+            self,
+        )
+        hint.setWordWrap(True)
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(hint)
+        layout.addWidget(self.alwaysOnTop)
+        layout.addWidget(levelGroup)
+        layout.addWidget(buttonBox)
+
+    def changes(self) -> dict:
+        """Return the edited interface preferences as a partial mapping to merge."""
+        return {
+            "always_on_top": self.alwaysOnTop.isChecked(),
+            "preview_levels": [
+                name for name, box in self._levelBoxes.items() if box.isChecked()
+            ],
+        }
+
+
 def ask_initial_or_final(parent=None, title: str = "Settings snapshot") -> str | None:
     """Ask whether to use the log's ``initial`` or ``final`` settings block.
 
