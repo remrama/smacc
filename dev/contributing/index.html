@@ -481,6 +481,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#commit-and-pull-request-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Commit and pull-request style
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#development" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -570,6 +581,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#commit-and-pull-request-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Commit and pull-request style
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#development" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -652,6 +674,35 @@ first.</p>
 <ul>
 <li>Always use <a href="https://docs.astral.sh/uv/">uv</a> to run Python scripts and install
   dependencies. Never <code>pip install</code> or run naked <code>python</code>.</li>
+</ul>
+<h2 id="commit-and-pull-request-style">Commit and pull-request style</h2>
+<p>Keep the history skimmable and merge commits clean.</p>
+<p><strong>Commits</strong></p>
+<ul>
+<li>One line only — a subject, with no body or extended description.</li>
+<li>Start with a <a href="https://www.conventionalcommits.org/">Conventional Commits</a> prefix:
+  <code>feat:</code>, <code>fix:</code>, <code>docs:</code>, <code>refactor:</code>, <code>test:</code>, <code>chore:</code>, <code>build:</code>, <code>ci:</code>, or
+  <code>perf:</code>.</li>
+<li>Imperative mood, lower-case after the prefix, no trailing period, and ideally
+  under ~72 characters.</li>
+<li>No AI attribution or co-author trailers.</li>
+</ul>
+<div class="highlight"><pre><span></span><code>feat: optional hardware TTL trigger output
+docs: document audio routing
+fix: clamp incrementing portcodes to 255
+</code></pre></div>
+<p><strong>Pull requests</strong></p>
+<ul>
+<li>The title follows the same one-line Conventional-Commits rule — on a squash merge
+  it becomes the commit subject (GitHub appends the <code>(#NN)</code> PR number).</li>
+<li>The body is a brief summary, not an exhaustive change list: what changed, why, and
+  how it was verified. A few sentences or bullets is plenty.</li>
+<li>No AI attribution footer.</li>
+</ul>
+<p><strong>Merging</strong></p>
+<ul>
+<li>Squash-merge, and clear the auto-generated commit body so the merged commit is the
+  one-line title alone — no bundled description or commit list.</li>
 </ul>
 <h2 id="development">Development</h2>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>dev<span class="w">        </span><span class="c1"># create the environment with dev tools</span>
