@@ -50,6 +50,27 @@ study can retune any code in the **Event codes** editor; the change travels in i
 | 66 | Visual stimulation | `VisualStarted` | |
 | 67 | Survey opened | `SurveyOpened` | |
 | 100 | SMACC initialized | `TriggerInitialization` | startup connection test; not a stimulus marker |
+| 105 | Biocal sequence started | `BiocalSequenceStarted` | brackets a played biocal sequence |
+| 106 | Biocal sequence stopped | `BiocalSequenceStopped` | completed or aborted |
+| 107 | Biocal cancelled | `BiocalCancelled` | shared; the preceding start code identifies the biocal |
+| 108 | Biocal completed | `BiocalCompleted` | shared; the task window ran out |
+| 110 | Biocal: Eyes Open | `BiocalEyesOpen` | biocal starts mark the task-window opening |
+| 111 | Biocal: Eyes Closed | `BiocalEyesClosed` | |
+| 112 | Biocal: Look L/R | `BiocalLookLR` | |
+| 113 | Biocal: Look U/D | `BiocalLookUD` | |
+| 114 | Biocal: Blink | `BiocalBlink` | |
+| 115 | Biocal: Clench Jaw | `BiocalClenchJaw` | |
+| 116 | Biocal: Flex Feet | `BiocalFlexFeet` | |
+| 117 | Biocal: Hold Breath | `BiocalHoldBreath` | |
+| 118 | Biocal: Breathe | `BiocalBreathe` | |
+| 119 | Biocal: Rest | `BiocalRest` | |
+| 120 | Biocal: LRLR Open | `BiocalLRLROpen` | |
+| 121 | Biocal: LRLR Closed | `BiocalLRLRClosed` | |
+| 122 | Biocal: LRLR Slow | `BiocalLRLRSlow` | |
+| 123 | Biocal: Fist Clench | `BiocalFistClench` | |
+| 124 | Biocal: Fist Closed | `BiocalFistClosed` | |
+| 125 | Biocal: Sniff Open | `BiocalSniffOpen` | |
+| 126 | Biocal: Sniff Closed | `BiocalSniffClosed` | |
 | 200 | Dream report stopped | `DreamReportStopped` | |
 | 201 | Dream report started | `DreamReportStarted` | increments per report (201, 202, …) |
 <!-- END auto:event-codes -->
