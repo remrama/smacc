@@ -11,7 +11,6 @@ import soundfile as sf
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 from .. import utils
-from ..paths import cues_directory
 from ..session import SmaccSession
 from .base import ModalityWindow, make_section_title
 
@@ -163,7 +162,7 @@ class NoiseWindow(ModalityWindow):
 
     def open_noise_selector(self) -> None:
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Select a noise file", str(cues_directory), AUDIO_FILTER
+            self, "Select a noise file", str(self.session.cues_dir), AUDIO_FILTER
         )
         if filename:
             self.noiseFileEdit.setText(str(Path(filename)))

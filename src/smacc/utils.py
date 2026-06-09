@@ -17,16 +17,22 @@ AUDIO_SUFFIXES = {".wav", ".wave", ".mp3", ".flac", ".ogg", ".oga", ".aif", ".ai
 DEMO_RATE = 44100
 
 
-def get_data_directory() -> Path:
-    """Return the data directory, creating it if needed.
+def get_smacc_directory() -> Path:
+    """Return the SMACC root directory, creating it if needed.
 
-    Honors the ``SMACC_DATA_DIRECTORY`` environment variable and falls back
-    to ``~/SMACC`` when it is not set.
+    Honors the ``SMACC_DIRECTORY`` environment variable, falling back to the
+    legacy ``SMACC_DATA_DIRECTORY`` (deprecated) and then to ``~/SMACC``. This
+    root holds the per-study workspaces under ``studies/`` and the global,
+    machine-level ``preferences.yaml``.
     """
-    raw = environ.get("SMACC_DATA_DIRECTORY", "~/SMACC")
-    data_directory = Path(raw).expanduser()
-    data_directory.mkdir(exist_ok=True)
-    return data_directory
+    raw = (
+        environ.get("SMACC_DIRECTORY")
+        or environ.get("SMACC_DATA_DIRECTORY")
+        or "~/SMACC"
+    )
+    root = Path(raw).expanduser()
+    root.mkdir(parents=True, exist_ok=True)
+    return root
 
 
 def normalize_survey_url(text: str) -> str:
@@ -233,6 +239,20 @@ def generate_demo_cues(dest_dir: Path) -> list[Path]:
         write(path, DEMO_RATE, synth(DEMO_RATE))
         paths.append(path)
     return paths
+
+
+def seed_default_settings(dest_path: Path, bundled_path: Path) -> None:
+    """Copy the shipped ``default.smacc`` to ``dest_path`` if absent (best-effort).
+
+    Keeps the out-of-the-box settings in a readable ``.smacc`` that doubles as an
+    example for technical users; restored if deleted. Never fatal.
+    """
+    try:
+        if not dest_path.exists() and bundled_path.is_file():
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(bundled_path, dest_path)
+    except Exception:
+        logging.getLogger("smacc").exception("Could not seed default settings")
 
 
 def seed_demo_cues(cues_dir: Path, bundled_dir: Path) -> None:

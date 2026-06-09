@@ -31,6 +31,35 @@ def test_make_session_dir_resolves_same_second_collision(tmp_path):
     assert len({first, second, third}) == 3
 
 
+# ----- design-mode sessions (study designer) --------------------------------
+
+
+def test_design_session_creates_no_run_artifacts(tmp_path):
+    # Design mode writes nothing — it doesn't even create the data directory.
+    sess = SmaccSession(tmp_path / "s", design=True)
+    assert sess.design is True
+    assert sess.can_record is False
+    assert sess.session_dir is None
+    assert sess.log_path is None
+    assert sess.outlet is None
+    assert not (tmp_path / "s").exists()  # no run folder (or data dir) created
+    sess.close()  # safe no-op: nothing to release
+
+
+def test_design_session_emit_event_is_safe_without_outlet(tmp_path):
+    sess = SmaccSession(tmp_path / "s", design=True)
+    sess.emit_event("REMDetected")  # triggers, but no outlet to push to
+    assert sess.outlet is None  # still no outlet; no crash
+
+
+def test_design_logger_does_not_accumulate_handlers(tmp_path):
+    # Each new session clears the shared logger first, so handlers never pile up
+    # across the many sessions the launcher can open in one process.
+    SmaccSession(tmp_path / "a", design=True)
+    SmaccSession(tmp_path / "b", design=True)
+    assert len(logging.getLogger("smacc").handlers) == 1
+
+
 # ----- emit_event routing ---------------------------------------------------
 
 

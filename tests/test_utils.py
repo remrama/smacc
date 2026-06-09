@@ -40,12 +40,29 @@ def test_noise_generators_produce_finite_samples(noise_func):
     assert np.all(np.isfinite(samples))
 
 
-def test_get_data_directory_uses_env_var(tmp_path, monkeypatch):
-    target = tmp_path / "smacc_data"
-    monkeypatch.setenv("SMACC_DATA_DIRECTORY", str(target))
-    result = utils.get_data_directory()
+def test_get_smacc_directory_uses_env_var(tmp_path, monkeypatch):
+    target = tmp_path / "smacc_root"
+    monkeypatch.delenv("SMACC_DATA_DIRECTORY", raising=False)
+    monkeypatch.setenv("SMACC_DIRECTORY", str(target))
+    result = utils.get_smacc_directory()
     assert result == target
     assert result.is_dir()
+
+
+def test_get_smacc_directory_falls_back_to_legacy_env_var(tmp_path, monkeypatch):
+    target = tmp_path / "legacy_root"
+    monkeypatch.delenv("SMACC_DIRECTORY", raising=False)
+    monkeypatch.setenv("SMACC_DATA_DIRECTORY", str(target))
+    result = utils.get_smacc_directory()
+    assert result == target
+    assert result.is_dir()
+
+
+def test_get_smacc_directory_prefers_new_env_var(tmp_path, monkeypatch):
+    new = tmp_path / "new_root"
+    monkeypatch.setenv("SMACC_DIRECTORY", str(new))
+    monkeypatch.setenv("SMACC_DATA_DIRECTORY", str(tmp_path / "legacy_root"))
+    assert utils.get_smacc_directory() == new
 
 
 def test_wav_round_trip(tmp_path):
