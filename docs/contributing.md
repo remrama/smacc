@@ -1,15 +1,21 @@
 # Contributing
 
-This page is the canonical development guide for SMACC. It is written for human
-contributors and is also where AI coding assistants are pointed
-(see [`AGENTS.md`](https://github.com/remrama/smacc/blob/main/AGENTS.md)), so the
-instructions live here once rather than being duplicated across files.
+!!! info "For both human and AI contributors"
+    This page is the canonical development guide for SMACC. It is written for both
+    human contributors and AI coding assistants — AI agents are pointed here from
+    [`AGENTS.md`](https://github.com/remrama/smacc/blob/main/AGENTS.md), so the
+    instructions live here once rather than being duplicated across files.
+
+!!! info "Requesting a change? Open a GitHub issue"
+    Human contributors should open a
+    [GitHub issue](https://github.com/remrama/smacc/issues) for new feature
+    requests or bug reports before starting work, so changes can be discussed
+    first.
 
 ## Conventions
 
 * Always use [uv](https://docs.astral.sh/uv/) to run Python scripts and install
   dependencies. Never `pip install` or run naked `python`.
-* Prefer shell commands over PowerShell commands.
 
 ## Development
 
