@@ -4,9 +4,30 @@ from __future__ import annotations
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from .. import utils
+from .. import devices, utils
 from ..paths import LOGO_PATH
 from ..session import SmaccSession
+
+
+def describe_target(session: SmaccSession, target_key: str) -> str:
+    """A short 'Role → device' description of where a modality target resolves.
+
+    Shown read-only on each modality panel; the actual device is chosen once in the
+    Devices window. An unbound audio role reads as the system default; an unbound
+    BlinkStick reads as not set; an off (optional) route reads as off.
+    """
+    cfg = session.devices
+    role_key = cfg.role_for(target_key)
+    if not role_key:
+        return "off"
+    role = devices.ROLES_BY_KEY.get(role_key)
+    role_label = role.label if role else role_key
+    device = cfg.device_for(target_key)
+    if device:
+        return f"{role_label} → {device}"
+    if role is not None and role.kind == devices.VISUAL:
+        return f"{role_label} (not set)"
+    return f"{role_label} (system default)"
 
 
 def current_device_key(combo: QtWidgets.QComboBox) -> str:
@@ -85,12 +106,11 @@ class ModalityWindow(QtWidgets.QMainWindow):
     def cleanup(self) -> None:
         """Stop any streams/timers this panel owns (called on app quit)."""
 
-    def refresh_devices(self) -> None:
-        """Re-enumerate this panel's device picker (override where it has one).
+    def refresh_device_indicator(self) -> None:
+        """Update this panel's read-only device indicator from ``session.devices``.
 
-        Called by the window's "Refresh devices" action so a device plugged in
-        after launch becomes selectable; device-bearing panels override this to
-        re-scan while preserving the current selection.
+        Called when the Devices window changes a binding/route (or a study loads);
+        panels that consume a device override this to re-render their indicator.
         """
 
     def is_streaming(self) -> bool:

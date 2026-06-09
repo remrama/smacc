@@ -1,4 +1,11 @@
-"""Intercom window: live experimenter-mic -> participant-output routing (#20)."""
+"""Intercom window: live talk (experimenter -> participant) and listen (back) (#20).
+
+Two independent one-direction bridges: **Talk** pipes the experimenter's mic to the
+participant's output (``intercom_talk``), and **Listen** pipes the participant's mic
+(``bedroom_mic``) to the control-room output (``intercom_listen``). Each is a pair of
+single-direction streams bridged by a queue + resampler, so mismatched device rates
+are fine, and the two can run together (full duplex).
+"""
 
 from __future__ import annotations
 
@@ -7,28 +14,99 @@ import queue
 import sounddevice as sd
 from PyQt6 import QtCore, QtWidgets
 
-from .. import audio
+from .. import audio, devices
 from ..session import SmaccSession
-from .base import (
-    ModalityWindow,
-    current_device_key,
-    make_section_title,
-    select_saved_device,
-)
+from .base import ModalityWindow, describe_target, make_section_title
+
+
+class _Bridge:
+    """A one-direction live audio bridge: an input device piped to an output device.
+
+    The input and output run as separate streams at their own native rates, bridged
+    by a queue + linear resampler. On overrun a block is dropped rather than blocking
+    the audio thread.
+    """
+
+    def __init__(self) -> None:
+        self._input: sd.InputStream | None = None
+        self._output: sd.OutputStream | None = None
+        self._queue: queue.Queue | None = None
+        self._resampler: audio.LinearResampler | None = None
+
+    def active(self) -> bool:
+        """True while either stream is open."""
+        return self._input is not None or self._output is not None
+
+    def start(self, input_device: str | None, output_device: str | None) -> None:
+        """Open and start the streams; raises (and tears down) on a PortAudio error."""
+        try:
+            in_rate = int(sd.query_devices(input_device, "input")["default_samplerate"])
+            out_rate = int(
+                sd.query_devices(output_device, "output")["default_samplerate"]
+            )
+            self._queue = queue.Queue(maxsize=32)
+            self._resampler = audio.LinearResampler(in_rate, out_rate)
+            self._input = sd.InputStream(
+                samplerate=in_rate,
+                channels=1,
+                device=input_device,
+                callback=self._in_callback,
+            )
+            self._output = sd.OutputStream(
+                samplerate=out_rate,
+                channels=1,
+                device=output_device,
+                callback=self._out_callback,
+            )
+            self._input.start()
+            self._output.start()
+        except Exception:
+            self.stop()
+            raise
+
+    def stop(self) -> bool:
+        """Tear down both streams; return True if either was running."""
+        stopped = False
+        for stream in (self._input, self._output):
+            if stream is not None:
+                stream.abort()
+                stream.close()
+                stopped = True
+        self._input = None
+        self._output = None
+        self._queue = None
+        self._resampler = None
+        return stopped
+
+    def _in_callback(self, indata, frames, time, status) -> None:
+        if self._queue is not None:
+            try:
+                self._queue.put_nowait(indata[:, 0].copy())
+            except queue.Full:
+                pass  # output not keeping up; drop a block rather than block
+
+    def _out_callback(self, outdata, frames, time, status) -> None:
+        if self._queue is not None and self._resampler is not None:
+            while True:
+                try:
+                    self._resampler.push(self._queue.get_nowait())
+                except queue.Empty:
+                    break
+            outdata[:, 0] = self._resampler.pull(frames)
+        else:
+            outdata.fill(0)
 
 
 class IntercomWindow(ModalityWindow):
-    """Talk to the participant; latch with the button or hold spacebar (push-to-talk)."""
+    """Talk to the participant (push-to-talk) and listen back, in either direction."""
 
     TITLE = "Intercom"
 
     def __init__(self, session: SmaccSession, parent: QtWidgets.QWidget | None = None):
         super().__init__(session, parent)
-        self.intercom_input_stream: sd.InputStream | None = None
-        self.intercom_output_stream: sd.OutputStream | None = None
-        self._intercom_queue: queue.Queue | None = None
-        self._intercom_resampler: audio.LinearResampler | None = None
-        self._intercom_push_to_talk = False  # True while held via spacebar
+        self._talk = _Bridge()  # experimenter mic -> participant output
+        self._listen = _Bridge()  # participant mic -> control-room output
+        self._talk_push = False  # True while talk is held via the spacebar
         self.setCentralWidget(self._build())
         # App-wide spacebar push-to-talk works regardless of the focused window.
         app = QtWidgets.QApplication.instance()
@@ -36,175 +114,92 @@ class IntercomWindow(ModalityWindow):
             app.installEventFilter(self)
 
     def _build(self) -> QtWidgets.QWidget:
-        # Output device the participant hears on (their speakers/headphones).
-        intercom_output_dropdown = QtWidgets.QComboBox()
-        intercom_output_dropdown.setStatusTip(
-            "Output device the participant hears the intercom on "
-            "(their speakers/headphones)."
-        )
-        self.intercom_output_dropdown = intercom_output_dropdown
-        self.refresh_intercom_outputs()
-        # Switch a live intercom over to a newly selected output device.
-        intercom_output_dropdown.currentTextChanged.connect(
-            self._on_intercom_device_changed
-        )
+        # Devices are chosen in the Devices window; show where each direction routes.
+        self.talkDeviceLabel = QtWidgets.QLabel(self)
+        self.listenDeviceLabel = QtWidgets.QLabel(self)
+        self.refresh_device_indicator()
 
-        intercomButton = QtWidgets.QPushButton("Intercom (talk)", self)
-        intercomButton.setStatusTip(
-            "Click to latch the intercom on/off, or press and hold the spacebar to "
-            "talk (push-to-talk). Warning: risks feedback near open speakers."
+        talkButton = QtWidgets.QPushButton("Talk (to participant)", self)
+        talkButton.setStatusTip(
+            "Click to latch on/off, or press and hold the spacebar to talk "
+            "(push-to-talk). Warning: risks feedback near open speakers."
         )
-        intercomButton.setCheckable(True)
-        intercomButton.toggled.connect(self.toggle_intercom)
-        self.intercomButton = intercomButton
+        talkButton.setCheckable(True)
+        talkButton.toggled.connect(self.toggle_talk)
+        self.talkButton = talkButton
+
+        listenButton = QtWidgets.QPushButton("Listen (to participant)", self)
+        listenButton.setStatusTip(
+            "Hear the participant's mic on the control-room output (set the route in "
+            "the Devices window)."
+        )
+        listenButton.setCheckable(True)
+        listenButton.toggled.connect(self.toggle_listen)
+        self.listenButton = listenButton
 
         layout = QtWidgets.QFormLayout()
         layout.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         layout.addRow(make_section_title("Intercom"))
-        layout.addRow("To participant:", intercom_output_dropdown)
-        layout.addRow(intercomButton)
+        layout.addRow("To participant:", self.talkDeviceLabel)
+        layout.addRow(talkButton)
+        layout.addRow("From participant:", self.listenDeviceLabel)
+        layout.addRow(listenButton)
         central = QtWidgets.QWidget()
         central.setLayout(layout)
         return central
 
-    def refresh_intercom_outputs(self) -> None:
-        """Populate the intercom output dropdown with available output devices."""
-        self.intercom_output_dropdown.clear()
-        host_api_name = "Windows WASAPI"
-        host_api_names = [api["name"] for api in sd.query_hostapis()]
-        hostapi = (
-            host_api_names.index(host_api_name)
-            if host_api_name in host_api_names
-            else None
-        )
-        for device in sd.query_devices():
-            if device["max_output_channels"] <= 0:
-                continue
-            if hostapi is not None and device["hostapi"] != hostapi:
-                continue
-            suffix = f", {host_api_name}" if hostapi is not None else ""
-            self.intercom_output_dropdown.addItem(f"{device['name']}{suffix}")
-        if self.intercom_output_dropdown.count():
-            self.intercom_output_dropdown.setCurrentIndex(0)
-
-    def refresh_devices(self) -> None:
-        """Re-enumerate outputs, keeping the current selection if still present."""
-        combo = self.intercom_output_dropdown
-        previous = current_device_key(combo)
-        self.refresh_intercom_outputs()
-        select_saved_device(combo, previous)
+    def refresh_device_indicator(self) -> None:
+        """Show where each direction routes (devices set in the Devices window)."""
+        self.talkDeviceLabel.setText(describe_target(self.session, "intercom_talk"))
+        self.listenDeviceLabel.setText(describe_target(self.session, "intercom_listen"))
 
     def is_streaming(self) -> bool:
-        """True while the intercom is live (mic/output streams open)."""
-        return (
-            self.intercom_input_stream is not None
-            or self.intercom_output_stream is not None
-        )
+        """True while either direction is live."""
+        return self._talk.active() or self._listen.active()
 
-    def toggle_intercom(self, enabled: bool) -> None:
-        """Start/stop routing the experimenter mic to the participant output.
+    def toggle_talk(self, enabled: bool) -> None:
+        """Start/stop piping the experimenter mic to the participant output.
 
-        Two single-direction streams (each at its device's native rate) bridged by
-        a queue + resampler, so mismatched sample rates are fine. Logged and marked
-        in the EEG record via LSL. Warning: a mic near open speakers risks feedback.
+        Marked in the EEG record via LSL (the experimenter's voice is a manipulation
+        the participant hears). The mic is the system default input.
         """
         if enabled:
-            output_device = self.intercom_output_dropdown.currentText() or None
-            if not self._start_intercom_streams(output_device):
-                self.intercomButton.setChecked(False)
+            output = self.session.devices.device_for("intercom_talk") or None
+            try:
+                self._talk.start(None, output)
+            except Exception as exc:  # PortAudio errors, no device, busy, etc.
+                self.session.show_error_popup(
+                    "Could not start intercom talk.", str(exc), parent=self
+                )
+                self.talkButton.setChecked(False)
                 return
             self.session.emit_event("IntercomStarted")
-        elif self._stop_intercom_streams():
+        elif self._talk.stop():
             self.session.emit_event("IntercomStopped")
 
-    def _start_intercom_streams(self, output_device: str | None) -> bool:
-        """Build and start the mic/output streams; return True on success.
+    def toggle_listen(self, enabled: bool) -> None:
+        """Start/stop piping the participant mic to the control-room output.
 
-        On any PortAudio error (no device, busy, etc.) the partial streams are torn
-        down and an error popup is shown; the caller is responsible for resetting any
-        UI state (e.g. unchecking the talk button).
+        Passive monitoring (no EEG marker), the reverse of Talk: the bedroom mic is
+        the source, the ``intercom_listen`` route the destination.
         """
-        try:
-            in_rate = int(sd.query_devices(kind="input")["default_samplerate"])
-            out_info = (
-                sd.query_devices(output_device, "output")
-                if output_device
-                else sd.query_devices(kind="output")
+        if enabled:
+            mic = (
+                self.session.devices.device_for_role(devices.LISTEN_SOURCE_ROLE) or None
             )
-            out_rate = int(out_info["default_samplerate"])
-            self._intercom_queue = queue.Queue(maxsize=32)
-            self._intercom_resampler = audio.LinearResampler(in_rate, out_rate)
-            self.intercom_input_stream = sd.InputStream(
-                samplerate=in_rate,
-                channels=1,
-                callback=self._intercom_in_callback,
-            )
-            self.intercom_output_stream = sd.OutputStream(
-                samplerate=out_rate,
-                channels=1,
-                device=output_device,
-                callback=self._intercom_out_callback,
-            )
-            self.intercom_input_stream.start()
-            self.intercom_output_stream.start()
-        except Exception as exc:  # PortAudio errors, no device, etc.
-            self._stop_intercom_streams()
-            self.session.show_error_popup(
-                "Could not start intercom.", str(exc), parent=self
-            )
-            return False
-        return True
-
-    def _on_intercom_device_changed(self, _text: str) -> None:
-        """Switch a live intercom over to the newly selected output device.
-
-        Only a device swap, not a talk toggle, so the streams are quietly restarted
-        without emitting Intercom start/stop markers (that would corrupt the EEG
-        record). A no-op when the intercom isn't running, which also covers the
-        programmatic dropdown population in ``refresh_intercom_outputs``.
-        """
-        self.session.log_interaction(
-            f"Intercom output set to {self.intercom_output_dropdown.currentText()}"
-        )
-        if not self._stop_intercom_streams():
-            return  # intercom not running; nothing to switch over
-        output_device = self.intercom_output_dropdown.currentText() or None
-        if not self._start_intercom_streams(output_device):
-            self.intercomButton.setChecked(False)
-
-    def _stop_intercom_streams(self) -> bool:
-        """Tear down both intercom streams; return True if any were running."""
-        stopped = False
-        for attr in ("intercom_input_stream", "intercom_output_stream"):
-            stream = getattr(self, attr)
-            if stream is not None:
-                stream.abort()
-                stream.close()
-                setattr(self, attr, None)
-                stopped = True
-        self._intercom_queue = None
-        self._intercom_resampler = None
-        return stopped
-
-    def _intercom_in_callback(self, indata, frames, time, status) -> None:
-        """Mic stream (audio thread): queue captured frames for the output stream."""
-        if self._intercom_queue is not None:
+            output = self.session.devices.device_for("intercom_listen") or None
             try:
-                self._intercom_queue.put_nowait(indata[:, 0].copy())
-            except queue.Full:
-                pass  # output not keeping up; drop a block rather than block
-
-    def _intercom_out_callback(self, outdata, frames, time, status) -> None:
-        """Output stream (audio thread): resample queued mic frames to the device."""
-        if self._intercom_queue is not None and self._intercom_resampler is not None:
-            while True:
-                try:
-                    self._intercom_resampler.push(self._intercom_queue.get_nowait())
-                except queue.Empty:
-                    break
-            outdata[:, 0] = self._intercom_resampler.pull(frames)
+                self._listen.start(mic, output)
+            except Exception as exc:  # PortAudio errors, no device, busy, etc.
+                self.session.show_error_popup(
+                    "Could not start intercom listen.", str(exc), parent=self
+                )
+                self.listenButton.setChecked(False)
+                return
+            self.session.log_interaction("Intercom listen on")
         else:
-            outdata.fill(0)
+            self._listen.stop()
+            self.session.log_interaction("Intercom listen off")
 
     @staticmethod
     def _is_text_widget_focused() -> bool:
@@ -221,7 +216,7 @@ class IntercomWindow(ModalityWindow):
         )
 
     def eventFilter(self, obj, event) -> bool:
-        """Application-wide spacebar push-to-talk for the intercom.
+        """Application-wide spacebar push-to-talk for the Talk direction.
 
         Installed on the QApplication so it sees the spacebar regardless of which
         widget/window has focus. Hold space to talk, release to stop; auto-repeat
@@ -235,27 +230,18 @@ class IntercomWindow(ModalityWindow):
             and not self._is_text_widget_focused()
         ):
             if etype == QtCore.QEvent.Type.KeyPress:
-                if not event.isAutoRepeat() and not self.intercomButton.isChecked():
-                    self._intercom_push_to_talk = True
-                    self.intercomButton.setChecked(True)  # -> toggle_intercom(True)
-            elif not event.isAutoRepeat() and self._intercom_push_to_talk:
-                self._intercom_push_to_talk = False
-                self.intercomButton.setChecked(False)  # -> toggle_intercom(False)
+                if not event.isAutoRepeat() and not self.talkButton.isChecked():
+                    self._talk_push = True
+                    self.talkButton.setChecked(True)  # -> toggle_talk(True)
+            elif not event.isAutoRepeat() and self._talk_push:
+                self._talk_push = False
+                self.talkButton.setChecked(False)  # -> toggle_talk(False)
             return True  # consume so the focused widget doesn't also see space
         return super().eventFilter(obj, event)
-
-    def gather_state(self) -> dict:
-        return {
-            "intercom_output_device": current_device_key(self.intercom_output_dropdown),
-        }
-
-    def apply_state(self, state: dict) -> None:
-        saved = state.get("intercom_output_device")
-        if saved and not select_saved_device(self.intercom_output_dropdown, saved):
-            self.session.note_missing_device("Intercom output", saved)
 
     def cleanup(self) -> None:
         app = QtWidgets.QApplication.instance()
         if app is not None:
             app.removeEventFilter(self)
-        self._stop_intercom_streams()
+        self._talk.stop()
+        self._listen.stop()

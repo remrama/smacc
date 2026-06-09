@@ -17,7 +17,7 @@ from pathlib import Path
 from pylsl import StreamInfo, StreamOutlet
 from PyQt6 import QtWidgets
 
-from . import bids, events, settings
+from . import bids, devices, events, settings
 from .config import PPORT_ADDRESS, VERSION
 
 
@@ -88,6 +88,10 @@ class SmaccSession:
         # time; collected by the panels during apply and surfaced once by the window
         # so the operator knows to plug them in (or pick another) before recording.
         self.missing_devices: list[str] = []
+        # Device roles + routing (which physical device each modality uses). The
+        # Devices window edits this; modality panels resolve their device from it.
+        # A loaded study replaces it via devices.load() (migrating older files).
+        self.devices = devices.default_config()
         # Soft interaction logs (volume/color/device/…) are gated off until the
         # main window finishes startup, so construction and study loads don't
         # spam the log; the window flips this on afterwards.

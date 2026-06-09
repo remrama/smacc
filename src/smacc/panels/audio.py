@@ -23,12 +23,7 @@ from PyQt6 import QtCore, QtWidgets
 from .. import audio, utils
 from ..session import SmaccSession
 from ..utils import pick_random_demo_cue
-from .base import (
-    ModalityWindow,
-    current_device_key,
-    make_section_title,
-    select_saved_device,
-)
+from .base import ModalityWindow, describe_target, make_section_title
 
 # One cue is always required; the upper bound is generous (a session typically
 # uses 2-5) but capped so the grid and playback stay manageable (#65).
@@ -60,6 +55,18 @@ class CueSlot:
     rate: int = field(default=0)
 
 
+@dataclass
+class CueOutput:
+    """One open output for a playing cue: its mixer plus the stream rendering it.
+
+    A cue normally has one (the cue device); a routed monitor adds a second on the
+    control-room device, fed by its own mixer so the two play independently.
+    """
+
+    mixer: audio.CueMixer
+    stream: sd.OutputStream
+
+
 class AudioCueWindow(ModalityWindow):
     """Multi-slot cue board with a shared device + fade and per-slot play/stop."""
 
@@ -70,10 +77,10 @@ class AudioCueWindow(ModalityWindow):
         # Shared fade (attack/release) durations in seconds; 0 == instant.
         self.cue_attack_s = 0.0
         self.cue_release_s = 0.0
-        # One output stream at a time, driven by a CueMixer; a timer on the GUI
-        # thread polls for the cue finishing (so the stop can be marked + UI reset).
-        self._cue_stream: sd.OutputStream | None = None
-        self._cue_mixer = audio.CueMixer()
+        # The active cue's outputs (cue device + optional monitor), each with its
+        # own mixer. A GUI-thread timer polls the primary output for the cue
+        # finishing (so the stop can be marked + the UI reset).
+        self._outputs: list[CueOutput] = []
         self._active_slot: CueSlot | None = None
         self._cue_timer = QtCore.QTimer(self)
         self._cue_timer.setInterval(30)  # ~33 Hz: finish detection, not playback
@@ -139,13 +146,10 @@ class AudioCueWindow(ModalityWindow):
         self._rebuild_grid()
 
     def _build(self) -> QtWidgets.QWidget:
-        # Shared output device + fade controls.
-        available_speakers_dropdown = QtWidgets.QComboBox()
-        available_speakers_dropdown.setStatusTip("Select speakers for cues")
-        available_speakers_dropdown.setPlaceholderText("No speaker devices were found.")
-        available_speakers_dropdown.currentTextChanged.connect(self.set_new_cue_device)
-        self.available_speakers_dropdown = available_speakers_dropdown
-        self.refresh_available_speakers()
+        # Shared output device (chosen in the Devices window) + fade controls.
+        self.deviceLabel = QtWidgets.QLabel(self)
+        self.deviceLabel.setStatusTip("Set in the Devices window (Audio cue → role).")
+        self.refresh_device_indicator()
 
         attackSpinBox = QtWidgets.QDoubleSpinBox(self)
         attackSpinBox.setStatusTip(
@@ -171,7 +175,7 @@ class AudioCueWindow(ModalityWindow):
 
         header = QtWidgets.QFormLayout()
         header.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-        header.addRow("Device:", available_speakers_dropdown)
+        header.addRow("Device:", self.deviceLabel)
         header.addRow("Fade in:", attackSpinBox)
         header.addRow("Fade out:", releaseSpinBox)
 
@@ -286,50 +290,16 @@ class AudioCueWindow(ModalityWindow):
 
     # ----- shared device + fade ---------------------------------------------
 
-    def refresh_available_speakers(self):
-        """Populate the cue device menu with available WASAPI output devices."""
-        self.available_speakers_dropdown.clear()
-        host_api_name = "Windows WASAPI"
-        host_api_names = [api["name"] for api in sd.query_hostapis()]
-        hostapi = (
-            host_api_names.index(host_api_name)
-            if host_api_name in host_api_names
-            else None
-        )
-        count = 0
-        for device in sd.query_devices():
-            if device["max_output_channels"] <= 0:
-                continue
-            if hostapi is not None and device["hostapi"] != hostapi:
-                continue
-            suffix = f", {host_api_name}" if hostapi is not None else ""
-            self.available_speakers_dropdown.addItem(f"{device['name']}{suffix}")
-            count += 1
-        if count:
-            self.available_speakers_dropdown.setCurrentIndex(0)
-        else:
-            self.session.show_error_popup("No audio devices found.", parent=self)
-
-    def refresh_devices(self) -> None:
-        """Re-enumerate speakers, keeping the current selection if still present."""
-        combo = self.available_speakers_dropdown
-        previous = current_device_key(combo)
-        self.refresh_available_speakers()
-        select_saved_device(combo, previous)
+    def refresh_device_indicator(self) -> None:
+        """Show where cue output resolves, plus the monitor route when enabled."""
+        text = describe_target(self.session, "cue_out")
+        if self.session.devices.role_for("cue_monitor"):
+            text += f"   •   monitor: {describe_target(self.session, 'cue_monitor')}"
+        self.deviceLabel.setText(text)
 
     def is_streaming(self) -> bool:
-        """True while a cue is playing (an open output stream)."""
-        return self._cue_stream is not None
-
-    def set_new_cue_device(self, text: str) -> None:
-        """Apply a newly selected output device; a playing cue is stopped first.
-
-        A cue is a one-shot (unlike continuous noise), so rather than reopen the
-        stream on the new device mid-cue, an active cue is stopped (and marked).
-        """
-        self.session.log_interaction(f"Cue device set to {text}")
-        if self._active_slot is not None:
-            self._finish_active()
+        """True while a cue is playing (any open output stream)."""
+        return bool(self._outputs)
 
     def _device_samplerate(self, device: str | None) -> int:
         """Best output sample rate for ``device`` (WASAPI opens only at its own)."""
@@ -389,7 +359,8 @@ class AudioCueWindow(ModalityWindow):
         """Set a slot's volume (0-1) from its spinbox (live if it's playing)."""
         vol = slot.volumeSpinBox.value()
         if self._active_slot is slot:
-            self._cue_mixer.volume = vol
+            for out in self._outputs:
+                out.mixer.volume = vol
         self.session.log_interaction(
             f"Cue '{slot.nameEdit.text()}' volume set to {vol:.2f}"
         )
@@ -398,24 +369,52 @@ class AudioCueWindow(ModalityWindow):
         """Set a slot's loop flag from its checkbox (live if it's playing)."""
         looping = slot.loopCheckBox.isChecked()
         if self._active_slot is slot:
-            self._cue_mixer.loop = looping
+            for out in self._outputs:
+                out.mixer.loop = looping
         self.session.log_interaction(
             f"Cue '{slot.nameEdit.text()}' loop {'on' if looping else 'off'}"
         )
 
     def play_slot(self, slot: CueSlot) -> None:
-        """Play one slot (stopping any other playing slot first) with fade-in."""
+        """Play one slot (stopping any other playing slot first) with fade-in.
+
+        Routes to the cue device, plus a second output on the control-room monitor
+        when ``cue_monitor`` is routed to a different device (the cue fan-out).
+        """
         if slot.audio is None or slot.audio.shape[0] == 0:
             return  # nothing loaded in this slot
         # One-at-a-time: cut whatever is playing. Mark a CueStopped only when a
         # *different* cue is replaced (re-playing the same slot is just a restart).
         if self._active_slot is not None:
             self._finish_active(mark=self._active_slot is not slot)
-        device = self.available_speakers_dropdown.currentText() or None
+        device = self.session.devices.device_for("cue_out") or None
+        primary = self._open_output(slot, device)
+        if primary is None:
+            return  # primary failed (error already shown)
+        self._outputs = [primary]
+        monitor_device = self.session.devices.device_for("cue_monitor") or None
+        if monitor_device and monitor_device != device:
+            monitor = self._open_output(slot, monitor_device, optional=True)
+            if monitor is not None:
+                self._outputs.append(monitor)
+        self._active_slot = slot
+        self._cue_timer.start()
+        self._set_now_playing(slot)
+        self.session.emit_event("CueStarted", detail=slot.nameEdit.text())
+
+    def _open_output(
+        self, slot: CueSlot, device: str | None, *, optional: bool = False
+    ) -> CueOutput | None:
+        """Open one cue output (mixer + stream) on ``device``; ``None`` on failure.
+
+        A failed *optional* (monitor) output is swallowed so the primary cue still
+        plays; a failed primary output surfaces an error.
+        """
         rate = self._device_samplerate(device)
-        buffer = utils.resample_to(slot.audio, slot.rate, rate)
-        self._cue_mixer.start(
-            buffer,
+        assert slot.audio is not None  # play_slot returns early for an unloaded slot
+        mixer = audio.CueMixer()
+        mixer.start(
+            utils.resample_to(slot.audio, slot.rate, rate),
             volume=slot.volumeSpinBox.value(),
             loop=slot.loopCheckBox.isChecked(),
             attack_samples=int(self.cue_attack_s * rate),
@@ -425,50 +424,52 @@ class AudioCueWindow(ModalityWindow):
                 channels=1,
                 samplerate=rate,
                 device=device,
-                callback=self._cue_callback,
+                callback=partial(self._render_output, mixer),
             )
             stream.start()
         except Exception as err:
-            self._cue_mixer.stop(release_samples=0)
-            self.session.show_error_popup(
-                "Could not start cue output", str(err), parent=self
-            )
-            return
-        self._cue_stream = stream
-        self._active_slot = slot
-        self._cue_timer.start()
-        self._set_now_playing(slot)
-        self.session.emit_event("CueStarted", detail=slot.nameEdit.text())
+            if not optional:
+                self.session.show_error_popup(
+                    "Could not start cue output", str(err), parent=self
+                )
+            return None
+        return CueOutput(mixer, stream)
 
     def stop_slot(self, slot: CueSlot) -> None:
         """Stop a slot (with fade-out) if it is the one currently playing."""
-        if self._active_slot is not slot:
+        if self._active_slot is not slot or not self._outputs:
             return
-        rate = int(self._cue_stream.samplerate) if self._cue_stream else 0
-        self._cue_mixer.stop(release_samples=int(self.cue_release_s * rate))
-        if self._cue_mixer.ended:  # instant stop (no release fade)
+        for out in self._outputs:
+            out.mixer.stop(
+                release_samples=int(self.cue_release_s * out.stream.samplerate)
+            )
+        if self._outputs[0].mixer.ended:  # instant stop (no release fade)
             self._finish_active()
         # Otherwise the release fade runs and _poll_cue finalizes it when done.
 
-    def _cue_callback(self, outdata, frames, time, status) -> None:
-        """sounddevice callback (audio thread): render the active cue block."""
+    def _render_output(self, mixer, outdata, frames, time, status) -> None:
+        """sounddevice callback (audio thread): render one output's cue block."""
         if status:
             self.session.logger.warning(f"Audio output status: {status}")
-        outdata[:, 0] = self._cue_mixer.render(frames)
+        outdata[:, 0] = mixer.render(frames)
 
     def _poll_cue(self) -> None:
-        """GUI-thread timer: finalize once the active cue has finished/faded out."""
-        if self._active_slot is not None and self._cue_mixer.ended:
+        """GUI-thread timer: finalize once the cue (its primary output) has ended."""
+        if (
+            self._active_slot is not None
+            and self._outputs
+            and self._outputs[0].mixer.ended
+        ):
             self._finish_active()
 
     def _finish_active(self, mark: bool = True) -> None:
-        """Tear down the cue stream and reset the UI; mark CueStopped when ``mark``."""
+        """Tear down the cue's outputs and reset the UI; mark CueStopped when ``mark``."""
         slot = self._active_slot
         self._cue_timer.stop()
-        if self._cue_stream is not None:
-            self._cue_stream.abort()
-            self._cue_stream.close()
-            self._cue_stream = None
+        for out in self._outputs:
+            out.stream.abort()
+            out.stream.close()
+        self._outputs = []
         self._active_slot = None
         self._set_now_playing_stopped()
         if mark and slot is not None:
@@ -477,9 +478,9 @@ class AudioCueWindow(ModalityWindow):
     def _set_now_playing(self, slot: CueSlot) -> None:
         looping = slot.loopCheckBox.isChecked()
         name = slot.nameEdit.text()
-        self.nowPlayingLabel.setText(
-            f"\U0001f501 {name} (looping)" if looping else f"▶ {name}"
-        )
+        base = f"\U0001f501 {name} (looping)" if looping else f"▶ {name}"
+        monitor = " + monitor" if len(self._outputs) > 1 else ""
+        self.nowPlayingLabel.setText(base + monitor)
         self.nowPlayingLabel.setStyleSheet("color: red; font-weight: bold;")
 
     def _set_now_playing_stopped(self) -> None:
@@ -490,7 +491,6 @@ class AudioCueWindow(ModalityWindow):
 
     def gather_state(self) -> dict:
         return {
-            "cue_device": current_device_key(self.available_speakers_dropdown),
             "cues": [
                 {
                     "name": slot.nameEdit.text(),
@@ -505,9 +505,6 @@ class AudioCueWindow(ModalityWindow):
         }
 
     def apply_state(self, state: dict) -> None:
-        saved = state.get("cue_device")
-        if saved and not select_saved_device(self.available_speakers_dropdown, saved):
-            self.session.note_missing_device("Cue output", saved)
         cues = state.get("cues")
         if isinstance(cues, list) and cues:
             self._resize_slots(len(cues))
@@ -541,7 +538,7 @@ class AudioCueWindow(ModalityWindow):
 
     def cleanup(self) -> None:
         self._cue_timer.stop()
-        if self._cue_stream is not None:
-            self._cue_stream.abort()
-            self._cue_stream.close()
-            self._cue_stream = None
+        for out in self._outputs:
+            out.stream.abort()
+            out.stream.close()
+        self._outputs = []

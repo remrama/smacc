@@ -6,12 +6,7 @@ from blinkstick import blinkstick
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 from ..session import SmaccSession
-from .base import (
-    ModalityWindow,
-    current_device_key,
-    make_section_title,
-    select_saved_device,
-)
+from .base import ModalityWindow, describe_target, make_section_title
 
 
 class VisualWindow(ModalityWindow):
@@ -27,14 +22,12 @@ class VisualWindow(ModalityWindow):
         self.setCentralWidget(self._build())
 
     def _build(self) -> QtWidgets.QWidget:
-        # Visual device picker: QComboBox signal --> update device slot
-        available_blinksticks_dropdown = QtWidgets.QComboBox()
-        available_blinksticks_dropdown.setStatusTip("Select visual stimulation device")
-        available_blinksticks_dropdown.currentTextChanged.connect(
-            self.set_new_blinkstick
+        # The BlinkStick is chosen in the Devices window; show where it resolves.
+        self.deviceLabel = QtWidgets.QLabel(self)
+        self.deviceLabel.setStatusTip(
+            "Set in the Devices window (Visual → BlinkStick)."
         )
-        self.available_blinksticks_dropdown = available_blinksticks_dropdown
-        self.refresh_available_blinksticks()
+        self.refresh_device_indicator()
 
         # Visual play button: QPushButton signal --> visual_stim slot
         blinkButton = QtWidgets.QPushButton("Play BlinkStick", self)
@@ -64,7 +57,7 @@ class VisualWindow(ModalityWindow):
         layout = QtWidgets.QFormLayout()
         layout.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         layout.addRow(make_section_title("Visual stimulation"))
-        layout.addRow("Device:", available_blinksticks_dropdown)
+        layout.addRow("Device:", self.deviceLabel)
         layout.addRow("Color:", colorpickerButton)
         layout.addRow("Length:", freqSpinBox)
         layout.addRow(blinkButton)
@@ -72,47 +65,11 @@ class VisualWindow(ModalityWindow):
         central.setLayout(layout)
         return central
 
-    def set_new_blinkstick(self, text):
-        """Select a BlinkStick from the dropdown (empty = no device).
-
-        The serial number is carried as the item's data, so selection is robust to
-        the display-text format (no string parsing).
-        """
-        serial_number = self.available_blinksticks_dropdown.currentData()
-        if not serial_number:  # dropdown cleared / no device selected
-            self.bstick = None
-            return
-        self.bstick = blinkstick.find_by_serial(serial_number)
-
-    def refresh_available_blinksticks(self):
-        """Populate the dropdown with connected BlinkSticks (silent if none).
-
-        The error is raised only when visual stimulation is used (see
-        _ensure_blinkstick), so non-BlinkStick users aren't nagged at startup.
-        """
-        self.available_blinksticks_dropdown.clear()
-        devices = blinkstick.find_all()
-        for d in devices:
-            product_name = d.device.product_name
-            serial_number = d.device.serial_number
-            version_number = d.device.version_number
-            device_str = (
-                f"{product_name} v{version_number} (Serial No. {serial_number})"
-            )
-            self.available_blinksticks_dropdown.addItem(device_str, serial_number)
-        if devices:
-            self.available_blinksticks_dropdown.setCurrentIndex(0)
-
-    def refresh_devices(self) -> None:
-        """Rescan for connected BlinkSticks, keeping the selection if still present.
-
-        BlinkStick enumeration is a live USB scan (no PortAudio caching), so this
-        picks up a device plugged in after launch on its own.
-        """
-        combo = self.available_blinksticks_dropdown
-        previous = current_device_key(combo)
-        self.refresh_available_blinksticks()
-        select_saved_device(combo, previous)
+    def refresh_device_indicator(self) -> None:
+        """Resolve the BlinkStick from its role and show where the cue routes."""
+        serial = self.session.devices.device_for("visual_out")
+        self.bstick = blinkstick.find_by_serial(serial) if serial else None
+        self.deviceLabel.setText(describe_target(self.session, "visual_out"))
 
     def set_blink_color(self, r: int, g: int, b: int) -> None:
         """Set the BlinkStick color from 0-255 RGB components.
@@ -146,7 +103,8 @@ class VisualWindow(ModalityWindow):
             return True
         self.session.show_error_popup(
             "Visual stimulation unavailable.",
-            "No BlinkStick device was found. Connect one and restart SMACC.",
+            "No BlinkStick is set. Bind one in the Devices window "
+            "(Roles → BlinkStick).",
             parent=self,
         )
         return False
@@ -178,17 +136,11 @@ class VisualWindow(ModalityWindow):
 
     def gather_state(self) -> dict:
         return {
-            "blink_device": current_device_key(self.available_blinksticks_dropdown),
             "blink_color": self.bstick_hexcode,
             "blink_length": self.bstick_blink_freq,
         }
 
     def apply_state(self, state: dict) -> None:
-        saved = state.get("blink_device")
-        if saved and not select_saved_device(
-            self.available_blinksticks_dropdown, saved
-        ):
-            self.session.note_missing_device("BlinkStick", saved)
         if hexcode := state.get("blink_color"):
             qcolor = QtGui.QColor(hexcode)
             if qcolor.isValid():
