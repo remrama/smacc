@@ -61,3 +61,70 @@ def test_meter_mapping_endpoints_and_clamp():
     assert audio.dbfs_to_meter(50.0) == 100  # clamped
     midpoint = audio.METER_FLOOR_DBFS / 2
     assert audio.dbfs_to_meter(midpoint) == 50
+
+
+# ----- CueMixer -------------------------------------------------------------
+
+
+def test_cuemixer_idle_renders_silence():
+    m = audio.CueMixer()
+    assert m.ended  # nothing started
+    assert np.array_equal(m.render(64), np.zeros(64, dtype=np.float32))
+
+
+def test_cuemixer_plays_buffer_scaled_by_volume():
+    m = audio.CueMixer()
+    m.start(np.ones(100, dtype=np.float32), volume=0.5)
+    out = m.render(50)
+    assert np.allclose(out, 0.5)
+    assert not m.ended
+
+
+def test_cuemixer_nonloop_ends_after_buffer_then_silence():
+    m = audio.CueMixer()
+    m.start(np.ones(80, dtype=np.float32))
+    m.render(80)  # consume the whole buffer
+    assert m.ended
+    assert np.array_equal(m.render(16), np.zeros(16, dtype=np.float32))
+
+
+def test_cuemixer_loop_wraps_and_never_ends():
+    m = audio.CueMixer()
+    m.start(np.arange(4, dtype=np.float32), loop=True)  # 0,1,2,3
+    out = m.render(10)
+    assert not m.ended
+    assert np.allclose(out, [0, 1, 2, 3, 0, 1, 2, 3, 0, 1])
+
+
+def test_cuemixer_attack_ramps_in_then_reaches_unity():
+    m = audio.CueMixer()
+    m.start(np.ones(1000, dtype=np.float32), attack_samples=100)
+    out = m.render(100)
+    assert out[0] < out[-1]  # rising envelope
+    assert out[0] == pytest.approx(0.01, abs=0.02)
+    assert m.render(10)[0] == pytest.approx(1.0, abs=1e-6)  # unity after the attack
+
+
+def test_cuemixer_release_fades_then_ends():
+    m = audio.CueMixer()
+    m.start(np.ones(10000, dtype=np.float32))
+    m.render(10)  # playing at unity
+    m.stop(release_samples=100)
+    out = m.render(100)
+    assert out[0] > out[-1]  # falling envelope
+    assert out[-1] == pytest.approx(0.0, abs=1e-6)
+    assert m.ended
+
+
+def test_cuemixer_instant_stop_ends_immediately():
+    m = audio.CueMixer()
+    m.start(np.ones(1000, dtype=np.float32))
+    m.stop(release_samples=0)
+    assert m.ended
+    assert np.array_equal(m.render(16), np.zeros(16, dtype=np.float32))
+
+
+def test_cuemixer_empty_buffer_is_ended():
+    m = audio.CueMixer()
+    m.start(np.zeros(0, dtype=np.float32))
+    assert m.ended
