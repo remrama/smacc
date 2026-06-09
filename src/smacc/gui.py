@@ -565,7 +565,7 @@ class SmaccWindow(ToolWindow):
         self.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, enabled)
         # Re-applying window flags hides the window on some platforms; re-show it.
         self.show()
-        self.session.log_info_msg(
+        self.session.log_debug_msg(
             f"Always-on-top {'enabled' if enabled else 'disabled'}"
         )
 
@@ -707,7 +707,7 @@ class SmaccWindow(ToolWindow):
             return
         finally:
             self.session.log_interactions = was_logging
-        self.session.log_info_msg("Devices changed; lists rescanned")
+        self.session.log_debug_msg("Devices changed; lists rescanned")
 
     def _notify_missing_devices(self) -> None:
         """Surface, once, any saved devices that weren't connected when settings loaded.

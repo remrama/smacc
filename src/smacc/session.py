@@ -362,6 +362,15 @@ class SmaccSession:
         """Log an INFO message (always to file; to the preview if INFO is on)."""
         self.logger.info(msg)
 
+    def log_debug_msg(self, msg: str) -> None:
+        """Log a DEBUG message (always to file; hidden from the preview by default).
+
+        For routine, high-frequency lines that belong in the log file for the
+        record but would only clutter the live preview (whose default level gate
+        starts at INFO).
+        """
+        self.logger.debug(msg)
+
     def note_missing_device(self, label: str, name: str) -> None:
         """Record that a saved ``label`` device ``name`` wasn't found on load.
 
@@ -372,15 +381,22 @@ class SmaccSession:
         self.missing_devices.append(f"{label}: {name}")
         self.logger.warning(f"Saved {label.lower()} not connected: {name}")
 
-    def log_interaction(self, msg: str) -> None:
+    def log_interaction(self, msg: str, *, debug: bool = False) -> None:
         """Log a soft interaction (volume/color/device/…) once the session is live.
 
         Gated by ``log_interactions`` so the programmatic widget setup that runs
         during construction or a study load doesn't spam the log; the main window
         flips the gate on after startup. These lines never carry a portcode.
+
+        ``debug=True`` logs at DEBUG instead of INFO, for high-frequency lines
+        (e.g. live volume edits) that should still hit the file but stay out of
+        the live preview, whose default level gate starts at INFO.
         """
         if self.log_interactions:
-            self.log_info_msg(msg)
+            if debug:
+                self.log_debug_msg(msg)
+            else:
+                self.log_info_msg(msg)
 
     def show_info_popup(self, short_msg, long_msg=None, parent=None) -> None:
         """Record an info line and show an information dialog (parented if given)."""

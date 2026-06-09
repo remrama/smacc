@@ -21,6 +21,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from . import preferences, settings
 from .analyze import AnalyzeWindow
 from .config import VERSION
+from .cuedesigner import CueDesignerWindow
 from .dialogs import PreferencesDialog
 from .gui import SmaccWindow
 from .paths import DEFAULT_DATA_DIR, DEFAULT_SETTINGS_PATH, LOGO_PATH, preferences_path
@@ -98,8 +99,15 @@ class LauncherWindow(QtWidgets.QMainWindow):
         layout.addLayout(self._build_settings_row())
         layout.addLayout(self._build_action_row())
 
-        # Analyzing a past session is a separate, post-hoc task.
+        # Standalone tools that don't act on the selected settings: design a cue
+        # WAV, or analyze a past session. Each opens from here and returns on close.
         layout.addSpacing(8)
+        designButton = QtWidgets.QPushButton("Design cues", self)
+        designButton.setMinimumHeight(40)
+        designButton.setStatusTip("Create a tone cue and export it as a WAV file.")
+        designButton.clicked.connect(self.design_cues)
+        layout.addWidget(designButton)
+
         analyzeButton = QtWidgets.QPushButton("Analyze", self)
         analyzeButton.setMinimumHeight(40)
         analyzeButton.setStatusTip(
@@ -288,6 +296,10 @@ class LauncherWindow(QtWidgets.QMainWindow):
         """Open the editor on the current settings file."""
         session = SmaccSession(self._data_dir(), design=True)
         self._open_tool(SmaccWindow(session, settings_path=self._settings_path))
+
+    def design_cues(self) -> None:
+        """Open the standalone Cue designer (exports WAVs to a study's cues folder)."""
+        self._open_tool(CueDesignerWindow(self._data_dir() / "cues"))
 
     def analyze_session(self) -> None:
         """Open the analyze window over the current settings' data directory."""

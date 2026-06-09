@@ -48,6 +48,31 @@ def test_device_for_is_empty_when_role_unbound_or_off():
     assert cfg.device_for("cue_monitor") == ""  # optional route still off
 
 
+def test_room_monitor_defaults_to_the_bedroom_mic():
+    # Out of the box the room monitor (#37) shares the bedroom mic, so the cue
+    # meter works without binding a separate device.
+    cfg = devices.default_config()
+    assert cfg.role_for("monitor_in") == "bedroom_mic"
+    cfg.bindings["bedroom_mic"] = "Mic, Windows WASAPI"
+    assert cfg.device_for("monitor_in") == "Mic, Windows WASAPI"
+
+
+def test_room_monitor_can_use_a_dedicated_monitor_mic():
+    cfg = devices.default_config()
+    cfg.bindings["bedroom_mic"] = "Cheap Mic, Windows WASAPI"
+    cfg.bindings["monitor_mic"] = "Measurement Mic, Windows WASAPI"
+    cfg.routing["monitor_in"] = "monitor_mic"
+    assert cfg.device_for("monitor_in") == "Measurement Mic, Windows WASAPI"
+    assert cfg.device_for("report_in") == "Cheap Mic, Windows WASAPI"  # unaffected
+
+
+def test_room_monitor_route_can_be_turned_off():
+    cfg = devices.default_config()
+    cfg.bindings["bedroom_mic"] = "Mic, Windows WASAPI"
+    cfg.routing["monitor_in"] = ""  # optional route set to none
+    assert cfg.device_for("monitor_in") == ""
+
+
 def test_routing_override_enables_a_monitor():
     cfg = devices.default_config()
     cfg.bindings["control_out"] = "Headphones, Windows WASAPI"
