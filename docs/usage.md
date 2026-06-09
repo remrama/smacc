@@ -23,6 +23,9 @@ into a session. From here you:
 - **Create settings** — build a new `.smacc` in the **settings editor**: configure
   the tools (cues, noise, visual, event codes, surveys), choose a data directory,
   and save it anywhere. Use **Edit…** to reopen an existing one.
+- **Design cues** — open the standalone **Cue designer** to build a simple tone cue
+  and export it as a WAV into a study's `cues/` folder, ready to use from the Audio
+  cue board (see [Designing a cue](#designing-a-cue)).
 - **Analyze** — open a past session (a `.log`, a session folder, or a
   zipped session) to see a summary (events, duration, subject/session, dream
   reports), export its events to a BIDS `events.tsv`, or recover its settings to a
@@ -42,6 +45,25 @@ Place sound files where your settings expect them — by default the data direct
 `demo-*` cues there so there is always something to test with. You start with one
 cue — prefilled with a random demo — and use **+ Add cue** and each row's **✕** to
 add or remove cues to match a protocol (one minimum, up to 20).
+
+### Designing a cue
+
+No sound file ready? Open **Design cues** from the launcher to build a simple cue
+inside SMACC — no external audio editor needed. Lay out a sequence of **tone** and
+**silence** segments (each tone has a frequency, duration, and level, with an
+optional bell-like **decay**), add an optional whole-cue fade in/out, **Preview** it
+on your default output, then **Export WAV…** into your study's `cues/` folder. The
+exported file then appears in the Audio cue board like any other cue. The designer is
+a standalone tool: it plays on the default device and ignores the session's device
+routing and volume safety cap.
+
+### Is the cue reaching the bedroom?
+
+The Audio cue window has a **Monitoring** section — a *Sending* meter (what SMACC is
+emitting) beside a *Bedroom* meter (what a mic actually picks up in the room) — so you
+can confirm a cue is audible to the participant, not just leaving SMACC. See
+[Audio &amp; routing](audio.md#is-the-cue-reaching-the-bedroom) for how to read them
+and how to set up a dedicated monitor mic.
 
 ## Dream reports
 

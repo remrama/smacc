@@ -24,6 +24,7 @@ from .. import audio, utils
 from ..session import SmaccSession
 from ..utils import pick_random_demo_cue
 from .base import ModalityWindow, describe_target, make_section_title
+from .meter import InputLevelMeter, LevelMeter
 
 # One cue is always required; the upper bound is generous (a session typically
 # uses 2-5) but capped so the grid and playback stay manageable (#65).
@@ -85,6 +86,14 @@ class AudioCueWindow(ModalityWindow):
         self._cue_timer = QtCore.QTimer(self)
         self._cue_timer.setInterval(30)  # ~33 Hz: finish detection, not playback
         self._cue_timer.timeout.connect(self._poll_cue)
+        # Monitoring meters (#37), built before _build(): the latter calls
+        # refresh_device_indicator(), which touches the room-monitor widgets. The
+        # output "sending" meter is fed the level of each block the cue callback emits.
+        self._out_level_db = audio.FLOOR_DBFS
+        self.outMeter = LevelMeter(self)
+        self.roomMeter = InputLevelMeter(self)
+        self.monitorCheckBox = QtWidgets.QCheckBox(self)
+        self.monitorDeviceLabel = QtWidgets.QLabel(self)
         # Populated after the central widget exists so _rebuild_grid has its
         # header labels and add button to work with.
         self.slots: list[CueSlot] = []
@@ -203,6 +212,8 @@ class AudioCueWindow(ModalityWindow):
         layout.addLayout(header)
         layout.addWidget(self.nowPlayingLabel)
         layout.addLayout(self._grid)
+        layout.addSpacing(8)
+        layout.addLayout(self._build_monitoring())
         layout.addStretch(1)
         central = QtWidgets.QWidget()
         central.setLayout(layout)
@@ -296,10 +307,12 @@ class AudioCueWindow(ModalityWindow):
         if self.session.devices.role_for("cue_monitor"):
             text += f"   •   monitor: {describe_target(self.session, 'cue_monitor')}"
         self.deviceLabel.setText(text)
+        self.monitorDeviceLabel.setText(describe_target(self.session, "monitor_in"))
+        self._restart_room_monitor_if_active()
 
     def is_streaming(self) -> bool:
-        """True while a cue is playing (any open output stream)."""
-        return bool(self._outputs)
+        """True while a cue is playing or the room monitor mic is open."""
+        return bool(self._outputs) or self.roomMeter.is_active()
 
     def _device_samplerate(self, device: str | None) -> int:
         """Best output sample rate for ``device`` (WASAPI opens only at its own)."""
@@ -453,9 +466,12 @@ class AudioCueWindow(ModalityWindow):
             self.session.logger.warning(f"Audio output status: {status}")
         # The master safety cap is the single final gain stage (read live).
         outdata[:, 0] = mixer.render(frames) * self.session.volume_cap
+        # Stash the level actually sent (post-cap) for the "sending" meter (#37).
+        self._out_level_db = audio.rms_dbfs(outdata[:, 0])
 
     def _poll_cue(self) -> None:
-        """GUI-thread timer: finalize once the cue (its primary output) has ended."""
+        """GUI-thread timer: drive the output meter, then finalize once the cue ends."""
+        self.outMeter.show_level(self._out_level_db)
         if (
             self._active_slot is not None
             and self._outputs
@@ -473,6 +489,8 @@ class AudioCueWindow(ModalityWindow):
         self._outputs = []
         self._active_slot = None
         self._set_now_playing_stopped()
+        self.outMeter.clear_level()
+        self._out_level_db = audio.FLOOR_DBFS
         if mark and slot is not None:
             self.session.emit_event("CueStopped", detail=slot.nameEdit.text())
 
@@ -487,6 +505,69 @@ class AudioCueWindow(ModalityWindow):
     def _set_now_playing_stopped(self) -> None:
         self.nowPlayingLabel.setText("■ stopped")  # ■
         self.nowPlayingLabel.setStyleSheet("")
+
+    # ----- monitoring (#37) --------------------------------------------------
+
+    def _build_monitoring(self) -> QtWidgets.QLayout:
+        """Build the monitoring block: an output 'sending' meter + a bedroom-mic meter.
+
+        'Sending' shows the level SMACC emits — a deterministic diagnostic, but blind
+        to a muted or unplugged speaker. 'Bedroom' is the objective acoustic check: a
+        mic in the room, the only thing that confirms the cue was actually audible.
+        Its mic is the Room-monitor route (a dedicated mic, or the bedroom mic).
+        """
+        heading = QtWidgets.QLabel("Monitoring", self)
+        heading.setStyleSheet("font-weight: bold;")
+
+        self.outMeter.setStatusTip(
+            "Level SMACC is sending to the cue output — confirms emission, not that "
+            "the bedroom speaker actually sounded."
+        )
+        self.monitorCheckBox.setStatusTip(
+            "Open the bedroom monitor mic to confirm the cue is audible in the room "
+            "(set its device in the Devices window)."
+        )
+        self.monitorCheckBox.setToolTip("Listen on the bedroom monitor mic")
+        self.monitorCheckBox.toggled.connect(self.toggle_room_monitor)
+        self.monitorDeviceLabel.setStatusTip(
+            "Set in the Devices window (Room monitor → role)."
+        )
+
+        roomRow = QtWidgets.QHBoxLayout()
+        roomRow.addWidget(self.monitorCheckBox)
+        roomRow.addWidget(self.roomMeter)
+
+        form = QtWidgets.QFormLayout()
+        form.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        form.addRow("Sending:", self.outMeter)
+        form.addRow("Bedroom:", roomRow)
+        form.addRow("Monitor mic:", self.monitorDeviceLabel)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(heading)
+        layout.addLayout(form)
+        return layout
+
+    def toggle_room_monitor(self, enabled: bool) -> None:
+        """Start/stop the bedroom monitor-mic meter (the objective acoustic check)."""
+        self.session.log_interaction(f"Cue room monitor {'on' if enabled else 'off'}")
+        if enabled:
+            device = self.session.devices.device_for("monitor_in") or None
+            try:
+                self.roomMeter.start(device)
+            except Exception as exc:  # PortAudio errors, no device, busy, etc.
+                self.session.show_error_popup(
+                    "Could not open the room monitor.", str(exc), parent=self
+                )
+                self.monitorCheckBox.setChecked(False)
+        else:
+            self.roomMeter.stop()
+
+    def _restart_room_monitor_if_active(self) -> None:
+        """Re-open the room monitor on the current device if it's running."""
+        if self.roomMeter.is_active():
+            self.toggle_room_monitor(False)
+            self.toggle_room_monitor(True)
 
     # ----- settings state ----------------------------------------------------
 
@@ -543,3 +624,4 @@ class AudioCueWindow(ModalityWindow):
             out.stream.abort()
             out.stream.close()
         self._outputs = []
+        self.roomMeter.stop()
