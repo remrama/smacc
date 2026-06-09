@@ -101,14 +101,14 @@ class DevicesWindow(ModalityWindow):
             combo.setStatusTip(f"Device bound to the {role.label} role.")
             combo.currentIndexChanged.connect(partial(self._set_binding, role.key))
             self._role_combos[role.key] = combo
-            roles_form.addRow(f"{role.label}:", combo)
+            roles_form.addRow(f"{role.label} is:", combo)
         self._populate_role_combos()
 
         routing_form = QtWidgets.QFormLayout()
         routing_form.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         for target in devices.TARGETS:
             combo = QtWidgets.QComboBox(self)
-            combo.setStatusTip(f"Role the {target.label} is routed to.")
+            combo.setStatusTip(f"Role the '{target.label}' modality is routed to.")
             if target.optional:
                 combo.addItem(_NONE_LABEL, "")
             for role in devices.ROLES:
@@ -116,7 +116,7 @@ class DevicesWindow(ModalityWindow):
                     combo.addItem(role.label, role.key)
             combo.currentIndexChanged.connect(partial(self._set_routing, target.key))
             self._route_combos[target.key] = combo
-            routing_form.addRow(f"{target.label}:", combo)
+            routing_form.addRow(f"{target.label} using:", combo)
 
         refresh_button = QtWidgets.QPushButton("Refresh devices", self)
         refresh_button.setStatusTip(
