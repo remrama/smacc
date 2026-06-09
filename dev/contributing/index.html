@@ -500,6 +500,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Development">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -599,6 +616,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Development">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -716,6 +750,17 @@ pre-commit<span class="w"> </span>install<span class="w">         </span><span c
 <p><code>uv run smacc</code> also works once the environment is synced — it's the installed GUI
 launcher and opens no console window, so prefer <code>python -m smacc</code> when you want
 terminal output (e.g. tracebacks).</p>
+<h3 id="tests">Tests</h3>
+<p>The suite runs headless. <code>tests/conftest.py</code> selects Qt's <code>offscreen</code> platform before
+any Qt import, so the GUI tests (built on
+<a href="https://pytest-qt.readthedocs.io/">pytest-qt</a>) construct windows and panels with no
+display and no popups — there's no extra setup on your part. Hardware access (audio
+device enumeration, the Windows volume read-out) is stubbed in fixtures, so tests don't
+depend on the machine's audio setup.</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>--cov<span class="o">=</span>smacc<span class="w"> </span>--cov-report<span class="o">=</span>term-missing<span class="w">   </span><span class="c1"># the coverage flags CI runs</span>
+</code></pre></div>
+<p>To actually watch a test render, override the platform for that run (Windows:
+<code>$env:QT_QPA_PLATFORM = "windows"</code> before <code>uv run pytest</code>).</p>
 <h2 id="building-the-executable">Building the executable</h2>
 <p>Build the standalone Windows executable:</p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>pyinstaller<span class="w"> </span>entry.py<span class="w"> </span>--name<span class="w"> </span>SMACC<span class="w"> </span>--onefile<span class="w"> </span>--noconsole<span class="w"> </span><span class="se">\</span>
