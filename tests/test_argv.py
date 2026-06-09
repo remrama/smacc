@@ -11,9 +11,10 @@ def test_picks_smacc_file():
     assert pick_settings_path(["SMACC.exe", "study.smacc"]) == "study.smacc"
 
 
-def test_accepts_yaml_and_yml():
-    assert pick_settings_path(["SMACC.exe", "a.yaml"]) == "a.yaml"
-    assert pick_settings_path(["SMACC.exe", "a.yml"]) == "a.yml"
+def test_rejects_yaml_and_yml():
+    # Only .smacc is a study file now; .yaml/.yml are not opened on launch.
+    assert pick_settings_path(["SMACC.exe", "a.yaml"]) is None
+    assert pick_settings_path(["SMACC.exe", "a.yml"]) is None
 
 
 def test_ignores_flags_and_other_files():

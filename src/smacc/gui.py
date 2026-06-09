@@ -312,12 +312,6 @@ class SmaccWindow(ToolWindow):
         )
         triggerOutputAction.triggered.connect(self.edit_trigger_output)
 
-        exportEventsAction = QtGui.QAction("&Export events (BIDS)…", self)
-        exportEventsAction.setStatusTip(
-            "Export this session's events log as a BIDS events.tsv."
-        )
-        exportEventsAction.triggered.connect(self.export_events_bids)
-
         # Always-on-top is an interface preference (also in the launcher's
         # Preferences). Built in both modes so _apply_preferences can set its state,
         # but only surfaced in a session's menu.
@@ -329,12 +323,6 @@ class SmaccWindow(ToolWindow):
         alwaysOnTopAction.setChecked(False)
         alwaysOnTopAction.toggled.connect(self.toggle_always_on_top)
         self._always_on_top_action = alwaysOnTopAction
-
-        associateAction = QtGui.QAction("&Associate .smacc files (Windows)", self)
-        associateAction.setStatusTip(
-            "Register SMACC as the handler for .smacc files (double-click to open)."
-        )
-        associateAction.triggered.connect(self.associate_files)
 
         # Available in both modes (devices are configured in the editor and a session).
         refreshDevicesAction = QtGui.QAction("&Refresh devices", self)
@@ -362,9 +350,7 @@ class SmaccWindow(ToolWindow):
                 sessionInfoAction,
                 eventCodesAction,
                 triggerOutputAction,
-                exportEventsAction,
                 alwaysOnTopAction,
-                associateAction,
             )
         fileMenu.addSeparator()
         fileMenu.addAction(refreshDevicesAction)
@@ -412,21 +398,16 @@ class SmaccWindow(ToolWindow):
         sessionInfoAction,
         eventCodesAction,
         triggerOutputAction,
-        exportEventsAction,
         alwaysOnTopAction,
-        associateAction,
     ):
         """Session File menu: run-only. Author settings in the editor; analyze past
-        runs from the launcher. Here you record events and export this run."""
+        runs (including event export) from the launcher. Here you record events."""
         fileMenu.addAction(sessionInfoAction)
         fileMenu.addAction(eventCodesAction)
         fileMenu.addAction(triggerOutputAction)
         self._add_surveys_menu(fileMenu)
         fileMenu.addSeparator()
-        fileMenu.addAction(exportEventsAction)
-        fileMenu.addSeparator()
         fileMenu.addAction(alwaysOnTopAction)
-        fileMenu.addAction(associateAction)
 
     def _rebuild_surveys_menu(self, menu: QtWidgets.QMenu) -> None:
         """Fill File → Surveys with each saved survey (open standalone) + Manage."""
@@ -616,7 +597,7 @@ class SmaccWindow(ToolWindow):
         )
 
     ############################################################################
-    # Settings export/import (settings.yaml) and event export
+    # Settings export/import (.smacc)
     ############################################################################
 
     def gather_settings(self) -> dict:
@@ -856,28 +837,6 @@ class SmaccWindow(ToolWindow):
         self._apply_loaded_settings(state, metadata)
         self.session.log_info_msg(f"Loaded settings from {settings_path}")
 
-    def associate_files(self) -> None:
-        """Register SMACC as the Windows handler for .smacc files (packaged build)."""
-        if not winassoc.is_associatable():
-            QtWidgets.QMessageBox.information(
-                self,
-                "File association",
-                "Associating .smacc files is only available in the installed "
-                "Windows build of SMACC.",
-            )
-            return
-        try:
-            winassoc.register_smacc()
-        except OSError as exc:
-            self.show_error_popup("Could not associate .smacc files.", str(exc))
-            return
-        self.session.log_info_msg("Associated .smacc files with SMACC")
-        QtWidgets.QMessageBox.information(
-            self,
-            "File association",
-            "SMACC now handles .smacc files — double-click a settings file to open it.",
-        )
-
     def _maybe_prompt_association(self) -> None:
         """Once, on the first packaged-build launch, offer to associate .smacc files."""
         if not winassoc.is_associatable() or self._prefs.get("association_prompted"):
@@ -937,12 +896,12 @@ class SmaccWindow(ToolWindow):
         return True
 
     def load_settings(self) -> None:
-        """Prompt for a .smacc (or .yaml) settings file and apply it."""
+        """Prompt for a .smacc settings file and apply it."""
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
             "Open settings (.smacc)",
             str(self.session.data_dir),
-            "SMACC settings (*.smacc *.yaml *.yml)",
+            "SMACC settings (*.smacc)",
         )
         if not path:
             return
@@ -1090,43 +1049,6 @@ class SmaccWindow(ToolWindow):
         error = self.session.set_trigger_output(config)
         if error:
             self.show_error_popup("Hardware trigger unavailable.", error)
-
-    def export_events_bids(self) -> None:
-        """Convert this session's log to a BIDS events.tsv (+ JSON sidecar)."""
-        # log_path/session_dir are None only in design mode, where this action is
-        # not offered; guard anyway so the types stay honest.
-        log_path = self.session.log_path
-        session_dir = self.session.session_dir
-        if log_path is None or session_dir is None or not log_path.is_file():
-            self.show_error_popup("No log file to export yet.")
-            return
-        # Flush handlers so the on-disk log includes the latest events.
-        for handler in self.session.logger.handlers:
-            handler.flush()
-        default = session_dir / self._events_basename()
-        path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "Export events (BIDS)", str(default), "BIDS events (*.tsv)"
-        )
-        if not path:
-            return
-        self._write_events(log_path, Path(path))
-
-    def _events_basename(self) -> str:
-        """BIDS-style events name when subject+session are set, else a plain one."""
-        subject = self.session.metadata.get("subject")
-        session = self.session.metadata.get("session")
-        if subject and session:
-            return f"sub-{subject}_ses-{session}_events.tsv"
-        return "events.tsv"
-
-    def _write_events(self, log_path: Path, out_path: Path) -> None:
-        """Parse ``log_path`` into BIDS events and write ``out_path`` (+ sidecar)."""
-        try:
-            count = bids.convert_log_file(log_path, out_path)
-        except OSError as exc:
-            self.show_error_popup("Could not export events.", str(exc))
-            return
-        self.session.log_info_msg(f"Exported {count} events to {out_path}")
 
     def _teardown_panels(self) -> None:
         """Stop and close every modality window (called when this window closes)."""

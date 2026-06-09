@@ -24,7 +24,7 @@ from .paths import (
 from .utils import seed_default_settings, seed_demo_cues
 
 # Study-file extensions SMACC will open when launched with a file (or double-click).
-_STUDY_SUFFIXES = {".smacc", ".yaml", ".yml"}
+_STUDY_SUFFIXES = {".smacc"}
 
 
 def pick_settings_path(args: list[str]) -> str | None:
