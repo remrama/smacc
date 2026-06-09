@@ -27,6 +27,9 @@ from .paths import DEFAULT_DATA_DIR, DEFAULT_SETTINGS_PATH, LOGO_PATH, preferenc
 from .session import SmaccSession
 from .toolwindow import ToolWindow
 
+# Sentinel item-data for the Settings dropdown's "Browse…" entry (vs. a path str).
+_BROWSE_SENTINEL = "\x00browse"
+
 
 def resolve_initial_settings(prefs: dict) -> str | None:
     """Return the settings file to preselect at launch, or None for built-in defaults.
@@ -55,8 +58,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self._build()
         if settings_path:
             self._remember(settings_path)
-        self._refresh_settings_label()
-        self._populate_recents()
+        self._populate_settings_combo()
 
     # ----- current-settings helpers ----------------------------------------
 
@@ -65,9 +67,6 @@ class LauncherWindow(QtWidgets.QMainWindow):
         if self._settings_path:
             return settings.load_data_directory(self._settings_path, DEFAULT_DATA_DIR)
         return DEFAULT_DATA_DIR
-
-    def _settings_name(self) -> str:
-        return Path(self._settings_path).name if self._settings_path else "(defaults)"
 
     # ----- UI construction --------------------------------------------------
 
@@ -95,30 +94,19 @@ class LauncherWindow(QtWidgets.QMainWindow):
         title.setAlignment(QtCore.Qt.AlignCenter)
         layout.addWidget(title)
 
-        layout.addWidget(self._build_settings_box())
+        # One row to choose the settings, then Start / Edit / New acting on it.
+        layout.addLayout(self._build_settings_row())
+        layout.addLayout(self._build_action_row())
 
-        for label, slot, tip in (
-            (
-                "Start session",
-                self.start_session,
-                "Run a session using the selected settings.",
-            ),
-            (
-                "Create settings",
-                self.create_settings,
-                "Build a new .smacc settings file in the editor.",
-            ),
-            (
-                "Analyze session",
-                self.analyze_session,
-                "Summarize a past session, export its events, or recover its settings.",
-            ),
-        ):
-            button = QtWidgets.QPushButton(label, self)
-            button.setMinimumHeight(48)
-            button.setStatusTip(tip)
-            button.clicked.connect(slot)
-            layout.addWidget(button)
+        # Analyzing a past session is a separate, post-hoc task.
+        layout.addSpacing(8)
+        analyzeButton = QtWidgets.QPushButton("Analyze session", self)
+        analyzeButton.setMinimumHeight(40)
+        analyzeButton.setStatusTip(
+            "Summarize a past session, export its events, or recover its settings."
+        )
+        analyzeButton.clicked.connect(self.analyze_session)
+        layout.addWidget(analyzeButton)
 
         layout.addStretch(1)
         footer = QtWidgets.QLabel(f"v{VERSION} — github.com/remrama/smacc")
@@ -128,7 +116,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
 
         self.statusBar()
         self.setCentralWidget(central)
-        self.resize(360, 480)
+        self.resize(420, 360)
 
     def _build_menu(self) -> None:
         fileMenu = self.menuBar().addMenu("&File")
@@ -141,77 +129,87 @@ class LauncherWindow(QtWidgets.QMainWindow):
         quitAction.setStatusTip("Quit SMACC.")
         quitAction.triggered.connect(self.close)
 
-    def _build_settings_box(self) -> QtWidgets.QGroupBox:
-        box = QtWidgets.QGroupBox("Settings", self)
-        grid = QtWidgets.QGridLayout(box)
-        self.settingsLabel = QtWidgets.QLabel(self)
-        self.settingsLabel.setWordWrap(True)
-        self.settingsLabel.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
-        self.recentCombo = QtWidgets.QComboBox(self)
-        self.recentCombo.setStatusTip("Switch to a recently used settings file.")
-        self.recentCombo.activated.connect(self._on_recent_selected)
-        openButton = QtWidgets.QPushButton("Open…", self)
-        openButton.setStatusTip("Open an existing .smacc settings file.")
-        openButton.clicked.connect(self.open_settings)
-        editButton = QtWidgets.QPushButton("Edit…", self)
-        editButton.setStatusTip("Edit the current settings in the editor.")
-        editButton.clicked.connect(self.edit_settings)
-        grid.addWidget(self.settingsLabel, 0, 0, 1, 2)
-        grid.addWidget(QtWidgets.QLabel("Recent:"), 1, 0)
-        grid.addWidget(self.recentCombo, 1, 1)
-        grid.addWidget(openButton, 2, 0)
-        grid.addWidget(editButton, 2, 1)
-        return box
+    def _build_settings_row(self) -> QtWidgets.QLayout:
+        """One row: 'Settings:' + a dropdown of default / recents / Browse…."""
+        row = QtWidgets.QHBoxLayout()
+        row.addWidget(QtWidgets.QLabel("Settings:", self))
+        self.settingsCombo = QtWidgets.QComboBox(self)
+        self.settingsCombo.setStatusTip(
+            "Choose the settings to start, edit, or analyze."
+        )
+        self.settingsCombo.activated.connect(self._on_settings_selected)
+        row.addWidget(self.settingsCombo, 1)
+        return row
+
+    def _build_action_row(self) -> QtWidgets.QLayout:
+        """Three buttons acting on the selected settings: Start / Edit / New."""
+        row = QtWidgets.QHBoxLayout()
+        for label, slot, tip in (
+            (
+                "Start",
+                self.start_session,
+                "Start a session with the selected settings.",
+            ),
+            ("Edit", self.edit_settings, "Edit the selected settings."),
+            ("New", self.create_settings, "Create a new settings file."),
+        ):
+            button = QtWidgets.QPushButton(label, self)
+            button.setMinimumHeight(44)
+            button.setStatusTip(tip)
+            button.clicked.connect(slot)
+            row.addWidget(button)
+        return row
 
     # ----- settings selection ----------------------------------------------
 
-    def _refresh_settings_label(self) -> None:
-        if self._settings_path:
-            self.settingsLabel.setText(
-                f"<b>{self._settings_name()}</b><br><small>{self._settings_path}</small>"
-            )
-        else:
-            self.settingsLabel.setText(
-                "<b>(defaults)</b><br><small>built-in defaults → "
-                f"{DEFAULT_DATA_DIR}</small>"
-            )
-
-    def _populate_recents(self) -> None:
+    def _populate_settings_combo(self) -> None:
+        """Fill the Settings dropdown: 'default', recents (no .smacc/path), Browse…."""
         prefs = preferences.load_preferences(preferences_path)
         recents = [r for r in prefs.get("recent_settings", []) if isinstance(r, str)]
-        self.recentCombo.blockSignals(True)  # programmatic fill: don't fire activated
-        self.recentCombo.clear()
-        if not recents:
-            self.recentCombo.addItem("(none yet)", None)
-            self.recentCombo.setEnabled(False)
-        else:
-            self.recentCombo.setEnabled(True)
-            for path in recents:
-                self.recentCombo.addItem(Path(path).name, path)
-            if self._settings_path:
-                current = self.recentCombo.findData(self._settings_path)
-                if current >= 0:
-                    self.recentCombo.setCurrentIndex(current)
-        self.recentCombo.blockSignals(False)
+        default = str(DEFAULT_SETTINGS_PATH)
+        combo = self.settingsCombo
+        combo.blockSignals(True)  # programmatic fill: don't fire activated
+        combo.clear()
+        combo.addItem("default", default)
+        combo.setItemData(0, default, QtCore.Qt.ToolTipRole)  # full path on hover
+        seen = {default}
+        for path in recents:
+            if path in seen:
+                continue
+            seen.add(path)
+            combo.addItem(Path(path).stem, path)  # name only — no extension/path
+            combo.setItemData(combo.count() - 1, path, QtCore.Qt.ToolTipRole)
+        combo.insertSeparator(combo.count())
+        combo.addItem("Browse…", _BROWSE_SENTINEL)
+        target = self._settings_path or default
+        index = combo.findData(target)
+        combo.setCurrentIndex(index if index >= 0 else 0)
+        combo.blockSignals(False)
 
-    def _on_recent_selected(self, index: int) -> None:
-        path = self.recentCombo.itemData(index)
-        if not path:
+    def _on_settings_selected(self, index: int) -> None:
+        data = self.settingsCombo.itemData(index)
+        if data == _BROWSE_SENTINEL:
+            self.open_settings()  # may set a new file; re-sync the dropdown either way
+            self._populate_settings_combo()
             return
-        if not Path(path).is_file():
-            QtWidgets.QMessageBox.warning(
-                self, "Settings", "That settings file no longer exists."
-            )
-            self._populate_recents()  # reselect the still-valid current file
+        if not data:
             return
-        self._set_settings(path)
+        if not Path(data).is_file():
+            if data == str(DEFAULT_SETTINGS_PATH):
+                self._set_settings(None)  # default absent → SMACC's built-in defaults
+            else:
+                QtWidgets.QMessageBox.warning(
+                    self, "Settings", "That settings file no longer exists."
+                )
+                self._populate_settings_combo()
+            return
+        self._set_settings(data)
 
     def _set_settings(self, path: str | None) -> None:
         self._settings_path = path
         if path:
             self._remember(path)
-        self._refresh_settings_label()
-        self._populate_recents()
+        self._populate_settings_combo()
 
     def _remember(self, path: str) -> None:
         """Push ``path`` onto the persisted recent-settings list (most-recent first)."""
@@ -221,6 +219,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
         preferences.update_preferences(preferences_path, {"recent_settings": recents})
 
     def open_settings(self) -> None:
+        """Browse for a .smacc not already in the dropdown and make it current."""
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
             "Open settings (.smacc)",
@@ -277,7 +276,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
         if isinstance(tool, SmaccWindow) and tool.settings_path:
             self._set_settings(tool.settings_path)
         else:
-            self._populate_recents()
+            self._populate_settings_combo()
         self.show()
         self.raise_()
         self.activateWindow()
