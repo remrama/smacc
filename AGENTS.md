@@ -3,11 +3,14 @@
 This is the canonical instruction file for both human contributors and AI coding
 assistants working on SMACC.
 
+Human contributors should open a
+[GitHub issue](https://github.com/remrama/smacc/issues) for new feature requests or
+bug reports before starting work.
+
 ## Conventions
 
 - Always use `uv` when running Python scripts or installing dependencies. Never
   `pip install` or run naked `python`.
-- Prefer shell commands over PowerShell commands.
 
 ## Development
 
