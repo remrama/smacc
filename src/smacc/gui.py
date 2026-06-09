@@ -78,6 +78,9 @@ class SmaccWindow(ToolWindow):
             "volume": VolumeWindow(self.session),
         }
         self.devices_window.changed.connect(self._refresh_device_indicators)
+        # The Devices window's Refresh button runs the same rescan as File ▸ Refresh
+        # devices / F5 (PortAudio re-init + BlinkStick scan), not a duplicate.
+        self.devices_window.refresh_requested.connect(self.refresh_all_devices)
         # Hot-plug doorbell: Qt6's QMediaDevices fires when an audio device is added
         # or removed; that triggers an automatic rescan. Audio I/O stays on
         # sounddevice — QMediaDevices is used only as the "something changed" signal.

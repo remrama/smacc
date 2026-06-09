@@ -40,6 +40,28 @@ def test_index_of_device_empty_candidates_is_none():
     assert utils.index_of_device([], "Anything") is None
 
 
+def test_index_of_device_new_bare_name_matches_bare_candidate():
+    # The current world: enumeration advertises bare names and a fresh binding
+    # stored the same bare name, so it resolves directly.
+    candidates = ["Speakers (USB Audio)", "Headphones"]
+    assert utils.index_of_device(candidates, "Headphones") == 1
+
+
+def test_index_of_device_old_suffixed_binding_matches_bare_candidate():
+    # Backward-compat: a binding saved by an older SMACC carries the ", Windows
+    # WASAPI" suffix, but enumeration now lists the bare name. The suffix is
+    # normalized away on both sides, so the old .smacc still resolves.
+    candidates = ["Speakers (USB Audio)", "Headphones"]
+    assert utils.index_of_device(candidates, "Headphones, Windows WASAPI") == 1
+
+
+def test_index_of_device_bare_binding_matches_legacy_suffixed_candidate():
+    # The symmetric case (defensive): even if a candidate still carried the suffix,
+    # a bare saved value would match it.
+    candidates = ["Speakers (USB Audio), Windows WASAPI"]
+    assert utils.index_of_device(candidates, "Speakers (USB Audio)") == 0
+
+
 def test_note_returns_int16_of_expected_length():
     rate = 8000
     duration = 1
