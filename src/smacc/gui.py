@@ -43,6 +43,8 @@ class SmaccWindow(ToolWindow):
         # The .smacc this window loaded/edits (None until saved), so saving can
         # write back to it rather than prompting every time.
         self.settings_path = settings_path
+        # The data directory recorded in the settings (the editor can change it).
+        self.data_dir = session.data_dir
         # Operator/machine preferences (window/theme/log-preview); never raises.
         self._prefs = preferences.load_preferences(preferences_path)
 
@@ -101,24 +103,30 @@ class SmaccWindow(ToolWindow):
         self.statusBar().showMessage("Ready")
 
         # Two columns: the tools column (with the lights toggle filling the bottom)
-        # and a right column — the live log viewer in a session, or the save/open
-        # study panel in the designer. The menu is built first so the log-viewer
-        # panel can sync the preview handler to the Log preview menu checkboxes.
+        # and a right column — the live log viewer in a session, or the save panel
+        # in the editor. The editor also gets a banner spanning the top so it's
+        # obvious nothing is being recorded. The menu is built first so the
+        # log-viewer panel can sync the preview handler to the menu checkboxes.
         central_layout = QtWidgets.QGridLayout()
-        central_layout.addLayout(self._build_launcher_buttons(), 0, 0)
+        content_row = 0
+        if self.design:
+            central_layout.addWidget(self._build_editor_banner(), 0, 0, 1, 2)
+            content_row = 1
+        central_layout.addLayout(self._build_launcher_buttons(), content_row, 0)
         right_column = (
-            self._build_designer_section()
+            self._build_editor_section()
             if self.design
             else self._build_log_viewer_section()
         )
-        central_layout.addLayout(right_column, 0, 1)
+        central_layout.addLayout(right_column, content_row, 1)
         central_layout.setColumnStretch(1, 1)  # the right column takes the extra width
+        central_layout.setRowStretch(content_row, 1)  # content fills height, not banner
         central_widget = QtWidgets.QWidget()
         central_widget.setContentsMargins(5, 5, 5, 5)
         central_widget.setLayout(central_layout)
         self.setCentralWidget(central_widget)
 
-        self.setWindowTitle("SMACC — Study designer" if self.design else "SMACC")
+        self.setWindowTitle("SMACC — Settings editor" if self.design else "SMACC")
         if LOGO_PATH.is_file():
             windowIcon = QtGui.QIcon(str(LOGO_PATH))
         else:
@@ -186,10 +194,14 @@ class SmaccWindow(ToolWindow):
         self.lightswitchButton.setChecked(True)
         self._refresh_lightswitch_label()
         self.lightswitchButton.toggled.connect(self.on_lightswitch_toggled)
-        # Lights are a live-session concept; the designer hides the toggle (it's
-        # still built so preference application stays uniform across both modes).
+        # Lights are a live-session concept. The editor hides the toggle (still
+        # built, so preference application stays uniform) and just pushes the tool
+        # buttons to the top instead of leaving an expanding empty slot.
         self.lightswitchButton.setVisible(not self.design)
-        layout.addWidget(self.lightswitchButton, 1)
+        if self.design:
+            layout.addStretch(1)
+        else:
+            layout.addWidget(self.lightswitchButton, 1)
         return layout
 
     def _open_panel(self, key: str) -> None:
@@ -211,36 +223,20 @@ class SmaccWindow(ToolWindow):
 
         quitAction = QtWidgets.QAction(
             self.style().standardIcon(QtWidgets.QStyle.SP_BrowserStop),
-            "Close &designer" if self.design else "End sessio&n",
+            "Close &editor" if self.design else "End sessio&n",
             self,
         )
         quitAction.setShortcut("Ctrl+Q")
         quitAction.setStatusTip(
-            "Close the study designer and return to the SMACC menu"
+            "Close the settings editor and return to the SMACC menu"
             if self.design
             else "End this session and return to the SMACC menu"
         )
         quitAction.triggered.connect(self.close)  # close goes to closeEvent
 
-        # File -> Export/Load settings: persist the current setup to a portable
-        # settings.yaml (and reload it from a .yaml or from a .log's header block).
-        exportSettingsAction = QtWidgets.QAction("&Export study (.smacc)…", self)
-        exportSettingsAction.setStatusTip(
-            "Save the current setup to a portable .smacc study file."
-        )
-        exportSettingsAction.triggered.connect(self.export_settings)
-        loadSettingsAction = QtWidgets.QAction("&Load study (.smacc)…", self)
-        loadSettingsAction.setStatusTip("Load a setup from a .smacc study file.")
-        loadSettingsAction.triggered.connect(self.load_settings)
-        loadSettingsFromLogAction = QtWidgets.QAction("Load study from &log…", self)
-        loadSettingsFromLogAction.setStatusTip(
-            "Load the initial or final setup recorded in a SMACC .log file."
-        )
-        loadSettingsFromLogAction.triggered.connect(self.load_settings_from_log)
-
         sessionInfoAction = QtWidgets.QAction("Session &info…", self)
         sessionInfoAction.setStatusTip(
-            "Edit optional subject/session/notes metadata for this session."
+            "Edit optional subject/session/notes metadata recorded with the session."
         )
         sessionInfoAction.triggered.connect(self.session_info)
 
@@ -256,14 +252,10 @@ class SmaccWindow(ToolWindow):
             "Export this session's events log as a BIDS events.tsv."
         )
         exportEventsAction.triggered.connect(self.export_events_bids)
-        exportEventsFromLogAction = QtWidgets.QAction("Export events from lo&g…", self)
-        exportEventsFromLogAction.setStatusTip(
-            "Convert any SMACC .log file into a BIDS events.tsv."
-        )
-        exportEventsFromLogAction.triggered.connect(self.export_events_from_log)
 
-        # View -> Always on top: keep the control window above other apps. Off by
-        # default; app dialogs are parented to the window so they still stack above it.
+        # Always-on-top is an interface preference (also in the launcher's
+        # Preferences). Built in both modes so _apply_preferences can set its state,
+        # but only surfaced in a session's menu.
         alwaysOnTopAction = QtWidgets.QAction("Always on &top", self)
         alwaysOnTopAction.setStatusTip(
             "Keep the SMACC window above other applications."
@@ -279,54 +271,90 @@ class SmaccWindow(ToolWindow):
         )
         associateAction.triggered.connect(self.associate_files)
 
-        menuBar = self.menuBar()
-        # menuBar.setNativeMenuBar(False)  # needed for pyqt5 on Mac
-        # Single consolidated File menu holding all app actions.
-        fileMenu = menuBar.addMenu("&File")
-        fileMenu.addAction(exportSettingsAction)
-        fileMenu.addAction(loadSettingsAction)
-        fileMenu.addAction(loadSettingsFromLogAction)
-        fileMenu.addSeparator()
-        fileMenu.addAction(sessionInfoAction)
-        fileMenu.addAction(eventCodesAction)
-        # File -> Surveys: open any saved survey standalone (not tied to a dream
-        # report). Rebuilt each time it opens, since the saved list changes as
-        # surveys are added/edited/removed.
-        surveysMenu = fileMenu.addMenu("Sur&veys")
-        surveysMenu.aboutToShow.connect(lambda: self._rebuild_surveys_menu(surveysMenu))
-        # Exporting events needs a recorded run, so it's session-only; the designer
-        # omits it (events can still be exported later from the Analyze menu).
+        fileMenu = self.menuBar().addMenu("&File")
         self._preview_level_actions: dict[int, QtWidgets.QAction] = {}
-        if not self.design:
-            fileMenu.addSeparator()
-            fileMenu.addAction(exportEventsAction)
-            fileMenu.addAction(exportEventsFromLogAction)
-        fileMenu.addSeparator()
-        fileMenu.addAction(alwaysOnTopAction)
-        fileMenu.addAction(associateAction)
-        # File -> Log preview: pick which log levels show in the preview pane.
-        # Everything is always written to the log file regardless of these. The
-        # designer has no log viewer, so it omits this menu (and keeps the actions
-        # map empty, which _apply_preferences tolerates).
-        if not self.design:
-            fileMenu.addSeparator()
-            previewMenu = fileMenu.addMenu("Log preview")
-            for levelname, levelno in (
-                ("Debug", logging.DEBUG),
-                ("Info", logging.INFO),
-                ("Warning", logging.WARNING),
-                ("Error", logging.ERROR),
-                ("Critical", logging.CRITICAL),
-            ):
-                levelAction = QtWidgets.QAction(levelname, self)
-                levelAction.setCheckable(True)
-                levelAction.setChecked(levelno != logging.DEBUG)  # all but Debug
-                levelAction.toggled.connect(self._update_preview_levels)
-                previewMenu.addAction(levelAction)
-                self._preview_level_actions[levelno] = levelAction
+        if self.design:
+            self._build_editor_file_menu(fileMenu, sessionInfoAction, eventCodesAction)
+        else:
+            self._build_session_file_menu(
+                fileMenu,
+                sessionInfoAction,
+                eventCodesAction,
+                exportEventsAction,
+                alwaysOnTopAction,
+                associateAction,
+            )
         fileMenu.addSeparator()
         fileMenu.addAction(aboutAction)
         fileMenu.addAction(quitAction)
+
+    def _add_surveys_menu(self, fileMenu: QtWidgets.QMenu) -> None:
+        """Add File → Surveys (rebuilt on show, since the saved list changes)."""
+        surveysMenu = fileMenu.addMenu("Sur&veys")
+        surveysMenu.aboutToShow.connect(lambda: self._rebuild_surveys_menu(surveysMenu))
+
+    def _build_editor_file_menu(self, fileMenu, sessionInfoAction, eventCodesAction):
+        """Editor File menu: save/import settings + the config editors (no live run)."""
+        saveAction = QtWidgets.QAction("&Save settings", self)
+        saveAction.setShortcut("Ctrl+S")
+        saveAction.setStatusTip("Save to the current .smacc (or choose a name if new).")
+        saveAction.triggered.connect(self.save_settings_in_place)
+        saveAsAction = QtWidgets.QAction("Save &as…", self)
+        saveAsAction.setStatusTip("Save these settings to a new .smacc file.")
+        saveAsAction.triggered.connect(self.export_settings)
+        importAction = QtWidgets.QAction("&Import settings (.smacc)…", self)
+        importAction.setStatusTip(
+            "Load another .smacc's settings into the editor as a starting point."
+        )
+        importAction.triggered.connect(self.load_settings)
+        importLogAction = QtWidgets.QAction("Import settings from &log…", self)
+        importLogAction.setStatusTip(
+            "Load the settings recorded in a SMACC .log into the editor."
+        )
+        importLogAction.triggered.connect(self.load_settings_from_log)
+        for action in (saveAction, saveAsAction, importAction, importLogAction):
+            fileMenu.addAction(action)
+        fileMenu.addSeparator()
+        fileMenu.addAction(sessionInfoAction)
+        fileMenu.addAction(eventCodesAction)
+        self._add_surveys_menu(fileMenu)
+
+    def _build_session_file_menu(
+        self,
+        fileMenu,
+        sessionInfoAction,
+        eventCodesAction,
+        exportEventsAction,
+        alwaysOnTopAction,
+        associateAction,
+    ):
+        """Session File menu: run-only. Author settings in the editor; analyze past
+        runs from the launcher. Here you record events and export this run."""
+        fileMenu.addAction(sessionInfoAction)
+        fileMenu.addAction(eventCodesAction)
+        self._add_surveys_menu(fileMenu)
+        fileMenu.addSeparator()
+        fileMenu.addAction(exportEventsAction)
+        fileMenu.addSeparator()
+        fileMenu.addAction(alwaysOnTopAction)
+        fileMenu.addAction(associateAction)
+        fileMenu.addSeparator()
+        # File -> Log preview: which log levels show in the live preview (the log
+        # file always records every level).
+        previewMenu = fileMenu.addMenu("Log preview")
+        for levelname, levelno in (
+            ("Debug", logging.DEBUG),
+            ("Info", logging.INFO),
+            ("Warning", logging.WARNING),
+            ("Error", logging.ERROR),
+            ("Critical", logging.CRITICAL),
+        ):
+            levelAction = QtWidgets.QAction(levelname, self)
+            levelAction.setCheckable(True)
+            levelAction.setChecked(levelno != logging.DEBUG)  # all but Debug
+            levelAction.toggled.connect(self._update_preview_levels)
+            previewMenu.addAction(levelAction)
+            self._preview_level_actions[levelno] = levelAction
 
     def _rebuild_surveys_menu(self, menu: QtWidgets.QMenu) -> None:
         """Fill File → Surveys with each saved survey (open standalone) + Manage."""
@@ -370,33 +398,67 @@ class SmaccWindow(ToolWindow):
         logviewLayout.addRow(logviewList)
         return logviewLayout
 
-    def _build_designer_section(self) -> QtWidgets.QLayout:
-        """Build the study-designer right column: guidance plus save/open actions.
+    def _build_editor_banner(self) -> QtWidgets.QLabel:
+        """A prominent bar making clear the editor is configuring, not recording."""
+        banner = QtWidgets.QLabel(
+            "✎  Editing settings — no session is being recorded.", self
+        )
+        banner.setAlignment(QtCore.Qt.AlignCenter)
+        banner.setStyleSheet(
+            "background-color: #f0d000; color: black; font: bold 11pt;"
+            " padding: 6px; border-radius: 4px;"
+        )
+        return banner
 
-        Replaces the live log viewer when this window is a study designer. The
-        tools column at the left configures the study; these buttons persist it to
-        the study's ``study.smacc`` (or load an existing config to start from).
+    def _build_editor_section(self) -> QtWidgets.QLayout:
+        """Build the settings-editor right column: data directory + save actions.
+
+        Replaces the live log viewer when this window is the settings editor. The
+        tools column at the left configures the settings; here you pick the data
+        directory (where runs go) and save it all to a ``.smacc`` file.
         """
         layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(self._make_section_title("Study designer"))
+        layout.addWidget(self._make_section_title("Settings editor"))
         info = QtWidgets.QLabel(
-            "Configure each tool on the left (cues, noise, visual, events, …), "
-            "then save the setup to this study's <b>study.smacc</b>. Start a "
-            "session from the menu to record with it."
+            "Configure each tool on the left (cues, noise, visual, events, …), set "
+            "the data directory, then save to a <b>.smacc</b> settings file. Open it "
+            "from the launcher to run a session with it."
         )
         info.setWordWrap(True)
         layout.addWidget(info)
         layout.addSpacing(8)
-        saveButton = QtWidgets.QPushButton("Save study (.smacc)", self)
-        saveButton.setStatusTip("Save the current setup to this study's study.smacc.")
-        saveButton.clicked.connect(self.export_settings)
-        openButton = QtWidgets.QPushButton("Open study (.smacc)…", self)
-        openButton.setStatusTip("Load an existing study config into the designer.")
-        openButton.clicked.connect(self.load_settings)
+
+        # Data directory: where sessions started from these settings are written.
+        layout.addWidget(QtWidgets.QLabel("Data directory:", self))
+        self.dataDirLabel = QtWidgets.QLabel(str(self.data_dir), self)
+        self.dataDirLabel.setWordWrap(True)
+        self.dataDirLabel.setStyleSheet("font-style: italic;")
+        layout.addWidget(self.dataDirLabel)
+        changeDirButton = QtWidgets.QPushButton("Change data directory…", self)
+        changeDirButton.setStatusTip("Choose where sessions using these settings save.")
+        changeDirButton.clicked.connect(self.change_data_dir)
+        layout.addWidget(changeDirButton)
+        layout.addSpacing(8)
+
+        saveButton = QtWidgets.QPushButton("Save settings", self)
+        saveButton.setStatusTip("Save to the current .smacc (or choose a name if new).")
+        saveButton.clicked.connect(self.save_settings_in_place)
+        saveAsButton = QtWidgets.QPushButton("Save as…", self)
+        saveAsButton.setStatusTip("Save these settings to a new .smacc file.")
+        saveAsButton.clicked.connect(self.export_settings)
         layout.addWidget(saveButton)
-        layout.addWidget(openButton)
+        layout.addWidget(saveAsButton)
         layout.addStretch(1)
         return layout
+
+    def change_data_dir(self) -> None:
+        """Pick the data directory recorded in these settings (editor only)."""
+        path = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Choose data directory", str(self.data_dir)
+        )
+        if path:
+            self.data_dir = Path(path)
+            self.dataDirLabel.setText(str(self.data_dir))
 
     def toggle_always_on_top(self, enabled: bool) -> None:
         """Toggle the window's always-on-top hint (from the View menu)."""
@@ -505,8 +567,9 @@ class SmaccWindow(ToolWindow):
         # The event-code registry isn't a panel; persist it at the window level.
         state["event_codes"] = self.session.event_codes_as_list()
         state["event_code_safe_max"] = self.session.event_code_safe_max
-        # The data directory (where runs are written) travels with the settings.
-        state["data_directory"] = str(self.session.data_dir)
+        # The data directory (where runs are written) travels with the settings;
+        # the editor can repoint it, so read the window's copy, not the session's.
+        state["data_directory"] = str(self.data_dir)
         return state
 
     def apply_settings(self, state: dict) -> None:
@@ -566,7 +629,12 @@ class SmaccWindow(ToolWindow):
         self.lightswitchButton.blockSignals(False)
         self.set_lights(True, send_marker=False)
 
-        self._restore_geometry(prefs.get("window") or {})
+        # The editor doesn't persist its own geometry; give it a compact default
+        # rather than inheriting the (larger) saved session window size.
+        if self.design:
+            self.resize(640, 460)
+        else:
+            self._restore_geometry(prefs.get("window") or {})
 
     def _restore_geometry(self, window: dict) -> None:
         """Restore saved window size/position, ignoring fully off-screen positions."""
@@ -586,7 +654,7 @@ class SmaccWindow(ToolWindow):
 
         Only the keys the session window manages are returned; merging them with
         :func:`preferences.update_preferences` leaves other writers' keys (e.g. the
-        launcher's recent-studies list) untouched.
+        launcher's recent-settings list) untouched.
         """
         checked = {
             level
@@ -605,15 +673,15 @@ class SmaccWindow(ToolWindow):
         }
 
     def _load_initial_settings(self, settings_path: str) -> None:
-        """Load a study file given on launch and apply it as the initial setup."""
+        """Load a settings file given on launch and apply it as the initial setup."""
         try:
             state, metadata = settings.load_settings(settings_path)
             state = settings.resolve_paths(state, Path(settings_path).parent)
         except (OSError, ValueError) as exc:
-            self.show_error_popup("Could not open study file.", str(exc))
+            self.show_error_popup("Could not open settings file.", str(exc))
             return
         self._apply_loaded_settings(state, metadata)
-        self.session.log_info_msg(f"Loaded study from {settings_path}")
+        self.session.log_info_msg(f"Loaded settings from {settings_path}")
 
     def associate_files(self) -> None:
         """Register SMACC as the Windows handler for .smacc files (packaged build)."""
@@ -634,7 +702,7 @@ class SmaccWindow(ToolWindow):
         QtWidgets.QMessageBox.information(
             self,
             "File association",
-            "SMACC now handles .smacc files — double-click a study to open it.",
+            "SMACC now handles .smacc files — double-click a settings file to open it.",
         )
 
     def _maybe_prompt_association(self) -> None:
@@ -648,7 +716,7 @@ class SmaccWindow(ToolWindow):
         reply = QtWidgets.QMessageBox.question(
             self,
             "Associate .smacc files?",
-            "Associate .smacc study files with SMACC so double-clicking one opens "
+            "Associate .smacc settings files with SMACC so double-clicking one opens "
             "the app already configured?",
         )
         if reply == QtWidgets.QMessageBox.Yes:
@@ -658,27 +726,40 @@ class SmaccWindow(ToolWindow):
             except OSError as exc:
                 self.show_error_popup("Could not associate .smacc files.", str(exc))
 
-    def export_settings(self) -> None:
-        """Prompt for a path and write the current setup to a .smacc settings file."""
-        # Default to the file we loaded (so saving updates it in place), else a
-        # settings.smacc beside this run's data directory.
-        default = self.settings_path or str(self.session.data_dir / "settings.smacc")
+    def save_settings_in_place(self) -> bool:
+        """Save to the current .smacc without prompting; fall back to Save-As if new.
+
+        Returns True if the settings were written, False if cancelled.
+        """
+        if self.settings_path:
+            return self._write_settings(self.settings_path)
+        return self.export_settings()
+
+    def export_settings(self) -> bool:
+        """Prompt for a path (Save-As) and write the settings there. Returns success."""
+        # Default to the file we loaded, else a settings.smacc beside the data dir.
+        default = self.settings_path or str(self.data_dir / "settings.smacc")
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "Save settings (.smacc)", str(default), "SMACC settings (*.smacc)"
         )
         if not path:
-            return
-        # Make referenced cue/noise/data paths relative to the chosen file when possible.
+            return False
+        return self._write_settings(path)
+
+    def _write_settings(self, path: str) -> bool:
+        """Write the current settings to ``path`` (relativizing paths). Returns success."""
+        # Make referenced cue/noise/data paths relative to the file when possible.
         portable = settings.relativize_paths(self.gather_settings(), Path(path).parent)
         try:
             settings.save_settings(path, portable, self.session.metadata)
         except (OSError, ValueError) as exc:
             self.show_error_popup("Could not save settings.", str(exc))
-            return
+            return False
         self.settings_path = path  # subsequent saves update this file
         self.session.log_info_msg(f"Saved settings to {path}")
         # Status-bar confirmation: the editor has no log viewer to show the line.
         self.statusBar().showMessage(f"Saved settings to {Path(path).name}", 5000)
+        return True
 
     def load_settings(self) -> None:
         """Prompt for a .smacc (or .yaml) settings file and apply it."""
@@ -833,24 +914,6 @@ class SmaccWindow(ToolWindow):
             return
         self._write_events(log_path, Path(path))
 
-    def export_events_from_log(self) -> None:
-        """Convert any chosen SMACC .log file into a BIDS events.tsv (+ sidecar)."""
-        log_path, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self,
-            "Choose a log file",
-            str(self.session.data_dir),
-            "SMACC log (*.log)",
-        )
-        if not log_path:
-            return
-        default = Path(log_path).with_suffix(".tsv")
-        out_path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "Export events (BIDS)", str(default), "BIDS events (*.tsv)"
-        )
-        if not out_path:
-            return
-        self._write_events(Path(log_path), Path(out_path))
-
     def _events_basename(self) -> str:
         """BIDS-style events name when subject+session are set, else a plain one."""
         subject = self.session.metadata.get("subject")
@@ -883,19 +946,26 @@ class SmaccWindow(ToolWindow):
         the launcher (the persistent root window) can reappear.
         """
         if self.design:
-            confirmed = (
-                QtWidgets.QMessageBox.question(
-                    self,
-                    "Close designer",
-                    "Close the study designer and return to the menu?\n\n"
-                    "Save the study first if you have unsaved changes.",
-                )
-                == QtWidgets.QMessageBox.Yes
+            box = QtWidgets.QMessageBox(self)
+            box.setWindowTitle("Close editor")
+            box.setText("Save changes to the settings before closing?")
+            box.setStandardButtons(
+                QtWidgets.QMessageBox.Save
+                | QtWidgets.QMessageBox.Discard
+                | QtWidgets.QMessageBox.Cancel
             )
-            if not confirmed:
+            box.setDefaultButton(QtWidgets.QMessageBox.Save)
+            choice = box.exec()
+            if choice == QtWidgets.QMessageBox.Cancel:
                 event.ignore()
                 return
-            # No run to finalize and no operator prefs to write from the designer.
+            if (
+                choice == QtWidgets.QMessageBox.Save
+                and not self.save_settings_in_place()
+            ):
+                event.ignore()  # save was cancelled/failed → keep the editor open
+                return
+            # No run to finalize and no operator prefs to write from the editor.
             self._teardown_panels()
             self.session.close()
             event.accept()
