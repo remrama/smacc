@@ -51,6 +51,10 @@ Two optional routes cover the things you reach for mid-study:
 * **Intercom Listen.** The intercom is two-way: **Talk** sends your voice to the
   participant (and is marked in the EEG record), while **Listen** brings the
   participant's mic to your control-room output.
+* **Room monitor.** A microphone meter in the Audio cue window that confirms a cue is
+  actually audible in the bedroom (see
+  [below](#is-the-cue-reaching-the-bedroom)). It defaults to the **Bedroom mic**, or
+  bind a dedicated, more sensitive **Monitor mic** and route *Room monitor* to it.
 
 ## One audio engine
 
@@ -72,6 +76,36 @@ single source.
 **Hot-plug:** plug a device in after SMACC is already open and it's picked up
 automatically — no restart needed. You can also force a rescan from
 **File ▸ Refresh devices** (or press `F5`).
+
+## Is the cue reaching the bedroom?
+
+A cue you can hear in the control room isn't proof the *participant* heard it — the
+bedroom speaker could be muted, unplugged, or turned down at the hardware. The
+**Audio cue** window's **Monitoring** section shows two meters so you can tell:
+
+* **Sending** — the level SMACC is emitting to the cue output, the moment it plays.
+  It's exact, but it only confirms SMACC is *playing*; it's blind to everything
+  downstream (Windows volume, the speaker's power switch, the cable). Treat it as a
+  diagnostic: if *Sending* is dark, the problem is on SMACC's side (wrong cue, the
+  per-cue volume or the safety cap at zero); if it's lit but the room is silent, the
+  problem is the speaker.
+* **Bedroom** — the level a microphone actually picks up in the room. This is the
+  objective check: it only moves when sound really happens in the bedroom. Tick the
+  box beside it to start monitoring. Because a faint cue can sit close to a cheap
+  mic's noise floor, the meter also shows the **rise above the room's resting level**
+  (the `+N` next to the reading), so even a small bump stands out.
+
+!!! tip "A dedicated monitor mic"
+    The *Bedroom* meter listens on the **Room monitor** route, which defaults to your
+    bedroom mic. For the most reliable check — especially for the very quiet cues a
+    study often starts at — bind a separate, sensitive **Monitor mic** in the Devices
+    window and route *Room monitor* to it. That keeps verification independent of the
+    (often cheaper, voice-activated) dream-report mic.
+
+!!! warning "A quiet mic isn't proof of silence"
+    A cheap or voice-activated mic may not register a very faint cue even when it is
+    playing, so a dark *Bedroom* meter is a prompt to check — not proof the cue
+    failed. Read it together with *Sending*.
 
 ## Volume you can see
 
