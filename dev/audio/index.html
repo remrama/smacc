@@ -479,10 +479,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#windows-only-on-purpose" class="md-nav__link">
+  <a href="#windows-only" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Windows only, on purpose
+        Windows only
       
     </span>
   </a>
@@ -666,10 +666,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#windows-only-on-purpose" class="md-nav__link">
+  <a href="#windows-only" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Windows only, on purpose
+        Windows only
       
     </span>
   </a>
@@ -697,71 +697,78 @@
 
 
 <h1 id="audio-device-routing">Audio &amp; device routing</h1>
-<p>Running an overnight cueing study means juggling a <em>lot</em> of audio at once — a cue in
-the bedroom, white noise in the bedroom, your own voice over an intercom, the
-participant's voice coming back, a dream-report mic, sometimes a light cue — often
-across several physical devices and two rooms. On Windows, audio is also famously
-fiddly: the same speaker shows up under several names, and the level that actually
-reaches the participant is the product of several controls scattered across the OS.</p>
-<p>SMACC is built around that reality. This page explains how it handles devices,
-routing, and volume — the parts that are easy to get wrong at 3 a.m.</p>
+<p>An overnight cueing study can run several audio streams at once: a cue in the
+bedroom, white noise in the bedroom, your voice over an intercom, the participant's
+voice coming back, a dream-report mic, and sometimes a light cue. These often span
+more than one physical device and two rooms. On Windows, the same speaker can also
+appear under several names, and the level that reaches the participant is the product
+of several controls spread across the OS.</p>
+<p>This page describes how SMACC handles devices, routing, and volume.</p>
 <h2 id="roles-not-per-window-device-pickers">Roles, not per-window device pickers</h2>
-<p>Instead of picking a device separately in every window, SMACC has <strong>one Devices
+<p>Instead of picking a device separately in every window, SMACC has one <strong>Devices
 window</strong> (in the <em>Tools</em> column) where you do two things:</p>
 <ol>
 <li><strong>Bind each <em>role</em> to a device, once.</strong> The roles are the physical endpoints of a
-   rig: <strong>Bedroom output</strong>, <strong>Control-room output</strong>, <strong>Bedroom mic</strong>, and
-   <strong>BlinkStick</strong>.</li>
-<li><strong>Route each modality to a role.</strong> The audio cue, noise, intercom, and
-   dream-report recorder each point at a role.</li>
+   rig: <strong>Bedroom speakers</strong>, <strong>Control-room speakers</strong>, <strong>Bedroom mic</strong>, and
+   <strong>Bedroom lights</strong>.</li>
+<li><strong>Route each modality to a role.</strong> The cue, noise, intercom, and dream-report
+   recorder each point at a role.</li>
 </ol>
-<p>Because the cue, the noise, and your intercom voice can all share the <strong>Bedroom
-output</strong> role, swapping the bedroom speaker is a <em>single</em> change — not five. Every
-other window just shows a read-only indicator of where it resolves, for example
-<code>Device: Bedroom output → Speakers (USB Audio)</code>.</p>
-<div class="highlight"><pre><span></span><code>Bedroom output       Speakers (USB Audio)
-Control-room output  Headphones (Realtek)
-Bedroom mic          Microphone (USB Audio)
+<p>The cue, the noise, and your intercom voice can all share the <strong>Bedroom speakers</strong>
+role, so swapping the bedroom speaker is one change rather than several. Every other
+window shows a read-only indicator of where it resolves, for example
+<code>Device: Bedroom speakers → Speakers (USB Audio)</code>.</p>
+<div class="highlight"><pre><span></span><code>Bedroom speakers      Speakers (USB Audio)
+Control-room speakers Headphones (Realtek)
+Bedroom mic           Microphone (USB Audio)
 ──────────────────────────────────────────
-Audio cue    → Bedroom output    (monitor: Control-room output)
-Noise        → Bedroom output
-Intercom     → Bedroom output
-Dream mic    → Bedroom mic
+Present audio cue    → Bedroom speakers    (monitor: Control-room speakers)
+Present audio noise  → Bedroom speakers
+Speak through intercom → Bedroom speakers
+Capture dream report → Bedroom mic
 </code></pre></div>
 <p>The whole assignment is saved in your <code>.smacc</code> settings file, so a rig travels with
 its study. If a bound device isn't connected when a study loads, SMACC keeps going
-and tells you which one is missing rather than silently falling back.</p>
+and reports which one is missing instead of silently falling back.</p>
 <h3 id="monitoring-routes">Monitoring routes</h3>
-<p>Two optional routes cover the things you reach for mid-study:</p>
+<p>Three optional routes cover the things you reach for mid-study:</p>
 <ul>
-<li><strong>Cue monitor (fan-out).</strong> Route <em>Cue monitor</em> to the control-room output and the
-  cue plays in the bedroom <strong>and</strong> the control room at once, so you hear exactly what
-  the participant heard.</li>
-<li><strong>Intercom Listen.</strong> The intercom is two-way: <strong>Talk</strong> sends your voice to the
-  participant (and is marked in the EEG record), while <strong>Listen</strong> brings the
-  participant's mic to your control-room output.</li>
-<li><strong>Room monitor.</strong> A microphone meter in the Audio cue window that confirms a cue is
-  actually audible in the bedroom (see
+<li><strong>Monitor audio cue (fan-out).</strong> Route <em>Monitor audio cue</em> to the control-room
+  speakers and the cue plays in the bedroom and the control room at once, so you hear
+  what the participant heard.</li>
+<li><strong>Listen through intercom.</strong> The intercom is two-way: <strong>Speak through intercom</strong>
+  sends your voice to the participant (and is marked in the EEG record), while
+  <strong>Listen through intercom</strong> brings the participant's mic to your control-room
+  speakers.</li>
+<li><strong>Monitor the bedroom.</strong> A microphone meter in the Audio cue window that confirms a
+  cue is audible in the bedroom (see
   <a href="#is-the-cue-reaching-the-bedroom">below</a>). It defaults to the <strong>Bedroom mic</strong>, or
   bind a dedicated, more sensitive <strong>Monitor mic</strong> and route <em>Room monitor</em> to it.</li>
 </ul>
 <h2 id="one-audio-engine">One audio engine</h2>
-<p>All real-time audio — cues, noise, the intercom, the dream-report recorder, and the
-input-level meter — runs on <a href="https://python-sounddevice.readthedocs.io/"><code>sounddevice</code></a>
+<p>All real-time audio (cues, noise, the intercom, the dream-report recorder, and the
+input-level meter) runs on <a href="https://python-sounddevice.readthedocs.io/"><code>sounddevice</code></a>
 (PortAudio), through the <strong>Windows WASAPI</strong> host API.</p>
 <div class="admonition info">
 <p class="admonition-title">Why WASAPI</p>
 <p>On Windows, PortAudio lists every speaker once per host API (MME, DirectSound,
-WASAPI, WDM-KS) — which is where the "same device, several names" confusion comes
-from — and the legacy MME names are truncated to 31 characters. SMACC enumerates
-<strong>only WASAPI</strong>, so each device appears once, with its full name, on the modern
+WASAPI, WDM-KS), which is where the "same device, several names" confusion comes
+from, and the legacy MME names are truncated to 31 characters. SMACC enumerates
+only WASAPI, so each device appears once, with its full name, on the modern
 low-latency path.</p>
 </div>
+<div class="admonition info">
+<p class="admonition-title">Device names in the Devices window</p>
+<p>Because SMACC enumerates only WASAPI devices, it drops the redundant
+", Windows WASAPI" suffix that PortAudio appends to each device name. With only
+one host API in the list, the suffix added nothing, so a device reads as
+<code>Speakers (USB Audio)</code> rather than <code>Speakers (USB Audio), Windows WASAPI</code>.</p>
+</div>
 <p>Because everything shares one engine, device names mean the same thing everywhere,
-and sending one cue to two devices at once (the fan-out) is just two streams from a
-single source.</p>
+and sending one cue to two devices at once (the fan-out) is two streams from a single
+source.</p>
 <p><strong>Hot-plug:</strong> plug a device in after SMACC is already open and it's picked up
-automatically — no restart needed. You can also force a rescan from
+automatically, with no restart needed. You can also force a rescan from
 <strong>File ▸ Refresh devices</strong> (or press <code>F5</code>).</p>
 <h2 id="is-the-cue-reaching-the-bedroom">Is the cue reaching the bedroom?</h2>
 <p>A cue you can hear in the control room isn't proof the <em>participant</em> heard it — the
@@ -795,32 +802,29 @@ playing, so a dark <em>Bedroom</em> meter is a prompt to check — not proof the
 failed. Read it together with <em>Sending</em>.</p>
 </div>
 <h2 id="volume-you-can-see">Volume you can see</h2>
-<p>The most common "why is it quiet?" trap on Windows is that the level reaching the
-participant is a <em>product</em> of several controls:</p>
+<p>On Windows, the level reaching the participant is a product of several controls:</p>
 <div class="highlight"><pre><span></span><code>per-cue volume  ×  output safety cap  ×  Windows app volume  ×  Windows device volume  ×  hardware knob
 </code></pre></div>
 <p>Three of those live in the OS and are invisible from most apps. SMACC makes its own
 gain explicit and adds a safety limit, in the <strong>Volume</strong> window:</p>
 <ul>
-<li><strong>Output safety cap.</strong> A single master ceiling that is the <em>last</em> gain stage applied
-  to every cue and noise output. However loud an individual cue is set, the cap is a
-  hard limit — so a full-volume looped cue on a calibrated rig can't suddenly blast a
+<li><strong>Output safety cap.</strong> A single master ceiling, applied as the last gain stage on
+  every cue and noise output. However loud an individual cue is set, the cap is a
+  hard limit, so a full-volume looped cue on a calibrated rig can't suddenly blast a
   sleeping participant.</li>
 <li><strong>A read-only view of the Windows stages.</strong> The window shows the current <strong>system
-  output volume</strong> and <strong>SMACC's own level</strong> in the Windows Volume Mixer, so the hidden
-  OS stages are right in front of you.</li>
+  output volume</strong> and <strong>SMACC's own level</strong> in the Windows Volume Mixer, so the
+  hidden OS stages are visible.</li>
 </ul>
 <div class="admonition tip">
 <p class="admonition-title">Calibrating cue level</p>
-<p>For levels that reproduce across nights and participants, pin the Windows device
-and app volumes to 100%, then calibrate entirely with the per-cue volumes and the
-safety cap inside SMACC. That way one place — SMACC — determines how loud a cue is.</p>
+<p>For levels that reproduce across nights and participants, set the Windows device
+and app volumes to 100%, then calibrate with the per-cue volumes and the safety
+cap inside SMACC. That way one place, SMACC, determines how loud a cue is.</p>
 </div>
-<h2 id="windows-only-on-purpose">Windows only, on purpose</h2>
+<h2 id="windows-only">Windows only</h2>
 <p>This device and volume handling is Windows-specific (WASAPI, the volume mixer), and
-the GUI toolkit (Qt 6) needs Windows 10 or later. Supporting one operating system
-well — the one sleep labs actually run on — is a deliberate trade for getting these
-subtleties right.</p>
+the GUI toolkit (Qt 6) requires Windows 10 or later.</p>
 
 
 

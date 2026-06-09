@@ -988,10 +988,10 @@ file's <strong>data directory</strong> (e.g. <code>~/SMACC/data/</code>), captur
 for that session. Open one later from the launcher's <strong>Analyze</strong> to see a
 summary, export its events to BIDS, or recover its settings.</p>
 <h2 id="settings-files-smacc">Settings files (<code>.smacc</code>)</h2>
-<p>A <strong>settings file</strong> captures your reusable, data-related setup — cue files, volumes,
-noise, BlinkStick color, survey presets, event codes, and the <strong>data directory</strong>
-where runs are written — in a single portable <code>.smacc</code> (plain YAML you can read and
-edit). The easiest way to build one is the <strong>settings editor</strong> (the launcher's
+<p>A <strong>settings file</strong> captures your reusable setup — cue files, volumes, noise,
+BlinkStick color, survey presets, event codes, the display choices that apply to a
+session (always-on-top and log-preview levels), and the <strong>data directory</strong> where runs
+are written — in a single portable <code>.smacc</code> (plain YAML you can read and edit). The easiest way to build one is the <strong>settings editor</strong> (the launcher's
 <strong>Create settings</strong>, or <strong>Edit…</strong> for an existing one): configure the tools, set the
 data directory, and save. SMACC ships a <code>default.smacc</code> in your SMACC directory as a
 working example you can copy.</p>
@@ -1008,11 +1008,11 @@ straight to a session for it — the first launch offers to set up this associat
 and you can (re)enable it any time from <strong>File &rsaquo; Associate .smacc files
 (Windows)</strong> in a session. From a terminal, <code>SMACC path/to/file.smacc</code> does the same.</p>
 <h2 id="preferences">Preferences</h2>
-<p>SMACC remembers interface choices — window size and position, light/dark theme,
-always-on-top, and which log levels show in the preview — in
-<code>~/SMACC/preferences.yaml</code>, restored on the next launch. Edit them from <strong>File
-&rsaquo; Preferences</strong> in the launcher. These are machine-level, separate from a
-portable settings file.</p>
+<p>Some display choices apply to a session and are stored in the <code>.smacc</code> settings file,
+so they travel with the study: <strong>always-on-top</strong> and which <strong>log levels</strong> show in the
+preview. Edit them from <strong>File &rsaquo; Preferences</strong> in the launcher.</p>
+<p>Separately, the machine remembers window positions and sizes and your recent files in
+<code>~/SMACC/preferences.yaml</code>, restored on the next launch.</p>
 
 
 

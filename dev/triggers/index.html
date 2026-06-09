@@ -719,10 +719,10 @@ it on a dedicated <strong>trigger channel</strong> alongside the brain signal. T
 <strong>port code</strong> (also called an event marker or trigger code). During analysis you find
 events by their code — e.g. "every 41 is an observed REM onset."</p>
 <p>A port code is an <strong>8-bit value</strong>, so it is always an integer from <strong>1 to 255</strong>. That
-range isn't arbitrary: a hardware trigger is physically <strong>eight on/off lines</strong> (eight
+range follows from the hardware: a trigger is physically <strong>eight on/off lines</strong> (eight
 bits), and the amplifier reads them as one byte. SMACC keeps every code inside 1–255
-for exactly this reason — see <a href="../usage/#configuring-codes">Configuring codes</a> for how
-to view and edit which event sends which code.</p>
+for this reason. See <a href="../usage/#configuring-codes">Configuring codes</a> for how to view
+and edit which event sends which code.</p>
 <h2 id="how-smacc-sends-triggers">How SMACC sends triggers</h2>
 <p>SMACC always emits markers over <strong>LSL</strong> (Lab Streaming Layer), a network marker
 stream. On top of that, you can <em>optionally</em> enable <strong>one</strong> hardware transport so a
