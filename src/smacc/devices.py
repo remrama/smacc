@@ -14,8 +14,8 @@ The config persists in a settings file's ``devices`` block::
       bindings: {bedroom_out: "Speakers (Realtek …)", bedroom_mic: "Microphone …"}
       routing:  {cue_out: bedroom_out, noise_out: bedroom_out, report_in: bedroom_mic}
 
-A pre-roles study (no ``devices`` block) is migrated from its per-panel device
-keys; see :func:`migrate_legacy`.
+A settings dict with no ``devices`` block loads the default config (each target on
+its default role, with no devices bound yet).
 """
 
 from __future__ import annotations
@@ -159,40 +159,10 @@ def from_dict(data: object) -> DeviceConfig:
     return cfg
 
 
-# Pre-roles studies stored one device per panel; map each onto a role. Outputs all
-# seed the bedroom output (cue/noise/intercom usually shared one speaker), so the
-# first non-empty one wins; the control-room output starts unbound.
-_LEGACY_DEVICE_KEYS: tuple[tuple[str, str], ...] = (
-    ("cue_device", "bedroom_out"),
-    ("noise_device", "bedroom_out"),
-    ("intercom_output_device", "bedroom_out"),
-    ("recording_device", "bedroom_mic"),
-    ("blink_device", "blinkstick"),
-)
-
-
-def migrate_legacy(settings: dict) -> DeviceConfig:
-    """Seed a DeviceConfig from a pre-roles study's per-panel device keys.
-
-    Best-effort: the old keys are per-modality, not per-role, so the first
-    non-empty output device becomes the bedroom output, the recorder's mic becomes
-    the bedroom mic, and the BlinkStick its own role. Anything can be re-pointed in
-    the Devices panel afterward.
-    """
-    cfg = default_config()
-    for legacy_key, role_key in _LEGACY_DEVICE_KEYS:
-        device = settings.get(legacy_key)
-        if isinstance(device, str) and device and role_key not in cfg.bindings:
-            cfg.bindings[role_key] = device
-    return cfg
-
-
 def load(settings: dict) -> DeviceConfig:
-    """Build the device config for a loaded settings dict.
+    """Build the device config from a settings dict's ``devices`` block.
 
-    Uses the ``devices`` block when present, else migrates the legacy per-panel
-    device keys so an older study keeps its routing on first load.
+    A missing block yields the default config (each target on its default role, with
+    no devices bound); :func:`from_dict` tolerates a malformed block the same way.
     """
-    if isinstance(settings.get("devices"), dict):
-        return from_dict(settings["devices"])
-    return migrate_legacy(settings)
+    return from_dict(settings.get("devices"))

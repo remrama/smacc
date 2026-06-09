@@ -234,10 +234,9 @@ def merge_event_codes(loaded: Any) -> list[EventDef]:
     """Return the default registry with saved overrides + custom events applied.
 
     Mirrors the merge-over-DEFAULTS approach in :mod:`smacc.preferences`: a study
-    with no ``event_codes`` (older schema) yields the full defaults; a study that
-    overrides only a few built-in codes keeps the rest; saved custom events
-    (``builtin: false``) are appended after the built-ins. Default ordering is
-    preserved.
+    with no ``event_codes`` yields the full defaults; a study that overrides only a
+    few built-in codes keeps the rest; saved custom events (``builtin: false``) are
+    appended after the built-ins. Default ordering is preserved.
     """
     defaults = {e.key: e for e in default_events()}
     custom: list[EventDef] = []

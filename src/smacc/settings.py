@@ -9,7 +9,7 @@ reject YAML that wasn't written by it.
 The on-disk shape (a ``.smacc`` file is YAML text with a leading comment header)::
 
     kind: smacc/settings
-    schema_version: 6
+    schema_version: 1
     smacc_version: "0.0.7"
     metadata: {subject: "", session: "", notes: "", created: "..."}
     settings: { ...the panel state from SmaccWindow.gather_settings()... }
@@ -17,9 +17,9 @@ The on-disk shape (a ``.smacc`` file is YAML text with a leading comment header)
 The ``settings`` mapping carries, besides each panel's state, a few window-level
 blocks: ``devices`` (role/routing config), ``event_codes`` + ``event_code_safe_max``
 (the marker registry), ``trigger_output`` (the optional hardware-trigger config; see
-:mod:`smacc.triggers`), ``data_directory``, and (since v6) the interface choices that
-used to live in ``preferences.yaml``: ``preview_levels`` (the live-log levels),
-``always_on_top`` (the main window's), and ``tool_always_on_top`` (a per-tool map).
+:mod:`smacc.triggers`), ``data_directory``, and the interface choices ``preview_levels``
+(the live-log levels), ``always_on_top`` (the main window's), and ``tool_always_on_top``
+(a per-tool map).
 
 Referenced media (cue/noise WAVs) are stored *relative* to the file when they sit
 beside it and *absolute* otherwise, so a study folder is portable as-is; see
@@ -48,14 +48,13 @@ KIND = "smacc/settings"
 # ignores ``#`` comments, so this round-trips cleanly through ``safe_load``).
 _FILE_HEADER = "# SMACC settings — YAML (.smacc). Edit with care.\n"
 
-# Bump when the serialized layout changes incompatibly. Files written by older
-# (lower) versions are still accepted on load; panels handle field-level
-# back-compat (e.g. a v1 single cue maps into the first multi-slot cue, a pre-v4
-# file with no event_codes falls back to the default registry, a pre-v5 file with
-# no trigger_output falls back to hardware triggers disabled — LSL only, and a
-# pre-v6 file with no preview_levels/always_on_top falls back to the interface
-# defaults: the INFO+ preview levels and always-on-top off).
-SCHEMA_VERSION = 6
+# v1 is the first stable on-disk schema. Bump this when the layout changes
+# incompatibly — and when you do, add a migration path here plus a row to the
+# version-history table in docs/reference/settings-file.md. A file carrying a
+# higher or otherwise-unknown version is rejected on load. Missing *optional* keys
+# are not a version concern: each panel/sub-block fills its own default, so a
+# partial or hand-edited v1 file still loads.
+SCHEMA_VERSION = 1
 
 
 def build_payload(settings: dict[str, Any], metadata: dict) -> dict[str, Any]:
@@ -105,7 +104,7 @@ def parse_settings_mapping(payload: Any) -> tuple[dict, dict]:
     if kind is not None and kind != KIND:
         raise ValueError(f"Not a compatible SMACC settings file (kind={kind!r}).")
     version = payload.get("schema_version")
-    # Accept any known (current-or-older) version; panels migrate field shapes.
+    # Only the current schema is accepted; there is no cross-version migration.
     if isinstance(version, bool) or not isinstance(version, int):
         raise ValueError(f"Unsupported settings schema version {version!r}.")
     if not (1 <= version <= SCHEMA_VERSION):
