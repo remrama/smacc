@@ -18,7 +18,7 @@ from pathlib import Path
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from . import preferences, settings, windowstate
+from . import preferences, settings, winassoc, windowstate
 from .analyze import AnalyzeWindow
 from .config import VERSION
 from .cuedesigner import CueDesignerWindow
@@ -161,6 +161,16 @@ class LauncherWindow(QtWidgets.QMainWindow):
         assert menu_bar is not None
         fileMenu = menu_bar.addMenu("&File")
         assert fileMenu is not None
+        # Only the packaged Windows build can register the .smacc handler; hide the
+        # action entirely on dev runs / other platforms (a dev run is python.exe).
+        if winassoc.is_associatable():
+            associateAction = fileMenu.addAction("&Associate .smacc files (Windows)")
+            assert associateAction is not None
+            associateAction.setStatusTip(
+                "Register SMACC as the handler for .smacc files (double-click to open)."
+            )
+            associateAction.triggered.connect(self.associate_files)
+            fileMenu.addSeparator()
         aboutAction = fileMenu.addAction("&About")
         assert aboutAction is not None
         aboutAction.setStatusTip("About SMACC (version and links).")
@@ -270,7 +280,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
             self,
             "Open settings (.smacc)",
             str(self._data_dir()),
-            "SMACC settings (*.smacc *.yaml *.yml)",
+            "SMACC settings (*.smacc)",
         )
         if path:
             self._set_settings(path)
@@ -304,6 +314,21 @@ class LauncherWindow(QtWidgets.QMainWindow):
     def analyze_session(self) -> None:
         """Open the analyze window over the current settings' data directory."""
         self._open_tool(AnalyzeWindow(self._data_dir()))
+
+    def associate_files(self) -> None:
+        """Register SMACC as the Windows handler for .smacc files (packaged build)."""
+        try:
+            winassoc.register_smacc()
+        except OSError as exc:
+            QtWidgets.QMessageBox.critical(
+                self, "File association", f"Could not associate .smacc files.\n\n{exc}"
+            )
+            return
+        QtWidgets.QMessageBox.information(
+            self,
+            "File association",
+            "SMACC now handles .smacc files — double-click a settings file to open it.",
+        )
 
     def show_about_popup(self) -> None:
         """Show SMACC's About dialog (version and links)."""
