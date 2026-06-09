@@ -110,3 +110,10 @@ source = ["smacc"]
 # Store repo-relative paths so Codecov maps the Windows CI run onto the source
 # tree (src/smacc/…) instead of dropping the report for unmatched paths.
 relative_files = true
+
+[tool.coverage.report]
+# Regression floor, enforced by pytest-cov: the test run (and so CI) fails below
+# this. This is coverage.py's gate — Codecov's own target can't live in
+# pyproject and would need a codecov.yml. Total is ~70% today; a 65% floor leaves
+# headroom for honest churn, and is worth ratcheting up as coverage grows.
+fail_under = 65
