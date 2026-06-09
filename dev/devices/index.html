@@ -620,18 +620,19 @@ SMACC uses it for <strong>visual cues</strong> — lighting up a chosen color fo
 <li>Plug the BlinkStick into a USB port, then launch SMACC.</li>
 <li>Click <strong>Visual stimulation</strong> in the <em>Open tools</em> column.</li>
 <li>Select your device from the <strong>Device</strong> dropdown — connected BlinkSticks are
-   detected automatically when SMACC starts.</li>
+   detected automatically when SMACC starts. If you plug one in after SMACC is
+   already open, choose <strong>File ▸ Refresh devices</strong> (or press <code>F5</code>) to rescan.</li>
 <li>Pick a <strong>Color</strong> and a <strong>Length</strong> (how long the light stays on, in seconds).</li>
 <li>Click <strong>Play BlinkStick</strong> to fire the cue.</li>
 </ol>
-<p>Your chosen color and length are saved in the <code>.smacc</code> settings file (see
+<p>Your chosen device, color, and length are saved in the <code>.smacc</code> settings file (see
 <a href="../usage/#settings-files-smacc">Usage › Settings files</a>), so the visual-cue setup
-travels with the rest of your configuration.</p>
+travels with the rest of your configuration; the device is reconnected by name on
+the next launch (and flagged if it isn't plugged in).</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The device list is scanned once when SMACC starts. If SMACC reports that no
-BlinkStick was found, connect it <strong>before</strong> launching SMACC (or restart SMACC
-after plugging it in).</p>
+<p>If SMACC reports that no BlinkStick was found, plug it in and choose
+<strong>File ▸ Refresh devices</strong> (or press <code>F5</code>) to rescan — no restart needed.</p>
 </div>
 <h2 id="more-devices">More devices</h2>
 <p>Support for additional hardware is planned — for example a
