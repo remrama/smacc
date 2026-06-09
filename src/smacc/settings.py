@@ -9,10 +9,15 @@ reject YAML that wasn't written by it.
 The on-disk shape (a ``.smacc`` file is YAML text with a leading comment header)::
 
     kind: smacc/settings
-    schema_version: 4
+    schema_version: 5
     smacc_version: "0.0.7"
     metadata: {subject: "", session: "", notes: "", created: "..."}
     settings: { ...the panel state from SmaccWindow.gather_settings()... }
+
+The ``settings`` mapping carries, besides each panel's state, a few window-level
+blocks: ``devices`` (role/routing config), ``event_codes`` + ``event_code_safe_max``
+(the marker registry), ``trigger_output`` (the optional hardware-trigger config; see
+:mod:`smacc.triggers`), and ``data_directory``.
 
 Referenced media (cue/noise WAVs) are stored *relative* to the file when they sit
 beside it and *absolute* otherwise, so a study folder is portable as-is; see
@@ -43,9 +48,10 @@ _FILE_HEADER = "# SMACC settings — YAML (.smacc). Edit with care.\n"
 
 # Bump when the serialized layout changes incompatibly. Files written by older
 # (lower) versions are still accepted on load; panels handle field-level
-# back-compat (e.g. a v1 single cue maps into the first multi-slot cue, and a
-# pre-v4 file with no event_codes falls back to the default registry).
-SCHEMA_VERSION = 4
+# back-compat (e.g. a v1 single cue maps into the first multi-slot cue, a pre-v4
+# file with no event_codes falls back to the default registry, and a pre-v5 file
+# with no trigger_output falls back to hardware triggers disabled — LSL only).
+SCHEMA_VERSION = 5
 
 
 def build_payload(settings: dict[str, Any], metadata: dict) -> dict[str, Any]:

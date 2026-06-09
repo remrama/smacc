@@ -1,10 +1,11 @@
 """Dialogs shown by SMACC outside the main window."""
 
+from collections.abc import Callable
 from dataclasses import replace
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from . import events
+from . import events, triggers
 from .utils import normalize_survey_url
 
 
@@ -579,3 +580,202 @@ class EventCodesDialog(QtWidgets.QDialog):
             if reply != QtWidgets.QMessageBox.StandardButton.Yes:
                 return
         self.accept()
+
+
+# Common serial baud rates offered in the dropdown (it stays editable for any other).
+_COMMON_BAUDS = (9600, 19200, 38400, 57600, 115200, 230400)
+
+
+class TriggerOutputDialog(QtWidgets.QDialog):
+    """Configure optional hardware TTL trigger output alongside LSL (#28).
+
+    LSL marker output is always on; this dialog edits the *opt-in* second path —
+    transport (serial USB box / parallel LPT), the port/address, and whether the
+    line is pulsed (SMACC times the pulse) or set-and-hold. A Test button sends one
+    pulse through the current settings and reports the result inline, so the rig can
+    be verified before relying on it. The dialog edits a copy; the caller reads
+    :meth:`get_config` only when accepted.
+    """
+
+    def __init__(
+        self,
+        config: triggers.TriggerConfig,
+        test_callback: Callable[[triggers.TriggerConfig], str | None] | None = None,
+        parent=None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Trigger output")
+        self.setWindowFlags(
+            self.windowFlags() ^ QtCore.Qt.WindowType.WindowContextHelpButtonHint
+        )
+        self._test_callback = test_callback
+
+        hint = QtWidgets.QLabel(
+            "SMACC always emits markers over LSL. Optionally also drive a hardware "
+            "TTL trigger for amplifiers that read a physical pulse. One transport at "
+            "a time; see the Triggers docs."
+        )
+        hint.setWordWrap(True)
+
+        self.enabledBox = QtWidgets.QCheckBox("Enable hardware trigger output", self)
+        self.enabledBox.setChecked(config.enabled)
+        self.enabledBox.toggled.connect(self._update_enabled_state)
+
+        self.transportCombo = QtWidgets.QComboBox(self)
+        self.transportCombo.addItem("Serial (USB trigger box)", "serial")
+        self.transportCombo.addItem("Parallel port (LPT)", "parallel")
+        self.transportCombo.currentIndexChanged.connect(self._on_transport_changed)
+
+        # Serial page: COM port (editable, in case the rig isn't attached now) + baud.
+        self.portCombo = QtWidgets.QComboBox(self)
+        self.portCombo.setEditable(True)
+        self.portCombo.setMinimumWidth(220)
+        refreshButton = QtWidgets.QPushButton("Refresh", self)
+        refreshButton.setStatusTip("Rescan for attached serial ports.")
+        refreshButton.clicked.connect(self._refresh_ports)
+        portRow = QtWidgets.QHBoxLayout()
+        portRow.addWidget(self.portCombo, 1)
+        portRow.addWidget(refreshButton)
+        self.baudCombo = QtWidgets.QComboBox(self)
+        self.baudCombo.setEditable(True)
+        self.baudCombo.addItems([str(b) for b in _COMMON_BAUDS])
+        serialPage = QtWidgets.QWidget(self)
+        serialForm = QtWidgets.QFormLayout(serialPage)
+        serialForm.setContentsMargins(0, 0, 0, 0)
+        serialForm.addRow("Port", portRow)
+        serialForm.addRow("Baud", self.baudCombo)
+
+        # Parallel page: base address (hex), with help on finding it.
+        self.addressEdit = QtWidgets.QLineEdit(self)
+        self.addressEdit.setPlaceholderText(triggers.DEFAULT_LPT_ADDRESS)
+        addressHelp = QtWidgets.QLabel(
+            "Base I/O address as hex (e.g. 0x378). Find it in Device Manager → the "
+            "LPT port → Resources → I/O Range. Needs the InpOut32 driver installed "
+            "(see the Triggers docs)."
+        )
+        addressHelp.setWordWrap(True)
+        parallelPage = QtWidgets.QWidget(self)
+        parallelForm = QtWidgets.QFormLayout(parallelPage)
+        parallelForm.setContentsMargins(0, 0, 0, 0)
+        parallelForm.addRow("Address", self.addressEdit)
+        parallelForm.addRow("", addressHelp)
+
+        self.transportStack = QtWidgets.QStackedWidget(self)
+        self.transportStack.addWidget(serialPage)  # index 0 == serial
+        self.transportStack.addWidget(parallelPage)  # index 1 == parallel
+
+        self.modeCombo = QtWidgets.QComboBox(self)
+        self.modeCombo.addItem("Pulsed (SMACC times the pulse)", "pulsed")
+        self.modeCombo.addItem("Set-and-hold (until next event)", "hold")
+        self.modeCombo.currentIndexChanged.connect(self._update_pulse_enabled)
+        self.pulseSpin = QtWidgets.QSpinBox(self)
+        self.pulseSpin.setRange(1, 1000)
+        self.pulseSpin.setSuffix(" ms")
+        self.pulseSpin.setValue(config.pulse_ms)
+
+        self.testButton = QtWidgets.QPushButton("Test", self)
+        self.testButton.setStatusTip("Send one test pulse through these settings.")
+        self.testButton.clicked.connect(self._on_test)
+        self.testResult = QtWidgets.QLabel("", self)
+        self.testResult.setWordWrap(True)
+        testRow = QtWidgets.QHBoxLayout()
+        testRow.addWidget(self.testButton)
+        testRow.addWidget(self.testResult, 1)
+
+        # The transport/mode/pulse/test controls are gated behind the enable box.
+        self._config_widget = QtWidgets.QWidget(self)
+        configForm = QtWidgets.QFormLayout(self._config_widget)
+        configForm.setContentsMargins(0, 0, 0, 0)
+        configForm.addRow("Transport", self.transportCombo)
+        configForm.addRow(self.transportStack)
+        configForm.addRow("Mode", self.modeCombo)
+        configForm.addRow("Pulse width", self.pulseSpin)
+        configForm.addRow(testRow)
+
+        buttonBox = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            self,
+        )
+        buttonBox.accepted.connect(self.accept)
+        buttonBox.rejected.connect(self.reject)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(hint)
+        layout.addWidget(self.enabledBox)
+        layout.addWidget(self._config_widget)
+        layout.addStretch(1)
+        layout.addWidget(buttonBox)
+
+        # Seed the widgets from the incoming config, then sync dependent states.
+        self._select_data(self.transportCombo, config.transport)
+        self._select_data(self.modeCombo, config.mode)
+        self._refresh_ports(selected=config.port)
+        self.baudCombo.setCurrentText(str(config.baud))
+        self.addressEdit.setText(config.address)
+        self._on_transport_changed()
+        self._update_pulse_enabled()
+        self._update_enabled_state()
+
+    @staticmethod
+    def _select_data(combo: QtWidgets.QComboBox, value: str) -> None:
+        """Select the combo entry whose itemData is ``value`` (no-op if absent)."""
+        index = combo.findData(value)
+        if index >= 0:
+            combo.setCurrentIndex(index)
+
+    def _refresh_ports(self, *, selected: str | None = None) -> None:
+        """Repopulate the serial-port dropdown, preserving the current selection."""
+        if selected is None:
+            selected = self._current_port()
+        self.portCombo.clear()
+        for device, description in triggers.list_serial_ports():
+            label = device if description == device else f"{device} — {description}"
+            self.portCombo.addItem(label, device)
+        if selected:
+            index = self.portCombo.findData(selected)
+            if index >= 0:
+                self.portCombo.setCurrentIndex(index)
+            else:
+                self.portCombo.setEditText(selected)  # saved port not attached now
+
+    def _on_transport_changed(self) -> None:
+        self.transportStack.setCurrentIndex(self.transportCombo.currentIndex())
+
+    def _update_pulse_enabled(self) -> None:
+        self.pulseSpin.setEnabled(self.modeCombo.currentData() == "pulsed")
+
+    def _update_enabled_state(self) -> None:
+        self._config_widget.setEnabled(self.enabledBox.isChecked())
+
+    def _current_port(self) -> str:
+        """The selected port device (itemData) or the typed text for an absent rig."""
+        return (self.portCombo.currentData() or self.portCombo.currentText()).strip()
+
+    def _current_baud(self) -> int:
+        try:
+            return int(self.baudCombo.currentText().strip())
+        except ValueError:
+            return triggers.DEFAULT_BAUD
+
+    def _on_test(self) -> None:
+        """Send one test pulse through the current settings and report the result."""
+        if self._test_callback is None:
+            return
+        error = self._test_callback(self.get_config())
+        if error:
+            self.testResult.setText(f"⚠ {error}")
+        else:
+            self.testResult.setText("✓ Sent test pulse — check the amplifier.")
+
+    def get_config(self) -> triggers.TriggerConfig:
+        """Return the edited config (read only when the dialog is accepted)."""
+        return triggers.TriggerConfig(
+            enabled=self.enabledBox.isChecked(),
+            transport=self.transportCombo.currentData(),
+            port=self._current_port(),
+            baud=self._current_baud(),
+            address=self.addressEdit.text().strip() or triggers.DEFAULT_LPT_ADDRESS,
+            mode=self.modeCombo.currentData(),
+            pulse_ms=self.pulseSpin.value(),
+        )

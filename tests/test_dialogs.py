@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 from PyQt6 import QtWidgets
 
-from smacc import dialogs, events
+from smacc import dialogs, events, triggers
 
 # ----- PreferencesDialog -----------------------------------------------------
 
@@ -207,3 +207,65 @@ def test_event_codes_dialog_add_event(qtbot, monkeypatch):
     after = dialog.get_events()
     assert len(after) == before + 1
     assert any(e.label == "New event" for e in after)
+
+
+# ----- TriggerOutputDialog ---------------------------------------------------
+
+
+def test_trigger_output_dialog_round_trips_config(qtbot):
+    cfg = triggers.TriggerConfig(
+        enabled=True, transport="serial", port="COM9", baud=9600, mode="hold"
+    )
+    dialog = dialogs.TriggerOutputDialog(cfg)
+    qtbot.addWidget(dialog)
+    out = dialog.get_config()
+    assert out.enabled is True
+    assert out.transport == "serial"
+    assert out.port == "COM9"  # a port not attached now survives as typed text
+    assert out.baud == 9600
+    assert out.mode == "hold"
+
+
+def test_trigger_output_dialog_reflects_edits(qtbot):
+    dialog = dialogs.TriggerOutputDialog(triggers.TriggerConfig())
+    qtbot.addWidget(dialog)
+    dialog.enabledBox.setChecked(True)
+    dialog._select_data(dialog.transportCombo, "parallel")
+    dialog.addressEdit.setText("0x278")
+    out = dialog.get_config()
+    assert out.enabled is True
+    assert out.transport == "parallel"
+    assert out.address == "0x278"
+
+
+def test_trigger_output_dialog_disabled_greys_config(qtbot):
+    dialog = dialogs.TriggerOutputDialog(triggers.TriggerConfig(enabled=False))
+    qtbot.addWidget(dialog)
+    assert dialog._config_widget.isEnabled() is False
+    dialog.enabledBox.setChecked(True)
+    assert dialog._config_widget.isEnabled() is True
+
+
+def test_trigger_output_dialog_test_button_reports_result(qtbot):
+    calls = []
+
+    def fake_test(config):
+        calls.append(config)
+        return None  # success
+
+    dialog = dialogs.TriggerOutputDialog(
+        triggers.TriggerConfig(enabled=True, port="COM3"), test_callback=fake_test
+    )
+    qtbot.addWidget(dialog)
+    dialog._on_test()
+    assert len(calls) == 1 and calls[0].port == "COM3"
+    assert "✓" in dialog.testResult.text()
+
+
+def test_trigger_output_dialog_test_button_shows_error(qtbot):
+    dialog = dialogs.TriggerOutputDialog(
+        triggers.TriggerConfig(enabled=True), test_callback=lambda cfg: "no such port"
+    )
+    qtbot.addWidget(dialog)
+    dialog._on_test()
+    assert "no such port" in dialog.testResult.text()

@@ -31,6 +31,10 @@ dependencies = [
     # scope to win32 like blinkstick. Pulls in comtypes.
     "pycaw; sys_platform == 'win32'",
     "pylsl",
+    # Optional hardware TTL trigger output to a USB-serial trigger box (#28). Pure
+    # Python and cross-platform, so it isn't platform-scoped; imported lazily and a
+    # no-op unless a study enables serial triggers.
+    "pyserial",
     "pyyaml",
     # Qt 6 GUI toolkit. Qt 6 requires Windows 10+, which is why SMACC's floor is
     # Windows 10 (Qt5/PyQt5 was the last line that still ran on Windows 8.1). PyQt6

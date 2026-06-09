@@ -4,7 +4,7 @@ import logging
 from dataclasses import replace
 from datetime import datetime
 
-from smacc import events
+from smacc import events, triggers
 from smacc.session import SmaccSession, make_session_dir
 
 
@@ -73,6 +73,26 @@ class _FakeOutlet:
         self.samples.append(sample)
 
 
+class _FakeTrigger:
+    """Stand-in for a hardware trigger transport that records sent codes.
+
+    ``fail`` makes :meth:`send` raise, to exercise the fail-safe in emit_event.
+    """
+
+    def __init__(self, fail=False):
+        self.sent = []
+        self.closed = False
+        self._fail = fail
+
+    def send(self, code):
+        if self._fail:
+            raise OSError("port gone")
+        self.sent.append(code)
+
+    def close(self):
+        self.closed = True
+
+
 def _stub_session():
     """A SmaccSession wired to fakes so emit_event runs without LSL/file/GUI.
 
@@ -86,6 +106,9 @@ def _stub_session():
     sess._event_counts = {}
     sess.recording_start_time = None
     sess.outlet = _FakeOutlet()
+    sess.trigger_out = None  # no hardware transport unless a test sets one
+    sess.design = False
+    sess.trigger_config = triggers.TriggerConfig()
     logger = logging.getLogger("smacc-test-emit")
     logger.handlers.clear()
     logger.setLevel(logging.DEBUG)
@@ -154,6 +177,100 @@ def test_emit_event_unknown_key_warns_without_crashing():
     sess.emit_event("Nonexistent")  # should warn, not raise
     assert sess.outlet.samples == []
     assert any("Unknown event" in m for m, _ in records)
+
+
+# ----- hardware trigger output (#28) ----------------------------------------
+
+
+def test_emit_event_sends_code_to_hardware_transport():
+    sess, _ = _stub_session()
+    sess.trigger_out = _FakeTrigger()
+    sess.emit_event("REMDetected")
+    assert sess.outlet.samples == [["41"]]  # LSL still fires
+    assert sess.trigger_out.sent == [41]  # and the same code goes to hardware
+
+
+def test_emit_event_not_triggered_skips_hardware():
+    sess, _ = _stub_session()
+    sess.trigger_out = _FakeTrigger()
+    sess.events["REMDetected"] = replace(sess.events["REMDetected"], trigger=False)
+    sess.emit_event("REMDetected")
+    assert sess.trigger_out.sent == []  # a non-triggered event drives neither path
+
+
+def test_emit_event_hardware_failure_disables_transport_and_keeps_lsl():
+    sess, records = _stub_session()
+    sess.trigger_out = _FakeTrigger(fail=True)
+    sess.emit_event("REMDetected")
+    assert sess.outlet.samples == [["41"]]  # LSL is unaffected by a hardware fault
+    assert sess.trigger_out is None  # transport dropped after the failure
+    assert any("Hardware trigger failed" in m for m, _ in records)
+    # A later event still logs and pushes LSL without raising.
+    sess.emit_event("LRLRDetected")
+    assert sess.outlet.samples == [["41"], ["45"]]
+
+
+def test_set_trigger_output_disabled_or_design_opens_nothing():
+    sess, _ = _stub_session()
+    assert sess.set_trigger_output(triggers.TriggerConfig(enabled=False)) is None
+    assert sess.trigger_out is None
+    sess.design = True
+    cfg = triggers.TriggerConfig(enabled=True, port="COM3")
+    assert sess.set_trigger_output(cfg) is None  # design mode never opens hardware
+    assert sess.trigger_out is None
+
+
+def test_set_trigger_output_opens_closes_previous_and_logs(monkeypatch):
+    sess, records = _stub_session()
+    old = _FakeTrigger()
+    sess.trigger_out = old
+    new = _FakeTrigger()
+    monkeypatch.setattr(triggers, "open_trigger", lambda cfg: new)
+    cfg = triggers.TriggerConfig(enabled=True, port="COM3")
+    assert sess.set_trigger_output(cfg) is None
+    assert old.closed is True  # the previous transport is released first
+    assert sess.trigger_out is new
+    assert any("Hardware trigger ready" in m for m, _ in records)
+
+
+def test_set_trigger_output_returns_error_message(monkeypatch):
+    sess, _ = _stub_session()
+
+    def boom(cfg):
+        raise triggers.TriggerError("no such port")
+
+    monkeypatch.setattr(triggers, "open_trigger", boom)
+    err = sess.set_trigger_output(triggers.TriggerConfig(enabled=True, port="X"))
+    assert err == "no such port"
+    assert sess.trigger_out is None
+
+
+def test_test_trigger_sends_init_code_and_restores(monkeypatch):
+    sess, _ = _stub_session()
+    opened = []
+
+    def fake_open(cfg):
+        out = _FakeTrigger()
+        opened.append(out)
+        return out
+
+    monkeypatch.setattr(triggers, "open_trigger", fake_open)
+    result = sess.test_trigger(triggers.TriggerConfig(enabled=True, port="COM3"))
+    assert result is None
+    assert opened[0].sent == [100]  # TriggerInitialization's code
+    assert opened[0].closed is True
+    # trigger_config is disabled (the stub default), so nothing is left open.
+    assert sess.trigger_out is None
+
+
+def test_test_trigger_reports_failure(monkeypatch):
+    sess, _ = _stub_session()
+
+    def boom(cfg):
+        raise triggers.TriggerError("driver missing")
+
+    monkeypatch.setattr(triggers, "open_trigger", boom)
+    assert sess.test_trigger(triggers.TriggerConfig(enabled=True)) == "driver missing"
 
 
 # ----- recording-start reference clock (#60) --------------------------------

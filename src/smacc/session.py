@@ -17,8 +17,8 @@ from pathlib import Path
 from pylsl import StreamInfo, StreamOutlet
 from PyQt6 import QtWidgets
 
-from . import bids, devices, events, settings
-from .config import PPORT_ADDRESS, VERSION
+from . import bids, devices, events, settings, triggers
+from .config import VERSION
 
 
 def make_session_dir(base: Path, now: datetime) -> Path:
@@ -74,7 +74,13 @@ class SmaccSession:
         }
         if metadata:
             self.metadata.update(metadata)
-        self.pport_address = PPORT_ADDRESS
+        # Optional hardware TTL trigger output alongside LSL (#28). ``trigger_config``
+        # is the configured intent (persisted with the study, edited in the Trigger
+        # output dialog); ``trigger_out`` is the live transport opened from it, or
+        # None when disabled, unconfigured, or in design mode. Each marker fires on
+        # both LSL and this transport from the single emit_event path.
+        self.trigger_config = triggers.TriggerConfig()
+        self.trigger_out: triggers.TriggerOutput | None = None
         # The live event-marker registry (codes + routing flags), keyed by event
         # key. Defaults here; a loaded study overrides them via set_event_codes().
         self.events = {e.key: e for e in events.default_events()}
@@ -174,6 +180,9 @@ class SmaccSession:
                 pass
             self._file_handler = None
         self.outlet = None
+        if self.trigger_out is not None:
+            self.trigger_out.close()
+            self.trigger_out = None
 
     def begin_log(self, settings_state: dict) -> None:
         """Record the initial settings near the top of the log, then log startup.
@@ -235,8 +244,25 @@ class SmaccSession:
         label = f"{event.label}: {detail}" if detail else event.label
         line = f"{label} - portcode {code}" if event.trigger else label
         # In design mode there is no outlet, so triggers are logged but not sent.
+        # LSL and the hardware line are written back-to-back (before any pulse-down
+        # sleep) so both edges land as close together as possible.
         if event.trigger and self.outlet is not None:
             self.outlet.push_sample([str(code)])
+        if event.trigger and self.trigger_out is not None:
+            try:
+                self.trigger_out.send(code)
+            except Exception as exc:
+                # A hardware fault must never take down a live night. Drop to
+                # LSL-only and say so once, loudly, rather than blocking on (or
+                # spamming the log for) every later event.
+                self.logger.error(
+                    f"Hardware trigger failed (code {code}); disabling it: {exc}"
+                )
+                try:
+                    self.trigger_out.close()
+                except Exception:
+                    pass
+                self.trigger_out = None
         # Every event is written to the log file; the preview flag (+ level filter)
         # gates whether it also appears in the live log viewer.
         self.logger.info(line, extra={"smacc_preview": event.preview})
@@ -270,6 +296,67 @@ class SmaccSession:
     def event_codes_as_list(self) -> list[dict]:
         """Return the current registry as the compact list persisted in a study."""
         return events.events_to_list(self.events.values())
+
+    def set_trigger_output(self, config: triggers.TriggerConfig) -> str | None:
+        """(Re)open the hardware trigger transport from ``config`` (#28).
+
+        Closes any existing transport first, then opens the new one. Returns an
+        error message when an *enabled* transport can't be opened (the window shows
+        it to the operator), or None on success or when disabled. Never raises: a
+        design session or a disabled config simply ends with no transport.
+        """
+        if self.trigger_out is not None:
+            self.trigger_out.close()
+            self.trigger_out = None
+        if self.design or not config.enabled:
+            return None
+        try:
+            self.trigger_out = triggers.open_trigger(config)
+        except triggers.TriggerError as exc:
+            self.logger.warning(f"Hardware trigger unavailable: {exc}")
+            return str(exc)
+        if self.trigger_out is not None:
+            self.log_info_msg(f"Hardware trigger ready: {config.summary()}")
+        return None
+
+    def test_trigger(self, config: triggers.TriggerConfig) -> str | None:
+        """Send one test pulse through ``config`` and report the outcome.
+
+        Returns None on success or a message on failure, for the dialog's Test
+        button. The test code reuses ``TriggerInitialization`` (the startup
+        connection-test marker). Any live transport is released for the test (a
+        serial/parallel port is exclusive) and then restored from the applied config.
+        """
+        live = self.trigger_out
+        self.trigger_out = None
+        if live is not None:
+            live.close()
+        init = self.events.get("TriggerInitialization")
+        test_code = init.code if init is not None else 100
+        try:
+            out = triggers.open_trigger(config)
+            if out is None:
+                return "Enable a transport to test."
+            try:
+                out.send(test_code)
+            finally:
+                out.close()
+            return None
+        except triggers.TriggerError as exc:
+            return str(exc)
+        except Exception as exc:
+            return f"Trigger test failed: {exc}"
+        finally:
+            self._restore_trigger_output()
+
+    def _restore_trigger_output(self) -> None:
+        """Best-effort reopen of the applied trigger config (used after a test)."""
+        if self.design or not self.trigger_config.enabled:
+            return
+        try:
+            self.trigger_out = triggers.open_trigger(self.trigger_config)
+        except triggers.TriggerError:
+            self.trigger_out = None
 
     def log_info_msg(self, msg: str) -> None:
         """Log an INFO message (always to file; to the preview if INFO is on)."""
