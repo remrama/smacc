@@ -84,6 +84,9 @@ class SmaccWindow(ToolWindow):
             "volume": VolumeWindow(self.session),
         }
         self.devices_window.changed.connect(self._refresh_device_indicators)
+        # The Devices window's Refresh button runs the same rescan as File ▸ Refresh
+        # devices / F5 (PortAudio re-init + BlinkStick scan), not a duplicate.
+        self.devices_window.refresh_requested.connect(self.refresh_all_devices)
         # Hot-plug doorbell: Qt6's QMediaDevices fires when an audio device is added
         # or removed; that triggers an automatic rescan. Audio I/O stays on
         # sounddevice — QMediaDevices is used only as the "something changed" signal.
@@ -587,7 +590,7 @@ class SmaccWindow(ToolWindow):
         self.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, enabled)
         # Re-applying window flags hides the window on some platforms; re-show it.
         self.show()
-        self.session.log_info_msg(
+        self.session.log_debug_msg(
             f"Always-on-top {'enabled' if enabled else 'disabled'}"
         )
 
@@ -794,7 +797,7 @@ class SmaccWindow(ToolWindow):
             return
         finally:
             self.session.log_interactions = was_logging
-        self.session.log_info_msg("Devices changed; lists rescanned")
+        self.session.log_debug_msg("Devices changed; lists rescanned")
 
     def _notify_missing_devices(self) -> None:
         """Surface, once, any saved devices that weren't connected when settings loaded.

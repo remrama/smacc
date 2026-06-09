@@ -55,6 +55,22 @@ def test_window_builds_in_session_mode(
     assert hasattr(window, "lightswitchButton")
 
 
+def test_devices_refresh_button_runs_window_rescan(
+    qtbot, live_session, mock_devices, silence_dialogs, monkeypatch
+):
+    # The Devices window's Refresh button must drive the same rescan as
+    # File ▸ Refresh devices (F5), not a parallel one. Stub the real rescan (it
+    # would re-init PortAudio) on the class so the wired-up connection hits it.
+    calls: list[bool] = []
+    monkeypatch.setattr(
+        SmaccWindow, "refresh_all_devices", lambda self: calls.append(True)
+    )
+    window = SmaccWindow(live_session)
+    qtbot.addWidget(window)
+    window.devices_window.refresh_requested.emit()
+    assert calls == [True]
+
+
 # ----- settings gather/apply contract ----------------------------------------
 
 

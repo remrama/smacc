@@ -36,6 +36,46 @@ def dbfs_to_meter(db: float, floor_db: float = METER_FLOOR_DBFS) -> int:
     return int(min(100.0, max(0.0, percent)))
 
 
+class AmbientBaseline:
+    """A slowly-adapting noise-floor estimate, so a *rise* above the room's resting
+    level is readable even when the absolute level is low (#37).
+
+    Fed the input level in dBFS each refresh, the floor drops instantly to a quieter
+    level but creeps back up only slowly. The headline :meth:`update` return — the
+    rise (level minus floor) — then jumps when a cue lifts the mic above the room
+    noise, which is the sensitivity a cheap mic on a faint cue otherwise lacks. The
+    floor adapts to a *sustained* sound over a few seconds, so this favors short
+    cues; a long looping cue still reads on the absolute level meter beside it.
+    """
+
+    def __init__(
+        self, creep_db_per_update: float = 0.15, floor_db: float = FLOOR_DBFS
+    ) -> None:
+        self._initial = floor_db
+        self._creep = creep_db_per_update
+        self._floor = floor_db
+        self._seen = False
+
+    @property
+    def floor(self) -> float:
+        """The current noise-floor estimate, in dBFS."""
+        return self._floor
+
+    def update(self, level_db: float) -> float:
+        """Fold in a new level (dBFS); return the rise above the floor (``>= 0``)."""
+        if not self._seen or level_db < self._floor:
+            self._floor = level_db
+            self._seen = True
+        else:
+            self._floor = min(level_db, self._floor + self._creep)
+        return max(0.0, level_db - self._floor)
+
+    def reset(self) -> None:
+        """Forget the learned floor (e.g. when the meter's device changes)."""
+        self._floor = self._initial
+        self._seen = False
+
+
 class CueMixer:
     """One-at-a-time cue playback engine for the audio callback (no Qt, no I/O).
 
