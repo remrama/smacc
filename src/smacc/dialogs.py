@@ -737,7 +737,10 @@ class TriggerOutputDialog(QtWidgets.QDialog):
             if index >= 0:
                 self.portCombo.setCurrentIndex(index)
             else:
-                self.portCombo.setEditText(selected)  # saved port not attached now
+                # Saved port not attached now: show it as free text, and clear the
+                # current index so it doesn't resolve back to a *listed* port.
+                self.portCombo.setCurrentIndex(-1)
+                self.portCombo.setEditText(selected)
 
     def _on_transport_changed(self) -> None:
         self.transportStack.setCurrentIndex(self.transportCombo.currentIndex())
@@ -749,8 +752,20 @@ class TriggerOutputDialog(QtWidgets.QDialog):
         self._config_widget.setEnabled(self.enabledBox.isChecked())
 
     def _current_port(self) -> str:
-        """The selected port device (itemData) or the typed text for an absent rig."""
-        return (self.portCombo.currentData() or self.portCombo.currentText()).strip()
+        """Resolve the chosen port to its device name.
+
+        The combo is editable and its labels may carry a description, so the shown
+        text isn't always the device. If it matches a listed entry, return that
+        entry's device (itemData); otherwise it's a free-typed port (a rig not
+        attached now), so return the text as-is. Avoids the stale ``currentData()``
+        an editable combo keeps when its edit text was set without changing index.
+        """
+        text = self.portCombo.currentText().strip()
+        index = self.portCombo.findText(text)
+        if index >= 0:
+            device = self.portCombo.itemData(index)
+            return str(device) if device else text
+        return text
 
     def _current_baud(self) -> int:
         try:

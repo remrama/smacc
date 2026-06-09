@@ -212,7 +212,19 @@ def test_event_codes_dialog_add_event(qtbot, monkeypatch):
 # ----- TriggerOutputDialog ---------------------------------------------------
 
 
-def test_trigger_output_dialog_round_trips_config(qtbot):
+@pytest.fixture
+def stub_serial_ports(monkeypatch):
+    """Pin the serial-port list so these tests don't depend on the machine's ports.
+
+    Includes a described port (label != device) and a bare one, so the device
+    resolution is exercised regardless of what COM ports the CI runner exposes.
+    """
+    ports = [("COM2", "USB Serial Device"), ("COM5", "COM5")]
+    monkeypatch.setattr(triggers, "list_serial_ports", lambda: ports)
+    return ports
+
+
+def test_trigger_output_dialog_round_trips_config(qtbot, stub_serial_ports):
     cfg = triggers.TriggerConfig(
         enabled=True, transport="serial", port="COM9", baud=9600, mode="hold"
     )
@@ -221,9 +233,23 @@ def test_trigger_output_dialog_round_trips_config(qtbot):
     out = dialog.get_config()
     assert out.enabled is True
     assert out.transport == "serial"
-    assert out.port == "COM9"  # a port not attached now survives as typed text
+    # COM9 isn't attached but other ports are: it must survive as typed text, not
+    # snap to a listed port (regression: editable combo's stale currentData()).
+    assert out.port == "COM9"
     assert out.baud == 9600
     assert out.mode == "hold"
+
+
+def test_trigger_output_dialog_selecting_listed_port_returns_device(
+    qtbot, stub_serial_ports
+):
+    # A listed port is shown with its description ("COM2 — USB Serial Device") but
+    # get_config resolves it back to the bare device name.
+    dialog = dialogs.TriggerOutputDialog(
+        triggers.TriggerConfig(enabled=True, transport="serial", port="COM2")
+    )
+    qtbot.addWidget(dialog)
+    assert dialog.get_config().port == "COM2"
 
 
 def test_trigger_output_dialog_reflects_edits(qtbot):
@@ -246,7 +272,7 @@ def test_trigger_output_dialog_disabled_greys_config(qtbot):
     assert dialog._config_widget.isEnabled() is True
 
 
-def test_trigger_output_dialog_test_button_reports_result(qtbot):
+def test_trigger_output_dialog_test_button_reports_result(qtbot, stub_serial_ports):
     calls = []
 
     def fake_test(config):
