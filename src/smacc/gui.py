@@ -589,7 +589,9 @@ class SmaccWindow(ToolWindow):
         forced to Light at startup (see ``__main__``); this only diverges from
         that when the operator turns the lights off.
         """
-        QtGui.QGuiApplication.styleHints().setColorScheme(
+        hints = QtGui.QGuiApplication.styleHints()
+        assert hints is not None
+        hints.setColorScheme(
             QtCore.Qt.ColorScheme.Dark if dark else QtCore.Qt.ColorScheme.Light
         )
 

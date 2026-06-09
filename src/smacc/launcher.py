@@ -326,7 +326,9 @@ class LauncherWindow(QtWidgets.QMainWindow):
             self._populate_settings_combo()
         # The dark theme is a per-session "lights off" state; a session that ended
         # dark shouldn't leave the launcher dark, so reset to light on return.
-        QtGui.QGuiApplication.styleHints().setColorScheme(QtCore.Qt.ColorScheme.Light)
+        hints = QtGui.QGuiApplication.styleHints()
+        assert hints is not None
+        hints.setColorScheme(QtCore.Qt.ColorScheme.Light)
         self.show()
         self.raise_()
         self.activateWindow()

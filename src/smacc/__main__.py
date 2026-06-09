@@ -111,7 +111,9 @@ def main() -> None:
     # Always open in light mode. Qt 6's Fusion follows the OS color scheme, so on
     # a dark-mode OS SMACC would otherwise open dark even with the lights "on";
     # the lightswitch flips to the dark scheme on demand (see SmaccWindow).
-    app.styleHints().setColorScheme(Qt.ColorScheme.Light)
+    style_hints = app.styleHints()
+    assert style_hints is not None
+    style_hints.setColorScheme(Qt.ColorScheme.Light)
     # The launcher owns app lifetime: tool windows come and go without quitting, so
     # closing the last tool returns to the launcher rather than exiting.
     app.setQuitOnLastWindowClosed(False)
