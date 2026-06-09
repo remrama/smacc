@@ -33,7 +33,7 @@ settings:
   noise_source: builtin
   noise_file: ""
   # --- Visual cue (BlinkStick) -----------------------------------------------
-  blink_color: "#000000"
+  blink_color: "#ff0000"
   blink_length: 1.0
   # --- Survey ----------------------------------------------------------------
   survey_url: ""

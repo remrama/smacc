@@ -7,7 +7,7 @@ metadata:
   session: ''
   notes: ''
 settings:
-  blink_color: '#000000'
+  blink_color: '#ff0000'
   blink_length: 1.0
   # cues omitted on purpose: the one required cue autofills a random demo on first
   # launch (#65); saving from the app writes the configured cue list back here.
@@ -112,6 +112,11 @@ settings:
     increment: false
   - key: VisualStarted
     code: 66
+    trigger: true
+    preview: true
+    increment: false
+  - key: VisualStopped
+    code: 68
     trigger: true
     preview: true
     increment: false

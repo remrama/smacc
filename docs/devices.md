@@ -29,7 +29,8 @@ SMACC uses it for **visual cues** — lighting up a chosen color for a set durat
    the *Tools* column). Plug one in after launch and it's detected automatically,
    or choose **File ▸ Refresh devices** (or press `F5`) to rescan.
 4. Pick a **Color** and a **Length** (how long the light stays on, in seconds).
-5. Click **Play BlinkStick** to fire the cue.
+5. Click **Play** to fire the cue; **Stop** turns the light off before the length
+   runs out. The rest of SMACC stays responsive while the light is on.
 
 Your chosen device, color, and length are saved in the `.smacc` settings file (see
 [Usage › Settings files](usage.md#settings-files-smacc)), so the visual-cue setup

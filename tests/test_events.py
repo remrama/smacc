@@ -227,3 +227,23 @@ def test_biocal_events_merge_into_older_studies():
     merged = {e.key: e for e in events.merge_event_codes(older)}
     assert "BiocalEyesOpen" in merged
     assert merged["BiocalEyesOpen"].code == 110
+
+
+def test_visual_pair_brackets_the_stimulus():
+    # Looping/long visual cues need an offset marker for EEG alignment, so the
+    # registry pairs VisualStarted with a VisualStopped at the next free code
+    # (68: SurveyOpened took 67 before the pair existed).
+    registry = {e.key: e for e in events.default_events()}
+    assert registry["VisualStarted"].label == "Visual started"
+    assert registry["VisualStarted"].code == 66
+    stop = registry["VisualStopped"]
+    assert stop.code == 68
+    assert stop.category == "control"
+    assert stop.trigger and stop.preview and not stop.increment
+
+
+def test_visual_stopped_merges_into_older_studies():
+    # A study saved before the pair existed gains the stop event on load.
+    older = [{"key": "VisualStarted", "code": 66}]
+    merged = {e.key: e for e in events.merge_event_codes(older)}
+    assert merged["VisualStopped"].code == 68
