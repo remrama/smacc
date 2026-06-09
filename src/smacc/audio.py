@@ -1,7 +1,8 @@
-"""Audio DSP helpers for SMACC's real-time streams (level meter, intercom).
+"""Audio DSP helpers for SMACC's real-time streams (level meter, intercom, cues).
 
-Pure functions only — separated from the GUI so they are unit-testable without
-audio hardware. The sounddevice streams that call these live in ``gui.py``.
+Pure functions and small state machines only — separated from the GUI so they are
+unit-testable without audio hardware. The sounddevice streams that call these live
+in the modality panels (``panels/*.py``).
 """
 
 from __future__ import annotations
@@ -33,6 +34,102 @@ def dbfs_to_meter(db: float, floor_db: float = METER_FLOOR_DBFS) -> int:
     span = 0.0 - floor_db
     percent = (db - floor_db) / span * 100.0
     return int(min(100.0, max(0.0, percent)))
+
+
+class CueMixer:
+    """One-at-a-time cue playback engine for the audio callback (no Qt, no I/O).
+
+    Holds the active mono buffer, read position, loop flag, per-cue volume, and a
+    linear fade envelope: :meth:`start` ramps the gain 0->1 over the attack and
+    :meth:`stop` ramps it 1->0 over the release. :meth:`render` produces the next
+    block (silence when idle) and flags :attr:`ended` when a non-looping cue runs
+    out or a release fade reaches zero, so the GUI thread can tear the stream down
+    and mark the stop. All state lives here, so it is unit-testable without a sound
+    device. ``volume`` and ``loop`` may be set live (read on the next block).
+    """
+
+    def __init__(self) -> None:
+        self._buffer: np.ndarray | None = None
+        self._pos = 0
+        self.loop = False
+        self.volume = 1.0
+        self._gain = 0.0  # current fade gain in [0, 1]
+        self._gain_step = 0.0  # per-sample change toward _target (0 == steady)
+        self._target = 0.0  # fade target: 1.0 while playing, 0.0 when stopping
+        self._ended = True
+
+    def start(
+        self,
+        buffer: np.ndarray,
+        *,
+        volume: float = 1.0,
+        loop: bool = False,
+        attack_samples: int = 0,
+    ) -> None:
+        """Begin playing ``buffer`` (mono float32), with an optional fade-in."""
+        self._buffer = np.ascontiguousarray(buffer, dtype=np.float32)
+        self._pos = 0
+        self.loop = bool(loop)
+        self.volume = float(volume)
+        self._target = 1.0
+        if attack_samples > 0:
+            self._gain = 0.0
+            self._gain_step = 1.0 / attack_samples
+        else:
+            self._gain = 1.0
+            self._gain_step = 0.0
+        self._ended = self._buffer.shape[0] == 0
+
+    def stop(self, *, release_samples: int = 0) -> None:
+        """Start a fade-out over ``release_samples`` (end immediately when 0)."""
+        self._target = 0.0
+        if release_samples > 0 and self._gain > 0.0:
+            self._gain_step = -self._gain / release_samples
+        else:
+            self._gain = 0.0
+            self._gain_step = 0.0
+            self._ended = True
+
+    @property
+    def ended(self) -> bool:
+        """True once the cue has finished (ran out, or a release fade reached 0)."""
+        return self._ended
+
+    def render(self, frames: int) -> np.ndarray:
+        """Return the next ``frames`` mono float32 samples (silence when ended)."""
+        buf = self._buffer
+        if buf is None or self._ended or buf.shape[0] == 0:
+            return np.zeros(frames, dtype=np.float32)
+        n = buf.shape[0]
+        if self.loop:
+            chunk = buf[np.arange(self._pos, self._pos + frames) % n]
+            self._pos = (self._pos + frames) % n
+        else:
+            avail = min(frames, n - self._pos)
+            chunk = np.zeros(frames, dtype=np.float32)
+            chunk[:avail] = buf[self._pos : self._pos + avail]
+            self._pos += avail
+        # Per-sample fade envelope toward the target gain (attack up / release down).
+        if self._gain_step != 0.0:
+            gains = self._gain + self._gain_step * np.arange(
+                1, frames + 1, dtype=np.float32
+            )
+            np.clip(gains, 0.0, 1.0, out=gains)
+            self._gain = float(gains[-1])
+            reached_up = self._gain_step > 0 and self._gain >= self._target
+            reached_down = self._gain_step < 0 and self._gain <= self._target
+            if reached_up or reached_down:
+                self._gain = self._target
+                self._gain_step = 0.0
+            out = chunk * self.volume * gains
+        else:
+            out = chunk * (self.volume * self._gain)
+        # Finished? A non-looping buffer ran out, or a release fade hit zero.
+        if self._target == 0.0 and self._gain <= 0.0:
+            self._ended = True
+        elif not self.loop and self._pos >= n:
+            self._ended = True
+        return out.astype(np.float32, copy=False)
 
 
 class LinearResampler:
