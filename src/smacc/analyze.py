@@ -16,11 +16,14 @@ from pathlib import Path
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from . import bids, settings
+from . import bids, preferences, settings, windowstate
 from .dialogs import ask_initial_or_final
 from .panels.base import make_section_title
-from .paths import DEFAULT_DATA_DIR, LOGO_PATH
+from .paths import DEFAULT_DATA_DIR, LOGO_PATH, preferences_path
 from .toolwindow import ToolWindow
+
+# Stable id for the analyze window's geometry entry in the per-window prefs map.
+_ANALYZE_WINDOW_ID = "analyze"
 
 
 def format_duration(seconds: float) -> str:
@@ -139,7 +142,10 @@ class AnalyzeWindow(ToolWindow):
 
         self.statusBar()
         self.setCentralWidget(central)
-        self.resize(460, 540)
+        # Reopen at the last position/size (machine-local), else the default size.
+        prefs = preferences.load_preferences(preferences_path)
+        geometry = preferences.window_geometry(prefs, _ANALYZE_WINDOW_ID)
+        windowstate.restore_geometry(self, geometry, default_size=(460, 540))
 
     def _set_loaded(self, loaded: bool) -> None:
         """Enable the action buttons only once a session has been loaded."""
@@ -304,6 +310,10 @@ class AnalyzeWindow(ToolWindow):
 
     def closeEvent(self, event: QtGui.QCloseEvent | None) -> None:
         """Clean up any extracted zips and hand control back to the launcher."""
+        # Remember where this window sat for next launch (best-effort, never raises).
+        preferences.update_window_geometry(
+            preferences_path, _ANALYZE_WINDOW_ID, windowstate.geometry_of(self)
+        )
         for tmp in self._temp_dirs:
             shutil.rmtree(tmp, ignore_errors=True)
         self._temp_dirs.clear()

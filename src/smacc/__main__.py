@@ -1,6 +1,7 @@
 """Run the app."""
 
 import logging
+import os
 import sys
 import threading
 import traceback
@@ -25,6 +26,25 @@ from .utils import seed_default_settings, seed_demo_cues
 
 # Study-file extensions SMACC will open when launched with a file (or double-click).
 _STUDY_SUFFIXES = {".smacc"}
+
+# Qt logging-category rule that mutes one harmless line QMediaDevices prints on
+# startup ("qt.multimedia.ffmpeg: Using Qt multimedia with FFmpeg version ...").
+_FFMPEG_QUIET_RULE = "qt.multimedia.ffmpeg=false"
+
+
+def _quiet_qt_multimedia_logging() -> None:
+    """Mute the noisy Qt-multimedia FFmpeg banner via QT_LOGGING_RULES.
+
+    Must run before QApplication is created (Qt reads the env var at startup). An
+    existing QT_LOGGING_RULES is preserved — the rule is appended, not clobbered —
+    so a developer's own rules still apply.
+    """
+    existing = os.environ.get("QT_LOGGING_RULES", "")
+    if _FFMPEG_QUIET_RULE in existing:
+        return
+    os.environ["QT_LOGGING_RULES"] = (
+        f"{existing};{_FFMPEG_QUIET_RULE}" if existing else _FFMPEG_QUIET_RULE
+    )
 
 
 def pick_settings_path(args: list[str]) -> str | None:
@@ -103,6 +123,7 @@ def main() -> None:
     folders and logs are created only when a session starts, not the instant the app
     launches.
     """
+    _quiet_qt_multimedia_logging()  # before QApplication: Qt reads the rule at startup
     app = QApplication(sys.argv)
     _install_excepthook()
     # Fusion honors the full QPalette consistently across platforms, which the

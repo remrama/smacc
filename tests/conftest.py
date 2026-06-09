@@ -31,9 +31,12 @@ from smacc import devices
 from smacc.session import SmaccSession
 
 # Device strings the mock enumeration advertises. Window/settings tests bind roles
-# to these exact strings so a loaded study resolves them (no "missing device" notice).
-FAKE_OUTPUTS = ["Speakers (USB Audio), Windows WASAPI", "Headphones, Windows WASAPI"]
-FAKE_INPUTS = ["Microphone (USB Audio), Windows WASAPI"]
+# to these exact strings so a loaded study resolves them (no "missing device"
+# notice). These are bare names (no ", Windows WASAPI"), matching what
+# ``wasapi_devices`` now returns; backward-compat with the old suffixed form is
+# covered explicitly in the device/util tests.
+FAKE_OUTPUTS = ["Speakers (USB Audio)", "Headphones"]
+FAKE_INPUTS = ["Microphone (USB Audio)"]
 FAKE_BLINKSTICKS = [("BlinkStick Square BS012345", "BS012345")]
 
 

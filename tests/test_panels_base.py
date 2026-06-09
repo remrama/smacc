@@ -26,7 +26,9 @@ def _session_with(design_session, bindings, routing=None):
 def test_describe_target_bound_device_reads_role_arrow_device(design_session):
     session = _session_with(design_session, {"bedroom_out": "Speakers (USB)"})
     # cue_out defaults to the bedroom_out role, which is bound above.
-    assert base.describe_target(session, "cue_out") == "Bedroom output → Speakers (USB)"
+    assert (
+        base.describe_target(session, "cue_out") == "Bedroom speakers → Speakers (USB)"
+    )
 
 
 def test_describe_target_unbound_audio_reads_system_default(design_session):
@@ -36,7 +38,7 @@ def test_describe_target_unbound_audio_reads_system_default(design_session):
 
 def test_describe_target_unbound_visual_reads_not_set(design_session):
     session = _session_with(design_session, {})
-    assert base.describe_target(session, "visual_out") == "BlinkStick (not set)"
+    assert base.describe_target(session, "visual_out") == "Bedroom lights (not set)"
 
 
 def test_describe_target_off_route_reads_off(design_session):

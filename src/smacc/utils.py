@@ -40,11 +40,19 @@ def index_of_device(candidates: Sequence[str], saved: str | None) -> int | None:
     ``saved`` (no prior selection) returns ``None``, as does a saved device that is
     no longer present (unplugged) — the caller then flags the miss and keeps the
     default.
+
+    Both sides are normalized with :func:`smacc.devices.strip_wasapi_suffix` first,
+    so a binding saved by an older SMACC as ``"Name, Windows WASAPI"`` still matches
+    the bare ``"Name"`` now advertised (and vice versa) — keeping existing ``.smacc``
+    files working without a fuzzy match.
     """
     if not saved:
         return None
+    from . import devices
+
+    target = devices.strip_wasapi_suffix(saved)
     for index, key in enumerate(candidates):
-        if key == saved:
+        if devices.strip_wasapi_suffix(key) == target:
             return index
     return None
 

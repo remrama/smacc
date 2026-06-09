@@ -18,10 +18,10 @@ from pathlib import Path
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from . import preferences, settings, winassoc
+from . import preferences, settings, winassoc, windowstate
 from .analyze import AnalyzeWindow
 from .config import VERSION
-from .dialogs import PreferencesDialog
+from .cuedesigner import CueDesignerWindow
 from .gui import SmaccWindow
 from .paths import DEFAULT_DATA_DIR, DEFAULT_SETTINGS_PATH, LOGO_PATH, preferences_path
 from .session import SmaccSession
@@ -29,6 +29,9 @@ from .toolwindow import ToolWindow
 
 # Sentinel item-data for the Settings dropdown's "Browse…" entry (vs. a path str).
 _BROWSE_SENTINEL = "\x00browse"
+
+# Stable id for the launcher's geometry entry in the per-window preferences map.
+_LAUNCHER_WINDOW_ID = "launcher"
 
 
 def resolve_initial_settings(prefs: dict) -> str | None:
@@ -98,8 +101,15 @@ class LauncherWindow(QtWidgets.QMainWindow):
         layout.addLayout(self._build_settings_row())
         layout.addLayout(self._build_action_row())
 
-        # Analyzing a past session is a separate, post-hoc task.
+        # Standalone tools that don't act on the selected settings: design a cue
+        # WAV, or analyze a past session. Each opens from here and returns on close.
         layout.addSpacing(8)
+        designButton = QtWidgets.QPushButton("Design cues", self)
+        designButton.setMinimumHeight(40)
+        designButton.setStatusTip("Create a tone cue and export it as a WAV file.")
+        designButton.clicked.connect(self.design_cues)
+        layout.addWidget(designButton)
+
         analyzeButton = QtWidgets.QPushButton("Analyze", self)
         analyzeButton.setMinimumHeight(40)
         analyzeButton.setStatusTip(
@@ -127,8 +137,11 @@ class LauncherWindow(QtWidgets.QMainWindow):
 
         self.statusBar()
         self.setCentralWidget(central)
-        self.resize(340, 360)
-        self._move_to_default_position()
+        # Reopen where it was last left (machine-local), else the default anchor.
+        prefs = preferences.load_preferences(preferences_path)
+        geometry = preferences.window_geometry(prefs, _LAUNCHER_WINDOW_ID)
+        if not windowstate.restore_geometry(self, geometry, default_size=(340, 360)):
+            self._move_to_default_position()
 
     def _move_to_default_position(self) -> None:
         """Open near the upper-left of the screen (not tucked into the corner).
@@ -298,6 +311,10 @@ class LauncherWindow(QtWidgets.QMainWindow):
         session = SmaccSession(self._data_dir(), design=True)
         self._open_tool(SmaccWindow(session, settings_path=self._settings_path))
 
+    def design_cues(self) -> None:
+        """Open the standalone Cue designer (exports WAVs to a study's cues folder)."""
+        self._open_tool(CueDesignerWindow(self._data_dir() / "cues"))
+
     def analyze_session(self) -> None:
         """Open the analyze window over the current settings' data directory."""
         self._open_tool(AnalyzeWindow(self._data_dir()))
@@ -359,6 +376,10 @@ class LauncherWindow(QtWidgets.QMainWindow):
 
     def closeEvent(self, event: QtGui.QCloseEvent | None) -> None:
         """Closing the launcher quits SMACC (it is the app's root window)."""
+        # Remember where the launcher sat for next launch (best-effort, never raises).
+        preferences.update_window_geometry(
+            preferences_path, _LAUNCHER_WINDOW_ID, windowstate.geometry_of(self)
+        )
         app = QtWidgets.QApplication.instance()
         if app is not None:
             app.quit()
