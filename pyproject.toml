@@ -104,3 +104,9 @@ files = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["smacc"]
+# Store repo-relative paths so Codecov maps the Windows CI run onto the source
+# tree (src/smacc/…) instead of dropping the report for unmatched paths.
+relative_files = true
