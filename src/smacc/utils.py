@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import random
 import shutil
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import timedelta
 from os import environ
 from pathlib import Path
@@ -29,6 +29,24 @@ def format_elapsed(delta: timedelta) -> str:
     hours, rem = divmod(total, 3600)
     minutes, seconds = divmod(rem, 60)
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def index_of_device(candidates: Sequence[str], saved: str | None) -> int | None:
+    """Return the index in ``candidates`` matching ``saved`` exactly, else ``None``.
+
+    Used to restore a saved device selection on load. A device is keyed by its
+    name, which is stable across runs for the same hardware, so the match is exact
+    (a fuzzy match would risk routing cues to the wrong device). A blank/missing
+    ``saved`` (no prior selection) returns ``None``, as does a saved device that is
+    no longer present (unplugged) — the caller then flags the miss and keeps the
+    default.
+    """
+    if not saved:
+        return None
+    for index, key in enumerate(candidates):
+        if key == saved:
+            return index
+    return None
 
 
 def pick_random_demo_cue(cues_dir: Path) -> Path | None:

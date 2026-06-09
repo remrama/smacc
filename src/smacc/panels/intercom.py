@@ -9,7 +9,12 @@ from PyQt5 import QtCore, QtWidgets
 
 from .. import audio
 from ..session import SmaccSession
-from .base import ModalityWindow, make_section_title
+from .base import (
+    ModalityWindow,
+    current_device_key,
+    make_section_title,
+    select_saved_device,
+)
 
 
 class IntercomWindow(ModalityWindow):
@@ -81,6 +86,20 @@ class IntercomWindow(ModalityWindow):
             self.intercom_output_dropdown.addItem(f"{device['name']}{suffix}")
         if self.intercom_output_dropdown.count():
             self.intercom_output_dropdown.setCurrentIndex(0)
+
+    def refresh_devices(self) -> None:
+        """Re-enumerate outputs, keeping the current selection if still present."""
+        combo = self.intercom_output_dropdown
+        previous = current_device_key(combo)
+        self.refresh_intercom_outputs()
+        select_saved_device(combo, previous)
+
+    def is_streaming(self) -> bool:
+        """True while the intercom is live (mic/output streams open)."""
+        return (
+            self.intercom_input_stream is not None
+            or self.intercom_output_stream is not None
+        )
 
     def toggle_intercom(self, enabled: bool) -> None:
         """Start/stop routing the experimenter mic to the participant output.
@@ -224,6 +243,16 @@ class IntercomWindow(ModalityWindow):
                 self.intercomButton.setChecked(False)  # -> toggle_intercom(False)
             return True  # consume so the focused widget doesn't also see space
         return super().eventFilter(obj, event)
+
+    def gather_state(self) -> dict:
+        return {
+            "intercom_output_device": current_device_key(self.intercom_output_dropdown),
+        }
+
+    def apply_state(self, state: dict) -> None:
+        saved = state.get("intercom_output_device")
+        if saved and not select_saved_device(self.intercom_output_dropdown, saved):
+            self.session.note_missing_device("Intercom output", saved)
 
     def cleanup(self) -> None:
         app = QtWidgets.QApplication.instance()

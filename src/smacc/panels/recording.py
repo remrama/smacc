@@ -12,7 +12,12 @@ from ..config import SURVEY_OPTIONS
 from ..dialogs import ManageSurveysDialog
 from ..session import SmaccSession
 from ..utils import format_elapsed
-from .base import ModalityWindow, make_section_title
+from .base import (
+    ModalityWindow,
+    current_device_key,
+    make_section_title,
+    select_saved_device,
+)
 
 
 class RecordingWindow(ModalityWindow):
@@ -142,6 +147,20 @@ class RecordingWindow(ModalityWindow):
         elif self.session.can_record:
             # In the designer there's no recording, so don't nag about missing mics.
             self.session.show_error_popup("No microphones found.", parent=self)
+
+    def refresh_devices(self) -> None:
+        """Re-enumerate microphones, keeping the current selection if still present."""
+        combo = self.available_microphones_dropdown
+        previous = current_device_key(combo)
+        self.refresh_available_microphones()
+        select_saved_device(combo, previous)
+
+    def is_streaming(self) -> bool:
+        """True while the level meter is open or a dream report is recording."""
+        return (
+            self.meter_stream is not None
+            or self.microphone.state() == QtMultimedia.QMediaRecorder.RecordingState
+        )
 
     def record(self):
         state = self.microphone.state()  # recording / paused / stopped
@@ -329,12 +348,18 @@ class RecordingWindow(ModalityWindow):
 
     def gather_state(self) -> dict:
         return {
+            "recording_device": current_device_key(self.available_microphones_dropdown),
             "survey_url": self.current_survey_url(),
             "survey_options": self._current_survey_options(),
         }
 
     def apply_state(self, state: dict) -> None:
         self._apply_survey_state(state)
+        saved = state.get("recording_device")
+        if saved and not select_saved_device(
+            self.available_microphones_dropdown, saved
+        ):
+            self.session.note_missing_device("Microphone", saved)
 
     def cleanup(self) -> None:
         self.meter_timer.stop()

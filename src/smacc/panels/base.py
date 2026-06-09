@@ -4,8 +4,42 @@ from __future__ import annotations
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+from .. import utils
 from ..paths import LOGO_PATH
 from ..session import SmaccSession
+
+
+def current_device_key(combo: QtWidgets.QComboBox) -> str:
+    """Return the persisted key for a device combo's current row ("" when empty).
+
+    Pickers that carry a separate stable id (the recorder's raw input name, a
+    BlinkStick serial) keep it as item *data*; the noise/intercom pickers use the
+    visible *text*. Either way this returns the value to persist for the selection,
+    so save/restore is uniform across panels.
+    """
+    index = combo.currentIndex()
+    if index < 0:
+        return ""
+    data = combo.itemData(index)
+    return str(data) if data not in (None, "") else combo.itemText(index)
+
+
+def select_saved_device(combo: QtWidgets.QComboBox, saved: str | None) -> bool:
+    """Select the row whose key equals ``saved``; return True iff one matched.
+
+    A blank/missing ``saved`` or an unplugged device (no match) leaves the current
+    selection untouched and returns False, so the caller can flag the miss and keep
+    the default.
+    """
+    keys = [
+        str(d) if (d := combo.itemData(i)) not in (None, "") else combo.itemText(i)
+        for i in range(combo.count())
+    ]
+    index = utils.index_of_device(keys, saved)
+    if index is None:
+        return False
+    combo.setCurrentIndex(index)
+    return True
 
 
 def make_section_title(text: str) -> QtWidgets.QLabel:
@@ -50,6 +84,22 @@ class ModalityWindow(QtWidgets.QMainWindow):
 
     def cleanup(self) -> None:
         """Stop any streams/timers this panel owns (called on app quit)."""
+
+    def refresh_devices(self) -> None:
+        """Re-enumerate this panel's device picker (override where it has one).
+
+        Called by the window's "Refresh devices" action so a device plugged in
+        after launch becomes selectable; device-bearing panels override this to
+        re-scan while preserving the current selection.
+        """
+
+    def is_streaming(self) -> bool:
+        """True if this panel currently holds an open audio stream.
+
+        The refresh coordinator checks this before re-initializing PortAudio (which
+        would invalidate any live stream); panels that own streams override it.
+        """
+        return False
 
     def closeEvent(self, event):
         """Hide the window instead of destroying it, unless the app is quitting."""

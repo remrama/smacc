@@ -12,6 +12,33 @@ from scipy.io.wavfile import read, write
 
 from smacc import utils
 
+# ----- index_of_device (restoring a saved device selection) -----------------
+
+
+def test_index_of_device_finds_exact_match():
+    devices = ["Speakers, Windows WASAPI", "Headphones, Windows WASAPI"]
+    assert utils.index_of_device(devices, "Headphones, Windows WASAPI") == 1
+
+
+def test_index_of_device_returns_none_when_absent():
+    # An unplugged saved device isn't in the current list -> caller flags it.
+    assert utils.index_of_device(["Speakers, Windows WASAPI"], "Old mic") is None
+
+
+def test_index_of_device_blank_or_missing_saved_is_none():
+    # No prior selection (blank/None) means "leave the default selected".
+    assert utils.index_of_device(["A", "B"], "") is None
+    assert utils.index_of_device(["A", "B"], None) is None
+
+
+def test_index_of_device_matches_first_of_duplicate_names():
+    # Two of the same model report identical names; resolve to the first row.
+    assert utils.index_of_device(["Mic", "Mic"], "Mic") == 0
+
+
+def test_index_of_device_empty_candidates_is_none():
+    assert utils.index_of_device([], "Anything") is None
+
 
 def test_note_returns_int16_of_expected_length():
     rate = 8000

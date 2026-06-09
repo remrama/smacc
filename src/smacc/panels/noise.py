@@ -12,7 +12,12 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 
 from .. import utils
 from ..session import SmaccSession
-from .base import ModalityWindow, make_section_title
+from .base import (
+    ModalityWindow,
+    current_device_key,
+    make_section_title,
+    select_saved_device,
+)
 
 NOISE_RATE = 44100
 # Seconds of colored noise pre-generated per Play and then looped. A single
@@ -196,6 +201,17 @@ class NoiseWindow(ModalityWindow):
         else:
             self.session.show_error_popup("No audio devices found.", parent=self)
 
+    def refresh_devices(self) -> None:
+        """Re-enumerate speakers, keeping the current selection if still present."""
+        combo = self.available_noisespeakers_dropdown
+        previous = current_device_key(combo)
+        self.refresh_available_noisespeakers()
+        select_saved_device(combo, previous)
+
+    def is_streaming(self) -> bool:
+        """True while noise is playing (an open output stream)."""
+        return self.noise_stream is not None
+
     @staticmethod
     def noise_color_funcs(color: str) -> Callable:
         """Return the noise-generation function for the given color name."""
@@ -311,6 +327,7 @@ class NoiseWindow(ModalityWindow):
 
     def gather_state(self) -> dict:
         return {
+            "noise_device": current_device_key(self.available_noisespeakers_dropdown),
             "noise_volume": self.noisevolumeSpinBox.value(),
             "noise_color": self.available_noisecolors_dropdown.currentText(),
             "noise_source": "file" if self._use_file_source() else "builtin",
@@ -318,6 +335,11 @@ class NoiseWindow(ModalityWindow):
         }
 
     def apply_state(self, state: dict) -> None:
+        saved = state.get("noise_device")
+        if saved and not select_saved_device(
+            self.available_noisespeakers_dropdown, saved
+        ):
+            self.session.note_missing_device("Noise output", saved)
         if (v := state.get("noise_volume")) is not None:
             self.noisevolumeSpinBox.setValue(float(v))
         if color := state.get("noise_color"):

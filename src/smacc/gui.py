@@ -7,6 +7,7 @@ from functools import partial
 from pathlib import Path
 from typing import cast
 
+import sounddevice as sd
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 from smacc import bids, preferences, settings, winassoc
@@ -271,6 +272,14 @@ class SmaccWindow(ToolWindow):
         )
         associateAction.triggered.connect(self.associate_files)
 
+        # Available in both modes (devices are configured in the editor and a session).
+        refreshDevicesAction = QtWidgets.QAction("&Refresh devices", self)
+        refreshDevicesAction.setShortcut("F5")
+        refreshDevicesAction.setStatusTip(
+            "Rescan for audio devices and BlinkSticks (e.g. after plugging one in)."
+        )
+        refreshDevicesAction.triggered.connect(self.refresh_all_devices)
+
         fileMenu = self.menuBar().addMenu("&File")
         self._preview_level_actions: dict[int, QtWidgets.QAction] = {}
         if self.design:
@@ -284,6 +293,8 @@ class SmaccWindow(ToolWindow):
                 alwaysOnTopAction,
                 associateAction,
             )
+        fileMenu.addSeparator()
+        fileMenu.addAction(refreshDevicesAction)
         fileMenu.addSeparator()
         fileMenu.addAction(aboutAction)
         fileMenu.addAction(quitAction)
@@ -559,7 +570,9 @@ class SmaccWindow(ToolWindow):
     def gather_settings(self) -> dict:
         """Collect each panel's parameters into one serializable settings dict.
 
-        Audio devices are excluded on purpose (only the noise device routes today).
+        Each routing panel's selected device travels with the settings (by name), so
+        a rig's device setup is restored on the next load; an unplugged saved device
+        is flagged on load rather than silently dropped.
         """
         state: dict = {}
         for panel in self.panels.values():
@@ -580,6 +593,7 @@ class SmaccWindow(ToolWindow):
         """
         was_logging = self.session.log_interactions
         self.session.log_interactions = False
+        self.session.missing_devices = []  # panels append any unplugged saved device
         try:
             for panel in self.panels.values():
                 panel.apply_state(state)
@@ -591,12 +605,65 @@ class SmaccWindow(ToolWindow):
             self._rebuild_events_panel()  # a loaded study may add/remove buttons
         finally:
             self.session.log_interactions = was_logging
+        self._notify_missing_devices()
 
     def _rebuild_events_panel(self) -> None:
         """Rebuild the Event logging panel's buttons after the registry changes."""
         panel = self.panels.get("events")
         if isinstance(panel, EventsWindow):
             panel.rebuild()
+
+    def _notify_missing_devices(self) -> None:
+        """Surface, once, any saved devices that weren't connected when settings loaded.
+
+        Skipped in the designer, where a study is often built on a different machine
+        than the rig, so missing devices there are expected and not worth a popup.
+        """
+        missing = self.session.missing_devices
+        if not missing or self.design:
+            return
+        items = "\n".join(f"  • {entry}" for entry in missing)
+        self.session.show_info_popup(
+            "Some saved devices aren’t connected.",
+            "These devices from the settings file weren’t found:\n"
+            f"{items}\n\n"
+            "Plug them in and choose File ▸ Refresh devices, or pick another device.",
+            parent=self,
+        )
+
+    def refresh_all_devices(self) -> None:
+        """Rescan for devices plugged in after launch (File ▸ Refresh devices, F5).
+
+        BlinkSticks are a live USB scan, so they are always rescanned. PortAudio
+        caches its device list at initialization, so audio devices are only picked
+        up by re-initializing it — which invalidates open streams, so that is done
+        only while nothing is playing, recording, or monitoring.
+        """
+        self.panels["visual"].refresh_devices()  # independent of PortAudio
+        if any(panel.is_streaming() for panel in self.panels.values()):
+            self.session.show_info_popup(
+                "Stop audio to rescan audio devices.",
+                "BlinkSticks were rescanned. To rescan audio devices, first stop "
+                "noise, the intercom, recording, and the input-level meter, then "
+                "choose Refresh devices again.",
+                parent=self,
+            )
+            return
+        was_logging = self.session.log_interactions
+        self.session.log_interactions = False  # don't spam logs as pickers repopulate
+        try:
+            sd._terminate()
+            sd._initialize()  # rebuild PortAudio's cached device list
+            for key in ("noise", "recording", "intercom"):
+                self.panels[key].refresh_devices()
+        except Exception as exc:  # PortAudio re-init can fail on odd configs
+            self.session.show_error_popup(
+                "Could not rescan audio devices.", str(exc), parent=self
+            )
+        else:
+            self.session.log_info_msg("Refreshed devices")
+        finally:
+            self.session.log_interactions = was_logging
 
     # ----- preferences / launch-file / file association ----------------------
 

@@ -6,7 +6,12 @@ from blinkstick import blinkstick
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 from ..session import SmaccSession
-from .base import ModalityWindow, make_section_title
+from .base import (
+    ModalityWindow,
+    current_device_key,
+    make_section_title,
+    select_saved_device,
+)
 
 
 class VisualWindow(ModalityWindow):
@@ -68,11 +73,15 @@ class VisualWindow(ModalityWindow):
         return central
 
     def set_new_blinkstick(self, text):
-        """Select a BlinkStick from the dropdown (empty text = no device)."""
-        if not text:  # dropdown cleared / no device selected
+        """Select a BlinkStick from the dropdown (empty = no device).
+
+        The serial number is carried as the item's data, so selection is robust to
+        the display-text format (no string parsing).
+        """
+        serial_number = self.available_blinksticks_dropdown.currentData()
+        if not serial_number:  # dropdown cleared / no device selected
             self.bstick = None
             return
-        serial_number = text.split(". ")[1].split(")")[0]
         self.bstick = blinkstick.find_by_serial(serial_number)
 
     def refresh_available_blinksticks(self):
@@ -90,9 +99,20 @@ class VisualWindow(ModalityWindow):
             device_str = (
                 f"{product_name} v{version_number} (Serial No. {serial_number})"
             )
-            self.available_blinksticks_dropdown.addItem(device_str)
+            self.available_blinksticks_dropdown.addItem(device_str, serial_number)
         if devices:
             self.available_blinksticks_dropdown.setCurrentIndex(0)
+
+    def refresh_devices(self) -> None:
+        """Rescan for connected BlinkSticks, keeping the selection if still present.
+
+        BlinkStick enumeration is a live USB scan (no PortAudio caching), so this
+        picks up a device plugged in after launch on its own.
+        """
+        combo = self.available_blinksticks_dropdown
+        previous = current_device_key(combo)
+        self.refresh_available_blinksticks()
+        select_saved_device(combo, previous)
 
     def set_blink_color(self, r: int, g: int, b: int) -> None:
         """Set the BlinkStick color from 0-255 RGB components.
@@ -158,11 +178,17 @@ class VisualWindow(ModalityWindow):
 
     def gather_state(self) -> dict:
         return {
+            "blink_device": current_device_key(self.available_blinksticks_dropdown),
             "blink_color": self.bstick_hexcode,
             "blink_length": self.bstick_blink_freq,
         }
 
     def apply_state(self, state: dict) -> None:
+        saved = state.get("blink_device")
+        if saved and not select_saved_device(
+            self.available_blinksticks_dropdown, saved
+        ):
+            self.session.note_missing_device("BlinkStick", saved)
         if hexcode := state.get("blink_color"):
             qcolor = QtGui.QColor(hexcode)
             if qcolor.isValid():
