@@ -34,6 +34,53 @@ def test_empty_log_yields_no_events():
     assert bids.log_to_events("") == []
 
 
+def test_summarize_log_counts_events_and_spans_duration():
+    s = bids.summarize_log(SAMPLE_LOG)
+    assert s["event_count"] == 2
+    assert s["duration_seconds"] == 2700.0  # 22:00:00 -> 22:45:00
+    assert s["subject"] == ""  # SAMPLE_LOG has no settings block
+    assert s["session"] == ""
+
+
+def test_summarize_log_reads_subject_session_from_block():
+    payload = settings.build_payload(
+        {}, {"subject": "07", "session": "02", "notes": ""}
+    )
+    block = bids.format_settings_block(payload, "initial")
+    log = (
+        "2026-06-05 22:00:00.000, INFO, Opened SMACC\n"
+        + block
+        + "2026-06-05 22:00:10.000, INFO, REM detected - portcode 41\n"
+    )
+    s = bids.summarize_log(log)
+    assert s["subject"] == "07"
+    assert s["session"] == "02"
+    assert s["event_count"] == 1
+    assert s["duration_seconds"] == 10.0  # block lines are skipped by the parser
+
+
+def test_summarize_log_empty():
+    assert bids.summarize_log("") == {
+        "event_count": 0,
+        "duration_seconds": 0.0,
+        "subject": "",
+        "session": "",
+    }
+
+
+def test_convert_log_file_writes_tsv_and_sidecar(tmp_path):
+    log = tmp_path / "smacc-20260605-220000.log"
+    log.write_text(SAMPLE_LOG, encoding="utf-8")
+    out = tmp_path / "events.tsv"
+    count = bids.convert_log_file(log, out)
+    assert count == 2  # returns the event count
+    assert out.is_file()
+    assert out.with_suffix(".json").is_file()  # sidecar beside the tsv
+    header, *rows = out.read_text(encoding="utf-8").splitlines()
+    assert header.split("\t") == bids.EVENT_COLUMNS
+    assert len(rows) == 2
+
+
 INCREMENT_LOG = """2026-06-05 22:00:00.000, INFO, Opened SMACC v0.0.7
 2026-06-05 22:01:00.000, INFO, Noise volume set to 0.30
 2026-06-05 22:02:00.000, INFO, Dream report started - portcode 201

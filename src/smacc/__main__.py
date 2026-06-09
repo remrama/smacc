@@ -10,10 +10,17 @@ from types import TracebackType
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QMessageBox
 
-from .gui import SmaccWindow
-from .paths import BUNDLED_CUES_DIR, LOGO_PATH, cues_directory
-from .session import SmaccSession
-from .utils import seed_demo_cues
+from . import preferences
+from .launcher import LauncherWindow, resolve_initial_settings
+from .paths import (
+    BUNDLED_CUES_DIR,
+    BUNDLED_DEFAULT_SETTINGS,
+    DEFAULT_DATA_DIR,
+    DEFAULT_SETTINGS_PATH,
+    LOGO_PATH,
+    preferences_path,
+)
+from .utils import seed_default_settings, seed_demo_cues
 
 # Study-file extensions SMACC will open when launched with a file (or double-click).
 _STUDY_SUFFIXES = {".smacc", ".yaml", ".yml"}
@@ -86,25 +93,42 @@ def _install_excepthook() -> None:
 
 
 def main() -> None:
-    """Open the main window for a new timestamped session (no setup prompt)."""
+    """Open SMACC at its launcher (the FSL-style opening menu).
+
+    The launcher is the persistent root window: it lets the operator pick a settings
+    (.smacc) file and then start a session, create settings, or analyze a past run. A
+    ``.smacc`` passed on the command line (or a double-clicked file) skips the menu
+    and goes straight to a session for it; closing it returns to the launcher. Run
+    folders and logs are created only when a session starts, not the instant the app
+    launches.
+    """
     app = QApplication(sys.argv)
     _install_excepthook()
-    # Make sure there's always something to play: seed demo cues on launch.
-    seed_demo_cues(cues_directory, BUNDLED_CUES_DIR)
     # Fusion honors the full QPalette consistently across platforms, which the
     # native Windows style does not — required for the lights-off dark theme.
     app.setStyle("Fusion")
+    # The launcher owns app lifetime: tool windows come and go without quitting, so
+    # closing the last tool returns to the launcher rather than exiting.
+    app.setQuitOnLastWindowClosed(False)
     # Application-wide icon (taskbar + windows).
     if LOGO_PATH.is_file():
         app.setWindowIcon(QIcon(str(LOGO_PATH)))
-    # A .smacc study passed on the command line (or via a double-clicked file)
-    # is loaded as the session's initial setup.
-    settings_path = pick_settings_path(app.arguments())
-    # Subject/session are now optional metadata (set via File -> Session info…),
-    # so a session starts straight away with a timestamped run folder.
-    session = SmaccSession()
-    # Keep a reference so Qt doesn't garbage-collect the window.
-    win = SmaccWindow(session, settings_path=settings_path)  # noqa: F841
+    # First-run seeding (best-effort): a readable default.smacc and demo cues, so
+    # there's always a working setup to open and something to play.
+    seed_default_settings(DEFAULT_SETTINGS_PATH, BUNDLED_DEFAULT_SETTINGS)
+    seed_demo_cues(DEFAULT_DATA_DIR / "cues", BUNDLED_CUES_DIR)
+    file_arg = pick_settings_path(app.arguments())
+    if file_arg:
+        # A double-clicked / CLI .smacc opens straight into a session for it; the
+        # launcher reappears when that session ends.
+        launcher = LauncherWindow(file_arg)
+        launcher.start_session()
+    else:
+        prefs = preferences.load_preferences(preferences_path)
+        launcher = LauncherWindow(resolve_initial_settings(prefs))
+        launcher.show()
+    # `launcher` stays referenced for the life of main() (until app.exec returns),
+    # so Qt won't garbage-collect the root window.
     sys.exit(app.exec())
 
 

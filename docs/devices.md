@@ -28,8 +28,8 @@ SMACC uses it for **visual cues** — lighting up a chosen color for a set durat
 4. Pick a **Color** and a **Length** (how long the light stays on, in seconds).
 5. Click **Play BlinkStick** to fire the cue.
 
-Your chosen color and length are saved in the study `.smacc` file (see
-[Usage › Study config](usage.md#study-config-smacc)), so the visual-cue setup
+Your chosen color and length are saved in the `.smacc` settings file (see
+[Usage › Settings files](usage.md#settings-files-smacc)), so the visual-cue setup
 travels with the rest of your configuration.
 
 !!! note

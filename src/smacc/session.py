@@ -2,9 +2,10 @@
 
 The launcher and every modality window hold a reference to one ``SmaccSession``
 so they all emit event markers and log lines through a single place. Each run
-gets its own folder under ``sessions/`` (named by a launch-timestamp stem) that
-holds the log, dream reports, and any exports together. Subject/session are kept
-as optional metadata inside the log/exports rather than baked into filenames.
+gets its own folder under the settings file's data directory (named by a
+launch-timestamp stem) that holds the log, dream reports, and any exports together.
+Subject/session are kept as optional metadata inside the log/exports rather than
+baked into filenames.
 """
 
 from __future__ import annotations
@@ -18,7 +19,6 @@ from PyQt5 import QtWidgets
 
 from . import bids, events, settings
 from .config import PPORT_ADDRESS, VERSION
-from .paths import sessions_directory
 
 
 def make_session_dir(base: Path, now: datetime) -> Path:
@@ -39,10 +39,31 @@ def make_session_dir(base: Path, now: datetime) -> Path:
 
 
 class SmaccSession:
-    """Shared session context: run folder, optional metadata, logger, LSL outlet."""
+    """Shared session context: run folder, optional metadata, logger, LSL outlet.
 
-    def __init__(self, metadata: dict | None = None) -> None:
+    A live run records to a per-run folder under its study and emits markers on an
+    LSL outlet. ``design=True`` backs the study designer instead: it configures a
+    study without recording a run, so it creates no run folder, log, or outlet and
+    emits no markers (cue/noise previews still work). Use :meth:`close` to release a
+    live session's log handler and outlet so the launcher can open many in one run.
+    """
+
+    def __init__(
+        self,
+        data_dir: str | Path,
+        metadata: dict | None = None,
+        *,
+        design: bool = False,
+    ) -> None:
         now = datetime.now()
+        # The data directory this session belongs to: where its cue/noise pickers
+        # default and (for a live run) the parent under which this run's folder is
+        # created. Comes from the loaded settings file (or the default data dir).
+        self.data_dir = Path(data_dir)
+        self.cues_dir = self.data_dir / "cues"
+        self.design = design
+        # Recording a dream report needs a run folder; the designer has none.
+        self.can_record = not design
         # Subject/session/notes are optional metadata recorded inside the log and
         # exports (blank by default); they no longer drive filenames.
         self.metadata = {
@@ -53,9 +74,6 @@ class SmaccSession:
         }
         if metadata:
             self.metadata.update(metadata)
-        self.session_dir = make_session_dir(sessions_directory, now)
-        self.stem = self.session_dir.name
-        self.log_path = self.session_dir / f"{self.stem}.log"
         self.pport_address = PPORT_ADDRESS
         # The live event-marker registry (codes + routing flags), keyed by event
         # key. Defaults here; a loaded study overrides them via set_event_codes().
@@ -67,18 +85,37 @@ class SmaccSession:
         # main window finishes startup, so construction and study loads don't
         # spam the log; the window flips this on afterwards.
         self.log_interactions = False
-        self.init_logger()
-        self.init_lsl_stream()
+        # The file handler this session owns (None in design mode), tracked so
+        # close() can detach and close it without disturbing other handlers.
+        self._file_handler: logging.FileHandler | None = None
+        if design:
+            # No run artifacts: a logger that records nothing, no folder, no outlet.
+            self.session_dir: Path | None = None
+            self.stem: str | None = None
+            self.log_path: Path | None = None
+            self.outlet: StreamOutlet | None = None
+            self.init_design_logger()
+        else:
+            session_dir = make_session_dir(self.data_dir, now)
+            self.session_dir = session_dir
+            self.stem = session_dir.name
+            log_path = session_dir / f"{session_dir.name}.log"
+            self.log_path = log_path
+            self.init_logger(log_path)
+            self.init_lsl_stream()
 
-    def init_logger(self) -> None:
+    def init_logger(self, log_path: Path) -> None:
         """Initialize the logger that writes to this run's log file."""
         self.logger = logging.getLogger("smacc")
         self.logger.setLevel(logging.DEBUG)
         # Don't bubble up to the root logger (keeps everything out of the
         # terminal; the file/preview handlers are the only outputs).
         self.logger.propagate = False
+        # Drop any handlers left by a previous session in this process (the hub can
+        # open many sessions per launch); each run starts with a clean logger.
+        self._clear_handlers()
         # Per-run folders are unique, so a plain "w" never clobbers another run.
-        fh = logging.FileHandler(self.log_path, mode="w", encoding="utf-8")
+        fh = logging.FileHandler(log_path, mode="w", encoding="utf-8")
         fh.setLevel(logging.DEBUG)  # the file always records every level
         formatter = logging.Formatter(
             fmt="%(asctime)s.%(msecs)03d, %(levelname)s, %(message)s",
@@ -86,6 +123,41 @@ class SmaccSession:
         )
         fh.setFormatter(formatter)
         self.logger.addHandler(fh)
+        self._file_handler = fh
+
+    def init_design_logger(self) -> None:
+        """Set up a no-output logger for design mode (a study run records nothing)."""
+        self.logger = logging.getLogger("smacc")
+        self.logger.setLevel(logging.DEBUG)
+        self.logger.propagate = False
+        self._clear_handlers()
+        self.logger.addHandler(logging.NullHandler())
+
+    def _clear_handlers(self) -> None:
+        """Remove (and close) any handlers currently on the shared 'smacc' logger."""
+        for handler in list(self.logger.handlers):
+            self.logger.removeHandler(handler)
+            try:
+                handler.close()
+            except Exception:
+                pass
+
+    def close(self) -> None:
+        """Release per-session resources: the log file handler and the LSL outlet.
+
+        Lets the launcher run many sessions in one process without leaking open log
+        files or marker outlets (the 'smacc' logger is a shared singleton). Safe to
+        call on a design session (it owns neither).
+        """
+        if self._file_handler is not None:
+            try:
+                self._file_handler.flush()
+                self.logger.removeHandler(self._file_handler)
+                self._file_handler.close()
+            except Exception:
+                pass
+            self._file_handler = None
+        self.outlet = None
 
     def begin_log(self, settings_state: dict) -> None:
         """Record the initial settings near the top of the log, then log startup.
@@ -146,7 +218,8 @@ class SmaccSession:
             )
         label = f"{event.label}: {detail}" if detail else event.label
         line = f"{label} - portcode {code}" if event.trigger else label
-        if event.trigger:
+        # In design mode there is no outlet, so triggers are logged but not sent.
+        if event.trigger and self.outlet is not None:
             self.outlet.push_sample([str(code)])
         # Every event is written to the log file; the preview flag (+ level filter)
         # gates whether it also appears in the live log viewer.
