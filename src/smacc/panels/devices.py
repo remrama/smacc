@@ -30,14 +30,20 @@ _NONE_LABEL = "(none)"
 
 
 def wasapi_devices(kind: str) -> list[str]:
-    """Return the WASAPI ``"output"`` or ``"input"`` device strings (best effort)."""
+    """Return the WASAPI ``"output"`` or ``"input"`` device names (best effort).
+
+    Only WASAPI devices are listed, so the bare device name is returned (no
+    ", Windows WASAPI" suffix — it added nothing and is what gets persisted as a
+    role binding). sounddevice still resolves a bare name to the right device, and
+    older settings that stored the suffixed form are normalized on load (see
+    :func:`smacc.devices.strip_wasapi_suffix`).
+    """
     chan_key = "max_output_channels" if kind == devices.OUTPUT else "max_input_channels"
-    host_api_name = "Windows WASAPI"
     try:
         host_api_names = [api["name"] for api in sd.query_hostapis()]
         hostapi = (
-            host_api_names.index(host_api_name)
-            if host_api_name in host_api_names
+            host_api_names.index(devices.WASAPI_HOST_API)
+            if devices.WASAPI_HOST_API in host_api_names
             else None
         )
         out = []
@@ -46,8 +52,7 @@ def wasapi_devices(kind: str) -> list[str]:
                 continue
             if hostapi is not None and device["hostapi"] != hostapi:
                 continue
-            suffix = f", {host_api_name}" if hostapi is not None else ""
-            out.append(f"{device['name']}{suffix}")
+            out.append(device["name"])
         return out
     except Exception:
         return []
@@ -75,6 +80,9 @@ class DevicesWindow(ModalityWindow):
 
     # Fired whenever a binding/route changes, so the window can refresh indicators.
     changed = QtCore.pyqtSignal()
+    # Fired by the Refresh button; the session window runs the same rescan as
+    # File ▸ Refresh devices (PortAudio re-init + a live BlinkStick scan).
+    refresh_requested = QtCore.pyqtSignal()
 
     def __init__(self, session: SmaccSession, parent: QtWidgets.QWidget | None = None):
         super().__init__(session, parent)
@@ -93,14 +101,14 @@ class DevicesWindow(ModalityWindow):
             combo.setStatusTip(f"Device bound to the {role.label} role.")
             combo.currentIndexChanged.connect(partial(self._set_binding, role.key))
             self._role_combos[role.key] = combo
-            roles_form.addRow(f"{role.label}:", combo)
+            roles_form.addRow(f"{role.label} is:", combo)
         self._populate_role_combos()
 
         routing_form = QtWidgets.QFormLayout()
         routing_form.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         for target in devices.TARGETS:
             combo = QtWidgets.QComboBox(self)
-            combo.setStatusTip(f"Role the {target.label} is routed to.")
+            combo.setStatusTip(f"Role the '{target.label}' modality is routed to.")
             if target.optional:
                 combo.addItem(_NONE_LABEL, "")
             for role in devices.ROLES:
@@ -108,11 +116,18 @@ class DevicesWindow(ModalityWindow):
                     combo.addItem(role.label, role.key)
             combo.currentIndexChanged.connect(partial(self._set_routing, target.key))
             self._route_combos[target.key] = combo
-            routing_form.addRow(f"{target.label}:", combo)
+            routing_form.addRow(f"{target.label} using:", combo)
+
+        refresh_button = QtWidgets.QPushButton("Refresh devices", self)
+        refresh_button.setStatusTip(
+            "Rescan for audio devices and BlinkSticks (e.g. after plugging one in)."
+        )
+        refresh_button.setToolTip("Rescan for devices plugged in after launch (F5).")
+        refresh_button.clicked.connect(self.refresh_requested)
 
         hint = QtWidgets.QLabel(
             "Bind each role to a device once, then route each modality to a role. "
-            "Plug a device in after launch? Use File ▸ Refresh devices."
+            "Plugged a device in after launch? Refresh devices (or press F5)."
         )
         hint.setWordWrap(True)
 
@@ -124,6 +139,7 @@ class DevicesWindow(ModalityWindow):
         layout.addWidget(self._subheading("Modalities → roles"))
         layout.addLayout(routing_form)
         layout.addWidget(hint)
+        layout.addWidget(refresh_button)
         layout.addStretch(1)
         central = QtWidgets.QWidget()
         central.setLayout(layout)

@@ -71,12 +71,23 @@ class VolumeWindow(ModalityWindow):
     def set_cap(self, value: float) -> None:
         """Apply the master output cap (read live by the cue/noise audio callbacks)."""
         self.session.volume_cap = float(value)
-        self.session.log_interaction(f"Output safety cap set to {value:.2f}")
+        self.session.log_interaction(
+            f"Output safety cap set to {value:.2f}", debug=True
+        )
 
     def refresh_levels(self) -> None:
         """Re-read the Windows endpoint + app volumes (best-effort)."""
-        self.endpointLabel.setText(self._format_level(winvolume.endpoint_volume()))
-        self.appLabel.setText(self._format_level(winvolume.app_volume()))
+        endpoint = winvolume.endpoint_volume()
+        app = winvolume.app_volume()
+        self.endpointLabel.setText(self._format_level(endpoint))
+        self.appLabel.setText(self._format_level(app))
+        # Record the OS-side volumes on each actual read (not on slider drags), so a
+        # run's cue levels stay reproducible from the log alone.
+        self.session.log_info_msg(
+            "Windows output volume: "
+            f"endpoint {self._format_level(endpoint)}, "
+            f"SMACC mixer {self._format_level(app)}"
+        )
 
     @staticmethod
     def _format_level(scalar: float | None) -> str:

@@ -55,7 +55,7 @@ def test_saved_file_is_tagged_yaml(tmp_path):
     assert text.splitlines()[0].startswith("#")  # self-identifying header comment
     payload = yaml.safe_load(text)  # comment is ignored, so it still parses
     assert payload["kind"] == settings.KIND
-    assert payload["schema_version"] == settings.SCHEMA_VERSION == 5
+    assert payload["schema_version"] == settings.SCHEMA_VERSION == 6
     assert payload["smacc_version"] == smacc.__version__
     assert payload["settings"] == {"cue_attack": 0.2}
 
@@ -147,6 +147,25 @@ def test_load_accepts_older_schema_without_event_codes(tmp_path):
     )
     state, _ = settings.load_settings(path)
     assert state == {"cue_attack": 0.5}
+
+
+def test_load_accepts_older_schema_without_interface_keys(tmp_path):
+    # A pre-v6 study has no preview_levels/always_on_top/tool_always_on_top; it must
+    # still load (the GUI applies the interface defaults on apply_settings).
+    path = tmp_path / "old.smacc"
+    path.write_text(
+        yaml.safe_dump(
+            {
+                "kind": settings.KIND,
+                "schema_version": 5,
+                "settings": {"cue_attack": 0.5},
+            }
+        ),
+        encoding="utf-8",
+    )
+    state, _ = settings.load_settings(path)
+    assert state == {"cue_attack": 0.5}
+    assert "preview_levels" not in state  # absent, not defaulted at the data layer
 
 
 def test_load_rejects_unsupported_schema(tmp_path):

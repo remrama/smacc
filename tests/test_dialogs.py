@@ -14,29 +14,6 @@ from PyQt6 import QtWidgets
 
 from smacc import dialogs, events, triggers
 
-# ----- PreferencesDialog -----------------------------------------------------
-
-
-def test_preferences_dialog_round_trips_prefs(qtbot):
-    prefs = {"always_on_top": True, "preview_levels": ["ERROR", "INFO"]}
-    dialog = dialogs.PreferencesDialog(prefs)
-    qtbot.addWidget(dialog)
-    changes = dialog.changes()
-    assert changes["always_on_top"] is True
-    # Returned in the canonical level order, not the input order.
-    assert changes["preview_levels"] == ["INFO", "ERROR"]
-
-
-def test_preferences_dialog_reflects_edits(qtbot):
-    dialog = dialogs.PreferencesDialog({"always_on_top": False, "preview_levels": []})
-    qtbot.addWidget(dialog)
-    dialog.alwaysOnTop.setChecked(True)
-    dialog._levelBoxes["WARNING"].setChecked(True)
-    changes = dialog.changes()
-    assert changes["always_on_top"] is True
-    assert changes["preview_levels"] == ["WARNING"]
-
-
 # ----- ask_initial_or_final --------------------------------------------------
 
 

@@ -290,7 +290,7 @@ class NoiseWindow(ModalityWindow):
     def update_noise_volume(self, value: float) -> None:
         """Catch the noise volume spinbox signal (value is a 0-1 float)."""
         self.noise_stream_volume = value
-        self.session.log_interaction(f"Noise volume set to {value:.2f}")
+        self.session.log_interaction(f"Noise volume set to {value:.2f}", debug=True)
 
     def gather_state(self) -> dict:
         return {

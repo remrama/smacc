@@ -84,6 +84,11 @@ class ModalityWindow(QtWidgets.QMainWindow):
     markers/log lines through it. Closing the window just hides it (so it can be
     reopened with its state intact); real teardown happens when the launcher
     quits, which sets ``_quitting`` and calls :meth:`cleanup` on every panel.
+
+    Every tool window carries its own *always-on-top* toggle (a checkable View-menu
+    action) so an operator can pin just the tools they need above other apps. The
+    per-window state travels with the study (collected/applied by the main window in
+    a ``tool_always_on_top`` map); the launcher deliberately has no such toggle.
     """
 
     TITLE = "SMACC"
@@ -95,6 +100,53 @@ class ModalityWindow(QtWidgets.QMainWindow):
         self.setWindowTitle(self.TITLE)
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
+        self._build_view_menu()
+
+    def _build_view_menu(self) -> None:
+        """Add a minimal View menu carrying this window's always-on-top toggle."""
+        menu_bar = self.menuBar()
+        assert menu_bar is not None
+        viewMenu = menu_bar.addMenu("&View")
+        assert viewMenu is not None
+        action = QtGui.QAction("Always on &top", self)
+        action.setStatusTip(f"Keep the {self.TITLE} window above other applications.")
+        action.setCheckable(True)
+        action.toggled.connect(self.toggle_always_on_top)
+        viewMenu.addAction(action)
+        self._always_on_top_action = action
+
+    def is_always_on_top(self) -> bool:
+        """Return whether this window's always-on-top toggle is currently on."""
+        return self._always_on_top_action.isChecked()
+
+    def set_always_on_top(self, enabled: bool) -> None:
+        """Set always-on-top without logging (used when applying saved settings).
+
+        Sets the menu action's checked state (with signals blocked so the toggled
+        handler doesn't fire) and applies the window flag directly.
+        """
+        self._always_on_top_action.blockSignals(True)
+        self._always_on_top_action.setChecked(enabled)
+        self._always_on_top_action.blockSignals(False)
+        self._apply_always_on_top(enabled)
+
+    def toggle_always_on_top(self, enabled: bool) -> None:
+        """Handle a user toggle of this window's always-on-top action (logs the change)."""
+        self._apply_always_on_top(enabled)
+        self.session.log_interaction(
+            f"{self.TITLE} always-on-top {'enabled' if enabled else 'disabled'}"
+        )
+
+    def _apply_always_on_top(self, enabled: bool) -> None:
+        """Apply the always-on-top window flag, re-showing if the window is visible.
+
+        Re-applying ``WindowStaysOnTopHint`` hides the window on some platforms, so
+        re-show it — but only when it was already visible, so toggling the flag on a
+        hidden tool window (e.g. while applying loaded settings) doesn't pop it open.
+        """
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, enabled)
+        if self.isVisible():
+            self.show()
 
     def gather_state(self) -> dict:
         """Return this panel's contribution to the saved settings state."""
