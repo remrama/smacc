@@ -17,6 +17,39 @@
 * Always use [uv](https://docs.astral.sh/uv/) to run Python scripts and install
   dependencies. Never `pip install` or run naked `python`.
 
+## Commit and pull-request style
+
+Keep the history skimmable and merge commits clean.
+
+**Commits**
+
+* One line only — a subject, with no body or extended description.
+* Start with a [Conventional Commits](https://www.conventionalcommits.org/) prefix:
+  `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, `build:`, `ci:`, or
+  `perf:`.
+* Imperative mood, lower-case after the prefix, no trailing period, and ideally
+  under ~72 characters.
+* No AI attribution or co-author trailers.
+
+```text
+feat: optional hardware TTL trigger output
+docs: document audio routing
+fix: clamp incrementing portcodes to 255
+```
+
+**Pull requests**
+
+* The title follows the same one-line Conventional-Commits rule — on a squash merge
+  it becomes the commit subject (GitHub appends the `(#NN)` PR number).
+* The body is a brief summary, not an exhaustive change list: what changed, why, and
+  how it was verified. A few sentences or bullets is plenty.
+* No AI attribution footer.
+
+**Merging**
+
+* Squash-merge, and clear the auto-generated commit body so the merged commit is the
+  one-line title alone — no bundled description or commit list.
+
 ## Development
 
 ```sh
