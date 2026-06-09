@@ -7,8 +7,8 @@ import traceback
 from pathlib import Path
 from types import TracebackType
 
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from . import preferences
 from .launcher import LauncherWindow, resolve_initial_settings

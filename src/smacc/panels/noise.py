@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import utils
 from ..session import SmaccSession
@@ -45,7 +45,7 @@ class NoiseWindow(ModalityWindow):
     def _build(self) -> QtWidgets.QWidget:
         # "Now playing" indicator on top (mixing-board style).
         self.noiseStatusLabel = QtWidgets.QLabel("■ stopped", self)
-        self.noiseStatusLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.noiseStatusLabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         # Noise device picker: QComboBox signal --> update device slot
         available_noisespeakers_dropdown = QtWidgets.QComboBox()
@@ -118,7 +118,7 @@ class NoiseWindow(ModalityWindow):
         transport.addWidget(stopnoiseButton)
 
         form = QtWidgets.QFormLayout()
-        form.setLabelAlignment(QtCore.Qt.AlignRight)
+        form.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         form.addRow("Device:", available_noisespeakers_dropdown)
         form.addRow("Source:", sourceRow)
         form.addRow("Color/Type:", available_noisecolors_dropdown)

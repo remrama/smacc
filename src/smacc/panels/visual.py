@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from blinkstick import blinkstick
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from ..session import SmaccSession
 from .base import (
@@ -62,7 +62,7 @@ class VisualWindow(ModalityWindow):
         self.freqSpinBox = freqSpinBox
 
         layout = QtWidgets.QFormLayout()
-        layout.setLabelAlignment(QtCore.Qt.AlignRight)
+        layout.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         layout.addRow(make_section_title("Visual stimulation"))
         layout.addRow("Device:", available_blinksticks_dropdown)
         layout.addRow("Color:", colorpickerButton)

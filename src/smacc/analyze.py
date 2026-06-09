@@ -14,7 +14,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from . import bids, settings
 from .dialogs import ask_initial_or_final
@@ -108,11 +108,13 @@ class AnalyzeWindow(ToolWindow):
 
         self.sourceLabel = QtWidgets.QLabel("No session loaded.", self)
         self.sourceLabel.setWordWrap(True)
-        self.sourceLabel.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        self.sourceLabel.setTextInteractionFlags(
+            QtCore.Qt.TextInteractionFlag.TextSelectableByMouse
+        )
         layout.addWidget(self.sourceLabel)
 
         self.summaryLabel = QtWidgets.QLabel("", self)
-        self.summaryLabel.setTextFormat(QtCore.Qt.RichText)
+        self.summaryLabel.setTextFormat(QtCore.Qt.TextFormat.RichText)
         layout.addWidget(self.summaryLabel)
 
         layout.addWidget(QtWidgets.QLabel("Dream reports:", self))
@@ -212,10 +214,12 @@ class AnalyzeWindow(ToolWindow):
             self.reportsList.addItem(report.name)
         if not reports:
             empty = QtWidgets.QListWidgetItem("(none)")
-            empty.setFlags(QtCore.Qt.NoItemFlags)
+            empty.setFlags(QtCore.Qt.ItemFlag.NoItemFlags)
             self.reportsList.addItem(empty)
         self._set_loaded(True)
-        self.statusBar().showMessage(f"Loaded {log_path.name}", 5000)
+        status_bar = self.statusBar()
+        assert status_bar is not None
+        status_bar.showMessage(f"Loaded {log_path.name}", 5000)
 
     # ----- actions ----------------------------------------------------------
 
@@ -291,17 +295,18 @@ class AnalyzeWindow(ToolWindow):
 
     def _error(self, short: str, detail: str | None = None) -> None:
         box = QtWidgets.QMessageBox(self)
-        box.setIcon(QtWidgets.QMessageBox.Warning)
+        box.setIcon(QtWidgets.QMessageBox.Icon.Warning)
         box.setWindowTitle("Analyze")
         box.setText(short)
         if detail is not None:
             box.setInformativeText(detail)
         box.exec()
 
-    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+    def closeEvent(self, event: QtGui.QCloseEvent | None) -> None:
         """Clean up any extracted zips and hand control back to the launcher."""
         for tmp in self._temp_dirs:
             shutil.rmtree(tmp, ignore_errors=True)
         self._temp_dirs.clear()
-        event.accept()
+        if event is not None:
+            event.accept()
         self.closed.emit()

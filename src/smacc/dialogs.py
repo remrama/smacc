@@ -2,7 +2,7 @@
 
 from dataclasses import replace
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from . import events
 from .utils import normalize_survey_url
@@ -21,7 +21,9 @@ class PreferencesDialog(QtWidgets.QDialog):
     def __init__(self, prefs: dict, parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Preferences")
-        self.setWindowFlags(self.windowFlags() ^ QtCore.Qt.WindowContextHelpButtonHint)
+        self.setWindowFlags(
+            self.windowFlags() ^ QtCore.Qt.WindowType.WindowContextHelpButtonHint
+        )
 
         self.alwaysOnTop = QtWidgets.QCheckBox(
             "Keep SMACC windows above other applications", self
@@ -43,7 +45,9 @@ class PreferencesDialog(QtWidgets.QDialog):
             levelLayout.addWidget(box)
 
         buttonBox = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            self,
         )
         buttonBox.accepted.connect(self.accept)
         buttonBox.rejected.connect(self.reject)
@@ -79,9 +83,9 @@ def ask_initial_or_final(parent=None, title: str = "Settings snapshot") -> str |
     box = QtWidgets.QMessageBox(parent)
     box.setWindowTitle(title)
     box.setText("Use which settings snapshot from the log?")
-    initial_btn = box.addButton("Initial", QtWidgets.QMessageBox.AcceptRole)
-    final_btn = box.addButton("Final", QtWidgets.QMessageBox.AcceptRole)
-    box.addButton(QtWidgets.QMessageBox.Cancel)
+    initial_btn = box.addButton("Initial", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+    final_btn = box.addButton("Final", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+    box.addButton(QtWidgets.QMessageBox.StandardButton.Cancel)
     box.exec()
     clicked = box.clickedButton()
     if clicked is initial_btn:
@@ -109,7 +113,9 @@ class SessionInfoDialog(QtWidgets.QDialog):
         super().__init__(parent)
         self.setWindowTitle("Session information")
         # Removes the default "What's this?" question mark icon from the titlebar.
-        self.setWindowFlags(self.windowFlags() ^ QtCore.Qt.WindowContextHelpButtonHint)
+        self.setWindowFlags(
+            self.windowFlags() ^ QtCore.Qt.WindowType.WindowContextHelpButtonHint
+        )
         # Create subject and session text inputs, prefilled from current metadata.
         self.subject_id = QtWidgets.QLineEdit(self)
         self.session_id = QtWidgets.QLineEdit(self)
@@ -119,7 +125,9 @@ class SessionInfoDialog(QtWidgets.QDialog):
         self.session_id.setPlaceholderText("Optional")
         # Allow letters, numbers, underscores, and hyphens, up to 30 characters;
         # empty is allowed since the fields are optional.
-        id_validator = QtGui.QRegExpValidator(QtCore.QRegExp(r"[A-Za-z0-9_-]{0,30}"))
+        id_validator = QtGui.QRegularExpressionValidator(
+            QtCore.QRegularExpression(r"[A-Za-z0-9_-]{0,30}")
+        )
         for field in (self.subject_id, self.session_id):
             field.setValidator(id_validator)
             field.setMaxLength(30)
@@ -128,7 +136,9 @@ class SessionInfoDialog(QtWidgets.QDialog):
         self.notes.setPlaceholderText("Optional free-text notes")
         # Create buttons to accept values or cancel.
         buttonBox = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            self,
         )
         buttonBox.accepted.connect(self.accept)
         buttonBox.rejected.connect(self.reject)
@@ -156,7 +166,9 @@ class SurveyDialog(QtWidgets.QDialog):
         super().__init__(parent)
         self.setWindowTitle("Survey")
         # Removes the default "What's this?" question mark icon from the titlebar.
-        self.setWindowFlags(self.windowFlags() ^ QtCore.Qt.WindowContextHelpButtonHint)
+        self.setWindowFlags(
+            self.windowFlags() ^ QtCore.Qt.WindowType.WindowContextHelpButtonHint
+        )
         self.nameEdit = QtWidgets.QLineEdit(self)
         self.nameEdit.setText(name)
         self.nameEdit.setPlaceholderText("e.g. Post-dream survey")
@@ -164,7 +176,9 @@ class SurveyDialog(QtWidgets.QDialog):
         self.urlEdit.setText(url)
         self.urlEdit.setPlaceholderText("https://…")
         buttonBox = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            self,
         )
         buttonBox.accepted.connect(self._on_accept)
         buttonBox.rejected.connect(self.reject)
@@ -201,7 +215,9 @@ class ManageSurveysDialog(QtWidgets.QDialog):
     def __init__(self, options: dict[str, str], parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Manage surveys")
-        self.setWindowFlags(self.windowFlags() ^ QtCore.Qt.WindowContextHelpButtonHint)
+        self.setWindowFlags(
+            self.windowFlags() ^ QtCore.Qt.WindowType.WindowContextHelpButtonHint
+        )
         self.resize(440, 260)
 
         self.listWidget = QtWidgets.QListWidget(self)
@@ -222,7 +238,9 @@ class ManageSurveysDialog(QtWidgets.QDialog):
         buttonCol.addStretch(1)
 
         buttonBox = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            self,
         )
         buttonBox.accepted.connect(self.accept)
         buttonBox.rejected.connect(self.reject)
@@ -237,7 +255,7 @@ class ManageSurveysDialog(QtWidgets.QDialog):
     def _add_row(self, name: str, url: str) -> None:
         """Append a list row labeled ``name — url`` carrying ``(name, url)`` as data."""
         item = QtWidgets.QListWidgetItem(f"{name} — {url}")
-        item.setData(QtCore.Qt.UserRole, (name, url))
+        item.setData(QtCore.Qt.ItemDataRole.UserRole, (name, url))
         self.listWidget.addItem(item)
 
     def _add_new(self) -> None:
@@ -250,12 +268,12 @@ class ManageSurveysDialog(QtWidgets.QDialog):
         item = self.listWidget.currentItem()
         if item is None:
             return
-        name, url = item.data(QtCore.Qt.UserRole)
+        name, url = item.data(QtCore.Qt.ItemDataRole.UserRole)
         dialog = SurveyDialog(name, url, parent=self)
         if dialog.exec():
             new_name, new_url = dialog.get_inputs()
             item.setText(f"{new_name} — {new_url}")
-            item.setData(QtCore.Qt.UserRole, (new_name, new_url))
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, (new_name, new_url))
 
     def _remove_selected(self) -> None:
         row = self.listWidget.currentRow()
@@ -269,7 +287,7 @@ class ManageSurveysDialog(QtWidgets.QDialog):
             item = self.listWidget.item(i)
             if item is None:
                 continue
-            name, url = item.data(QtCore.Qt.UserRole)
+            name, url = item.data(QtCore.Qt.ItemDataRole.UserRole)
             options[name] = url
         return options
 
@@ -280,7 +298,9 @@ class AddEventDialog(QtWidgets.QDialog):
     def __init__(self, default_code: int, parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Add event")
-        self.setWindowFlags(self.windowFlags() ^ QtCore.Qt.WindowContextHelpButtonHint)
+        self.setWindowFlags(
+            self.windowFlags() ^ QtCore.Qt.WindowType.WindowContextHelpButtonHint
+        )
         self.labelEdit = QtWidgets.QLineEdit(self)
         self.labelEdit.setPlaceholderText("e.g. Spontaneous arousal")
         self.codeSpin = QtWidgets.QSpinBox(self)
@@ -292,7 +312,9 @@ class AddEventDialog(QtWidgets.QDialog):
             "Increment the code on each press", self
         )
         buttonBox = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            self,
         )
         buttonBox.accepted.connect(self._on_accept)
         buttonBox.rejected.connect(self.reject)
@@ -337,7 +359,9 @@ class EventCodesDialog(QtWidgets.QDialog):
     def __init__(self, event_list, safe_max: int, parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Event codes")
-        self.setWindowFlags(self.windowFlags() ^ QtCore.Qt.WindowContextHelpButtonHint)
+        self.setWindowFlags(
+            self.windowFlags() ^ QtCore.Qt.WindowType.WindowContextHelpButtonHint
+        )
         self.resize(600, 560)
         self._events = [replace(e) for e in event_list]  # working copies
 
@@ -356,14 +380,25 @@ class EventCodesDialog(QtWidgets.QDialog):
             header_item = self.table.horizontalHeaderItem(col)
             if header_item is not None:
                 header_item.setToolTip(tip)
-        self.table.verticalHeader().setVisible(False)
-        self.table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
-        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self.table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        vheader = self.table.verticalHeader()
+        assert vheader is not None
+        vheader.setVisible(False)
+        self.table.setSelectionMode(
+            QtWidgets.QAbstractItemView.SelectionMode.SingleSelection
+        )
+        self.table.setSelectionBehavior(
+            QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        self.table.setEditTriggers(
+            QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers
+        )
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+        assert header is not None
+        header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Stretch)
         for col in range(1, 5):
-            header.setSectionResizeMode(col, QtWidgets.QHeaderView.ResizeToContents)
+            header.setSectionResizeMode(
+                col, QtWidgets.QHeaderView.ResizeMode.ResizeToContents
+            )
 
         addButton = QtWidgets.QPushButton("Add event…", self)
         addButton.setStatusTip("Add a custom event button.")
@@ -389,7 +424,9 @@ class EventCodesDialog(QtWidgets.QDialog):
         safeRow.addStretch(1)
 
         buttonBox = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            self,
         )
         buttonBox.accepted.connect(self._on_accept)
         buttonBox.rejected.connect(self.reject)
@@ -421,7 +458,9 @@ class EventCodesDialog(QtWidgets.QDialog):
         for row, event in enumerate(self._events):
             if event.builtin:
                 label_item = QtWidgets.QTableWidgetItem(event.label)
-                label_item.setFlags(label_item.flags() & ~QtCore.Qt.ItemIsEditable)
+                label_item.setFlags(
+                    label_item.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable
+                )
                 if event.tooltip:
                     label_item.setToolTip(event.tooltip)
                 self.table.setItem(row, 0, label_item)
@@ -472,7 +511,7 @@ class EventCodesDialog(QtWidgets.QDialog):
         box.setChecked(checked)
         lay = QtWidgets.QHBoxLayout(container)
         lay.addWidget(box)
-        lay.setAlignment(QtCore.Qt.AlignCenter)
+        lay.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         lay.setContentsMargins(0, 0, 0, 0)
         return container, box
 
@@ -537,6 +576,6 @@ class EventCodesDialog(QtWidgets.QDialog):
             reply = QtWidgets.QMessageBox.question(
                 self, "Event codes", "Save anyway?\n\n" + "\n".join(warnings)
             )
-            if reply != QtWidgets.QMessageBox.Yes:
+            if reply != QtWidgets.QMessageBox.StandardButton.Yes:
                 return
         self.accept()

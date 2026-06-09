@@ -5,7 +5,7 @@ click the _Assets_ dropdown for the latest release, and download the _SMACC.exe_
 file. Once downloaded, double-clicking this file will run SMACC.
 
 !!! note "System requirements"
-    SMACC runs on 64-bit Windows 8.1 or later.
+    SMACC runs on 64-bit Windows 10 or later.
 
 !!! note "Administrator privileges"
     For some features you will need to open SMACC with Administrator privileges

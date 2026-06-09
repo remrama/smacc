@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import utils
 from ..paths import LOGO_PATH
@@ -49,7 +49,7 @@ def make_section_title(text: str) -> QtWidgets.QLabel:
     stays legible when the dark theme toggles.
     """
     label = QtWidgets.QLabel(text)
-    label.setAlignment(QtCore.Qt.AlignCenter)
+    label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
     font = QtGui.QFont()
     font.setPointSize(18)
     label.setFont(font)

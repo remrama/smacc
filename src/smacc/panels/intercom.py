@@ -5,7 +5,7 @@ from __future__ import annotations
 import queue
 
 import sounddevice as sd
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtWidgets
 
 from .. import audio
 from ..session import SmaccSession
@@ -59,7 +59,7 @@ class IntercomWindow(ModalityWindow):
         self.intercomButton = intercomButton
 
         layout = QtWidgets.QFormLayout()
-        layout.setLabelAlignment(QtCore.Qt.AlignRight)
+        layout.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         layout.addRow(make_section_title("Intercom"))
         layout.addRow("To participant:", intercom_output_dropdown)
         layout.addRow(intercomButton)
@@ -230,11 +230,11 @@ class IntercomWindow(ModalityWindow):
         """
         etype = event.type()
         if (
-            etype in (QtCore.QEvent.KeyPress, QtCore.QEvent.KeyRelease)
-            and event.key() == QtCore.Qt.Key_Space
+            etype in (QtCore.QEvent.Type.KeyPress, QtCore.QEvent.Type.KeyRelease)
+            and event.key() == QtCore.Qt.Key.Key_Space
             and not self._is_text_widget_focused()
         ):
-            if etype == QtCore.QEvent.KeyPress:
+            if etype == QtCore.QEvent.Type.KeyPress:
                 if not event.isAutoRepeat() and not self.intercomButton.isChecked():
                     self._intercom_push_to_talk = True
                     self.intercomButton.setChecked(True)  # -> toggle_intercom(True)
