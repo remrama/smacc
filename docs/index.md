@@ -37,7 +37,7 @@ SMACC is used in dream engineering research, including by:
     * Mundt et al. (2024). Treating narcolepsy-related nightmares with cognitive behavioural therapy and targeted lucidity reactivation: A pilot study. *J Sleep Res* doi:[10.1111/jsr.14384](https://doi.org/10.1111/jsr.14384)
     * Wolk et al. (2024). Lucid dreams from reactivating mindfulness during REM sleep: A pilot study. *Int J Dream Res* doi:[10.11588/ijodr.2024.2.98233](https://doi.org/10.11588/ijodr.2024.2.98233)
 * [Michelle Carr's Dream Engineering Lab](https://www.dreamengineeringlab.com/)
-  at the University of Montreal
+  at the University of Montreal and the Center for Advanced Research in Sleep Medicine
     * Jafarzadeh Esfahani et al. (2024). Highly effective verified lucid dream induction using combined cognitive-sensory training and wearable EEG: A multi-centre study. *bioRxiv* doi:[10.1101/2024.06.21.600133](https://doi.org/10.1101/2024.06.21.600133)
 
 SMACC is free software released under the
