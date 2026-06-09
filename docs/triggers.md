@@ -20,6 +20,63 @@ bits), and the amplifier reads them as one byte. SMACC keeps every code inside 1
 for this reason. See [Configuring codes](usage.md#configuring-codes) for how to view
 and edit which event sends which code.
 
+## Default event codes
+
+These are SMACC's built-in event markers and their default port codes — the
+out-of-the-box [`event_codes`](reference/settings-file.md#event_codes) registry. A
+study can retune any code in the **Event codes** editor; the change travels in its
+[`.smacc`](reference/settings-file.md) and is written into every session log.
+
+<!-- BEGIN auto:event-codes (kept in lockstep with smacc.events.default_events by tests/test_docs_schema.py) -->
+| Code | Event | Key | Notes |
+|------|-------|-----|-------|
+| 41 | REM detected | `REMDetected` | |
+| 42 | Tech in room | `TechInRoom` | |
+| 43 | TLR training start | `TLRTrainingStart` | |
+| 44 | TLR training end | `TLRTrainingEnd` | |
+| 45 | LRLR detected | `LRLRDetected` | lucid left-right-left-right signal |
+| 46 | Sleep onset | `SleepOnset` | |
+| 47 | Lights off | `LightsOff` | |
+| 48 | Lights on | `LightsOn` | |
+| 49 | Clapper | `Clapper` | sync marker |
+| 50 | Note | `Note` | |
+| 51 | Start recording | `RecordingStarted` | sets the reference clock for dream-report timestamps |
+| 60 | Cue started | `CueStarted` | |
+| 61 | Cue stopped | `CueStopped` | |
+| 62 | Noise started | `NoiseStarted` | |
+| 63 | Noise stopped | `NoiseStopped` | |
+| 64 | Intercom started | `IntercomStarted` | |
+| 65 | Intercom stopped | `IntercomStopped` | |
+| 66 | Visual stimulation | `VisualStarted` | |
+| 67 | Survey opened | `SurveyOpened` | |
+| 100 | SMACC initialized | `TriggerInitialization` | startup connection test; not a stimulus marker |
+| 105 | Biocal sequence started | `BiocalSequenceStarted` | brackets a played biocal sequence |
+| 106 | Biocal sequence stopped | `BiocalSequenceStopped` | completed or aborted |
+| 107 | Biocal cancelled | `BiocalCancelled` | shared; the preceding start code identifies the biocal |
+| 108 | Biocal completed | `BiocalCompleted` | shared; the task window ran out |
+| 110 | Biocal: Eyes Open | `BiocalEyesOpen` | biocal starts mark the task-window opening |
+| 111 | Biocal: Eyes Closed | `BiocalEyesClosed` | |
+| 112 | Biocal: Look L/R | `BiocalLookLR` | |
+| 113 | Biocal: Look U/D | `BiocalLookUD` | |
+| 114 | Biocal: Blink | `BiocalBlink` | |
+| 115 | Biocal: Clench Jaw | `BiocalClenchJaw` | |
+| 116 | Biocal: Flex Feet | `BiocalFlexFeet` | |
+| 117 | Biocal: Hold Breath | `BiocalHoldBreath` | |
+| 118 | Biocal: Breathe | `BiocalBreathe` | |
+| 119 | Biocal: Rest | `BiocalRest` | |
+| 120 | Biocal: LRLR Open | `BiocalLRLROpen` | |
+| 121 | Biocal: LRLR Closed | `BiocalLRLRClosed` | |
+| 122 | Biocal: LRLR Slow | `BiocalLRLRSlow` | |
+| 123 | Biocal: Fist Clench | `BiocalFistClench` | |
+| 124 | Biocal: Fist Closed | `BiocalFistClosed` | |
+| 125 | Biocal: Sniff Open | `BiocalSniffOpen` | |
+| 126 | Biocal: Sniff Closed | `BiocalSniffClosed` | |
+| 200 | Dream report stopped | `DreamReportStopped` | |
+| 201 | Dream report started | `DreamReportStarted` | increments per report (201, 202, …) |
+<!-- END auto:event-codes -->
+
+Codes are integers in **1–255** and must be unique among triggered events.
+
 ## How SMACC sends triggers
 
 SMACC always emits markers over **LSL** (Lab Streaming Layer), a network marker

@@ -663,9 +663,9 @@ class SmaccWindow(ToolWindow):
         # The data directory (where runs are written) travels with the settings;
         # the editor can repoint it, so read the window's copy, not the session's.
         state["data_directory"] = str(self.data_dir)
-        # Interface choices that used to live in preferences.yaml now travel with the
-        # study (schema v6): the live-preview levels and the main window's
-        # always-on-top, plus a per-tool always-on-top map keyed by panel key.
+        # Interface choices that travel with the study: the live-preview levels and
+        # the main window's always-on-top, plus a per-tool always-on-top map keyed by
+        # panel key.
         state["preview_levels"] = self._gather_preview_levels()
         state["always_on_top"] = self._always_on_top_action.isChecked()
         state["tool_always_on_top"] = {
@@ -696,26 +696,26 @@ class SmaccWindow(ToolWindow):
         was_logging = self.session.log_interactions
         self.session.log_interactions = False
         self.session.missing_devices = []  # filled by the Devices reload below
-        # Device roles/routing first, so panels resolve correctly (migrates old files).
+        # Device roles/routing first, so panels resolve their device against them.
         self.session.devices = devices.load(state)
         trigger_error: str | None = None
         try:
             for panel in self.panels.values():
                 panel.apply_state(state)
-            # Apply the study's event-code registry (or defaults for a pre-v4
-            # study with no event_codes) to the live session.
+            # Apply the study's event-code registry (or the defaults when it omits
+            # event_codes) to the live session.
             self.session.set_event_codes(
                 state.get("event_codes"), state.get("event_code_safe_max")
             )
-            # Optional hardware-trigger config (disabled for a pre-v5 study). Open
-            # the transport now so a bad port/driver is reported at load, not mid-run.
+            # Optional hardware-trigger config (disabled when the study omits it).
+            # Open the transport now so a bad port/driver is reported at load.
             self.session.trigger_config = triggers.load(state)
             trigger_error = self.session.set_trigger_output(self.session.trigger_config)
             self._rebuild_events_panel()  # a loaded study may add/remove buttons
             self.devices_window.reload_from_config()  # sync widgets + flag missing
             self._refresh_device_indicators()
-            # Interface choices carried by the study (schema v6): preview levels and
-            # per-window always-on-top. A pre-v6 study omits these; defaults apply.
+            # Interface choices carried by the study: preview levels and per-window
+            # always-on-top. A study may omit these; the interface defaults apply.
             self._apply_preview_levels(state)
             self._apply_always_on_top_settings(state)
         finally:
@@ -727,8 +727,8 @@ class SmaccWindow(ToolWindow):
     def _apply_preview_levels(self, state: dict) -> None:
         """Sync the live-preview level boxes from a loaded study's ``preview_levels``.
 
-        Absent (a pre-v6 study) leaves the current selection — which the window seeded
-        to the default set — untouched, so older files load with sensible defaults.
+        Absent (the study omits the key) leaves the current selection — which the
+        window seeded to the default set — untouched, so the defaults apply.
         The value is also remembered so the editor (which has no preview pane) can
         round-trip it on save instead of clobbering it.
         """
@@ -746,9 +746,9 @@ class SmaccWindow(ToolWindow):
     def _apply_always_on_top_settings(self, state: dict) -> None:
         """Apply the main window's + each tool window's always-on-top from a study.
 
-        The main window's flag is the moved ``always_on_top`` scalar; the tools read
-        a ``tool_always_on_top`` map keyed by panel key. Both default to off for a
-        pre-v6 study (or any key the file omits).
+        The main window's flag is the ``always_on_top`` scalar; the tools read a
+        ``tool_always_on_top`` map keyed by panel key. Both default to off for any
+        key the study omits.
         """
         main = bool(state.get("always_on_top", False))
         self._always_on_top_action.blockSignals(True)

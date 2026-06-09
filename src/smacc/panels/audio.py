@@ -592,17 +592,6 @@ class AudioCueWindow(ModalityWindow):
             self._resize_slots(len(cues))
             for slot, cue in zip(self.slots, cues, strict=False):
                 self._apply_cue(slot, cue)
-        elif state.get("cue_file") is not None or state.get("cue_volume") is not None:
-            # Back-compat: a v1 single cue maps into the first slot.
-            self._resize_slots(1)
-            self._apply_cue(
-                self.slots[0],
-                {
-                    "file": state.get("cue_file", ""),
-                    "volume": state.get("cue_volume"),
-                    "loop": state.get("cue_loop"),
-                },
-            )
         if (v := state.get("cue_attack")) is not None:
             self.attackSpinBox.setValue(float(v))
         if (v := state.get("cue_release")) is not None:

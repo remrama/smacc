@@ -55,7 +55,7 @@ def test_saved_file_is_tagged_yaml(tmp_path):
     assert text.splitlines()[0].startswith("#")  # self-identifying header comment
     payload = yaml.safe_load(text)  # comment is ignored, so it still parses
     assert payload["kind"] == settings.KIND
-    assert payload["schema_version"] == settings.SCHEMA_VERSION == 7
+    assert payload["schema_version"] == settings.SCHEMA_VERSION == 1
     assert payload["smacc_version"] == smacc.__version__
     assert payload["settings"] == {"cue_attack": 0.2}
 
@@ -104,12 +104,15 @@ def test_load_data_directory_reads_file(tmp_path):
 
 
 def test_bundled_default_settings_is_valid_and_complete():
+    from smacc import events
     from smacc.paths import BUNDLED_DEFAULT_SETTINGS
 
     assert BUNDLED_DEFAULT_SETTINGS.is_file()  # shipped example/default
     state, _ = settings.load_settings(BUNDLED_DEFAULT_SETTINGS)
     assert state["data_directory"] == "data"
-    assert state["event_codes"]  # carries the default event registry as an example
+    # It carries the default event registry as an example; keep it in lockstep with
+    # the code so the shipped example can't drift from the built-in codes.
+    assert state["event_codes"] == events.events_to_list(events.default_events())
 
 
 def test_load_rejects_legacy_state_key(tmp_path):
@@ -131,15 +134,15 @@ def test_load_accepts_current_schema(tmp_path):
     assert state == {"cue_attack": 1.0}
 
 
-def test_load_accepts_older_schema_without_event_codes(tmp_path):
-    # A pre-v4 study (no event_codes) must still load; the GUI fills the default
-    # registry on apply via events.merge_event_codes.
-    path = tmp_path / "old.smacc"
+def test_load_accepts_settings_without_event_codes(tmp_path):
+    # A study may omit event_codes; it must still load (the GUI fills the default
+    # registry on apply via events.merge_event_codes).
+    path = tmp_path / "partial.smacc"
     path.write_text(
         yaml.safe_dump(
             {
                 "kind": settings.KIND,
-                "schema_version": 3,
+                "schema_version": settings.SCHEMA_VERSION,
                 "settings": {"cue_attack": 0.5},
             }
         ),
@@ -149,15 +152,15 @@ def test_load_accepts_older_schema_without_event_codes(tmp_path):
     assert state == {"cue_attack": 0.5}
 
 
-def test_load_accepts_older_schema_without_interface_keys(tmp_path):
-    # A pre-v6 study has no preview_levels/always_on_top/tool_always_on_top; it must
-    # still load (the GUI applies the interface defaults on apply_settings).
-    path = tmp_path / "old.smacc"
+def test_load_accepts_settings_without_interface_keys(tmp_path):
+    # A study may omit preview_levels/always_on_top/tool_always_on_top; it must still
+    # load (the GUI applies the interface defaults on apply_settings).
+    path = tmp_path / "partial.smacc"
     path.write_text(
         yaml.safe_dump(
             {
                 "kind": settings.KIND,
-                "schema_version": 5,
+                "schema_version": settings.SCHEMA_VERSION,
                 "settings": {"cue_attack": 0.5},
             }
         ),
@@ -177,6 +180,24 @@ def test_load_rejects_unsupported_schema(tmp_path):
         settings.load_settings(path)
 
 
+def test_load_rejects_higher_schema_version(tmp_path):
+    # The v1 reset accepts only the current schema; there is no forward/backward
+    # migration, so any higher version (e.g. a file from a future SMACC) is rejected.
+    path = tmp_path / "future.smacc"
+    path.write_text(
+        yaml.safe_dump(
+            {
+                "kind": settings.KIND,
+                "schema_version": settings.SCHEMA_VERSION + 1,
+                "settings": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="schema version"):
+        settings.load_settings(path)
+
+
 def test_load_rejects_nonpositive_schema(tmp_path):
     path = tmp_path / "settings.yaml"
     path.write_text(
@@ -189,7 +210,7 @@ def test_load_rejects_nonpositive_schema(tmp_path):
 def test_load_rejects_wrong_kind(tmp_path):
     path = tmp_path / "settings.yaml"
     path.write_text(
-        yaml.safe_dump({"kind": "something/else", "schema_version": 3, "settings": {}}),
+        yaml.safe_dump({"kind": "something/else", "schema_version": 1, "settings": {}}),
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match="compatible"):
@@ -198,7 +219,7 @@ def test_load_rejects_wrong_kind(tmp_path):
 
 def test_load_rejects_missing_settings(tmp_path):
     path = tmp_path / "settings.yaml"
-    path.write_text(yaml.safe_dump({"schema_version": 3}), encoding="utf-8")
+    path.write_text(yaml.safe_dump({"schema_version": 1}), encoding="utf-8")
     with pytest.raises(ValueError, match="settings"):
         settings.load_settings(path)
 

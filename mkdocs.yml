@@ -50,4 +50,10 @@ nav:
   - Audio & routing: audio.md
   - Devices: devices.md
   - Triggers & port codes: triggers.md
+  - Reference:
+    - File formats: reference/index.md
+    - Settings file (.smacc): reference/settings-file.md
+    - Preferences file: reference/preferences-file.md
+    - Session log: reference/session-log.md
+    - BIDS export: reference/bids-export.md
   - Contributing: contributing.md
