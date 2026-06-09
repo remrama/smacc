@@ -29,10 +29,12 @@ own settings files anywhere.
 Each run gets its own timestamped folder under the settings file's data directory
 (e.g. `smacc-20260607-223015/`) holding that run's `.log`, dream-report recordings,
 and any exports. Subject/session are optional metadata (set from **File &rsaquo;
-Session info…**) recorded inside the log/exports rather than in filenames. Interface
-choices (theme/window/log-preview) are machine-level and remembered globally in
-`~/SMACC/preferences.yaml` (edit them from the launcher's **File &rsaquo;
-Preferences**), separate from any settings file.
+Session info…**) recorded inside the log/exports rather than in filenames. Display
+choices that apply to a session — **always-on-top** and which **log-preview** levels
+show — are stored in the `.smacc` settings file (edit them from the launcher's
+**File &rsaquo; Preferences**), so they travel with the study. The machine itself
+remembers window positions and sizes and your recent files in
+`~/SMACC/preferences.yaml`, restored on the next launch.
 
 ### Settings files (`.smacc`)
 

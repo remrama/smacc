@@ -15,10 +15,10 @@ it on a dedicated **trigger channel** alongside the brain signal. That number is
 events by their code — e.g. "every 41 is an observed REM onset."
 
 A port code is an **8-bit value**, so it is always an integer from **1 to 255**. That
-range isn't arbitrary: a hardware trigger is physically **eight on/off lines** (eight
+range follows from the hardware: a trigger is physically **eight on/off lines** (eight
 bits), and the amplifier reads them as one byte. SMACC keeps every code inside 1–255
-for exactly this reason — see [Configuring codes](usage.md#configuring-codes) for how
-to view and edit which event sends which code.
+for this reason. See [Configuring codes](usage.md#configuring-codes) for how to view
+and edit which event sends which code.
 
 ## How SMACC sends triggers
 
