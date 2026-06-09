@@ -16,6 +16,7 @@ import pytest
 
 from smacc import winvolume
 from smacc.panels.audio import AudioCueWindow
+from smacc.panels.biocals import BiocalsWindow
 from smacc.panels.devices import DevicesWindow
 from smacc.panels.events import EventsWindow
 from smacc.panels.intercom import IntercomWindow
@@ -100,6 +101,65 @@ def test_volume_panel_round_trips_cap(qtbot, design_session, monkeypatch):
     assert panel.gather_state() == {"volume_cap": pytest.approx(0.50)}
     # apply_state also drives the live session cap (read by the audio callbacks).
     assert design_session.volume_cap == pytest.approx(0.50)
+
+
+def test_biocals_panel_round_trips_stack(qtbot, design_session):
+    panel = BiocalsWindow(design_session)
+    qtbot.addWidget(panel)
+    state = {
+        "biocals": {
+            "voice_volume": 0.25,
+            "rows": [
+                # eyes_closed twice: rows are instances, repeats are legitimate.
+                {
+                    "biocal": "eyes_closed",
+                    "sequence": True,
+                    "voice": False,
+                    "duration": 45,
+                },
+                {
+                    "biocal": "lrlr_open",
+                    "sequence": True,
+                    "voice": True,
+                    "duration": 20,
+                },
+                {
+                    "biocal": "eyes_closed",
+                    "sequence": False,
+                    "voice": True,
+                    "duration": 30,
+                },
+            ],
+        }
+    }
+    panel.apply_state(state)
+    got = panel.gather_state()["biocals"]
+    assert got["voice_volume"] == pytest.approx(0.25)
+    assert [r["biocal"] for r in got["rows"]] == [
+        "eyes_closed",
+        "lrlr_open",
+        "eyes_closed",
+    ]
+    assert got["rows"][0] == {
+        "biocal": "eyes_closed",
+        "sequence": True,
+        "voice": False,
+        "duration": 45,
+    }
+    assert got["rows"][1]["duration"] == 20
+
+
+def test_biocals_panel_keeps_default_stack_for_older_studies(qtbot, design_session):
+    # A pre-v7 state has no biocals block; the default 18-row stack stands.
+    panel = BiocalsWindow(design_session)
+    qtbot.addWidget(panel)
+    panel.apply_state({"noise_volume": 0.3})
+    assert len(panel.gather_state()["biocals"]["rows"]) == 18
+    # A block without rows (the shipped default.smacc) also keeps the stack.
+    panel.apply_state({"biocals": {"voice_volume": 0.4}})
+    got = panel.gather_state()["biocals"]
+    assert len(got["rows"]) == 18
+    assert got["voice_volume"] == pytest.approx(0.4)
 
 
 def _capture_session_log(session) -> list[logging.LogRecord]:

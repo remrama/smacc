@@ -1,6 +1,6 @@
 # SMACC settings — YAML (.smacc). Edit with care.
 kind: smacc/settings
-schema_version: 4
+schema_version: 7
 smacc_version: 0.0.7
 metadata:
   subject: ''
@@ -19,6 +19,11 @@ settings:
   noise_file: ''
   survey_url: ''
   survey_options: {}
+  # biocal rows omitted on purpose: the stack starts with every standard biocal
+  # (plus the unchecked lucid-dreaming signals); saving from the app writes the
+  # configured stack back here (#78).
+  biocals:
+    voice_volume: 0.5
   event_codes:
   - key: RecordingStarted
     code: 51

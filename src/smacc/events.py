@@ -14,7 +14,8 @@ Each :class:`EventDef` carries:
   written to the session log file regardless; this flag only gates the on-screen
   viewer.
 * ``category`` — ``"manual"`` (the auto-built event-grid buttons), ``"control"``
-  (panel/lightswitch driven), or ``"system"`` (startup/init; not shown in the grid).
+  (panel/lightswitch driven), ``"biocal"`` (the Biocals window's markers, #78), or
+  ``"system"`` (startup/init; not shown in the grid).
 * ``increment`` — when set, successive firings use an increasing code (``code``,
   ``code + 1``, …) so each occurrence is individually findable in the trigger
   channel (e.g. the dream-report start).
@@ -28,6 +29,8 @@ import re
 from collections.abc import Iterable
 from dataclasses import dataclass, fields, replace
 from typing import Any
+
+from . import biocals
 
 # 8-bit parallel/serial trigger byte: the universally safe portcode range.
 CODE_MIN = 1
@@ -57,11 +60,63 @@ _PERSIST_FIELDS = ("key", "code", "trigger", "preview", "increment")
 _FIELD_NAMES = {f.name for f in fields(EventDef)}
 
 
+def _biocal_events() -> list[EventDef]:
+    """The biocal markers (#78): four shared control codes + one start per biocal.
+
+    Start codes come from the table in :mod:`smacc.biocals` (the 110-126 band);
+    cancel/complete are shared — the preceding start code identifies which biocal
+    they close. The ``"biocal"`` category keeps them out of the manual event grid
+    (they have their own window) while staying fully editable in the registry.
+    """
+    shared = [
+        EventDef(
+            biocals.SEQUENCE_STARTED_EVENT,
+            "Biocal sequence started",
+            105,
+            category="biocal",
+            tooltip="Mark the start of a played biocal sequence",
+        ),
+        EventDef(
+            biocals.SEQUENCE_STOPPED_EVENT,
+            "Biocal sequence stopped",
+            106,
+            category="biocal",
+            tooltip="Mark the end of a biocal sequence (completed or cancelled)",
+        ),
+        EventDef(
+            biocals.CANCELLED_EVENT,
+            "Biocal cancelled",
+            107,
+            category="biocal",
+            tooltip="Mark a biocal stopped before its task window ran out",
+        ),
+        EventDef(
+            biocals.COMPLETED_EVENT,
+            "Biocal completed",
+            108,
+            category="biocal",
+            tooltip="Mark a biocal whose task window ran to completion",
+        ),
+    ]
+    starts = [
+        EventDef(
+            b.event,
+            f"Biocal: {b.label}",
+            b.code,
+            category="biocal",
+            tooltip=f"Mark the task-window start of the {b.full_name} biocal",
+        )
+        for b in biocals.default_biocals()
+    ]
+    return shared + starts
+
+
 def default_events() -> list[EventDef]:
     """Return a fresh copy of the built-in event definitions (safe to mutate).
 
     Dream-report *starts* occupy a reserved 201+ band (they increment), so the
-    other control codes sit in a compact low band that leaves that band clear.
+    other control codes sit in a compact low band that leaves that band clear;
+    the biocal markers sit in their own 105-126 band between the two.
     """
     return [
         # --- Manual / observational: the auto-built event-grid buttons --------
@@ -143,6 +198,8 @@ def default_events() -> list[EventDef]:
         EventDef("IntercomStopped", "Intercom stopped", 65),
         EventDef("VisualStarted", "Visual stimulation", 66),
         EventDef("SurveyOpened", "Survey opened", 67),
+        # --- Biocals: run from the Biocals window (#78) -------------------------
+        *_biocal_events(),
         # --- System -----------------------------------------------------------
         EventDef(
             "TriggerInitialization",

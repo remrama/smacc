@@ -81,6 +81,53 @@ in the dropdown to open it automatically when recording starts, or open any save
 survey on its own from **File &rsaquo; Surveys** (each open is logged as a
 `SurveyOpened` event).
 
+## Biocals
+
+Sleep studies open with **biocalibrations** — scripted participant actions (eyes
+open, eyes closed, look left/right, …) whose known physiological signatures verify
+the recording channels. The **Biocals** window runs them as timed, marked events:
+every standard biocal plus the common lucid-dreaming signal practices (LRLR
+variants, fist clenches, sniffs), each on its own row.
+
+Each row has a toggle button plus two checkboxes and a duration:
+
+- **Press the biocal's button** to run it. The button stays depressed while it
+  runs and the countdown at the top shows the time remaining in its task window;
+  press it again to cancel early (no waiting out a botched 30-second window).
+- **Voice** — speak the pre-recorded instruction (e.g. *"Please close your eyes
+  and relax for thirty seconds."*) over the cue output when the biocal starts.
+  Leave it unchecked if you prefer to give instructions yourself.
+- **Seq** — include this row when **Play sequence** runs the whole stack in
+  order. Standard biocals start checked; the lucid-dreaming ones start unchecked.
+- **Duration** — the task window in seconds. With the voice on, the window (and
+  its countdown) starts when the instruction *ends*, so a 10-second breath hold
+  is a full 10 seconds — matching the manual practice of speaking first and
+  marking when the participant complies.
+
+**Markers.** Each biocal's *start* code fires when its task window opens; a shared
+**completed** code fires when the window runs out and a shared **cancelled** code
+fires on an early stop (the preceding start code identifies which biocal). A played
+sequence is bracketed by its own start/stop codes and otherwise fires the identical
+per-biocal markers. Defaults: sequence start/stop **105**/**106**, cancelled
+**107**, completed **108**, and one start code per biocal in the **110–126** band —
+all retunable in **File &rsaquo; Event codes…** like any built-in event.
+
+**Sequences.** **Play sequence** runs every Seq-checked row top to bottom,
+depressing each button as it goes. Pressing the *active biocal's* button skips just
+that item (cancel marker, then on to the next); pressing the sequence button again
+aborts the rest. Rows can **repeat** a biocal (eyes-closed twice, extra LRLRs —
+use **+ Add** to add another instance), be reordered with **▲/▼**, and removed
+with **✕**; the stack is locked while something is running. Need a biocal SMACC
+doesn't ship? Use a custom event button in the Event logging panel instead.
+
+**Voice recordings** live in your SMACC directory's `biocals/` folder (e.g.
+`~/SMACC/biocals/`), seeded from a bundled set on first launch. Prefer another
+voice or language? Replace any file with your own recording under the same name —
+SMACC never overwrites existing files, and each session start warns about any that
+are missing (a biocal with a missing voice still runs, just unvoiced). The shared
+**Voice volume** rides the cue route, so the master output cap and the
+control-room monitor fan-out apply to instructions exactly as they do to cues.
+
 ## EEG portcodes
 
 SMACC marks experiment events — a cue played, a dream report, observed REM, the

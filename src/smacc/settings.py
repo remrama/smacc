@@ -52,10 +52,11 @@ _FILE_HEADER = "# SMACC settings — YAML (.smacc). Edit with care.\n"
 # (lower) versions are still accepted on load; panels handle field-level
 # back-compat (e.g. a v1 single cue maps into the first multi-slot cue, a pre-v4
 # file with no event_codes falls back to the default registry, a pre-v5 file with
-# no trigger_output falls back to hardware triggers disabled — LSL only, and a
+# no trigger_output falls back to hardware triggers disabled — LSL only, a
 # pre-v6 file with no preview_levels/always_on_top falls back to the interface
-# defaults: the INFO+ preview levels and always-on-top off).
-SCHEMA_VERSION = 6
+# defaults: the INFO+ preview levels and always-on-top off, and a pre-v7 file
+# with no biocals block falls back to the default biocal stack).
+SCHEMA_VERSION = 7
 
 
 def build_payload(settings: dict[str, Any], metadata: dict) -> dict[str, Any]:
