@@ -9,6 +9,7 @@ from typing import cast
 
 import sounddevice as sd
 from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6.QtMultimedia import QMediaDevices
 
 from smacc import bids, devices, preferences, settings, winassoc
 
@@ -71,6 +72,12 @@ class SmaccWindow(ToolWindow):
             "devices": self.devices_window,
         }
         self.devices_window.changed.connect(self._refresh_device_indicators)
+        # Hot-plug doorbell: Qt6's QMediaDevices fires when an audio device is added
+        # or removed; that triggers an automatic rescan. Audio I/O stays on
+        # sounddevice — QMediaDevices is used only as the "something changed" signal.
+        self._media_devices = QMediaDevices(self)
+        self._media_devices.audioOutputsChanged.connect(self._on_devices_hotplug)
+        self._media_devices.audioInputsChanged.connect(self._on_devices_hotplug)
 
         self.init_main_window()  # builds the menu + log handler (does not show yet)
         self._apply_preferences(self._prefs)
@@ -642,6 +649,27 @@ class SmaccWindow(ToolWindow):
         """Re-render every panel's device indicator from session.devices."""
         for panel in self.panels.values():
             panel.refresh_device_indicator()
+
+    def _on_devices_hotplug(self) -> None:
+        """A device was added/removed: quietly rescan when nothing is streaming.
+
+        Skipped while audio is live (a PortAudio re-init would cut it); the operator
+        can use File ▸ Refresh devices once idle.
+        """
+        if any(panel.is_streaming() for panel in self.panels.values()):
+            return
+        was_logging = self.session.log_interactions
+        self.session.log_interactions = False
+        try:
+            sd._terminate()
+            sd._initialize()  # rebuild PortAudio's cached device list
+            self.devices_window.refresh_device_lists()
+            self._refresh_device_indicators()
+        except Exception:
+            return
+        finally:
+            self.session.log_interactions = was_logging
+        self.session.log_info_msg("Devices changed; lists rescanned")
 
     def _notify_missing_devices(self) -> None:
         """Surface, once, any saved devices that weren't connected when settings loaded.

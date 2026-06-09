@@ -45,8 +45,8 @@ add or remove cues to match a protocol (one minimum, up to 20).
 
 ## Dream reports
 
-Use the **Record Dream Report** button to record from the selected input device.
-Choose the device from **Audio &rsaquo; Input device &rsaquo; [choose device]**.
+Use the **Record Dream Report** button to record from the mic bound to the
+**Bedroom mic** role in the **Devices** window.
 Recordings are saved into the current session folder. Each report is also stamped
 with the time elapsed since you pressed **Start recording** (in the Event logging
 panel), so it is easy to locate in the EEG file; if recording has not been marked
