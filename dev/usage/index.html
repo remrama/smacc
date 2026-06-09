@@ -813,7 +813,7 @@ into a session. From here you:</p>
 <li><strong>Create settings</strong> — build a new <code>.smacc</code> in the <strong>settings editor</strong>: configure
   the tools (cues, noise, visual, event codes, surveys), choose a data directory,
   and save it anywhere. Use <strong>Edit…</strong> to reopen an existing one.</li>
-<li><strong>Analyze session</strong> — open a past session (a <code>.log</code>, a session folder, or a
+<li><strong>Analyze</strong> — open a past session (a <code>.log</code>, a session folder, or a
   zipped session) to see a summary (events, duration, subject/session, dream
   reports), export its events to a BIDS <code>events.tsv</code>, or recover its settings to a
   <code>.smacc</code> — all without starting a new session.</li>
@@ -853,7 +853,7 @@ can set:</p>
 <ul>
 <li><strong>Code</strong> — the 8-bit portcode (1–255) sent when the event triggers.</li>
 <li><strong>Trigger</strong> — whether the event is sent to the marker stream at all.</li>
-<li><strong>Preview</strong> — whether the event shows in the live log viewer. The session log
+<li><strong>Preview</strong> — whether the event shows in the live log preview. The session log
   <em>file</em> always records every event regardless; this only controls the on-screen
   preview.</li>
 <li><strong>Increment</strong> — give an event a unique, increasing code on each firing (e.g. <strong>dream
@@ -873,7 +873,7 @@ session is always recoverable.</p>
 and fade changes — as plain log lines (no portcode), so the session record is complete.</p>
 <h3 id="event-logging-panel">Event logging panel</h3>
 <p>The manual event buttons (Start recording, REM detected, Sleep onset, your custom events, …) live in the
-<strong>Event logging</strong> panel — open it from the session window's <strong>Open tools</strong> column; the
+<strong>Event logging</strong> panel — open it from the session window's <strong>Tools</strong> column; the
 first nine buttons take the 1–9 keyboard shortcuts while it's focused. The <strong>Lights</strong>
 toggle stays on the main window (it also flips the dark theme).</p>
 <h3 id="where-codes-live">Where codes live</h3>
@@ -884,7 +884,7 @@ mid-session.</p>
 <h2 id="event-log">Event log</h2>
 <p>Every run writes a detailed <code>.log</code> to its own timestamped folder under the settings
 file's <strong>data directory</strong> (e.g. <code>~/SMACC/data/</code>), capturing the events and settings
-for that session. Open one later from the launcher's <strong>Analyze session</strong> to see a
+for that session. Open one later from the launcher's <strong>Analyze</strong> to see a
 summary, export its events to BIDS, or recover its settings.</p>
 <h2 id="settings-files-smacc">Settings files (<code>.smacc</code>)</h2>
 <p>A <strong>settings file</strong> captures your reusable, data-related setup — cue files, volumes,
