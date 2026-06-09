@@ -121,9 +121,10 @@ with **✕**; the stack is locked while something is running. Need a biocal SMAC
 doesn't ship? Use a custom event button in the Event logging panel instead.
 
 **Voice recordings** live in your SMACC directory's `biocals/` folder (e.g.
-`~/SMACC/biocals/`), seeded from a bundled set on first launch. Prefer another
-voice or language? Replace any file with your own recording under the same name —
-SMACC never overwrites existing files, and each session start warns about any that
+`~/SMACC/biocals/`), seeded from a bundled set on first launch (generated with
+[ElevenLabs](https://elevenlabs.io) text-to-speech). Prefer another voice or
+language? Replace any file with your own recording under the same name — SMACC
+never overwrites existing files, and each session start warns about any that
 are missing (a biocal with a missing voice still runs, just unvoiced). The shared
 **Voice volume** rides the cue route, so the master output cap and the
 control-room monitor fan-out apply to instructions exactly as they do to cues.
