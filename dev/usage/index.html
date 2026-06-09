@@ -410,6 +410,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Audio cues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#designing-a-cue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Designing a cue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#is-the-cue-reaching-the-bedroom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Is the cue reaching the bedroom?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -685,6 +713,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Audio cues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#designing-a-cue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Designing a cue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#is-the-cue-reaching-the-bedroom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Is the cue reaching the bedroom?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -840,6 +896,9 @@ into a session. From here you:</p>
 <li><strong>Create settings</strong> — build a new <code>.smacc</code> in the <strong>settings editor</strong>: configure
   the tools (cues, noise, visual, event codes, surveys), choose a data directory,
   and save it anywhere. Use <strong>Edit…</strong> to reopen an existing one.</li>
+<li><strong>Design cues</strong> — open the standalone <strong>Cue designer</strong> to build a simple tone cue
+  and export it as a WAV into a study's <code>cues/</code> folder, ready to use from the Audio
+  cue board (see <a href="#designing-a-cue">Designing a cue</a>).</li>
 <li><strong>Analyze</strong> — open a past session (a <code>.log</code>, a session folder, or a
   zipped session) to see a summary (events, duration, subject/session, dream
   reports), export its events to a BIDS <code>events.tsv</code>, or recover its settings to a
@@ -857,6 +916,21 @@ returns to the launcher.</p>
 <code>demo-*</code> cues there so there is always something to test with. You start with one
 cue — prefilled with a random demo — and use <strong>+ Add cue</strong> and each row's <strong>✕</strong> to
 add or remove cues to match a protocol (one minimum, up to 20).</p>
+<h3 id="designing-a-cue">Designing a cue</h3>
+<p>No sound file ready? Open <strong>Design cues</strong> from the launcher to build a simple cue
+inside SMACC — no external audio editor needed. Lay out a sequence of <strong>tone</strong> and
+<strong>silence</strong> segments (each tone has a frequency, duration, and level, with an
+optional bell-like <strong>decay</strong>), add an optional whole-cue fade in/out, <strong>Preview</strong> it
+on your default output, then <strong>Export WAV…</strong> into your study's <code>cues/</code> folder. The
+exported file then appears in the Audio cue board like any other cue. The designer is
+a standalone tool: it plays on the default device and ignores the session's device
+routing and volume safety cap.</p>
+<h3 id="is-the-cue-reaching-the-bedroom">Is the cue reaching the bedroom?</h3>
+<p>The Audio cue window has a <strong>Monitoring</strong> section — a <em>Sending</em> meter (what SMACC is
+emitting) beside a <em>Bedroom</em> meter (what a mic actually picks up in the room) — so you
+can confirm a cue is audible to the participant, not just leaving SMACC. See
+<a href="../audio/#is-the-cue-reaching-the-bedroom">Audio &amp; routing</a> for how to read them
+and how to set up a dedicated monitor mic.</p>
 <h2 id="dream-reports">Dream reports</h2>
 <p>Use the <strong>Record Dream Report</strong> button to record from the mic bound to the
 <strong>Bedroom mic</strong> role in the <strong>Devices</strong> window.
