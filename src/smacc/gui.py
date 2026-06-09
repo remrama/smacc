@@ -23,6 +23,7 @@ from .panels.intercom import IntercomWindow
 from .panels.noise import NoiseWindow
 from .panels.recording import RecordingWindow
 from .panels.visual import VisualWindow
+from .panels.volume import VolumeWindow
 from .paths import LOGO_PATH, preferences_path
 from .qtlog import QtLogHandler
 from .session import SmaccSession
@@ -70,6 +71,7 @@ class SmaccWindow(ToolWindow):
             "recording": RecordingWindow(self.session),
             "intercom": IntercomWindow(self.session),
             "devices": self.devices_window,
+            "volume": VolumeWindow(self.session),
         }
         self.devices_window.changed.connect(self._refresh_device_indicators)
         # Hot-plug doorbell: Qt6's QMediaDevices fires when an audio device is added
@@ -175,6 +177,7 @@ class SmaccWindow(ToolWindow):
         "recording": "Dream recording",
         "intercom": "Intercom",
         "devices": "Devices",
+        "volume": "Volume",
     }
 
     def _build_launcher_buttons(self) -> QtWidgets.QLayout:
