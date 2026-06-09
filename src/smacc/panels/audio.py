@@ -375,7 +375,7 @@ class AudioCueWindow(ModalityWindow):
             for out in self._outputs:
                 out.mixer.volume = vol
         self.session.log_interaction(
-            f"Cue '{slot.nameEdit.text()}' volume set to {vol:.2f}"
+            f"Cue '{slot.nameEdit.text()}' volume set to {vol:.2f}", debug=True
         )
 
     def update_slot_loop(self, slot: CueSlot, enabled: bool | None = None) -> None:
