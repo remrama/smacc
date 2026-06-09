@@ -18,10 +18,9 @@ from pathlib import Path
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from . import preferences, settings
+from . import preferences, settings, windowstate
 from .analyze import AnalyzeWindow
 from .config import VERSION
-from .dialogs import PreferencesDialog
 from .gui import SmaccWindow
 from .paths import DEFAULT_DATA_DIR, DEFAULT_SETTINGS_PATH, LOGO_PATH, preferences_path
 from .session import SmaccSession
@@ -29,6 +28,9 @@ from .toolwindow import ToolWindow
 
 # Sentinel item-data for the Settings dropdown's "Browse…" entry (vs. a path str).
 _BROWSE_SENTINEL = "\x00browse"
+
+# Stable id for the launcher's geometry entry in the per-window preferences map.
+_LAUNCHER_WINDOW_ID = "launcher"
 
 
 def resolve_initial_settings(prefs: dict) -> str | None:
@@ -127,8 +129,11 @@ class LauncherWindow(QtWidgets.QMainWindow):
 
         self.statusBar()
         self.setCentralWidget(central)
-        self.resize(340, 360)
-        self._move_to_default_position()
+        # Reopen where it was last left (machine-local), else the default anchor.
+        prefs = preferences.load_preferences(preferences_path)
+        geometry = preferences.window_geometry(prefs, _LAUNCHER_WINDOW_ID)
+        if not windowstate.restore_geometry(self, geometry, default_size=(340, 360)):
+            self._move_to_default_position()
 
     def _move_to_default_position(self) -> None:
         """Open near the upper-left of the screen (not tucked into the corner).
@@ -148,11 +153,6 @@ class LauncherWindow(QtWidgets.QMainWindow):
         assert menu_bar is not None
         fileMenu = menu_bar.addMenu("&File")
         assert fileMenu is not None
-        prefsAction = fileMenu.addAction("&Preferences…")
-        assert prefsAction is not None
-        prefsAction.setStatusTip("Edit interface preferences (theme, log preview, …).")
-        prefsAction.triggered.connect(self.edit_preferences)
-        fileMenu.addSeparator()
         aboutAction = fileMenu.addAction("&About")
         assert aboutAction is not None
         aboutAction.setStatusTip("About SMACC (version and links).")
@@ -293,13 +293,6 @@ class LauncherWindow(QtWidgets.QMainWindow):
         """Open the analyze window over the current settings' data directory."""
         self._open_tool(AnalyzeWindow(self._data_dir()))
 
-    def edit_preferences(self) -> None:
-        """Edit interface preferences (theme, always-on-top, log-preview levels)."""
-        prefs = preferences.load_preferences(preferences_path)
-        dialog = PreferencesDialog(prefs, parent=self)
-        if dialog.exec():
-            preferences.update_preferences(preferences_path, dialog.changes())
-
     def show_about_popup(self) -> None:
         """Show SMACC's About dialog (version and links)."""
         box = QtWidgets.QMessageBox(self)
@@ -335,6 +328,10 @@ class LauncherWindow(QtWidgets.QMainWindow):
 
     def closeEvent(self, event: QtGui.QCloseEvent | None) -> None:
         """Closing the launcher quits SMACC (it is the app's root window)."""
+        # Remember where the launcher sat for next launch (best-effort, never raises).
+        preferences.update_window_geometry(
+            preferences_path, _LAUNCHER_WINDOW_ID, windowstate.geometry_of(self)
+        )
         app = QtWidgets.QApplication.instance()
         if app is not None:
             app.quit()

@@ -11,7 +11,7 @@ import sounddevice as sd
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtMultimedia import QMediaDevices
 
-from smacc import bids, devices, preferences, settings, triggers, winassoc
+from smacc import bids, devices, preferences, settings, triggers, winassoc, windowstate
 
 from .dialogs import (
     EventCodesDialog,
@@ -53,7 +53,9 @@ class SmaccWindow(ToolWindow):
         self.settings_path = settings_path
         # The data directory recorded in the settings (the editor can change it).
         self.data_dir = session.data_dir
-        # Operator/machine preferences (window/theme/log-preview); never raises.
+        # Machine-local preferences (per-window geometry + launcher state); the
+        # interface choices that used to live here now travel with the study. Loading
+        # never raises. Read once at construction; each window saves its own geometry.
         self._prefs = preferences.load_preferences(preferences_path)
 
         # Lights state drives the dark theme; sessions start with lights on.
@@ -61,6 +63,10 @@ class SmaccWindow(ToolWindow):
         # Tool windows are positioned (cascading, right of this window) the first
         # time each is opened; reopening leaves them where the operator put them.
         self._positioned_panels: set[str] = set()
+        # The preview-levels setting last loaded/saved with the study. In a session
+        # the live checkboxes are the source of truth; the editor has no preview
+        # pane, so it preserves this value verbatim instead of clobbering it.
+        self._preview_levels: list[str] = ["INFO", "WARNING", "ERROR", "CRITICAL"]
 
         # Modality windows, constructed up front (hidden) and opened on demand from
         # the launcher buttons. The Devices window owns all device selection; the
@@ -152,9 +158,9 @@ class SmaccWindow(ToolWindow):
                 QtWidgets.QStyle.StandardPixmap.SP_ToolBarHorizontalExtensionButton
             )
         self.setWindowIcon(windowIcon)
-        # Window size/position, theme, always-on-top, and log-preview levels come
-        # from saved preferences (applied by _apply_preferences); __init__ shows
-        # the window afterwards.
+        # Window size/position comes from saved machine preferences (_apply_preferences);
+        # always-on-top and the log-preview levels travel with the study and are applied
+        # by apply_settings. __init__ shows the window after both run.
 
     @staticmethod
     def _make_section_title(text: str) -> QtWidgets.QLabel:
@@ -243,14 +249,32 @@ class SmaccWindow(ToolWindow):
         return layout
 
     def _open_panel(self, key: str) -> None:
-        """Show and focus the modality window for ``key`` (placing it on first open)."""
+        """Show and focus the modality window for ``key`` (placing it on first open).
+
+        On a tool's first open this session, restore the position/size it was last
+        left at (machine-local, per window); with none saved (or off-screen now) it
+        cascades to the right of the session window as before. The editor reuses these
+        windows to author settings and always cascades (it persists no geometry).
+        """
         window = self.panels[key]
         if key not in self._positioned_panels:
-            self._position_panel(window, key)
+            if not (not self.design and self._restore_panel_geometry(window, key)):
+                self._position_panel(window, key)
             self._positioned_panels.add(key)
         window.show()
         window.raise_()
         window.activateWindow()
+
+    def _restore_panel_geometry(self, window: QtWidgets.QWidget, key: str) -> bool:
+        """Restore a tool window's saved geometry; return True iff a position was set.
+
+        Size is applied regardless; a missing/off-screen position returns False so the
+        caller falls back to the cascade placement.
+        """
+        geometry = preferences.window_geometry(self._prefs, key)
+        return windowstate.restore_geometry(
+            window, geometry, default_size=(window.width(), window.height())
+        )
 
     def _position_panel(self, window: QtWidgets.QWidget, key: str) -> None:
         """Cascade a tool window down-and-right of this window, in button order.
@@ -318,9 +342,10 @@ class SmaccWindow(ToolWindow):
         )
         exportEventsAction.triggered.connect(self.export_events_bids)
 
-        # Always-on-top is an interface preference (also in the launcher's
-        # Preferences). Built in both modes so _apply_preferences can set its state,
-        # but only surfaced in a session's menu.
+        # Always-on-top is a per-window interface choice that travels with the study
+        # (applied by _apply_always_on_top_settings). Built in both modes so settings
+        # can set its state, but only surfaced in a session's menu (tool windows carry
+        # their own toggle on the ModalityWindow base).
         alwaysOnTopAction = QtGui.QAction("Always on &top", self)
         alwaysOnTopAction.setStatusTip(
             "Keep the SMACC window above other applications."
@@ -558,7 +583,7 @@ class SmaccWindow(ToolWindow):
             self.dataDirLabel.setText(str(self.data_dir))
 
     def toggle_always_on_top(self, enabled: bool) -> None:
-        """Toggle the window's always-on-top hint (from the View menu)."""
+        """Toggle the main window's always-on-top hint (from its File menu)."""
         self.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, enabled)
         # Re-applying window flags hides the window on some platforms; re-show it.
         self.show()
@@ -639,7 +664,29 @@ class SmaccWindow(ToolWindow):
         # The data directory (where runs are written) travels with the settings;
         # the editor can repoint it, so read the window's copy, not the session's.
         state["data_directory"] = str(self.data_dir)
+        # Interface choices that used to live in preferences.yaml now travel with the
+        # study (schema v6): the live-preview levels and the main window's
+        # always-on-top, plus a per-tool always-on-top map keyed by panel key.
+        state["preview_levels"] = self._gather_preview_levels()
+        state["always_on_top"] = self._always_on_top_action.isChecked()
+        state["tool_always_on_top"] = {
+            key: panel.is_always_on_top() for key, panel in self.panels.items()
+        }
         return state
+
+    def _gather_preview_levels(self) -> list[str]:
+        """The enabled preview levels as level-name strings (for the settings file).
+
+        In a session the live checkboxes are authoritative; the editor has no preview
+        pane, so it returns the value last loaded/saved (preserved verbatim) rather
+        than an empty list that would silently wipe a study's preview-level choice.
+        """
+        if self.design:
+            return list(self._preview_levels)
+        checked = {
+            level for level, box in self._preview_level_boxes.items() if box.isChecked()
+        }
+        return preferences.levels_to_names(checked)
 
     def apply_settings(self, state: dict) -> None:
         """Apply a settings ``state`` dict to every panel (each reads its own keys).
@@ -668,11 +715,54 @@ class SmaccWindow(ToolWindow):
             self._rebuild_events_panel()  # a loaded study may add/remove buttons
             self.devices_window.reload_from_config()  # sync widgets + flag missing
             self._refresh_device_indicators()
+            # Interface choices carried by the study (schema v6): preview levels and
+            # per-window always-on-top. A pre-v6 study omits these; defaults apply.
+            self._apply_preview_levels(state)
+            self._apply_always_on_top_settings(state)
         finally:
             self.session.log_interactions = was_logging
         self._notify_missing_devices()
         if trigger_error:
             self.show_error_popup("Hardware trigger unavailable.", trigger_error)
+
+    def _apply_preview_levels(self, state: dict) -> None:
+        """Sync the live-preview level boxes from a loaded study's ``preview_levels``.
+
+        Absent (a pre-v6 study) leaves the current selection — which the window seeded
+        to the default set — untouched, so older files load with sensible defaults.
+        The value is also remembered so the editor (which has no preview pane) can
+        round-trip it on save instead of clobbering it.
+        """
+        if "preview_levels" not in state:
+            return
+        names = state.get("preview_levels") or []
+        self._preview_levels = list(names)
+        wanted = preferences.names_to_levels(names)
+        for level, box in self._preview_level_boxes.items():
+            box.blockSignals(True)
+            box.setChecked(level in wanted)
+            box.blockSignals(False)
+        self._update_preview_levels()
+
+    def _apply_always_on_top_settings(self, state: dict) -> None:
+        """Apply the main window's + each tool window's always-on-top from a study.
+
+        The main window's flag is the moved ``always_on_top`` scalar; the tools read
+        a ``tool_always_on_top`` map keyed by panel key. Both default to off for a
+        pre-v6 study (or any key the file omits).
+        """
+        main = bool(state.get("always_on_top", False))
+        self._always_on_top_action.blockSignals(True)
+        self._always_on_top_action.setChecked(main)
+        self._always_on_top_action.blockSignals(False)
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, main)
+        if main and self.isVisible():
+            self.show()  # re-applying the flag can hide the window; re-show it
+        tool_map = state.get("tool_always_on_top")
+        if not isinstance(tool_map, dict):
+            tool_map = {}
+        for key, panel in self.panels.items():
+            panel.set_always_on_top(bool(tool_map.get(key, False)))
 
     def _rebuild_events_panel(self) -> None:
         """Rebuild the Event logging panel's buttons after the registry changes."""
@@ -761,28 +851,14 @@ class SmaccWindow(ToolWindow):
     # ----- preferences / launch-file / file association ----------------------
 
     def _apply_preferences(self, prefs: dict) -> None:
-        """Apply saved operator/UI preferences to the freshly built window.
+        """Apply saved machine preferences (window geometry) to the freshly built window.
 
-        Runs after the menu + log handler exist and before the window is shown.
-        Signals are blocked while setting checked states so the handlers don't
-        fire during setup (which would log spurious lines or re-show the window).
+        Runs after the menu + log handler exist and before the window is shown. The
+        always-on-top and log-preview choices no longer live here — they travel with
+        the study and are applied by :meth:`apply_settings` (defaults stand until a
+        file loads): off, and the default INFO+ levels seeded in init_main_window.
+        Signals are blocked while setting checked states so the handlers don't fire.
         """
-        # Always-on-top: set the flag directly (the toggled handler re-shows + logs).
-        self._always_on_top_action.blockSignals(True)
-        self._always_on_top_action.setChecked(bool(prefs["always_on_top"]))
-        self._always_on_top_action.blockSignals(False)
-        if prefs["always_on_top"]:
-            self.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, True)
-
-        # Log-preview levels (the level checkboxes exist now, built in
-        # init_main_window). Empty in the editor, which has no preview.
-        wanted = preferences.names_to_levels(prefs.get("preview_levels", []))
-        for level, box in self._preview_level_boxes.items():
-            box.blockSignals(True)
-            box.setChecked(level in wanted)
-            box.blockSignals(False)
-        self._update_preview_levels()
-
         # Lights always start ON each launch — the dark theme is per-session
         # state, not a saved preference. Keep the switch in sync, fire no marker.
         self.lightswitchButton.blockSignals(True)
@@ -795,21 +871,11 @@ class SmaccWindow(ToolWindow):
         if self.design:
             self.resize(640, 460)
         else:
-            self._restore_geometry(prefs.get("window") or {})
-
-    def _restore_geometry(self, window: dict) -> None:
-        """Restore saved window size/position, ignoring fully off-screen positions."""
-        width = int(window.get("w") or 640)
-        height = int(window.get("h") or 560)
-        self.resize(width, height)
-        x, y = window.get("x"), window.get("y")
-        if x is None or y is None:
-            self._move_to_default_position()  # first run: sit by the launcher
-            return
-        rect = QtCore.QRect(int(x), int(y), width, height)
-        screens = QtWidgets.QApplication.screens()
-        if any(screen.availableGeometry().intersects(rect) for screen in screens):
-            self.move(int(x), int(y))
+            geometry = preferences.window_geometry(prefs, preferences.MAIN_WINDOW_ID)
+            if not windowstate.restore_geometry(
+                self, geometry, default_size=(640, 560)
+            ):
+                self._move_to_default_position()  # first run: sit by the launcher
 
     def _move_to_default_position(self) -> None:
         """Place a first-run session window just down-right of the launcher.
@@ -824,26 +890,17 @@ class SmaccWindow(ToolWindow):
         avail = screen.availableGeometry()
         self.move(avail.left() + 88, avail.top() + 88)
 
-    def _preference_changes(self) -> dict:
-        """The operator/UI keys this window owns, for a non-clobbering prefs update.
+    def _save_geometry(self) -> None:
+        """Persist this window's position/size under the main-window id (best-effort).
 
-        Only the keys the session window manages are returned; merging them with
-        :func:`preferences.update_preferences` leaves other writers' keys (e.g. the
-        launcher's recent-settings list) untouched.
+        Merged into the on-disk per-window map so it doesn't clobber the launcher's
+        recents or any other window's geometry. The editor doesn't persist geometry.
         """
-        checked = {
-            level for level, box in self._preview_level_boxes.items() if box.isChecked()
-        }
-        return {
-            "always_on_top": self._always_on_top_action.isChecked(),
-            "preview_levels": preferences.levels_to_names(checked),
-            "window": {
-                "x": self.x(),
-                "y": self.y(),
-                "w": self.width(),
-                "h": self.height(),
-            },
-        }
+        if self.design:
+            return
+        preferences.update_window_geometry(
+            preferences_path, preferences.MAIN_WINDOW_ID, windowstate.geometry_of(self)
+        )
 
     def _load_initial_settings(self, settings_path: str) -> None:
         """Load a settings file given on launch and apply it as the initial setup."""
@@ -1129,8 +1186,17 @@ class SmaccWindow(ToolWindow):
         self.session.log_info_msg(f"Exported {count} events to {out_path}")
 
     def _teardown_panels(self) -> None:
-        """Stop and close every modality window (called when this window closes)."""
-        for panel in self.panels.values():
+        """Stop and close every modality window (called when this window closes).
+
+        Each panel that the operator opened this session records its geometry under
+        its panel key, so it reopens where it was left next time. The editor reuses
+        these windows to author settings and deliberately doesn't persist geometry.
+        """
+        for key, panel in self.panels.items():
+            if not self.design and key in self._positioned_panels:
+                preferences.update_window_geometry(
+                    preferences_path, key, windowstate.geometry_of(panel)
+                )
             panel._quitting = True
             panel.cleanup()
             panel.close()
@@ -1173,10 +1239,8 @@ class SmaccWindow(ToolWindow):
             self, "End session", "End this session and return to the SMACC menu?"
         )
         if response == QtWidgets.QMessageBox.StandardButton.Yes:
+            self._save_geometry()  # before teardown closes/moves anything
             self._teardown_panels()
-            # Persist this window's operator/UI preferences for next launch, merging
-            # so we don't clobber keys other windows own (best-effort, never raises).
-            preferences.update_preferences(preferences_path, self._preference_changes())
             self.session.log_info_msg("Session ended")
             # Record the final settings (incl. any mid-session edits) as the tail.
             self.session.end_log(self.gather_settings())
