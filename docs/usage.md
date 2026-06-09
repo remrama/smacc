@@ -23,7 +23,7 @@ into a session. From here you:
 - **Create settings** — build a new `.smacc` in the **settings editor**: configure
   the tools (cues, noise, visual, event codes, surveys), choose a data directory,
   and save it anywhere. Use **Edit…** to reopen an existing one.
-- **Analyze session** — open a past session (a `.log`, a session folder, or a
+- **Analyze** — open a past session (a `.log`, a session folder, or a
   zipped session) to see a summary (events, duration, subject/session, dream
   reports), export its events to a BIDS `events.tsv`, or recover its settings to a
   `.smacc` — all without starting a new session.
@@ -72,7 +72,7 @@ can set:
 
 - **Code** — the 8-bit portcode (1–255) sent when the event triggers.
 - **Trigger** — whether the event is sent to the marker stream at all.
-- **Preview** — whether the event shows in the live log viewer. The session log
+- **Preview** — whether the event shows in the live log preview. The session log
   *file* always records every event regardless; this only controls the on-screen
   preview.
 - **Increment** — give an event a unique, increasing code on each firing (e.g. **dream
@@ -97,7 +97,7 @@ and fade changes — as plain log lines (no portcode), so the session record is 
 ### Event logging panel
 
 The manual event buttons (Start recording, REM detected, Sleep onset, your custom events, …) live in the
-**Event logging** panel — open it from the session window's **Open tools** column; the
+**Event logging** panel — open it from the session window's **Tools** column; the
 first nine buttons take the 1–9 keyboard shortcuts while it's focused. The **Lights**
 toggle stays on the main window (it also flips the dark theme).
 
@@ -112,7 +112,7 @@ mid-session.
 
 Every run writes a detailed `.log` to its own timestamped folder under the settings
 file's **data directory** (e.g. `~/SMACC/data/`), capturing the events and settings
-for that session. Open one later from the launcher's **Analyze session** to see a
+for that session. Open one later from the launcher's **Analyze** to see a
 summary, export its events to BIDS, or recover its settings.
 
 ## Settings files (`.smacc`)

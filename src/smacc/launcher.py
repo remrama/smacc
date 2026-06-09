@@ -100,7 +100,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
 
         # Analyzing a past session is a separate, post-hoc task.
         layout.addSpacing(8)
-        analyzeButton = QtWidgets.QPushButton("Analyze session", self)
+        analyzeButton = QtWidgets.QPushButton("Analyze", self)
         analyzeButton.setMinimumHeight(40)
         analyzeButton.setStatusTip(
             "Summarize a past session, export its events, or recover its settings."
@@ -109,14 +109,39 @@ class LauncherWindow(QtWidgets.QMainWindow):
         layout.addWidget(analyzeButton)
 
         layout.addStretch(1)
-        footer = QtWidgets.QLabel(f"v{VERSION} — github.com/remrama/smacc")
+        # Link to the documentation site (not the repo), hyperlinked. Rich text +
+        # open-external-links makes it clickable; we don't disable the label
+        # (which would also kill the link), so style it subdued instead.
+        footer = QtWidgets.QLabel(
+            f'v{VERSION} — <a href="https://remrama.github.io/smacc">'
+            "remrama.github.io/smacc</a>"
+        )
         footer.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        footer.setEnabled(False)
+        footer.setTextFormat(QtCore.Qt.TextFormat.RichText)
+        footer.setTextInteractionFlags(
+            QtCore.Qt.TextInteractionFlag.TextBrowserInteraction
+        )
+        footer.setOpenExternalLinks(True)
+        footer.setStatusTip("Open the SMACC documentation site.")
         layout.addWidget(footer)
 
         self.statusBar()
         self.setCentralWidget(central)
-        self.resize(420, 360)
+        self.resize(340, 360)
+        self._move_to_default_position()
+
+    def _move_to_default_position(self) -> None:
+        """Open near the upper-left of the screen (not tucked into the corner).
+
+        Sets the anchor for the whole window stack: a started session opens just
+        down-right of here, and its tool windows cascade farther right (see
+        :mod:`smacc.gui`).
+        """
+        screen = self.screen() or QtWidgets.QApplication.primaryScreen()
+        if screen is None:
+            return
+        avail = screen.availableGeometry()
+        self.move(avail.left() + 48, avail.top() + 48)
 
     def _build_menu(self) -> None:
         menu_bar = self.menuBar()
@@ -128,6 +153,10 @@ class LauncherWindow(QtWidgets.QMainWindow):
         prefsAction.setStatusTip("Edit interface preferences (theme, log preview, …).")
         prefsAction.triggered.connect(self.edit_preferences)
         fileMenu.addSeparator()
+        aboutAction = fileMenu.addAction("&About")
+        assert aboutAction is not None
+        aboutAction.setStatusTip("About SMACC (version and links).")
+        aboutAction.triggered.connect(self.show_about_popup)
         quitAction = fileMenu.addAction("&Quit")
         assert quitAction is not None
         quitAction.setShortcut("Ctrl+Q")
@@ -271,6 +300,15 @@ class LauncherWindow(QtWidgets.QMainWindow):
         if dialog.exec():
             preferences.update_preferences(preferences_path, dialog.changes())
 
+    def show_about_popup(self) -> None:
+        """Show SMACC's About dialog (version and links)."""
+        box = QtWidgets.QMessageBox(self)
+        box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
+        box.setWindowTitle("About SMACC")
+        box.setText("Sleep Manipulation and Communication Clickything")
+        box.setInformativeText(f"version: v{VERSION}\nhttps://github.com/remrama/smacc")
+        box.exec()
+
     # ----- tool-window lifecycle -------------------------------------------
 
     def _open_tool(self, window: ToolWindow) -> None:
@@ -286,6 +324,11 @@ class LauncherWindow(QtWidgets.QMainWindow):
             self._set_settings(tool.settings_path)
         else:
             self._populate_settings_combo()
+        # The dark theme is a per-session "lights off" state; a session that ended
+        # dark shouldn't leave the launcher dark, so reset to light on return.
+        hints = QtGui.QGuiApplication.styleHints()
+        assert hints is not None
+        hints.setColorScheme(QtCore.Qt.ColorScheme.Light)
         self.show()
         self.raise_()
         self.activateWindow()

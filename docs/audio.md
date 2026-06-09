@@ -13,7 +13,7 @@ routing, and volume — the parts that are easy to get wrong at 3 a.m.
 ## Roles, not per-window device pickers
 
 Instead of picking a device separately in every window, SMACC has **one Devices
-window** (in the *Open tools* column) where you do two things:
+window** (in the *Tools* column) where you do two things:
 
 1. **Bind each _role_ to a device, once.** The roles are the physical endpoints of a
    rig: **Bedroom output**, **Control-room output**, **Bedroom mic**, and

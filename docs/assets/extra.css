@@ -1,3 +1,13 @@
+/* Match the header (primary) color to the SMACC icon's background exactly.
+   Material's default scheme uses indigo (#3f51b5), which is very close to the
+   icon background but slightly off, so the logo looked like it floated on a
+   not-quite-matching bar. #3c48aa is the icon's actual background color. */
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #3c48aa;
+  --md-primary-fg-color--light: #5561c4;
+  --md-primary-fg-color--dark: #2e3884;
+}
+
 /* Keep the repository (GitHub) link in the top-right header on small screens.
    By default Material hides .md-header__source below the desktop breakpoint
    (76.25em) and shows the source inside the navigation drawer (.md-nav__source)
