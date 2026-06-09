@@ -621,6 +621,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#biocals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        biocals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#window-level" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -890,6 +901,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#biocals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        biocals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#window-level" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1015,6 +1037,11 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <span class="w">  </span><span class="c1"># --- Survey ----------------------------------------------------------------</span>
 <span class="w">  </span><span class="nt">survey_url</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
 <span class="w">  </span><span class="nt">survey_options</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<span class="w">  </span><span class="c1"># --- Biocals ---------------------------------------------------------------</span>
+<span class="w">  </span><span class="nt">biocals</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">voice_volume</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.5</span>
+<span class="w">    </span><span class="nt">rows</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">biocal</span><span class="p">:</span><span class="w"> </span><span class="nv">eyes_open</span><span class="p p-Indicator">,</span><span class="nt"> sequence</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> voice</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> duration</span><span class="p">:</span><span class="w"> </span><span class="nv">30</span><span class="p p-Indicator">}</span>
 <span class="w">  </span><span class="c1"># --- Output safety cap -----------------------------------------------------</span>
 <span class="w">  </span><span class="nt">volume_cap</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
 <span class="w">  </span><span class="c1"># --- Device roles + routing ------------------------------------------------</span>
@@ -1153,6 +1180,43 @@ Any key may be omitted — each falls back to its default.</p>
 <td><code>volume_cap</code></td>
 <td>0–1</td>
 <td>Master output safety cap multiplied into every stimulus (<code>1.0</code> = no cap).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="biocals"><code>biocals</code></h3>
+<p>The Biocals window's stack (see <a href="../../usage/#biocals">Usage › Biocals</a>):
+<code>voice_volume</code> (0–1, the shared instruction volume) plus one <code>rows</code> entry per
+stack row, in display order. Rows may repeat a biocal (e.g. eyes-closed twice in
+the played sequence). A missing block — or a block without <code>rows</code> — loads the
+default stack; an empty <code>rows</code> list is respected as a deliberately cleared one.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>biocal</code></td>
+<td>string</td>
+<td>Stable biocal id (e.g. <code>eyes_open</code>); unknown ids are dropped.</td>
+</tr>
+<tr>
+<td><code>sequence</code></td>
+<td>boolean</td>
+<td>Include this row when the sequence is played.</td>
+</tr>
+<tr>
+<td><code>voice</code></td>
+<td>boolean</td>
+<td>Speak the pre-recorded instruction when the biocal starts.</td>
+</tr>
+<tr>
+<td><code>duration</code></td>
+<td>integer</td>
+<td>Task-window length in seconds (1–600); the countdown and the completion marker run on it.</td>
 </tr>
 </tbody>
 </table>
@@ -1321,7 +1385,7 @@ folder stays valid when moved, copied, or zipped.</p>
 <tbody>
 <tr>
 <td>1</td>
-<td>First stable schema. Envelope (<code>kind</code> / <code>schema_version</code> / <code>smacc_version</code> / <code>metadata</code> / <code>settings</code>); panel state; the <code>devices</code>, <code>event_codes</code> + <code>event_code_safe_max</code>, <code>trigger_output</code>, <code>data_directory</code>, <code>preview_levels</code>, <code>always_on_top</code>, and <code>tool_always_on_top</code> blocks.</td>
+<td>First stable schema. Envelope (<code>kind</code> / <code>schema_version</code> / <code>smacc_version</code> / <code>metadata</code> / <code>settings</code>); panel state; the <code>biocals</code>, <code>devices</code>, <code>event_codes</code> + <code>event_code_safe_max</code>, <code>trigger_output</code>, <code>data_directory</code>, <code>preview_levels</code>, <code>always_on_top</code>, and <code>tool_always_on_top</code> blocks.</td>
 </tr>
 </tbody>
 </table>
