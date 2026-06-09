@@ -7,7 +7,7 @@ one base lets the launcher manage every tool through the same small contract.
 
 from __future__ import annotations
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtWidgets
 
 
 class ToolWindow(QtWidgets.QMainWindow):

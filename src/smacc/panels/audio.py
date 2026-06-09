@@ -16,8 +16,9 @@ import tempfile
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
+from typing import cast
 
-from PyQt5 import QtCore, QtMultimedia, QtWidgets
+from PyQt6 import QtCore, QtMultimedia, QtWidgets
 
 from ..session import SmaccSession
 from ..utils import ensure_wav, pick_random_demo_cue
@@ -131,17 +132,17 @@ class AudioCueWindow(ModalityWindow):
         # Shared device + fade controls.
         available_speakers_dropdown = QtWidgets.QComboBox()
         available_speakers_dropdown.setPlaceholderText("No speaker devices were found.")
-        # Qt5's QSoundEffect has no output-device selection, so this picker can't
-        # route cues. Disabled (but populated) until the playback engine is moved
-        # onto a backend that supports device selection; see the follow-up issue.
+        # Cue playback (QSoundEffect) isn't routed to a chosen device yet, so this
+        # picker is populated for reference but disabled until cue playback moves
+        # onto the unified sounddevice engine; see the follow-up issue.
         available_speakers_dropdown.setEnabled(False)
         available_speakers_dropdown.setStatusTip(
             "Device selection isn't supported for cues yet; they play on the system "
             "default output."
         )
         available_speakers_dropdown.setToolTip(
-            "Qt5 can't route cue playback to a specific device; cues use the system "
-            "default output."
+            "Cue playback can't be routed to a specific device yet; cues use the "
+            "system default output."
         )
         self.available_speakers_dropdown = available_speakers_dropdown
         self.refresh_available_speakers()
@@ -169,14 +170,14 @@ class AudioCueWindow(ModalityWindow):
         self.releaseSpinBox = releaseSpinBox
 
         header = QtWidgets.QFormLayout()
-        header.setLabelAlignment(QtCore.Qt.AlignRight)
+        header.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         header.addRow("Device:", available_speakers_dropdown)
         header.addRow("Fade in:", attackSpinBox)
         header.addRow("Fade out:", releaseSpinBox)
 
         # "Now playing" indicator on top of the slot table (mixing-board style).
         self.nowPlayingLabel = QtWidgets.QLabel("■ stopped", self)  # ■
-        self.nowPlayingLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.nowPlayingLabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         # Cue table: a persistent header row, then one rebuildable row per slot,
         # then an "add" row. The header labels and add button are created once and
@@ -294,21 +295,16 @@ class AudioCueWindow(ModalityWindow):
     # ----- shared device + fade ---------------------------------------------
 
     def refresh_available_speakers(self):
-        """Populate the device dropdown with available audio outputs."""
+        """Populate the (disabled) device dropdown with available audio outputs.
+
+        QSoundEffect can't route to a chosen device, so this list is shown for
+        reference only (the picker is disabled); it mirrors Qt's current outputs.
+        """
         self.available_speakers_dropdown.clear()
-        devices = QtMultimedia.QAudioDeviceInfo.availableDevices(
-            QtMultimedia.QAudio.AudioOutput
-        )
-        devices = [d for d in devices if d.realm() != "default"]
-        for device in devices:
-            device_name = device.deviceName()
-            device_realm = device.realm()  # differentiates the default-output dupe
-            device_str = f"{device_name} [{device_realm}]"
-            self.available_speakers_dropdown.addItem(device_str)
-        if devices:
+        for device in QtMultimedia.QMediaDevices.audioOutputs():
+            self.available_speakers_dropdown.addItem(device.description())
+        if self.available_speakers_dropdown.count():
             self.available_speakers_dropdown.setCurrentIndex(0)
-        else:
-            self.session.show_error_popup("No audio devices found.", parent=self)
 
     def update_cue_attack(self, value: float) -> None:
         """Set the shared cue fade-in (attack) time in seconds."""
@@ -381,7 +377,10 @@ class AudioCueWindow(ModalityWindow):
     def update_slot_loop(self, slot: CueSlot, enabled: bool | None = None) -> None:
         """Set a slot player's loop count from its checkbox."""
         looping = slot.loopCheckBox.isChecked()
-        count = QtMultimedia.QSoundEffect.Infinite if looping else 1
+        # QSoundEffect.Loop is a plain Enum here; its .value is the int (-2) that
+        # setLoopCount expects (mypy mistypes the member, so coerce to int).
+        infinite = cast(int, QtMultimedia.QSoundEffect.Loop.Infinite.value)
+        count = infinite if looping else 1
         slot.player.setLoopCount(count)
         self.session.log_interaction(
             f"Cue '{slot.nameEdit.text()}' loop {'on' if looping else 'off'}"

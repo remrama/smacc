@@ -5,7 +5,8 @@ from __future__ import annotations
 import webbrowser
 
 import sounddevice as sd
-from PyQt5 import QtCore, QtMultimedia, QtWidgets
+import soundfile as sf
+from PyQt6 import QtCore, QtWidgets
 
 from .. import audio
 from ..config import SURVEY_OPTIONS
@@ -21,14 +22,20 @@ from .base import (
 
 
 class RecordingWindow(ModalityWindow):
-    """Record a spoken dream report, monitor input level, and open a survey."""
+    """Record a spoken dream report, monitor input level, and open a survey.
+
+    Capture and the level meter both run on sounddevice (PortAudio), so the
+    microphone is identified the same way everywhere — one device string, no
+    Qt-name-to-PortAudio matching. A report is written straight to a WAV in the
+    run folder as it records.
+    """
 
     TITLE = "Dream recording"
 
     def __init__(self, session: SmaccSession, parent: QtWidgets.QWidget | None = None):
         super().__init__(session, parent)
         self.n_report_counter = 0  # cumulative counter for determining filenames
-        self.init_microphone()
+        self.init_recorder()
         self.init_level_meter()
         self.setCentralWidget(self._build())
 
@@ -47,6 +54,7 @@ class RecordingWindow(ModalityWindow):
         micrecordButton.setStatusTip("Ask for a dream report and start recording.")
         micrecordButton.setCheckable(True)
         micrecordButton.clicked.connect(self.start_or_stop_recording)
+        self.micrecordButton = micrecordButton
         if not self.session.can_record:
             # The study designer has no run folder to record into; configuring the
             # device and surveys still works, so only the recording itself is off.
@@ -57,12 +65,12 @@ class RecordingWindow(ModalityWindow):
 
         # Recording indicator (replaces the old log-viewer red border).
         self.recordingIndicatorLabel = QtWidgets.QLabel("■ idle", self)
-        self.recordingIndicatorLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.recordingIndicatorLabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         # Live input level meter (#25): monitor microphone/room level in dBFS.
         monitorCheckBox = QtWidgets.QCheckBox(self)
         monitorCheckBox.setStatusTip(
-            "Show the live input level from the default microphone, in dBFS."
+            "Show the live input level from the selected microphone, in dBFS."
         )
         monitorCheckBox.toggled.connect(self.toggle_level_monitor)
         self.monitorCheckBox = monitorCheckBox
@@ -81,7 +89,7 @@ class RecordingWindow(ModalityWindow):
         # Survey selector: editable dropdown of named presets (or a typed-in URL).
         surveyComboBox = QtWidgets.QComboBox(self)
         surveyComboBox.setEditable(True)
-        surveyComboBox.setInsertPolicy(QtWidgets.QComboBox.NoInsert)
+        surveyComboBox.setInsertPolicy(QtWidgets.QComboBox.InsertPolicy.NoInsert)
         surveyComboBox.setStatusTip(
             "Survey opened in the browser when a dream report starts. "
             "Pick a preset or type a URL (leave blank for none)."
@@ -100,7 +108,7 @@ class RecordingWindow(ModalityWindow):
         surveyRow.addWidget(manageSurveysButton)
 
         layout = QtWidgets.QFormLayout()
-        layout.setLabelAlignment(QtCore.Qt.AlignRight)
+        layout.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         layout.addRow(make_section_title("Dream recording"))
         layout.addRow("Device:", available_microphones_dropdown)
         layout.addRow("Survey:", surveyRow)
@@ -113,36 +121,45 @@ class RecordingWindow(ModalityWindow):
 
     # ----- microphone / recording -------------------------------------------
 
-    def init_microphone(self):
-        """Initialize the microphone/recorder used to collect dream reports."""
-        settings = QtMultimedia.QAudioEncoderSettings()
-        settings.setEncodingMode(QtMultimedia.QMultimedia.ConstantQualityEncoding)
-        settings.setQuality(QtMultimedia.QMultimedia.NormalQuality)
-        microphone = QtMultimedia.QAudioRecorder()
-        microphone.setEncodingSettings(settings)
-        microphone.stateChanged.connect(self.update_microphone_status)
-        self.microphone = microphone
+    def init_recorder(self) -> None:
+        """Initialize the dream-report recorder state (a sounddevice input stream)."""
+        self._record_stream: sd.InputStream | None = None
+        self._record_file: sf.SoundFile | None = None
+
+    def _selected_input_device(self) -> str | None:
+        """The sounddevice device string for the selected mic (None == default)."""
+        return self.available_microphones_dropdown.currentText() or None
 
     def set_new_microphone(self, text: str) -> None:
-        """Apply the selected microphone to the recorder and live level meter."""
-        name = self.available_microphones_dropdown.currentData()
-        if name:
-            self.microphone.setAudioInput(name)
+        """Log the selected microphone and switch a live level meter over to it."""
         self.session.log_interaction(f"Microphone set to {text}")
         self._restart_meter_if_monitoring()  # switch a live meter over too
 
     def refresh_available_microphones(self):
-        """Populate the microphone dropdown with available audio input devices.
+        """Populate the microphone dropdown with available WASAPI input devices.
 
-        Items carry the raw input name (the value ``setAudioInput`` expects) as data
-        and show a friendlier description as text.
+        Each item shows (and is keyed by) the sounddevice device string — the same
+        value passed to the recording and level-meter streams — so there is a single
+        device identity throughout the panel.
         """
         self.available_microphones_dropdown.clear()
-        names = self.microphone.audioInputs()
-        for name in names:
-            description = self.microphone.audioInputDescription(name) or name
-            self.available_microphones_dropdown.addItem(description, name)
-        if names:
+        host_api_name = "Windows WASAPI"
+        host_api_names = [api["name"] for api in sd.query_hostapis()]
+        hostapi = (
+            host_api_names.index(host_api_name)
+            if host_api_name in host_api_names
+            else None
+        )
+        count = 0
+        for device in sd.query_devices():
+            if device["max_input_channels"] <= 0:
+                continue
+            if hostapi is not None and device["hostapi"] != hostapi:
+                continue
+            suffix = f", {host_api_name}" if hostapi is not None else ""
+            self.available_microphones_dropdown.addItem(f"{device['name']}{suffix}")
+            count += 1
+        if count:
             self.available_microphones_dropdown.setCurrentIndex(0)
         elif self.session.can_record:
             # In the designer there's no recording, so don't nag about missing mics.
@@ -157,37 +174,14 @@ class RecordingWindow(ModalityWindow):
 
     def is_streaming(self) -> bool:
         """True while the level meter is open or a dream report is recording."""
-        return (
-            self.meter_stream is not None
-            or self.microphone.state() == QtMultimedia.QMediaRecorder.RecordingState
-        )
-
-    def record(self):
-        state = self.microphone.state()  # recording / paused / stopped
-        if state == QtMultimedia.QMediaRecorder.StoppedState:
-            self.n_report_counter += 1
-            # Reports live in this run's session folder; the folder already
-            # namespaces them, so a short report-NN name is enough.
-            basename = f"report-{self.n_report_counter:02d}.wav"
-            export_fname = self.session.session_dir / basename
-            self.microphone.setOutputLocation(
-                QtCore.QUrl.fromLocalFile(str(export_fname))
-            )
-            self.microphone.record()
-        elif state == QtMultimedia.QMediaRecorder.RecordingState:
-            self.microphone.stop()
-
-    def update_microphone_status(self, state):
-        if state == QtMultimedia.QMediaRecorder.RecordingState:
-            self.recordingIndicatorLabel.setText("● recording")
-            self.recordingIndicatorLabel.setStyleSheet("color: red; font-weight: bold;")
-        else:
-            self.recordingIndicatorLabel.setText("■ idle")
-            self.recordingIndicatorLabel.setStyleSheet("")
+        return self.meter_stream is not None or self._record_stream is not None
 
     def start_or_stop_recording(self):
-        self.record()  # starts OR stops, whichever isn't currently happening
-        if self.sender().isChecked():
+        """Start or stop a dream report (the button's checked state is the intent)."""
+        if self.micrecordButton.isChecked():
+            if not self._start_recording():
+                self.micrecordButton.setChecked(False)  # start failed; revert
+                return
             if survey_url := self.current_survey_url():
                 self.open_survey_url(survey_url, self.surveyComboBox.currentText())
             # Stamp the report with the time since the "Start recording" marker so
@@ -210,7 +204,75 @@ class RecordingWindow(ModalityWindow):
                     "DreamReportStarted", detail=f"t+{format_elapsed(elapsed)}"
                 )
         else:
+            self._stop_recording()
             self.session.emit_event("DreamReportStopped")
+
+    def _start_recording(self) -> bool:
+        """Open the mic stream and the report WAV; return True on success.
+
+        Reports live in this run's session folder; the folder already namespaces
+        them, so a short report-NN name is enough.
+        """
+        device = self._selected_input_device()
+        self.n_report_counter += 1
+        assert self.session.session_dir is not None  # recording is gated on can_record
+        export_path = (
+            self.session.session_dir / f"report-{self.n_report_counter:02d}.wav"
+        )
+        try:
+            rate = int(sd.query_devices(device, "input")["default_samplerate"])
+            self._record_file = sf.SoundFile(
+                str(export_path),
+                mode="w",
+                samplerate=rate,
+                channels=1,
+                subtype="PCM_16",
+            )
+            self._record_stream = sd.InputStream(
+                device=device,
+                channels=1,
+                samplerate=rate,
+                callback=self._record_callback,
+            )
+            self._record_stream.start()
+        except Exception as exc:  # PortAudio / file-open errors
+            self._teardown_recording()
+            self.n_report_counter -= 1  # this attempt produced no report
+            self.session.show_error_popup(
+                "Could not start recording.", str(exc), parent=self
+            )
+            return False
+        self._set_recording_indicator(True)
+        return True
+
+    def _stop_recording(self) -> None:
+        """Stop the mic stream and finalize the report WAV."""
+        self._teardown_recording()
+        self._set_recording_indicator(False)
+
+    def _teardown_recording(self) -> None:
+        """Close the recording stream and file if open (safe to call repeatedly)."""
+        if self._record_stream is not None:
+            self._record_stream.abort()
+            self._record_stream.close()
+            self._record_stream = None
+        if self._record_file is not None:
+            self._record_file.close()
+            self._record_file = None
+
+    def _record_callback(self, indata, frames, time, status) -> None:
+        """sounddevice callback (audio thread): append captured frames to the WAV."""
+        if self._record_file is not None:
+            self._record_file.write(indata.copy())
+
+    def _set_recording_indicator(self, recording: bool) -> None:
+        """Reflect the recording state in the on-panel indicator label."""
+        if recording:
+            self.recordingIndicatorLabel.setText("● recording")
+            self.recordingIndicatorLabel.setStyleSheet("color: red; font-weight: bold;")
+        else:
+            self.recordingIndicatorLabel.setText("■ idle")
+            self.recordingIndicatorLabel.setStyleSheet("")
 
     # ----- input level meter (#25) ------------------------------------------
 
@@ -221,29 +283,6 @@ class RecordingWindow(ModalityWindow):
         self.meter_timer = QtCore.QTimer(self)
         self.meter_timer.setInterval(50)  # ~20 Hz display refresh
         self.meter_timer.timeout.connect(self.update_level_meter)
-
-    def _meter_device(self) -> int | None:
-        """Best-effort PortAudio index for the selected recorder input.
-
-        Qt and PortAudio name devices differently, so match the selected input name
-        against PortAudio input devices by substring; return ``None`` (the default
-        input) when there's no confident match.
-        """
-        name = self.available_microphones_dropdown.currentData()
-        if not name:
-            return None
-        try:
-            devices = sd.query_devices()
-        except Exception:
-            return None
-        name_low = name.lower()
-        for idx, dev in enumerate(devices):
-            dev_low = dev["name"].lower()
-            if dev["max_input_channels"] > 0 and (
-                name_low in dev_low or dev_low in name_low
-            ):
-                return idx
-        return None
 
     def _restart_meter_if_monitoring(self) -> None:
         """Re-open the level meter on the current device if it's running."""
@@ -258,7 +297,7 @@ class RecordingWindow(ModalityWindow):
             try:
                 self.meter_stream = sd.InputStream(
                     channels=1,
-                    device=self._meter_device(),
+                    device=self._selected_input_device(),
                     callback=self._meter_callback,
                 )
                 self.meter_stream.start()
@@ -367,5 +406,4 @@ class RecordingWindow(ModalityWindow):
             self.meter_stream.abort()
             self.meter_stream.close()
             self.meter_stream = None
-        if self.microphone.state() == QtMultimedia.QMediaRecorder.RecordingState:
-            self.microphone.stop()
+        self._teardown_recording()

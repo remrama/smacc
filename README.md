@@ -17,7 +17,7 @@ A clickable interface for running sleep-related experiments.
 
 To install SMACC, go to the [releases page](https://github.com/remrama/smacc/releases), click the _Assets_ dropdown for the latest release, and download the _SMACC.exe_ file. Once downloaded, double-clicking this file will run SMACC.
 
-SMACC requires 64-bit Windows 8.1 or later.
+SMACC requires 64-bit Windows 10 or later.
 
 Note that for some features, you will need to open SMACC with Administrator privileges (Right-click to open and select `Run as administrator`).
 

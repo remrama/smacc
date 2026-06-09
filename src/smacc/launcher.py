@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from . import preferences, settings
 from .analyze import AnalyzeWindow
@@ -81,17 +81,17 @@ class LauncherWindow(QtWidgets.QMainWindow):
             logo = QtWidgets.QLabel()
             logo.setPixmap(
                 QtGui.QPixmap(str(LOGO_PATH)).scaledToHeight(
-                    72, QtCore.Qt.SmoothTransformation
+                    72, QtCore.Qt.TransformationMode.SmoothTransformation
                 )
             )
-            logo.setAlignment(QtCore.Qt.AlignCenter)
+            logo.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(logo)
         title = QtWidgets.QLabel("SMACC")
         title_font = QtGui.QFont()
         title_font.setPointSize(20)
         title_font.setBold(True)
         title.setFont(title_font)
-        title.setAlignment(QtCore.Qt.AlignCenter)
+        title.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
         # One row to choose the settings, then Start / Edit / New acting on it.
@@ -110,7 +110,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
 
         layout.addStretch(1)
         footer = QtWidgets.QLabel(f"v{VERSION} — github.com/remrama/smacc")
-        footer.setAlignment(QtCore.Qt.AlignCenter)
+        footer.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         footer.setEnabled(False)
         layout.addWidget(footer)
 
@@ -119,12 +119,17 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self.resize(420, 360)
 
     def _build_menu(self) -> None:
-        fileMenu = self.menuBar().addMenu("&File")
+        menu_bar = self.menuBar()
+        assert menu_bar is not None
+        fileMenu = menu_bar.addMenu("&File")
+        assert fileMenu is not None
         prefsAction = fileMenu.addAction("&Preferences…")
+        assert prefsAction is not None
         prefsAction.setStatusTip("Edit interface preferences (theme, log preview, …).")
         prefsAction.triggered.connect(self.edit_preferences)
         fileMenu.addSeparator()
         quitAction = fileMenu.addAction("&Quit")
+        assert quitAction is not None
         quitAction.setShortcut("Ctrl+Q")
         quitAction.setStatusTip("Quit SMACC.")
         quitAction.triggered.connect(self.close)
@@ -171,14 +176,18 @@ class LauncherWindow(QtWidgets.QMainWindow):
         combo.blockSignals(True)  # programmatic fill: don't fire activated
         combo.clear()
         combo.addItem("default", default)
-        combo.setItemData(0, default, QtCore.Qt.ToolTipRole)  # full path on hover
+        combo.setItemData(
+            0, default, QtCore.Qt.ItemDataRole.ToolTipRole
+        )  # full path on hover
         seen = {default}
         for path in recents:
             if path in seen:
                 continue
             seen.add(path)
             combo.addItem(Path(path).stem, path)  # name only — no extension/path
-            combo.setItemData(combo.count() - 1, path, QtCore.Qt.ToolTipRole)
+            combo.setItemData(
+                combo.count() - 1, path, QtCore.Qt.ItemDataRole.ToolTipRole
+            )
         combo.insertSeparator(combo.count())
         combo.addItem("Browse…", _BROWSE_SENTINEL)
         target = self._settings_path or default
@@ -281,9 +290,10 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self.raise_()
         self.activateWindow()
 
-    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+    def closeEvent(self, event: QtGui.QCloseEvent | None) -> None:
         """Closing the launcher quits SMACC (it is the app's root window)."""
         app = QtWidgets.QApplication.instance()
         if app is not None:
             app.quit()
-        event.accept()
+        if event is not None:
+            event.accept()

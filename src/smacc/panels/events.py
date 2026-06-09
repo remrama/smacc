@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from functools import partial
 
-from PyQt5 import QtWidgets
+from PyQt6 import QtWidgets
 
 from ..session import SmaccSession
 from .base import ModalityWindow, make_section_title
@@ -40,7 +40,7 @@ class EventsWindow(ModalityWindow):
         """
         while self._grid.count():
             item = self._grid.takeAt(0)
-            widget = item.widget()
+            widget = item.widget() if item is not None else None
             if widget is not None:
                 widget.deleteLater()
         manual = [e for e in self.session.events.values() if e.category == "manual"]

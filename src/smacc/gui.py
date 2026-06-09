@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import cast
 
 import sounddevice as sd
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from smacc import bids, preferences, settings, winassoc
 
@@ -132,7 +132,7 @@ class SmaccWindow(ToolWindow):
             windowIcon = QtGui.QIcon(str(LOGO_PATH))
         else:
             windowIcon = self.style().standardIcon(
-                QtWidgets.QStyle.SP_ToolBarHorizontalExtensionButton
+                QtWidgets.QStyle.StandardPixmap.SP_ToolBarHorizontalExtensionButton
             )
         self.setWindowIcon(windowIcon)
         # Window size/position, theme, always-on-top, and log-preview levels come
@@ -147,7 +147,7 @@ class SmaccWindow(ToolWindow):
         and stays legible when the dark theme toggles.
         """
         label = QtWidgets.QLabel(text)
-        label.setAlignment(QtCore.Qt.AlignCenter)
+        label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         font = QtGui.QFont()
         font.setPointSize(18)
         label.setFont(font)
@@ -186,7 +186,8 @@ class SmaccWindow(ToolWindow):
         self.lightswitchButton.setCheckable(True)
         self.lightswitchButton.setShortcut("L")  # still toggles with L
         self.lightswitchButton.setSizePolicy(
-            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding
+            QtWidgets.QSizePolicy.Policy.Preferred,
+            QtWidgets.QSizePolicy.Policy.Expanding,
         )
         self.lightswitchButton.setMinimumHeight(64)
         self.lightswitchButton.setStatusTip(
@@ -214,16 +215,20 @@ class SmaccWindow(ToolWindow):
 
     def _build_menu_bar(self) -> None:
         """Build the consolidated File menu (actions + log-preview levels)."""
-        aboutAction = QtWidgets.QAction(
-            self.style().standardIcon(QtWidgets.QStyle.SP_MessageBoxInformation),
+        style = self.style()
+        assert style is not None
+        aboutAction = QtGui.QAction(
+            style.standardIcon(
+                QtWidgets.QStyle.StandardPixmap.SP_MessageBoxInformation
+            ),
             "&About",
             self,
         )
         aboutAction.setStatusTip("About SMACC")
         aboutAction.triggered.connect(self.show_about_popup)
 
-        quitAction = QtWidgets.QAction(
-            self.style().standardIcon(QtWidgets.QStyle.SP_BrowserStop),
+        quitAction = QtGui.QAction(
+            style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_BrowserStop),
             "Close &editor" if self.design else "End sessio&n",
             self,
         )
@@ -235,20 +240,20 @@ class SmaccWindow(ToolWindow):
         )
         quitAction.triggered.connect(self.close)  # close goes to closeEvent
 
-        sessionInfoAction = QtWidgets.QAction("Session &info…", self)
+        sessionInfoAction = QtGui.QAction("Session &info…", self)
         sessionInfoAction.setStatusTip(
             "Edit optional subject/session/notes metadata recorded with the session."
         )
         sessionInfoAction.triggered.connect(self.session_info)
 
-        eventCodesAction = QtWidgets.QAction("&Event codes…", self)
+        eventCodesAction = QtGui.QAction("&Event codes…", self)
         eventCodesAction.setStatusTip(
             "View/edit event-marker port codes and what's logged vs. triggered."
         )
         eventCodesAction.triggered.connect(self.edit_event_codes)
         self._event_codes_action = eventCodesAction
 
-        exportEventsAction = QtWidgets.QAction("&Export events (BIDS)…", self)
+        exportEventsAction = QtGui.QAction("&Export events (BIDS)…", self)
         exportEventsAction.setStatusTip(
             "Export this session's events log as a BIDS events.tsv."
         )
@@ -257,7 +262,7 @@ class SmaccWindow(ToolWindow):
         # Always-on-top is an interface preference (also in the launcher's
         # Preferences). Built in both modes so _apply_preferences can set its state,
         # but only surfaced in a session's menu.
-        alwaysOnTopAction = QtWidgets.QAction("Always on &top", self)
+        alwaysOnTopAction = QtGui.QAction("Always on &top", self)
         alwaysOnTopAction.setStatusTip(
             "Keep the SMACC window above other applications."
         )
@@ -266,22 +271,25 @@ class SmaccWindow(ToolWindow):
         alwaysOnTopAction.toggled.connect(self.toggle_always_on_top)
         self._always_on_top_action = alwaysOnTopAction
 
-        associateAction = QtWidgets.QAction("&Associate .smacc files (Windows)", self)
+        associateAction = QtGui.QAction("&Associate .smacc files (Windows)", self)
         associateAction.setStatusTip(
             "Register SMACC as the handler for .smacc files (double-click to open)."
         )
         associateAction.triggered.connect(self.associate_files)
 
         # Available in both modes (devices are configured in the editor and a session).
-        refreshDevicesAction = QtWidgets.QAction("&Refresh devices", self)
+        refreshDevicesAction = QtGui.QAction("&Refresh devices", self)
         refreshDevicesAction.setShortcut("F5")
         refreshDevicesAction.setStatusTip(
             "Rescan for audio devices and BlinkSticks (e.g. after plugging one in)."
         )
         refreshDevicesAction.triggered.connect(self.refresh_all_devices)
 
-        fileMenu = self.menuBar().addMenu("&File")
-        self._preview_level_actions: dict[int, QtWidgets.QAction] = {}
+        menu_bar = self.menuBar()
+        assert menu_bar is not None
+        fileMenu = menu_bar.addMenu("&File")
+        assert fileMenu is not None
+        self._preview_level_actions: dict[int, QtGui.QAction] = {}
         if self.design:
             self._build_editor_file_menu(fileMenu, sessionInfoAction, eventCodesAction)
         else:
@@ -302,23 +310,24 @@ class SmaccWindow(ToolWindow):
     def _add_surveys_menu(self, fileMenu: QtWidgets.QMenu) -> None:
         """Add File → Surveys (rebuilt on show, since the saved list changes)."""
         surveysMenu = fileMenu.addMenu("Sur&veys")
+        assert surveysMenu is not None
         surveysMenu.aboutToShow.connect(lambda: self._rebuild_surveys_menu(surveysMenu))
 
     def _build_editor_file_menu(self, fileMenu, sessionInfoAction, eventCodesAction):
         """Editor File menu: save/import settings + the config editors (no live run)."""
-        saveAction = QtWidgets.QAction("&Save settings", self)
+        saveAction = QtGui.QAction("&Save settings", self)
         saveAction.setShortcut("Ctrl+S")
         saveAction.setStatusTip("Save to the current .smacc (or choose a name if new).")
         saveAction.triggered.connect(self.save_settings_in_place)
-        saveAsAction = QtWidgets.QAction("Save &as…", self)
+        saveAsAction = QtGui.QAction("Save &as…", self)
         saveAsAction.setStatusTip("Save these settings to a new .smacc file.")
         saveAsAction.triggered.connect(self.export_settings)
-        importAction = QtWidgets.QAction("&Import settings (.smacc)…", self)
+        importAction = QtGui.QAction("&Import settings (.smacc)…", self)
         importAction.setStatusTip(
             "Load another .smacc's settings into the editor as a starting point."
         )
         importAction.triggered.connect(self.load_settings)
-        importLogAction = QtWidgets.QAction("Import settings from &log…", self)
+        importLogAction = QtGui.QAction("Import settings from &log…", self)
         importLogAction.setStatusTip(
             "Load the settings recorded in a SMACC .log into the editor."
         )
@@ -360,7 +369,7 @@ class SmaccWindow(ToolWindow):
             ("Error", logging.ERROR),
             ("Critical", logging.CRITICAL),
         ):
-            levelAction = QtWidgets.QAction(levelname, self)
+            levelAction = QtGui.QAction(levelname, self)
             levelAction.setCheckable(True)
             levelAction.setChecked(levelno != logging.DEBUG)  # all but Debug
             levelAction.toggled.connect(self._update_preview_levels)
@@ -375,13 +384,16 @@ class SmaccWindow(ToolWindow):
         if surveys:
             for name, url in surveys.items():
                 action = menu.addAction(name)
+                assert action is not None
                 action.setStatusTip(url)
                 action.triggered.connect(partial(recording.open_survey_url, url, name))
         else:
             empty = menu.addAction("(no surveys saved)")
+            assert empty is not None
             empty.setEnabled(False)
         menu.addSeparator()
         manageAction = menu.addAction("Manage surveys…")
+        assert manageAction is not None
         manageAction.triggered.connect(recording.manage_surveys)
 
     def _build_log_viewer_section(self) -> QtWidgets.QLayout:
@@ -414,7 +426,7 @@ class SmaccWindow(ToolWindow):
         banner = QtWidgets.QLabel(
             "✎  Editing settings — no session is being recorded.", self
         )
-        banner.setAlignment(QtCore.Qt.AlignCenter)
+        banner.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         banner.setStyleSheet(
             "background-color: #f0d000; color: black; font: bold 11pt;"
             " padding: 6px; border-radius: 4px;"
@@ -473,7 +485,7 @@ class SmaccWindow(ToolWindow):
 
     def toggle_always_on_top(self, enabled: bool) -> None:
         """Toggle the window's always-on-top hint (from the View menu)."""
-        self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, enabled)
+        self.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, enabled)
         # Re-applying window flags hides the window on some platforms; re-show it.
         self.show()
         self.session.log_info_msg(
@@ -482,10 +494,10 @@ class SmaccWindow(ToolWindow):
 
     def show_about_popup(self):
         win = QtWidgets.QMessageBox(self)  # parent to self so it stacks above
-        # win.setIcon(QtWidgets.QMessageBox.Question)
+        # win.setIcon(QtWidgets.QMessageBox.Icon.Question)
         # win.setWindowIcon(QtGui.QIcon("./thumb-small.png"))
         # win.setIconPixmap(QtGui.QPixmap("./thumb.png"))
-        win.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        win.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
         win.setWindowTitle("About SMACC")
         win.setText("Sleep Manipulation and Communication Clickything")
         win.setInformativeText(f"version: v{VERSION}\nhttps://github.com/remrama/smacc")
@@ -544,23 +556,23 @@ class SmaccWindow(ToolWindow):
         text = QtGui.QColor(220, 220, 220)
         disabled = QtGui.QColor(127, 127, 127)
         highlight = QtGui.QColor(42, 130, 218)
-        p.setColor(QtGui.QPalette.Window, base)
-        p.setColor(QtGui.QPalette.WindowText, text)
-        p.setColor(QtGui.QPalette.Base, QtGui.QColor(35, 35, 35))
-        p.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor(45, 45, 45))
-        p.setColor(QtGui.QPalette.ToolTipBase, base)
-        p.setColor(QtGui.QPalette.ToolTipText, text)
-        p.setColor(QtGui.QPalette.Text, text)
-        p.setColor(QtGui.QPalette.Button, base)
-        p.setColor(QtGui.QPalette.ButtonText, text)
-        p.setColor(QtGui.QPalette.Highlight, highlight)
-        p.setColor(QtGui.QPalette.HighlightedText, QtGui.QColor(0, 0, 0))
+        p.setColor(QtGui.QPalette.ColorRole.Window, base)
+        p.setColor(QtGui.QPalette.ColorRole.WindowText, text)
+        p.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor(35, 35, 35))
+        p.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor(45, 45, 45))
+        p.setColor(QtGui.QPalette.ColorRole.ToolTipBase, base)
+        p.setColor(QtGui.QPalette.ColorRole.ToolTipText, text)
+        p.setColor(QtGui.QPalette.ColorRole.Text, text)
+        p.setColor(QtGui.QPalette.ColorRole.Button, base)
+        p.setColor(QtGui.QPalette.ColorRole.ButtonText, text)
+        p.setColor(QtGui.QPalette.ColorRole.Highlight, highlight)
+        p.setColor(QtGui.QPalette.ColorRole.HighlightedText, QtGui.QColor(0, 0, 0))
         for role in (
-            QtGui.QPalette.WindowText,
-            QtGui.QPalette.Text,
-            QtGui.QPalette.ButtonText,
+            QtGui.QPalette.ColorRole.WindowText,
+            QtGui.QPalette.ColorRole.Text,
+            QtGui.QPalette.ColorRole.ButtonText,
         ):
-            p.setColor(QtGui.QPalette.Disabled, role, disabled)
+            p.setColor(QtGui.QPalette.ColorGroup.Disabled, role, disabled)
         return p
 
     ############################################################################
@@ -679,7 +691,7 @@ class SmaccWindow(ToolWindow):
         self._always_on_top_action.setChecked(bool(prefs["always_on_top"]))
         self._always_on_top_action.blockSignals(False)
         if prefs["always_on_top"]:
-            self.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint, True)
+            self.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, True)
 
         # Log-preview levels (preview_handler exists now, built in init_main_window).
         wanted = preferences.names_to_levels(prefs.get("preview_levels", []))
@@ -786,7 +798,7 @@ class SmaccWindow(ToolWindow):
             "Associate .smacc settings files with SMACC so double-clicking one opens "
             "the app already configured?",
         )
-        if reply == QtWidgets.QMessageBox.Yes:
+        if reply == QtWidgets.QMessageBox.StandardButton.Yes:
             try:
                 winassoc.register_smacc()
                 self.session.log_info_msg("Associated .smacc files with SMACC")
@@ -825,7 +837,9 @@ class SmaccWindow(ToolWindow):
         self.settings_path = path  # subsequent saves update this file
         self.session.log_info_msg(f"Saved settings to {path}")
         # Status-bar confirmation: the editor has no log viewer to show the line.
-        self.statusBar().showMessage(f"Saved settings to {Path(path).name}", 5000)
+        status_bar = self.statusBar()
+        assert status_bar is not None
+        status_bar.showMessage(f"Saved settings to {Path(path).name}", 5000)
         return True
 
     def load_settings(self) -> None:
@@ -1017,17 +1031,17 @@ class SmaccWindow(ToolWindow):
             box.setWindowTitle("Close editor")
             box.setText("Save changes to the settings before closing?")
             box.setStandardButtons(
-                QtWidgets.QMessageBox.Save
-                | QtWidgets.QMessageBox.Discard
-                | QtWidgets.QMessageBox.Cancel
+                QtWidgets.QMessageBox.StandardButton.Save
+                | QtWidgets.QMessageBox.StandardButton.Discard
+                | QtWidgets.QMessageBox.StandardButton.Cancel
             )
-            box.setDefaultButton(QtWidgets.QMessageBox.Save)
+            box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.Save)
             choice = box.exec()
-            if choice == QtWidgets.QMessageBox.Cancel:
+            if choice == QtWidgets.QMessageBox.StandardButton.Cancel:
                 event.ignore()
                 return
             if (
-                choice == QtWidgets.QMessageBox.Save
+                choice == QtWidgets.QMessageBox.StandardButton.Save
                 and not self.save_settings_in_place()
             ):
                 event.ignore()  # save was cancelled/failed → keep the editor open
@@ -1042,7 +1056,7 @@ class SmaccWindow(ToolWindow):
         response = QtWidgets.QMessageBox.question(
             self, "End session", "End this session and return to the SMACC menu?"
         )
-        if response == QtWidgets.QMessageBox.Yes:
+        if response == QtWidgets.QMessageBox.StandardButton.Yes:
             self._teardown_panels()
             # Persist this window's operator/UI preferences for next launch, merging
             # so we don't clobber keys other windows own (best-effort, never raises).

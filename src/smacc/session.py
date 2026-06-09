@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from pylsl import StreamInfo, StreamOutlet
-from PyQt5 import QtWidgets
+from PyQt6 import QtWidgets
 
 from . import bids, events, settings
 from .config import PPORT_ADDRESS, VERSION
@@ -290,7 +290,7 @@ class SmaccSession:
         """Record an info line and show an information dialog (parented if given)."""
         self.log_info_msg(short_msg if long_msg is None else f"{short_msg} {long_msg}")
         win = QtWidgets.QMessageBox(parent)
-        win.setIcon(QtWidgets.QMessageBox.Information)
+        win.setIcon(QtWidgets.QMessageBox.Icon.Information)
         win.setText(short_msg)
         if long_msg is not None:
             win.setInformativeText(long_msg)

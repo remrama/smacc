@@ -6,8 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "smacc"
 description = "Sleep manipulation and communication clickything"
 readme = "README.md"
-# Build/runtime Python is pinned to 3.12 via .python-version. 3.12 is the last
-# line supporting Windows 8.1; moving to 3.13+ would raise the floor to Win10.
+# Build/runtime Python is pinned to 3.12 via .python-version. The minimum OS is
+# Windows 10, set by Qt 6 (see the PyQt6 dependency note below).
 requires-python = ">=3.12"
 license = { text = "GPL-3.0-or-later" }
 authors = [{ name = "Remington Mallett", email = "mallett.remy@gmail.com" }]
@@ -15,6 +15,8 @@ dynamic = ["version"]
 classifiers = [
     "Environment :: Win32 (MS Windows)",
     "Operating System :: Microsoft :: Windows",
+    "Operating System :: Microsoft :: Windows :: Windows 10",
+    "Operating System :: Microsoft :: Windows :: Windows 11",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
@@ -27,10 +29,10 @@ dependencies = [
     "numpy",
     "pylsl",
     "pyyaml",
-    "PyQt5",
-    # pyqt5-qt5 5.15.19 dropped Windows wheels; pin to a version with
-    # wheels for all platforms (win/linux/macos) so uv resolves everywhere.
-    "PyQt5-Qt5==5.15.2",
+    # Qt 6 GUI toolkit. Qt 6 requires Windows 10+, which is why SMACC's floor is
+    # Windows 10 (Qt5/PyQt5 was the last line that still ran on Windows 8.1). PyQt6
+    # pulls in PyQt6-Qt6 (the Qt libraries, incl. QtMultimedia) and PyQt6-sip.
+    "PyQt6",
     "scipy",
     "sounddevice",
     "soundfile>=0.12",
@@ -47,7 +49,6 @@ dev = [
     "mypy",
     "pre-commit",
     "pyinstaller",
-    "PyQt5-stubs",
     "types-PyYAML",
 ]
 
