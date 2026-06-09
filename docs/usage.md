@@ -145,7 +145,9 @@ session (always-on-top and log-preview levels), and the **data directory** where
 are written — in a single portable `.smacc` (plain YAML you can read and edit). The easiest way to build one is the **settings editor** (the launcher's
 **Create settings**, or **Edit…** for an existing one): configure the tools, set the
 data directory, and save. SMACC ships a `default.smacc` in your SMACC directory as a
-working example you can copy.
+working example you can copy. For the exact on-disk format — every field, the
+sub-blocks, and the schema version — see the
+[`.smacc` reference](reference/settings-file.md).
 
 You can keep settings files anywhere — for instance one per participant
 (`peter.smacc`, `paul.smacc`, …), each pointing at whatever data directory you like

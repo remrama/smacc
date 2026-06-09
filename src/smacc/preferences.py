@@ -10,8 +10,7 @@ errors.
 
 Window geometry is a *per-window* map (:data:`DEFAULTS` ``windows``) keyed by a
 stable id (``"launcher"``, ``"main"``, the analyze window, each tool window), so
-every window reopens where it was last left. A legacy single ``window`` block (the
-old session-window-only geometry) is migrated into ``windows["main"]`` on load.
+every window reopens where it was last left.
 """
 
 from __future__ import annotations
@@ -26,8 +25,8 @@ import yaml
 KIND = "smacc/preferences"
 SCHEMA_VERSION = 1
 
-# The stable id under which the old single-window geometry block is migrated into
-# the per-window ``windows`` map (the main session window's geometry).
+# The stable id of the main session window's geometry within the per-window
+# ``windows`` map.
 MAIN_WINDOW_ID = "main"
 
 # Operator/machine preferences and their out-of-the-box values. Loading merges a
@@ -56,8 +55,8 @@ def load_preferences(path: str | Path) -> dict[str, Any]:
     """Return preferences merged over the defaults; never raises.
 
     A missing, unreadable, unparseable, or non-preferences file yields a full copy
-    of :data:`DEFAULTS`. A valid file's keys are merged on top, so a file written
-    by an older schema still provides every key.
+    of :data:`DEFAULTS`. A valid file's keys are merged on top, so a partial file
+    still provides every key.
     """
     prefs = default_preferences()
     try:
@@ -72,25 +71,7 @@ def load_preferences(path: str | Path) -> dict[str, Any]:
         for key in prefs:
             if key in stored:
                 prefs[key] = stored[key]
-        _migrate_legacy_window(prefs, stored)
     return prefs
-
-
-def _migrate_legacy_window(prefs: dict[str, Any], stored: dict[str, Any]) -> None:
-    """Fold a legacy single ``window`` block into ``windows[MAIN_WINDOW_ID]``.
-
-    Older preference files stored only the session window's geometry under a flat
-    ``window`` key. Map it onto the main window's entry in the per-window ``windows``
-    map so an upgrading operator keeps their saved main-window position. An explicit
-    ``windows`` entry already in the file wins (it is the newer shape).
-    """
-    legacy = stored.get("window")
-    windows = prefs.get("windows")
-    if not isinstance(windows, dict):
-        windows = {}
-        prefs["windows"] = windows
-    if isinstance(legacy, dict) and MAIN_WINDOW_ID not in windows:
-        windows[MAIN_WINDOW_ID] = legacy
 
 
 def save_preferences(path: str | Path, prefs: dict[str, Any]) -> None:

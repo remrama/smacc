@@ -1,0 +1,112 @@
+"""Guard that the docs reference stays in lockstep with the code.
+
+These tests fail when the documentation drifts from the schemas/registry it
+describes: the embedded ``.smacc`` / ``preferences.yaml`` examples must still load,
+the documented schema versions and ``kind`` strings must match the code constants,
+and the default event-code catalog on the Triggers page must match
+``smacc.events.default_events()``. This is what makes the reference pages a contract
+rather than prose that can quietly fall out of date.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
+
+import yaml
+
+from smacc import bids, events, preferences, settings
+
+DOCS = Path(__file__).resolve().parents[1] / "docs"
+REFERENCE = DOCS / "reference"
+
+
+def _read(name: str) -> str:
+    return (DOCS / name).read_text(encoding="utf-8")
+
+
+def _fenced(text: str, lang: str) -> list[str]:
+    """Return the bodies of all ```<lang> fenced code blocks in ``text``."""
+    return re.findall(rf"```{lang}\n(.*?)```", text, re.DOTALL)
+
+
+def _yaml_payloads() -> list[dict]:
+    """Every YAML mapping embedded in the reference pages."""
+    payloads: list[dict] = []
+    for md in REFERENCE.glob("*.md"):
+        for block in _fenced(md.read_text(encoding="utf-8"), "yaml"):
+            data = yaml.safe_load(block)
+            if isinstance(data, dict):
+                payloads.append(data)
+    return payloads
+
+
+def test_settings_example_loads_at_current_version(tmp_path):
+    examples = [p for p in _yaml_payloads() if p.get("kind") == settings.KIND]
+    assert examples, "no smacc/settings example found in docs/reference"
+    for i, payload in enumerate(examples):
+        assert payload["schema_version"] == settings.SCHEMA_VERSION
+        path = tmp_path / f"example_{i}.smacc"
+        path.write_text(yaml.safe_dump(payload), encoding="utf-8")
+        settings.load_settings(path)  # must round-trip through the real loader
+
+
+def test_preferences_example_loads_at_current_version(tmp_path):
+    examples = [p for p in _yaml_payloads() if p.get("kind") == preferences.KIND]
+    assert examples, "no smacc/preferences example found in docs/reference"
+    for i, payload in enumerate(examples):
+        assert payload["schema_version"] == preferences.SCHEMA_VERSION
+        path = tmp_path / f"example_{i}.yaml"
+        path.write_text(yaml.safe_dump(payload), encoding="utf-8")
+        loaded = preferences.load_preferences(path)
+        # The example must be recognized, not silently fall back to defaults.
+        assert loaded["last_settings"] == payload["preferences"]["last_settings"]
+
+
+def test_documented_versions_match_constants():
+    settings_doc = _read("reference/settings-file.md")
+    assert settings.KIND in settings_doc
+    assert f"schema_version: {settings.SCHEMA_VERSION}" in settings_doc
+    prefs_doc = _read("reference/preferences-file.md")
+    assert preferences.KIND in prefs_doc
+    assert f"schema_version: {preferences.SCHEMA_VERSION}" in prefs_doc
+
+
+def _catalog_rows() -> dict[int, tuple[str, str]]:
+    """Parse the Triggers page's fenced event-code table -> {code: (label, key)}."""
+    text = _read("triggers.md")
+    block = re.search(
+        r"<!-- BEGIN auto:event-codes.*?-->(.*?)<!-- END auto:event-codes -->",
+        text,
+        re.DOTALL,
+    )
+    assert block, "event-code catalog sentinels not found in docs/triggers.md"
+    rows: dict[int, tuple[str, str]] = {}
+    for line in block.group(1).splitlines():
+        if not line.strip().startswith("|"):
+            continue
+        cells = [c.strip().strip("`") for c in line.strip().strip("|").split("|")]
+        if len(cells) < 3 or not cells[0].isdigit():
+            continue  # header / separator / non-data row
+        rows[int(cells[0])] = (cells[1], cells[2])
+    return rows
+
+
+def test_event_code_catalog_matches_registry():
+    documented = _catalog_rows()
+    expected = {e.code: (e.label, e.key) for e in events.default_events()}
+    assert documented == expected
+
+
+def test_inline_code_examples_match_registry():
+    # Numbers cited in prose must stay true to the registry.
+    by_key = {e.key: e.code for e in events.default_events()}
+    assert by_key["REMDetected"] == 41  # "every 41 is an observed REM onset"
+    assert by_key["DreamReportStarted"] == 201  # "201, 202, 203, ..."
+
+
+def test_bids_sidecar_example_matches_code():
+    blocks = _fenced(_read("reference/bids-export.md"), "json")
+    assert blocks, "no JSON sidecar example in docs/reference/bids-export.md"
+    assert json.loads(blocks[0]) == bids.events_sidecar()

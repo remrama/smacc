@@ -160,7 +160,7 @@ def test_set_lights_toggles_state_and_label(
     assert "ON" in window.lightswitchButton.text()
 
 
-# ----- interface choices now carried by the .smacc settings (schema v6) -------
+# ----- interface choices carried by the .smacc settings -----------------------
 
 
 def test_gather_settings_includes_interface_choices(
@@ -169,7 +169,7 @@ def test_gather_settings_includes_interface_choices(
     window = SmaccWindow(live_session)
     qtbot.addWidget(window)
     state = window.gather_settings()
-    # Moved out of preferences.yaml and into the portable settings file.
+    # Carried in the portable settings file so they travel with the study.
     assert isinstance(state["preview_levels"], list)
     assert state["always_on_top"] is False  # main window, default off
     # A per-tool always-on-top map keyed by panel key (default all off).
@@ -180,7 +180,7 @@ def test_gather_settings_includes_interface_choices(
 def test_default_interface_choices_when_settings_omit_them(
     qtbot, live_session, mock_devices, silence_dialogs
 ):
-    # A pre-v6 study has no preview_levels/always_on_top; defaults must stand.
+    # A study that omits preview_levels/always_on_top; the defaults must stand.
     window = SmaccWindow(live_session)
     qtbot.addWidget(window)
     state = window.gather_settings()

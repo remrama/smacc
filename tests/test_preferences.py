@@ -51,33 +51,6 @@ def test_round_trip(tmp_path):
     assert preferences.load_preferences(path) == custom
 
 
-def test_legacy_window_migrates_into_main_entry(tmp_path):
-    # A pre-per-window-map file stored only the session window under a flat ``window``.
-    path = tmp_path / "preferences.yaml"
-    preferences.save_preferences(path, {"window": {"x": 5, "y": 6, "w": 700, "h": 500}})
-    prefs = preferences.load_preferences(path)
-    assert prefs["windows"][preferences.MAIN_WINDOW_ID] == {
-        "x": 5,
-        "y": 6,
-        "w": 700,
-        "h": 500,
-    }
-
-
-def test_explicit_windows_entry_wins_over_legacy_window(tmp_path):
-    # If both the new map and the legacy key are present, the newer map is kept.
-    path = tmp_path / "preferences.yaml"
-    preferences.save_preferences(
-        path,
-        {
-            "window": {"x": 5, "y": 6, "w": 700, "h": 500},
-            "windows": {"main": {"x": 1, "y": 2, "w": 100, "h": 200}},
-        },
-    )
-    prefs = preferences.load_preferences(path)
-    assert prefs["windows"]["main"] == {"x": 1, "y": 2, "w": 100, "h": 200}
-
-
 def test_save_to_unwritable_path_does_not_raise(tmp_path):
     # A directory can't be written as a file; save must swallow the error.
     preferences.save_preferences(tmp_path, {"last_settings": "/x"})  # no exception

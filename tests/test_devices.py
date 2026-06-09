@@ -106,34 +106,14 @@ def test_from_dict_handles_non_mapping():
     assert cfg.role_for("cue_out") == "bedroom_out"  # falls back to defaults
 
 
-def test_migrate_legacy_maps_panel_keys_to_roles():
-    cfg = devices.migrate_legacy(
-        {
-            "cue_device": "Spk, Windows WASAPI",
-            "noise_device": "Other, Windows WASAPI",  # ignored: bedroom_out already set
-            "recording_device": "Mic, Windows WASAPI",
-            "blink_device": "BS012345",
-        }
-    )
-    assert cfg.bindings["bedroom_out"] == "Spk, Windows WASAPI"  # first output wins
-    assert cfg.bindings["bedroom_mic"] == "Mic, Windows WASAPI"
-    assert cfg.bindings["blinkstick"] == "BS012345"
-    assert "control_out" not in cfg.bindings  # new role starts unbound
-    assert cfg.device_for("noise_out") == "Spk, Windows WASAPI"  # shares bedroom_out
+def test_load_reads_devices_block():
+    settings = {"devices": {"bindings": {"bedroom_out": "Spk"}, "routing": {}}}
+    assert devices.load(settings).device_for("cue_out") == "Spk"
 
 
-def test_migrate_legacy_falls_back_to_noise_when_no_cue_device():
-    cfg = devices.migrate_legacy({"noise_device": "N, Windows WASAPI"})
-    assert cfg.bindings["bedroom_out"] == "N, Windows WASAPI"
-
-
-def test_load_prefers_devices_block_over_legacy():
-    settings = {
-        "devices": {"bindings": {"bedroom_out": "New"}, "routing": {}},
-        "cue_device": "Old",  # legacy key ignored when a devices block is present
-    }
-    assert devices.load(settings).device_for("cue_out") == "New"
-
-
-def test_load_migrates_when_no_devices_block():
-    assert devices.load({"cue_device": "Spk"}).device_for("cue_out") == "Spk"
+def test_load_defaults_when_no_devices_block():
+    # No devices block -> the default config (each target on its default role, with no
+    # devices bound). Per-panel device keys are no longer migrated.
+    cfg = devices.load({"cue_device": "Spk"})
+    assert cfg.role_for("cue_out") == "bedroom_out"  # default role
+    assert cfg.bindings == {}  # nothing bound; the stray key is ignored

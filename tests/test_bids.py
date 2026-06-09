@@ -120,7 +120,7 @@ def test_write_events_json_sidecar(tmp_path):
 
 # ----- embedded settings block ----------------------------------------------
 
-PAYLOAD = {"kind": "smacc/settings", "schema_version": 3, "settings": {"v": 0.1}}
+PAYLOAD = {"kind": "smacc/settings", "schema_version": 1, "settings": {"v": 0.1}}
 
 
 def test_settings_block_is_ignored_by_event_parsing():
@@ -137,8 +137,8 @@ def test_settings_block_is_ignored_by_event_parsing():
 
 
 def test_extract_settings_initial_and_final():
-    initial = {"kind": "smacc/settings", "schema_version": 3, "settings": {"v": 0.1}}
-    final = {"kind": "smacc/settings", "schema_version": 3, "settings": {"v": 0.9}}
+    initial = {"kind": "smacc/settings", "schema_version": 1, "settings": {"v": 0.1}}
+    final = {"kind": "smacc/settings", "schema_version": 1, "settings": {"v": 0.9}}
     log = (
         bids.format_settings_block(initial, "initial")
         + SAMPLE_LOG
