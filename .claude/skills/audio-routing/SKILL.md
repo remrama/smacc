@@ -14,10 +14,11 @@ designing for "juggling six audio streams across two rooms, on Windows, at 3 a.m
 Devices are chosen **once** in the **Devices window**, by binding **roles** to
 physical devices and routing **modalities** to roles:
 
-- Roles (physical endpoints): **Bedroom output**, **Control-room output**,
-  **Bedroom mic**, **BlinkStick**.
-- Modalities point at a role: audio cue, noise, intercom, dream-report recorder;
-  plus optional **cue monitor** (fan-out) and intercom **Listen**.
+- Roles (physical endpoints): **Bedroom speakers**, **Control-room speakers**,
+  **Bedroom mic**, **Bedroom lights**.
+- Modalities point at a role: **Present audio cue**, **Present audio noise**,
+  intercom (**Speak through intercom**), **Capture dream report**; plus optional
+  **Monitor audio cue** (fan-out) and **Listen through intercom**.
 - `panels/base.describe_target()` renders the read-only "Role → device" indicator
   each panel shows; the binding/route live in `session.devices` and are saved in the
   `.smacc`.

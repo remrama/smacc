@@ -139,10 +139,10 @@ summary, export its events to BIDS, or recover its settings.
 
 ## Settings files (`.smacc`)
 
-A **settings file** captures your reusable, data-related setup — cue files, volumes,
-noise, BlinkStick color, survey presets, event codes, and the **data directory**
-where runs are written — in a single portable `.smacc` (plain YAML you can read and
-edit). The easiest way to build one is the **settings editor** (the launcher's
+A **settings file** captures your reusable setup — cue files, volumes, noise,
+BlinkStick color, survey presets, event codes, the display choices that apply to a
+session (always-on-top and log-preview levels), and the **data directory** where runs
+are written — in a single portable `.smacc` (plain YAML you can read and edit). The easiest way to build one is the **settings editor** (the launcher's
 **Create settings**, or **Edit…** for an existing one): configure the tools, set the
 data directory, and save. SMACC ships a `default.smacc` in your SMACC directory as a
 working example you can copy.
@@ -165,8 +165,9 @@ and you can (re)enable it any time from **File &rsaquo; Associate .smacc files
 
 ## Preferences
 
-SMACC remembers interface choices — window size and position, light/dark theme,
-always-on-top, and which log levels show in the preview — in
-`~/SMACC/preferences.yaml`, restored on the next launch. Edit them from **File
-&rsaquo; Preferences** in the launcher. These are machine-level, separate from a
-portable settings file.
+Some display choices apply to a session and are stored in the `.smacc` settings file,
+so they travel with the study: **always-on-top** and which **log levels** show in the
+preview. Edit them from **File &rsaquo; Preferences** in the launcher.
+
+Separately, the machine remembers window positions and sizes and your recent files in
+`~/SMACC/preferences.yaml`, restored on the next launch.
