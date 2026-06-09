@@ -38,6 +38,11 @@ settings:
   # --- Survey ----------------------------------------------------------------
   survey_url: ""
   survey_options: {}
+  # --- Biocals ---------------------------------------------------------------
+  biocals:
+    voice_volume: 0.5
+    rows:
+      - {biocal: eyes_open, sequence: true, voice: true, duration: 30}
   # --- Output safety cap -----------------------------------------------------
   volume_cap: 1.0
   # --- Device roles + routing ------------------------------------------------
@@ -99,6 +104,21 @@ Any key may be omitted — each falls back to its default.
 | `survey_url` | string | The selected survey URL. |
 | `survey_options` | mapping | Named survey presets: label → URL. |
 | `volume_cap` | 0–1 | Master output safety cap multiplied into every stimulus (`1.0` = no cap). |
+
+### `biocals`
+
+The Biocals window's stack (see [Usage › Biocals](../usage.md#biocals)):
+`voice_volume` (0–1, the shared instruction volume) plus one `rows` entry per
+stack row, in display order. Rows may repeat a biocal (e.g. eyes-closed twice in
+the played sequence). A missing block — or a block without `rows` — loads the
+default stack; an empty `rows` list is respected as a deliberately cleared one.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `biocal` | string | Stable biocal id (e.g. `eyes_open`); unknown ids are dropped. |
+| `sequence` | boolean | Include this row when the sequence is played. |
+| `voice` | boolean | Speak the pre-recorded instruction when the biocal starts. |
+| `duration` | integer | Task-window length in seconds (1–600); the countdown and the completion marker run on it. |
 
 ### Window-level
 
@@ -165,4 +185,4 @@ folder stays valid when moved, copied, or zipped.
 
 | Version | Changes |
 |---|---|
-| 1 | First stable schema. Envelope (`kind` / `schema_version` / `smacc_version` / `metadata` / `settings`); panel state; the `devices`, `event_codes` + `event_code_safe_max`, `trigger_output`, `data_directory`, `preview_levels`, `always_on_top`, and `tool_always_on_top` blocks. |
+| 1 | First stable schema. Envelope (`kind` / `schema_version` / `smacc_version` / `metadata` / `settings`); panel state; the `biocals`, `devices`, `event_codes` + `event_code_safe_max`, `trigger_output`, `data_directory`, `preview_levels`, `always_on_top`, and `tool_always_on_top` blocks. |

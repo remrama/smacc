@@ -11,7 +11,16 @@ import sounddevice as sd
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtMultimedia import QMediaDevices
 
-from smacc import bids, devices, preferences, settings, triggers, winassoc, windowstate
+from smacc import (
+    bids,
+    biocals,
+    devices,
+    preferences,
+    settings,
+    triggers,
+    winassoc,
+    windowstate,
+)
 
 from .dialogs import (
     EventCodesDialog,
@@ -21,6 +30,7 @@ from .dialogs import (
 )
 from .panels.audio import AudioCueWindow
 from .panels.base import ModalityWindow
+from .panels.biocals import BiocalsWindow
 from .panels.devices import DevicesWindow
 from .panels.events import EventsWindow
 from .panels.intercom import IntercomWindow
@@ -28,7 +38,7 @@ from .panels.noise import NoiseWindow
 from .panels.recording import RecordingWindow
 from .panels.visual import VisualWindow
 from .panels.volume import VolumeWindow
-from .paths import LOGO_PATH, preferences_path
+from .paths import BIOCALS_DIR, LOGO_PATH, preferences_path
 from .qtlog import QtLogHandler
 from .session import SmaccSession
 from .toolwindow import ToolWindow
@@ -75,6 +85,7 @@ class SmaccWindow(ToolWindow):
         self.devices_window = DevicesWindow(self.session)
         self.panels: dict[str, ModalityWindow] = {
             "events": EventsWindow(self.session),
+            "biocals": BiocalsWindow(self.session),
             "visual": VisualWindow(self.session),
             "audio": AudioCueWindow(self.session),
             "noise": NoiseWindow(self.session),
@@ -107,6 +118,7 @@ class SmaccWindow(ToolWindow):
             # Panels (and any launch-file overrides) are in place, so capture the
             # initial state into the log header (also emits the "Opened SMACC" line).
             self.session.begin_log(self.gather_settings())
+            self._notify_missing_biocal_voices()
             self._maybe_prompt_association()
             # Startup widget setup is done; from here on, log soft interactions.
             self.session.log_interactions = True
@@ -182,6 +194,7 @@ class SmaccWindow(ToolWindow):
     # Modality windows openable from the launcher (key -> button label).
     PANEL_LABELS = {
         "events": "Event logging",
+        "biocals": "Biocals",
         "visual": "Visual stimulation",
         "audio": "Audio cue",
         "noise": "Noise machine",
@@ -194,6 +207,8 @@ class SmaccWindow(ToolWindow):
     # Hover/status-bar hints for each tool button (key -> tooltip).
     PANEL_TOOLTIPS = {
         "events": "Log experiment events and send their EEG trigger codes.",
+        "biocals": "Run timed biocalibrations, with optional voice instructions "
+        "and a full sequence.",
         "visual": "Flash a BlinkStick LED as a visual cue.",
         "audio": "Play audio cues from a multi-slot cue board.",
         "noise": "Stream continuous background noise (colored noise or a file).",
@@ -795,6 +810,27 @@ class SmaccWindow(ToolWindow):
             "These devices from the settings file weren’t found:\n"
             f"{items}\n\n"
             "Plug them in and choose File ▸ Refresh devices, or pick another device.",
+            parent=self,
+        )
+
+    def _notify_missing_biocal_voices(self) -> None:
+        """Warn once, at session start, about absent biocal voice recordings (#78).
+
+        Sessions only — the files are machine-level (seeded under the SMACC
+        root), so the designer, often run on a different machine than the rig,
+        would warn spuriously. A biocal with a missing voice still runs, just
+        unvoiced, so this is a heads-up rather than a blocker.
+        """
+        missing = biocals.missing_voice_files(BIOCALS_DIR)
+        if not missing:
+            return
+        items = "\n".join(f"  • {name}" for name in missing)
+        self.session.show_info_popup(
+            "Some biocal voice recordings are missing.",
+            f"Not found in {BIOCALS_DIR}:\n{items}\n\n"
+            "These biocals will run without their spoken instruction. Restore "
+            "the files (or relaunch SMACC to re-seed the bundled set) to "
+            "re-enable them.",
             parent=self,
         )
 

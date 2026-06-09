@@ -188,3 +188,42 @@ def test_merge_ignores_unknown_key_without_custom_flag():
         e.key: e for e in events.merge_event_codes([{"key": "Ghost", "code": 90}])
     }
     assert "Ghost" not in merged
+
+
+# ----- biocal events (#78) ----------------------------------------------------
+
+
+def test_biocal_events_registered_with_table_codes():
+    from smacc import biocals
+
+    registry = {e.key: e for e in events.default_events()}
+    for b in biocals.default_biocals():
+        event = registry[b.event]
+        assert event.code == b.code
+        assert event.category == "biocal"
+        assert event.builtin
+        assert event.trigger and event.preview and not event.increment
+    for key, code in [
+        (biocals.SEQUENCE_STARTED_EVENT, 105),
+        (biocals.SEQUENCE_STOPPED_EVENT, 106),
+        (biocals.CANCELLED_EVENT, 107),
+        (biocals.COMPLETED_EVENT, 108),
+    ]:
+        assert registry[key].code == code
+        assert registry[key].category == "biocal"
+
+
+def test_biocal_events_stay_out_of_the_manual_grid():
+    # The Event-logging grid auto-builds from category == "manual"; biocals have
+    # their own window, so none may leak into the grid.
+    manual = [e for e in events.default_events() if e.category == "manual"]
+    assert not any(e.key.startswith("Biocal") for e in manual)
+
+
+def test_biocal_events_merge_into_older_studies():
+    # A pre-v7 .smacc persisted no biocal entries; merging its (older) compact
+    # list over the defaults must still yield the full biocal registry.
+    older = [{"key": "REMDetected", "code": 41}]
+    merged = {e.key: e for e in events.merge_event_codes(older)}
+    assert "BiocalEyesOpen" in merged
+    assert merged["BiocalEyesOpen"].code == 110

@@ -315,6 +315,25 @@ def seed_default_settings(dest_path: Path, bundled_path: Path) -> None:
         logging.getLogger("smacc").exception("Could not seed default settings")
 
 
+def seed_biocal_voices(biocals_dir: Path, bundled_dir: Path) -> None:
+    """Ensure the bundled biocal voice WAVs exist in ``biocals_dir`` (best-effort).
+
+    Copies any shipped recording missing from the folder; existing files are
+    never overwritten, so a lab's replacement recordings survive upgrades.
+    Unlike the demo cues there is no synthesis fallback — a file still missing
+    is surfaced at session start instead (see the Biocals window, #78).
+    """
+    try:
+        biocals_dir.mkdir(parents=True, exist_ok=True)
+        if bundled_dir.is_dir():
+            for src in sorted(bundled_dir.iterdir()):
+                dest = biocals_dir / src.name
+                if src.suffix.lower() in _WAV_SUFFIXES and not dest.exists():
+                    shutil.copy2(src, dest)
+    except Exception:
+        logging.getLogger("smacc").exception("Could not seed biocal voices")
+
+
 def seed_demo_cues(cues_dir: Path, bundled_dir: Path) -> None:
     """Ensure the demo cues exist in ``cues_dir`` (best-effort; never fatal).
 

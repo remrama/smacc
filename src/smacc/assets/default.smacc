@@ -19,6 +19,11 @@ settings:
   noise_file: ''
   survey_url: ''
   survey_options: {}
+  # biocal rows omitted on purpose: the stack starts with every standard biocal
+  # (plus the unchecked lucid-dreaming signals); saving from the app writes the
+  # configured stack back here (#78).
+  biocals:
+    voice_volume: 0.5
   event_codes:
   - key: RecordingStarted
     code: 51
@@ -112,6 +117,111 @@ settings:
     increment: false
   - key: SurveyOpened
     code: 67
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalSequenceStarted
+    code: 105
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalSequenceStopped
+    code: 106
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalCancelled
+    code: 107
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalCompleted
+    code: 108
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalEyesOpen
+    code: 110
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalEyesClosed
+    code: 111
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalLookLR
+    code: 112
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalLookUD
+    code: 113
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalBlink
+    code: 114
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalClenchJaw
+    code: 115
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalFlexFeet
+    code: 116
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalHoldBreath
+    code: 117
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalBreathe
+    code: 118
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalRest
+    code: 119
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalLRLROpen
+    code: 120
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalLRLRClosed
+    code: 121
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalLRLRSlow
+    code: 122
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalFistClench
+    code: 123
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalFistClosed
+    code: 124
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalSniffOpen
+    code: 125
+    trigger: true
+    preview: true
+    increment: false
+  - key: BiocalSniffClosed
+    code: 126
     trigger: true
     preview: true
     increment: false
