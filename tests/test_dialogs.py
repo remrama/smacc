@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 from PyQt6 import QtWidgets
 
-from smacc import dialogs, events
+from smacc import dialogs, events, triggers
 
 # ----- PreferencesDialog -----------------------------------------------------
 
@@ -207,3 +207,91 @@ def test_event_codes_dialog_add_event(qtbot, monkeypatch):
     after = dialog.get_events()
     assert len(after) == before + 1
     assert any(e.label == "New event" for e in after)
+
+
+# ----- TriggerOutputDialog ---------------------------------------------------
+
+
+@pytest.fixture
+def stub_serial_ports(monkeypatch):
+    """Pin the serial-port list so these tests don't depend on the machine's ports.
+
+    Includes a described port (label != device) and a bare one, so the device
+    resolution is exercised regardless of what COM ports the CI runner exposes.
+    """
+    ports = [("COM2", "USB Serial Device"), ("COM5", "COM5")]
+    monkeypatch.setattr(triggers, "list_serial_ports", lambda: ports)
+    return ports
+
+
+def test_trigger_output_dialog_round_trips_config(qtbot, stub_serial_ports):
+    cfg = triggers.TriggerConfig(
+        enabled=True, transport="serial", port="COM9", baud=9600, mode="hold"
+    )
+    dialog = dialogs.TriggerOutputDialog(cfg)
+    qtbot.addWidget(dialog)
+    out = dialog.get_config()
+    assert out.enabled is True
+    assert out.transport == "serial"
+    # COM9 isn't attached but other ports are: it must survive as typed text, not
+    # snap to a listed port (regression: editable combo's stale currentData()).
+    assert out.port == "COM9"
+    assert out.baud == 9600
+    assert out.mode == "hold"
+
+
+def test_trigger_output_dialog_selecting_listed_port_returns_device(
+    qtbot, stub_serial_ports
+):
+    # A listed port is shown with its description ("COM2 — USB Serial Device") but
+    # get_config resolves it back to the bare device name.
+    dialog = dialogs.TriggerOutputDialog(
+        triggers.TriggerConfig(enabled=True, transport="serial", port="COM2")
+    )
+    qtbot.addWidget(dialog)
+    assert dialog.get_config().port == "COM2"
+
+
+def test_trigger_output_dialog_reflects_edits(qtbot):
+    dialog = dialogs.TriggerOutputDialog(triggers.TriggerConfig())
+    qtbot.addWidget(dialog)
+    dialog.enabledBox.setChecked(True)
+    dialog._select_data(dialog.transportCombo, "parallel")
+    dialog.addressEdit.setText("0x278")
+    out = dialog.get_config()
+    assert out.enabled is True
+    assert out.transport == "parallel"
+    assert out.address == "0x278"
+
+
+def test_trigger_output_dialog_disabled_greys_config(qtbot):
+    dialog = dialogs.TriggerOutputDialog(triggers.TriggerConfig(enabled=False))
+    qtbot.addWidget(dialog)
+    assert dialog._config_widget.isEnabled() is False
+    dialog.enabledBox.setChecked(True)
+    assert dialog._config_widget.isEnabled() is True
+
+
+def test_trigger_output_dialog_test_button_reports_result(qtbot, stub_serial_ports):
+    calls = []
+
+    def fake_test(config):
+        calls.append(config)
+        return None  # success
+
+    dialog = dialogs.TriggerOutputDialog(
+        triggers.TriggerConfig(enabled=True, port="COM3"), test_callback=fake_test
+    )
+    qtbot.addWidget(dialog)
+    dialog._on_test()
+    assert len(calls) == 1 and calls[0].port == "COM3"
+    assert "✓" in dialog.testResult.text()
+
+
+def test_trigger_output_dialog_test_button_shows_error(qtbot):
+    dialog = dialogs.TriggerOutputDialog(
+        triggers.TriggerConfig(enabled=True), test_callback=lambda cfg: "no such port"
+    )
+    qtbot.addWidget(dialog)
+    dialog._on_test()
+    assert "no such port" in dialog.testResult.text()

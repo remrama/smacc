@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from smacc import winvolume
+from smacc import gui, triggers, winvolume
 from smacc.gui import SmaccWindow
 
 
@@ -97,6 +97,30 @@ def test_apply_settings_lands_values(
     assert got["devices"]["bindings"]["bedroom_out"] == mock_devices["outputs"][0]
     # The bound devices all match advertised hardware, so none are flagged missing.
     assert design_session.missing_devices == []
+
+
+def test_edit_trigger_output_applies_and_persists_config(
+    qtbot, design_session, mock_devices, silence_dialogs, monkeypatch
+):
+    new_cfg = triggers.TriggerConfig(enabled=True, transport="serial", port="COM4")
+
+    class _StubDialog:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def exec(self):
+            return 1  # accepted
+
+        def get_config(self):
+            return new_cfg
+
+    monkeypatch.setattr(gui, "TriggerOutputDialog", _StubDialog)
+    window = SmaccWindow(design_session)
+    qtbot.addWidget(window)
+    window.edit_trigger_output()
+    assert window.session.trigger_config == new_cfg
+    # The chosen config travels with the rest of the settings.
+    assert window.gather_settings()["trigger_output"]["port"] == "COM4"
 
 
 # ----- theme / lights and owned preferences ----------------------------------

@@ -55,7 +55,7 @@ def test_saved_file_is_tagged_yaml(tmp_path):
     assert text.splitlines()[0].startswith("#")  # self-identifying header comment
     payload = yaml.safe_load(text)  # comment is ignored, so it still parses
     assert payload["kind"] == settings.KIND
-    assert payload["schema_version"] == settings.SCHEMA_VERSION == 4
+    assert payload["schema_version"] == settings.SCHEMA_VERSION == 5
     assert payload["smacc_version"] == smacc.__version__
     assert payload["settings"] == {"cue_attack": 0.2}
 

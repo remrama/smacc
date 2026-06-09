@@ -11,9 +11,14 @@ import sounddevice as sd
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtMultimedia import QMediaDevices
 
-from smacc import bids, devices, preferences, settings, winassoc
+from smacc import bids, devices, preferences, settings, triggers, winassoc
 
-from .dialogs import EventCodesDialog, SessionInfoDialog, ask_initial_or_final
+from .dialogs import (
+    EventCodesDialog,
+    SessionInfoDialog,
+    TriggerOutputDialog,
+    ask_initial_or_final,
+)
 from .panels.audio import AudioCueWindow
 from .panels.base import ModalityWindow
 from .panels.devices import DevicesWindow
@@ -300,6 +305,13 @@ class SmaccWindow(ToolWindow):
         eventCodesAction.triggered.connect(self.edit_event_codes)
         self._event_codes_action = eventCodesAction
 
+        triggerOutputAction = QtGui.QAction("&Trigger output…", self)
+        triggerOutputAction.setStatusTip(
+            "Configure optional hardware TTL trigger output (serial/parallel) "
+            "alongside LSL."
+        )
+        triggerOutputAction.triggered.connect(self.edit_trigger_output)
+
         exportEventsAction = QtGui.QAction("&Export events (BIDS)…", self)
         exportEventsAction.setStatusTip(
             "Export this session's events log as a BIDS events.tsv."
@@ -341,12 +353,15 @@ class SmaccWindow(ToolWindow):
         # _apply_preferences can iterate it uniformly in both modes.
         self._preview_level_boxes: dict[int, QtWidgets.QCheckBox] = {}
         if self.design:
-            self._build_editor_file_menu(fileMenu, sessionInfoAction, eventCodesAction)
+            self._build_editor_file_menu(
+                fileMenu, sessionInfoAction, eventCodesAction, triggerOutputAction
+            )
         else:
             self._build_session_file_menu(
                 fileMenu,
                 sessionInfoAction,
                 eventCodesAction,
+                triggerOutputAction,
                 exportEventsAction,
                 alwaysOnTopAction,
                 associateAction,
@@ -362,7 +377,9 @@ class SmaccWindow(ToolWindow):
         assert surveysMenu is not None
         surveysMenu.aboutToShow.connect(lambda: self._rebuild_surveys_menu(surveysMenu))
 
-    def _build_editor_file_menu(self, fileMenu, sessionInfoAction, eventCodesAction):
+    def _build_editor_file_menu(
+        self, fileMenu, sessionInfoAction, eventCodesAction, triggerOutputAction
+    ):
         """Editor File menu: save/import settings + the config editors (no live run)."""
         saveAction = QtGui.QAction("&Save settings", self)
         saveAction.setShortcut("Ctrl+S")
@@ -386,6 +403,7 @@ class SmaccWindow(ToolWindow):
         fileMenu.addSeparator()
         fileMenu.addAction(sessionInfoAction)
         fileMenu.addAction(eventCodesAction)
+        fileMenu.addAction(triggerOutputAction)
         self._add_surveys_menu(fileMenu)
 
     def _build_session_file_menu(
@@ -393,6 +411,7 @@ class SmaccWindow(ToolWindow):
         fileMenu,
         sessionInfoAction,
         eventCodesAction,
+        triggerOutputAction,
         exportEventsAction,
         alwaysOnTopAction,
         associateAction,
@@ -401,6 +420,7 @@ class SmaccWindow(ToolWindow):
         runs from the launcher. Here you record events and export this run."""
         fileMenu.addAction(sessionInfoAction)
         fileMenu.addAction(eventCodesAction)
+        fileMenu.addAction(triggerOutputAction)
         self._add_surveys_menu(fileMenu)
         fileMenu.addSeparator()
         fileMenu.addAction(exportEventsAction)
@@ -614,6 +634,8 @@ class SmaccWindow(ToolWindow):
         # The event-code registry isn't a panel; persist it at the window level.
         state["event_codes"] = self.session.event_codes_as_list()
         state["event_code_safe_max"] = self.session.event_code_safe_max
+        # Optional hardware-trigger config (transport/port/mode/…), also window-level.
+        state["trigger_output"] = self.session.trigger_config.to_dict()
         # The data directory (where runs are written) travels with the settings;
         # the editor can repoint it, so read the window's copy, not the session's.
         state["data_directory"] = str(self.data_dir)
@@ -630,6 +652,7 @@ class SmaccWindow(ToolWindow):
         self.session.missing_devices = []  # filled by the Devices reload below
         # Device roles/routing first, so panels resolve correctly (migrates old files).
         self.session.devices = devices.load(state)
+        trigger_error: str | None = None
         try:
             for panel in self.panels.values():
                 panel.apply_state(state)
@@ -638,12 +661,18 @@ class SmaccWindow(ToolWindow):
             self.session.set_event_codes(
                 state.get("event_codes"), state.get("event_code_safe_max")
             )
+            # Optional hardware-trigger config (disabled for a pre-v5 study). Open
+            # the transport now so a bad port/driver is reported at load, not mid-run.
+            self.session.trigger_config = triggers.load(state)
+            trigger_error = self.session.set_trigger_output(self.session.trigger_config)
             self._rebuild_events_panel()  # a loaded study may add/remove buttons
             self.devices_window.reload_from_config()  # sync widgets + flag missing
             self._refresh_device_indicators()
         finally:
             self.session.log_interactions = was_logging
         self._notify_missing_devices()
+        if trigger_error:
+            self.show_error_popup("Hardware trigger unavailable.", trigger_error)
 
     def _rebuild_events_panel(self) -> None:
         """Rebuild the Event logging panel's buttons after the registry changes."""
@@ -1039,6 +1068,28 @@ class SmaccWindow(ToolWindow):
         self.session.events = new_by_key
         self.session.event_code_safe_max = safe_max
         self._rebuild_events_panel()
+
+    def edit_trigger_output(self) -> None:
+        """Open the hardware-trigger editor; apply and (re)open the transport on OK.
+
+        A change is logged loudly (WARNING) like an event-code edit: the transport
+        can change mid-session, and the log is the record of what actually fired. In
+        the editor (design mode) no hardware is opened — the config is only authored
+        and saved with the study.
+        """
+        before = self.session.trigger_config
+        dialog = TriggerOutputDialog(
+            before, test_callback=self.session.test_trigger, parent=self
+        )
+        if not dialog.exec():
+            return
+        config = dialog.get_config()
+        if config != before:
+            self.session.logger.warning(f"Trigger output changed: {config.summary()}")
+        self.session.trigger_config = config
+        error = self.session.set_trigger_output(config)
+        if error:
+            self.show_error_popup("Hardware trigger unavailable.", error)
 
     def export_events_bids(self) -> None:
         """Convert this session's log to a BIDS events.tsv (+ JSON sidecar)."""
