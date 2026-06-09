@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import random
 import shutil
 from collections.abc import Callable
 from datetime import timedelta
@@ -28,6 +29,26 @@ def format_elapsed(delta: timedelta) -> str:
     hours, rem = divmod(total, 3600)
     minutes, seconds = divmod(rem, 60)
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def pick_random_demo_cue(cues_dir: Path) -> Path | None:
+    """Return a random shipped ``demo-`` cue from ``cues_dir`` (None if none) (#65).
+
+    Used to prefill the one required cue slot so a fresh study is immediately
+    playable. Only the bundled ``demo-*`` clips are eligible, so a user's own cues
+    sitting in the same folder are never auto-selected.
+    """
+    try:
+        demos = sorted(
+            p
+            for p in cues_dir.iterdir()
+            if p.is_file()
+            and p.name.startswith("demo-")
+            and p.suffix.lower() in AUDIO_SUFFIXES
+        )
+    except OSError:
+        return None
+    return random.choice(demos) if demos else None
 
 
 def get_smacc_directory() -> Path:

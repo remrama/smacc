@@ -3,7 +3,10 @@
 Each slot preloads its own sound with its own volume and loop setting, so a
 protocol that uses several sounds (e.g. cue vs. sham) can keep them ready and
 fire any one with a click. Playback is one-at-a-time (playing a slot stops
-whatever was playing); fade-in/out is shared at the panel level.
+whatever was playing); fade-in/out is shared at the panel level. Slots can be
+added and removed on the fly — one is always required, up to a generous cap — and
+the first slot autofills with a random demo cue so a fresh study is immediately
+playable (#65).
 """
 
 from __future__ import annotations
@@ -17,17 +20,23 @@ from pathlib import Path
 from PyQt5 import QtCore, QtMultimedia, QtWidgets
 
 from ..session import SmaccSession
-from ..utils import ensure_wav
+from ..utils import ensure_wav, pick_random_demo_cue
 from .base import ModalityWindow, make_section_title
 
-N_CUE_SLOTS = 4
+# One cue is always required; the upper bound is generous (a session typically
+# uses 2-5) but capped so the grid and playback stay manageable (#65).
+MIN_CUE_SLOTS = 1
+MAX_CUE_SLOTS = 20
 
 
 @dataclass
 class CueSlot:
-    """One preloaded cue: its player plus the row of widgets that control it."""
+    """One preloaded cue: its player plus the row of widgets that control it.
 
-    index: int
+    Signal handlers bind to the slot *object*, never a row index, so adding or
+    removing rows can't misroute another slot's controls.
+    """
+
     player: QtMultimedia.QSoundEffect
     nameEdit: QtWidgets.QLineEdit
     fileEdit: QtWidgets.QLineEdit
@@ -36,6 +45,7 @@ class CueSlot:
     loopCheckBox: QtWidgets.QCheckBox
     playButton: QtWidgets.QPushButton
     stopButton: QtWidgets.QPushButton
+    removeButton: QtWidgets.QPushButton
     was_playing: bool = field(default=False)
 
 
@@ -52,54 +62,70 @@ class AudioCueWindow(ModalityWindow):
         self.cue_attack_s = 0.0
         self.cue_release_s = 0.0
         self._cue_fade_anim: QtCore.QPropertyAnimation | None = None
-        self._playing_index: int | None = None
-        # Populated incrementally so the per-slot signal handlers (fired by the
-        # initial setValue below) can already index self.slots.
+        self._playing_slot: CueSlot | None = None
+        # Populated after the central widget exists so _rebuild_grid has its
+        # header labels and add button to work with.
         self.slots: list[CueSlot] = []
-        self._make_slots()
         self.setCentralWidget(self._build())
+        # Start with the one required slot, prefilled with a random demo so a fresh
+        # study can play something immediately; a loaded study overrides it.
+        self._add_initial_slot()
 
     # ----- construction ------------------------------------------------------
 
-    def _make_slots(self) -> None:
-        for i in range(N_CUE_SLOTS):
-            player = QtMultimedia.QSoundEffect()
-            player.setLoopCount(1)
-            nameEdit = QtWidgets.QLineEdit(f"Cue {i + 1}", self)
-            nameEdit.setMaximumWidth(90)
-            fileEdit = QtWidgets.QLineEdit(self)
-            fileEdit.setMinimumWidth(180)
-            browseButton = QtWidgets.QPushButton("Browse", self)
-            volumeSpinBox = QtWidgets.QDoubleSpinBox(self)
-            volumeSpinBox.setRange(0, 1)  # QSoundEffect only allows 0-1
-            volumeSpinBox.setSingleStep(0.01)
-            volumeSpinBox.setMaximumWidth(70)
-            loopCheckBox = QtWidgets.QCheckBox(self)
-            loopCheckBox.setStatusTip("Repeat this cue until stopped.")
-            loopCheckBox.setToolTip("Loop until stopped")
-            playButton = QtWidgets.QPushButton("Play", self)
-            stopButton = QtWidgets.QPushButton("Stop", self)
-            slot = CueSlot(
-                i,
-                player,
-                nameEdit,
-                fileEdit,
-                browseButton,
-                volumeSpinBox,
-                loopCheckBox,
-                playButton,
-                stopButton,
-            )
-            self.slots.append(slot)  # append before wiring so handlers can index it
-            player.playingChanged.connect(partial(self.on_slot_playing_change, i))
-            fileEdit.textChanged.connect(partial(self.update_slot_source, i))
-            fileEdit.editingFinished.connect(partial(self.update_slot_source, i))
-            volumeSpinBox.valueChanged.connect(partial(self.update_slot_volume, i))
-            loopCheckBox.toggled.connect(partial(self.update_slot_loop, i))
-            browseButton.clicked.connect(partial(self.open_audio_selector, i))
-            playButton.clicked.connect(partial(self.play_slot, i))
-            stopButton.clicked.connect(partial(self.stop_slot, i))
-            volumeSpinBox.setValue(0.2)  # fires update_slot_volume -> player
+    def _make_slot(self, name: str) -> CueSlot:
+        """Build one fully-wired cue slot and append it to ``self.slots``."""
+        player = QtMultimedia.QSoundEffect()
+        player.setLoopCount(1)
+        nameEdit = QtWidgets.QLineEdit(name, self)
+        nameEdit.setMaximumWidth(90)
+        fileEdit = QtWidgets.QLineEdit(self)
+        fileEdit.setMinimumWidth(180)
+        browseButton = QtWidgets.QPushButton("Browse", self)
+        volumeSpinBox = QtWidgets.QDoubleSpinBox(self)
+        volumeSpinBox.setRange(0, 1)  # QSoundEffect only allows 0-1
+        volumeSpinBox.setSingleStep(0.01)
+        volumeSpinBox.setMaximumWidth(70)
+        loopCheckBox = QtWidgets.QCheckBox(self)
+        loopCheckBox.setStatusTip("Repeat this cue until stopped.")
+        loopCheckBox.setToolTip("Loop until stopped")
+        playButton = QtWidgets.QPushButton("Play", self)
+        stopButton = QtWidgets.QPushButton("Stop", self)
+        removeButton = QtWidgets.QPushButton("✕", self)  # ✕
+        removeButton.setMaximumWidth(28)
+        removeButton.setStatusTip("Remove this cue.")
+        removeButton.setToolTip("Remove this cue")
+        slot = CueSlot(
+            player,
+            nameEdit,
+            fileEdit,
+            browseButton,
+            volumeSpinBox,
+            loopCheckBox,
+            playButton,
+            stopButton,
+            removeButton,
+        )
+        self.slots.append(slot)  # append before wiring so handlers can resolve it
+        player.playingChanged.connect(partial(self.on_slot_playing_change, slot))
+        fileEdit.textChanged.connect(partial(self.update_slot_source, slot))
+        fileEdit.editingFinished.connect(partial(self.update_slot_source, slot))
+        volumeSpinBox.valueChanged.connect(partial(self.update_slot_volume, slot))
+        loopCheckBox.toggled.connect(partial(self.update_slot_loop, slot))
+        browseButton.clicked.connect(partial(self.open_audio_selector, slot))
+        playButton.clicked.connect(partial(self.play_slot, slot))
+        stopButton.clicked.connect(partial(self.stop_slot, slot))
+        removeButton.clicked.connect(partial(self.remove_slot, slot))
+        volumeSpinBox.setValue(0.2)  # fires update_slot_volume -> player
+        return slot
+
+    def _add_initial_slot(self) -> None:
+        """Create the single required slot and prefill a random demo cue (#65)."""
+        slot = self._make_slot("Cue 1")
+        demo = pick_random_demo_cue(self.session.cues_dir)
+        if demo is not None:
+            slot.fileEdit.setText(str(demo))
+        self._rebuild_grid()
 
     def _build(self) -> QtWidgets.QWidget:
         # Shared device + fade controls.
@@ -149,37 +175,121 @@ class AudioCueWindow(ModalityWindow):
         header.addRow("Fade out:", releaseSpinBox)
 
         # "Now playing" indicator on top of the slot table (mixing-board style).
-        self.nowPlayingLabel = QtWidgets.QLabel("■ stopped", self)
+        self.nowPlayingLabel = QtWidgets.QLabel("■ stopped", self)  # ■
         self.nowPlayingLabel.setAlignment(QtCore.Qt.AlignCenter)
 
-        # Cue table: a header row + one row per slot.
-        grid = QtWidgets.QGridLayout()
-        for col, title in enumerate(["Name", "Sound", "Vol", "Loop", "", ""]):
-            label = QtWidgets.QLabel(title, self)
-            label.setStyleSheet("font-weight: bold;")
-            grid.addWidget(label, 0, col)
-        for slot in self.slots:
-            row = slot.index + 1
-            grid.addWidget(slot.nameEdit, row, 0)
-            sound = QtWidgets.QHBoxLayout()
-            sound.addWidget(slot.fileEdit)
-            sound.addWidget(slot.browseButton)
-            grid.addLayout(sound, row, 1)
-            grid.addWidget(slot.volumeSpinBox, row, 2)
-            grid.addWidget(slot.loopCheckBox, row, 3)
-            grid.addWidget(slot.playButton, row, 4)
-            grid.addWidget(slot.stopButton, row, 5)
-        grid.setColumnStretch(1, 1)
+        # Cue table: a persistent header row, then one rebuildable row per slot,
+        # then an "add" row. The header labels and add button are created once and
+        # reused across rebuilds, so a rebuild only reparents widgets (never deletes
+        # them) and live slot controls survive untouched.
+        self._grid = QtWidgets.QGridLayout()
+        self._header_labels = [
+            self._make_header_label(title)
+            for title in ("Name", "Sound", "", "Vol", "Loop", "", "", "")
+        ]
+        self._addButton = QtWidgets.QPushButton("+ Add cue", self)
+        self._addButton.setStatusTip(f"Add another cue (up to {MAX_CUE_SLOTS}).")
+        self._addButton.setToolTip("Add another cue")
+        self._addButton.clicked.connect(self.add_slot)
+        self._rebuild_grid()
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(make_section_title("Audio cue"))
         layout.addLayout(header)
         layout.addWidget(self.nowPlayingLabel)
-        layout.addLayout(grid)
+        layout.addLayout(self._grid)
         layout.addStretch(1)
         central = QtWidgets.QWidget()
         central.setLayout(layout)
         return central
+
+    def _make_header_label(self, text: str) -> QtWidgets.QLabel:
+        label = QtWidgets.QLabel(text, self)
+        label.setStyleSheet("font-weight: bold;")
+        return label
+
+    def _rebuild_grid(self) -> None:
+        """Re-lay the cue table: header row, one row per slot, then the add row.
+
+        Every widget here is persistent (the header labels, the add button, and
+        each slot's controls), so clearing only reparents them out of the grid —
+        nothing is deleted — and they're re-added in their new positions.
+        """
+        while self._grid.count():
+            self._grid.takeAt(0)  # drop the layout item only; widgets are reused
+        for col, label in enumerate(self._header_labels):
+            self._grid.addWidget(label, 0, col)
+        for row, slot in enumerate(self.slots, start=1):
+            self._grid.addWidget(slot.nameEdit, row, 0)
+            self._grid.addWidget(slot.fileEdit, row, 1)
+            self._grid.addWidget(slot.browseButton, row, 2)
+            self._grid.addWidget(slot.volumeSpinBox, row, 3)
+            self._grid.addWidget(slot.loopCheckBox, row, 4)
+            self._grid.addWidget(slot.playButton, row, 5)
+            self._grid.addWidget(slot.stopButton, row, 6)
+            self._grid.addWidget(slot.removeButton, row, 7)
+            # The lone required slot can't be removed: keep the button in place (so
+            # the column doesn't jump) but disabled.
+            slot.removeButton.setEnabled(len(self.slots) > MIN_CUE_SLOTS)
+        self._grid.addWidget(self._addButton, len(self.slots) + 1, 0, 1, 2)
+        self._addButton.setEnabled(len(self.slots) < MAX_CUE_SLOTS)
+        self._grid.setColumnStretch(1, 1)
+
+    # ----- add / remove slots ------------------------------------------------
+
+    def add_slot(self) -> None:
+        """Append a new (empty) cue slot, up to the cap (#65)."""
+        if len(self.slots) >= MAX_CUE_SLOTS:
+            return
+        slot = self._make_slot(f"Cue {len(self.slots) + 1}")
+        self._rebuild_grid()
+        self.adjustSize()
+        self.session.log_interaction(f"Added cue '{slot.nameEdit.text()}'")
+
+    def remove_slot(self, slot: CueSlot) -> None:
+        """Remove a cue slot (never the last one), stopping it first (#65)."""
+        if len(self.slots) <= MIN_CUE_SLOTS or slot not in self.slots:
+            return
+        name = slot.nameEdit.text()
+        self.slots.remove(slot)
+        self._destroy_slot_widgets(slot)
+        self._rebuild_grid()
+        self.adjustSize()
+        self.session.log_interaction(f"Removed cue '{name}'")
+
+    def _destroy_slot_widgets(self, slot: CueSlot) -> None:
+        """Tear down a removed slot: silence it, drop late signals, free widgets."""
+        if self._playing_slot is slot:
+            self._playing_slot = None
+            self._set_now_playing_stopped()
+        # Drop the playing-edge connection before deleting so a late edge can't fire
+        # into a half-torn-down slot, then stop any sound it was making.
+        try:
+            slot.player.playingChanged.disconnect()
+        except TypeError:
+            pass  # nothing connected
+        slot.player.stop()
+        for widget in (
+            slot.nameEdit,
+            slot.fileEdit,
+            slot.browseButton,
+            slot.volumeSpinBox,
+            slot.loopCheckBox,
+            slot.playButton,
+            slot.stopButton,
+            slot.removeButton,
+        ):
+            widget.hide()  # leave no orphan visible before deferred deletion
+            widget.deleteLater()
+
+    def _resize_slots(self, count: int) -> None:
+        """Grow/shrink the slot list to ``count`` (clamped to ``1..MAX``) (#65)."""
+        count = max(MIN_CUE_SLOTS, min(count, MAX_CUE_SLOTS))
+        while len(self.slots) < count:
+            self._make_slot(f"Cue {len(self.slots) + 1}")
+        while len(self.slots) > count:
+            self._destroy_slot_widgets(self.slots.pop())
+        self._rebuild_grid()
 
     # ----- shared device + fade ---------------------------------------------
 
@@ -228,7 +338,7 @@ class AudioCueWindow(ModalityWindow):
 
     # ----- per-slot controls -------------------------------------------------
 
-    def open_audio_selector(self, index: int) -> None:
+    def open_audio_selector(self, slot: CueSlot) -> None:
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
             "Select a File",
@@ -236,17 +346,17 @@ class AudioCueWindow(ModalityWindow):
             "Audio (*.wav *.mp3 *.flac *.ogg *.oga *.aif *.aiff);;All files (*)",
         )
         if filename:
-            self.slots[index].fileEdit.setText(str(Path(filename)))
+            slot.fileEdit.setText(str(Path(filename)))
 
-    def update_slot_source(self, index: int) -> None:
+    def update_slot_source(self, slot: CueSlot) -> None:
         """Set a slot player's source from its file line edit.
 
         Non-WAV files are decoded to a cached WAV first, since QSoundEffect only
         plays uncompressed WAV. Fired on every keystroke, so missing/partial paths
         are skipped silently; only a genuine decode failure raises a popup.
         """
-        player = self.slots[index].player
-        filepath = self.slots[index].fileEdit.text().strip()
+        player = slot.player
+        filepath = slot.fileEdit.text().strip()
         if not filepath or not Path(filepath).is_file():
             player.setSource(QtCore.QUrl())  # clear: nothing loaded
             return
@@ -260,18 +370,16 @@ class AudioCueWindow(ModalityWindow):
             return
         player.setSource(QtCore.QUrl.fromLocalFile(str(wav)))
 
-    def update_slot_volume(self, index: int, value: float | None = None) -> None:
+    def update_slot_volume(self, slot: CueSlot, value: float | None = None) -> None:
         """Set a slot player's volume (0-1) from its spinbox."""
-        slot = self.slots[index]
         vol = slot.volumeSpinBox.value()
         slot.player.setVolume(vol)
         self.session.log_interaction(
             f"Cue '{slot.nameEdit.text()}' volume set to {vol:.2f}"
         )
 
-    def update_slot_loop(self, index: int, enabled: bool | None = None) -> None:
+    def update_slot_loop(self, slot: CueSlot, enabled: bool | None = None) -> None:
         """Set a slot player's loop count from its checkbox."""
-        slot = self.slots[index]
         looping = slot.loopCheckBox.isChecked()
         count = QtMultimedia.QSoundEffect.Infinite if looping else 1
         slot.player.setLoopCount(count)
@@ -279,15 +387,14 @@ class AudioCueWindow(ModalityWindow):
             f"Cue '{slot.nameEdit.text()}' loop {'on' if looping else 'off'}"
         )
 
-    def play_slot(self, index: int) -> None:
+    def play_slot(self, slot: CueSlot) -> None:
         """Play one slot (stopping any other playing slot first) with fade-in."""
-        slot = self.slots[index]
         if not slot.fileEdit.text().strip():
             return  # nothing loaded in this slot
         # One-at-a-time: stop whatever else is playing (fires its CueStopped).
-        if self._playing_index is not None and self._playing_index != index:
-            self.slots[self._playing_index].player.stop()
-        self._playing_index = index
+        if self._playing_slot is not None and self._playing_slot is not slot:
+            self._playing_slot.player.stop()
+        self._playing_slot = slot
         target = slot.volumeSpinBox.value()
         if self.cue_attack_s > 0:
             slot.player.setVolume(0.0)
@@ -298,9 +405,8 @@ class AudioCueWindow(ModalityWindow):
             slot.player.play()
         self.session.emit_event("CueStarted", detail=slot.nameEdit.text())
 
-    def stop_slot(self, index: int) -> None:
+    def stop_slot(self, slot: CueSlot) -> None:
         """Stop a slot (with fade-out) if it is the one currently playing."""
-        slot = self.slots[index]
         if not slot.player.isPlaying():
             return
         if self.cue_release_s > 0:
@@ -311,18 +417,19 @@ class AudioCueWindow(ModalityWindow):
         else:
             slot.player.stop()
 
-    def on_slot_playing_change(self, index: int) -> None:
+    def on_slot_playing_change(self, slot: CueSlot) -> None:
         """Track each slot's play/stop edges: update the label, emit markers.
 
         CueStarted is emitted by play_slot (the user action); here we detect the
         playing->stopped edge per slot to emit CueStopped, so a natural end (a
         non-looping cue finishing) is marked too, with no double-fire.
         """
-        slot = self.slots[index]
+        if slot not in self.slots:
+            return  # a removed slot's late signal; ignore
         playing = slot.player.isPlaying()
         if playing and not slot.was_playing:
             slot.was_playing = True
-            self._playing_index = index
+            self._playing_slot = slot
             looping = slot.loopCheckBox.isChecked()
             name = slot.nameEdit.text()
             self.nowPlayingLabel.setText(
@@ -332,10 +439,13 @@ class AudioCueWindow(ModalityWindow):
         elif not playing and slot.was_playing:
             slot.was_playing = False
             self.session.emit_event("CueStopped", detail=slot.nameEdit.text())
-            if self._playing_index == index:
-                self._playing_index = None
-                self.nowPlayingLabel.setText("■ stopped")
-                self.nowPlayingLabel.setStyleSheet("")
+            if self._playing_slot is slot:
+                self._playing_slot = None
+                self._set_now_playing_stopped()
+
+    def _set_now_playing_stopped(self) -> None:
+        self.nowPlayingLabel.setText("■ stopped")  # ■
+        self.nowPlayingLabel.setStyleSheet("")
 
     # ----- settings state ----------------------------------------------------
 
@@ -356,11 +466,13 @@ class AudioCueWindow(ModalityWindow):
 
     def apply_state(self, state: dict) -> None:
         cues = state.get("cues")
-        if isinstance(cues, list):
+        if isinstance(cues, list) and cues:
+            self._resize_slots(len(cues))
             for slot, cue in zip(self.slots, cues, strict=False):
                 self._apply_cue(slot, cue)
         elif state.get("cue_file") is not None or state.get("cue_volume") is not None:
             # Back-compat: a v1 single cue maps into the first slot.
+            self._resize_slots(1)
             self._apply_cue(
                 self.slots[0],
                 {
