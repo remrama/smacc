@@ -16,7 +16,7 @@
         <link rel="prev" href="../devices/">
       
       
-        <link rel="next" href="../contributing/">
+        <link rel="next" href="../reference/">
       
       
         
@@ -483,6 +483,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#default-event-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default event codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#how-smacc-sends-triggers" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -562,6 +573,200 @@
   
   
   
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings-file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings file (.smacc)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/preferences-file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preferences file
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/session-log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Session log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/bids-export/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BIDS export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../contributing/" class="md-nav__link">
         
@@ -614,6 +819,17 @@
     <span class="md-ellipsis">
       
         What are port codes and triggers?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#default-event-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default event codes
       
     </span>
   </a>
@@ -723,6 +939,159 @@ range follows from the hardware: a trigger is physically <strong>eight on/off li
 bits), and the amplifier reads them as one byte. SMACC keeps every code inside 1–255
 for this reason. See <a href="../usage/#configuring-codes">Configuring codes</a> for how to view
 and edit which event sends which code.</p>
+<h2 id="default-event-codes">Default event codes</h2>
+<p>These are SMACC's built-in event markers and their default port codes — the
+out-of-the-box <a href="../reference/settings-file/#event_codes"><code>event_codes</code></a> registry. A
+study can retune any code in the <strong>Event codes</strong> editor; the change travels in its
+<a href="../reference/settings-file/"><code>.smacc</code></a> and is written into every session log.</p>
+<!-- BEGIN auto:event-codes (kept in lockstep with smacc.events.default_events by tests/test_docs_schema.py) -->
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Event</th>
+<th>Key</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>41</td>
+<td>REM detected</td>
+<td><code>REMDetected</code></td>
+<td></td>
+</tr>
+<tr>
+<td>42</td>
+<td>Tech in room</td>
+<td><code>TechInRoom</code></td>
+<td></td>
+</tr>
+<tr>
+<td>43</td>
+<td>TLR training start</td>
+<td><code>TLRTrainingStart</code></td>
+<td></td>
+</tr>
+<tr>
+<td>44</td>
+<td>TLR training end</td>
+<td><code>TLRTrainingEnd</code></td>
+<td></td>
+</tr>
+<tr>
+<td>45</td>
+<td>LRLR detected</td>
+<td><code>LRLRDetected</code></td>
+<td>lucid left-right-left-right signal</td>
+</tr>
+<tr>
+<td>46</td>
+<td>Sleep onset</td>
+<td><code>SleepOnset</code></td>
+<td></td>
+</tr>
+<tr>
+<td>47</td>
+<td>Lights off</td>
+<td><code>LightsOff</code></td>
+<td></td>
+</tr>
+<tr>
+<td>48</td>
+<td>Lights on</td>
+<td><code>LightsOn</code></td>
+<td></td>
+</tr>
+<tr>
+<td>49</td>
+<td>Clapper</td>
+<td><code>Clapper</code></td>
+<td>sync marker</td>
+</tr>
+<tr>
+<td>50</td>
+<td>Note</td>
+<td><code>Note</code></td>
+<td></td>
+</tr>
+<tr>
+<td>51</td>
+<td>Start recording</td>
+<td><code>RecordingStarted</code></td>
+<td>sets the reference clock for dream-report timestamps</td>
+</tr>
+<tr>
+<td>60</td>
+<td>Cue started</td>
+<td><code>CueStarted</code></td>
+<td></td>
+</tr>
+<tr>
+<td>61</td>
+<td>Cue stopped</td>
+<td><code>CueStopped</code></td>
+<td></td>
+</tr>
+<tr>
+<td>62</td>
+<td>Noise started</td>
+<td><code>NoiseStarted</code></td>
+<td></td>
+</tr>
+<tr>
+<td>63</td>
+<td>Noise stopped</td>
+<td><code>NoiseStopped</code></td>
+<td></td>
+</tr>
+<tr>
+<td>64</td>
+<td>Intercom started</td>
+<td><code>IntercomStarted</code></td>
+<td></td>
+</tr>
+<tr>
+<td>65</td>
+<td>Intercom stopped</td>
+<td><code>IntercomStopped</code></td>
+<td></td>
+</tr>
+<tr>
+<td>66</td>
+<td>Visual stimulation</td>
+<td><code>VisualStarted</code></td>
+<td></td>
+</tr>
+<tr>
+<td>67</td>
+<td>Survey opened</td>
+<td><code>SurveyOpened</code></td>
+<td></td>
+</tr>
+<tr>
+<td>100</td>
+<td>SMACC initialized</td>
+<td><code>TriggerInitialization</code></td>
+<td>startup connection test; not a stimulus marker</td>
+</tr>
+<tr>
+<td>200</td>
+<td>Dream report stopped</td>
+<td><code>DreamReportStopped</code></td>
+<td></td>
+</tr>
+<tr>
+<td>201</td>
+<td>Dream report started</td>
+<td><code>DreamReportStarted</code></td>
+<td>increments per report (201, 202, …)</td>
+</tr>
+</tbody>
+</table>
+<!-- END auto:event-codes -->
+
+<p>Codes are integers in <strong>1–255</strong> and must be unique among triggered events.</p>
 <h2 id="how-smacc-sends-triggers">How SMACC sends triggers</h2>
 <p>SMACC always emits markers over <strong>LSL</strong> (Lab Streaming Layer), a network marker
 stream. On top of that, you can <em>optionally</em> enable <strong>one</strong> hardware transport so a
