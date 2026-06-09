@@ -10,6 +10,8 @@ empty contribution.
 
 from __future__ import annotations
 
+import logging
+
 import pytest
 
 from smacc import winvolume
@@ -98,6 +100,61 @@ def test_volume_panel_round_trips_cap(qtbot, design_session, monkeypatch):
     assert panel.gather_state() == {"volume_cap": pytest.approx(0.50)}
     # apply_state also drives the live session cap (read by the audio callbacks).
     assert design_session.volume_cap == pytest.approx(0.50)
+
+
+def _capture_session_log(session) -> list[logging.LogRecord]:
+    """Attach a recording handler to a session's logger and return its record list.
+
+    The session logger sets ``propagate=False`` (and design mode only has a
+    NullHandler), so pytest's ``caplog`` — which captures on the root logger —
+    never sees these records; capture on the logger directly instead.
+    """
+    records: list[logging.LogRecord] = []
+
+    class _Capture(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            records.append(record)
+
+    session.logger.addHandler(_Capture())
+    return records
+
+
+def test_volume_panel_logs_windows_levels_on_refresh(
+    qtbot, design_session, monkeypatch
+):
+    # Each actual read of the Windows volumes is logged at INFO for reproducibility.
+    monkeypatch.setattr(winvolume, "endpoint_volume", lambda: 0.85)
+    monkeypatch.setattr(winvolume, "app_volume", lambda: 0.50)
+    panel = VolumeWindow(design_session)  # constructor calls refresh_levels() once
+    qtbot.addWidget(panel)
+    records = _capture_session_log(design_session)
+    panel.refresh_levels()
+    windows_lines = [
+        r for r in records if r.getMessage().startswith("Windows output volume:")
+    ]
+    assert windows_lines, "a refresh should log the read Windows volumes"
+    record = windows_lines[-1]
+    assert record.levelno == logging.INFO
+    assert "endpoint 85%" in record.getMessage()
+    assert "SMACC mixer 50%" in record.getMessage()
+
+
+def test_volume_panel_refresh_reports_unavailable_levels(
+    qtbot, design_session, monkeypatch
+):
+    # When the COM read fails (non-Windows / no endpoint), the log says so rather
+    # than crashing on a None percentage.
+    monkeypatch.setattr(winvolume, "endpoint_volume", lambda: None)
+    monkeypatch.setattr(winvolume, "app_volume", lambda: None)
+    panel = VolumeWindow(design_session)
+    qtbot.addWidget(panel)
+    records = _capture_session_log(design_session)
+    panel.refresh_levels()
+    messages = [r.getMessage() for r in records]
+    assert (
+        "Windows output volume: endpoint unavailable, SMACC mixer unavailable"
+        in messages
+    )
 
 
 # ----- stateless panels (their config lives at window/session level) ---------
