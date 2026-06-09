@@ -40,10 +40,10 @@ class Role:
 # The fixed role set. Two outputs and one mic cover the issue's rig; BlinkStick is
 # its own (visual) role. Kept small on purpose — extra roles can be added later.
 ROLES: tuple[Role, ...] = (
-    Role("bedroom_out", "Bedroom output", OUTPUT),
-    Role("control_out", "Control-room output", OUTPUT),
+    Role("bedroom_out", "Bedroom speakers", OUTPUT),
+    Role("control_out", "Control-room speakers", OUTPUT),
     Role("bedroom_mic", "Bedroom mic", INPUT),
-    Role("blinkstick", "BlinkStick", VISUAL),
+    Role("blinkstick", "Bedroom lights", VISUAL),
 )
 
 
@@ -61,13 +61,13 @@ class Target:
 # Every device a modality needs, with its default role. The optional outputs are
 # the new monitoring routes (the cue fan-out and the intercom return).
 TARGETS: tuple[Target, ...] = (
-    Target("cue_out", "Audio cue", OUTPUT, "bedroom_out"),
-    Target("cue_monitor", "Cue monitor", OUTPUT, "", optional=True),
-    Target("noise_out", "Noise", OUTPUT, "bedroom_out"),
-    Target("intercom_talk", "Intercom → participant", OUTPUT, "bedroom_out"),
-    Target("intercom_listen", "Intercom ← participant", OUTPUT, "", optional=True),
-    Target("report_in", "Dream-report mic", INPUT, "bedroom_mic"),
-    Target("visual_out", "Visual (BlinkStick)", VISUAL, "blinkstick"),
+    Target("cue_out", "Present audio cue", OUTPUT, "bedroom_out"),
+    Target("cue_monitor", "Monitor audio cue", OUTPUT, "", optional=True),
+    Target("noise_out", "Present audio noise", OUTPUT, "bedroom_out"),
+    Target("intercom_talk", "Speak through intercom", OUTPUT, "bedroom_out"),
+    Target("intercom_listen", "Listen through intercom", OUTPUT, "", optional=True),
+    Target("report_in", "Capture dream report", INPUT, "bedroom_mic"),
+    Target("visual_out", "Present visual cue", VISUAL, "blinkstick"),
 )
 
 ROLES_BY_KEY: dict[str, Role] = {r.key: r for r in ROLES}
