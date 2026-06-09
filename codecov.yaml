@@ -1,0 +1,19 @@
+# Codecov configuration. Reference: https://docs.codecov.com/docs/codecov-yaml
+#
+# Single source of truth for coverage gating — this replaces the coverage.py
+# `fail_under` gate that used to live in pyproject.toml. The thresholds below are
+# enforced as Codecov status checks (codecov/project and codecov/patch) posted on
+# each PR after the report uploads. To make them *block* merges, add those two
+# checks as required status checks in the branch protection rule for `main`.
+coverage:
+  status:
+    project:
+      default:
+        # SMACC is a GUI-heavy desktop app where some glue is hard to cover
+        # headlessly, so 60% is a floor to ratchet up over time, not a ceiling.
+        target: 60%
+        threshold: 1% # tolerate a 1% dip before the check fails (anti-flap)
+    patch:
+      default:
+        target: 60% # ~60% of the lines a PR changes should be covered
+        # Set `informational: true` here if patch gating gets noisy on GUI PRs.

@@ -48,6 +48,12 @@ docs = [
 ]
 dev = [
     "pytest",
+    # GUI tests run headless via the Qt "offscreen" platform (set in
+    # tests/conftest.py); pytest-qt supplies the qtbot/qapp fixtures and manages
+    # the QApplication lifecycle. pytest-cov reports coverage of the now-tested
+    # Qt layer (see the test job in .github/workflows/ci.yaml).
+    "pytest-qt",
+    "pytest-cov",
     "ruff",
     "mypy",
     "pre-commit",
@@ -98,3 +104,10 @@ files = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["smacc"]
+# Store repo-relative paths so Codecov maps the Windows CI run onto the source
+# tree (src/smacc/…) instead of dropping the report for unmatched paths.
+relative_files = true
+# Coverage gating (project/patch targets) lives in codecov.yaml, not here.

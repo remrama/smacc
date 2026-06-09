@@ -5,5 +5,8 @@ build/
 *.spec
 .venv/
 .*_cache/
+.coverage
+coverage.xml
+htmlcov/
 NOTES.txt
 site/
