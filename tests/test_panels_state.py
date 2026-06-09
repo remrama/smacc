@@ -176,3 +176,22 @@ def test_devices_panel_has_no_persisted_state(qtbot, design_session, mock_device
     panel = DevicesWindow(design_session)
     qtbot.addWidget(panel)
     assert panel.gather_state() == {}
+
+
+# ----- per-window always-on-top (ModalityWindow base) ------------------------
+
+
+def test_tool_window_always_on_top_toggle(qtbot, design_session):
+    panel = NoiseWindow(design_session)
+    qtbot.addWidget(panel)
+    assert panel.is_always_on_top() is False  # default off
+    panel.set_always_on_top(True)
+    assert panel.is_always_on_top() is True
+    assert panel._always_on_top_action.isChecked() is True
+    # The window flag tracks the toggle.
+    from PyQt6 import QtCore
+
+    assert bool(panel.windowFlags() & QtCore.Qt.WindowType.WindowStaysOnTopHint)
+    panel.set_always_on_top(False)
+    assert panel.is_always_on_top() is False
+    assert not bool(panel.windowFlags() & QtCore.Qt.WindowType.WindowStaysOnTopHint)

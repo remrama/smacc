@@ -160,12 +160,108 @@ def test_set_lights_toggles_state_and_label(
     assert "ON" in window.lightswitchButton.text()
 
 
-def test_preference_changes_reports_owned_keys(
+# ----- interface choices now carried by the .smacc settings (schema v6) -------
+
+
+def test_gather_settings_includes_interface_choices(
     qtbot, live_session, mock_devices, silence_dialogs
 ):
     window = SmaccWindow(live_session)
     qtbot.addWidget(window)
-    changes = window._preference_changes()
-    assert set(changes) == {"always_on_top", "preview_levels", "window"}
-    assert isinstance(changes["preview_levels"], list)
-    assert set(changes["window"]) == {"x", "y", "w", "h"}
+    state = window.gather_settings()
+    # Moved out of preferences.yaml and into the portable settings file.
+    assert isinstance(state["preview_levels"], list)
+    assert state["always_on_top"] is False  # main window, default off
+    # A per-tool always-on-top map keyed by panel key (default all off).
+    assert set(state["tool_always_on_top"]) == set(window.panels)
+    assert all(v is False for v in state["tool_always_on_top"].values())
+
+
+def test_default_interface_choices_when_settings_omit_them(
+    qtbot, live_session, mock_devices, silence_dialogs
+):
+    # A pre-v6 study has no preview_levels/always_on_top; defaults must stand.
+    window = SmaccWindow(live_session)
+    qtbot.addWidget(window)
+    state = window.gather_settings()
+    state.pop("preview_levels")
+    state.pop("always_on_top")
+    state.pop("tool_always_on_top")
+    window.apply_settings(state)
+    # Default preview levels are INFO and above (all but DEBUG).
+    assert window.gather_settings()["preview_levels"] == [
+        "INFO",
+        "WARNING",
+        "ERROR",
+        "CRITICAL",
+    ]
+    assert window.gather_settings()["always_on_top"] is False
+
+
+def test_interface_choices_round_trip_through_settings(
+    qtbot, live_session, mock_devices, silence_dialogs
+):
+    window = SmaccWindow(live_session)
+    qtbot.addWidget(window)
+    state = window.gather_settings()
+    state["preview_levels"] = ["DEBUG", "INFO"]
+    state["always_on_top"] = True
+    state["tool_always_on_top"] = dict.fromkeys(window.panels, False)
+    state["tool_always_on_top"]["events"] = True
+    window.apply_settings(state)
+    got = window.gather_settings()
+    assert got["preview_levels"] == ["DEBUG", "INFO"]
+    assert got["always_on_top"] is True
+    assert got["tool_always_on_top"]["events"] is True
+    # The main window's flag and the events tool's flag both followed the settings.
+    assert window._always_on_top_action.isChecked() is True
+    assert window.panels["events"].is_always_on_top() is True
+
+
+def test_editor_preserves_preview_levels_round_trip(
+    qtbot, design_session, mock_devices, silence_dialogs
+):
+    # The editor has no live preview pane, but it must not wipe a study's
+    # preview_levels on save — it round-trips the loaded value verbatim.
+    window = SmaccWindow(design_session)
+    qtbot.addWidget(window)
+    state = window.gather_settings()
+    state["preview_levels"] = ["DEBUG", "WARNING"]
+    window.apply_settings(state)
+    assert window.gather_settings()["preview_levels"] == ["DEBUG", "WARNING"]
+
+
+# ----- per-window geometry persistence (machine-local preferences.yaml) -------
+
+
+def test_tool_window_geometry_persists_and_restores(
+    qtbot, tmp_path, monkeypatch, mock_devices, silence_dialogs
+):
+    # Geometry is stored machine-local; point the prefs file at a temp path so the
+    # test never touches the real one.
+    prefs_path = tmp_path / "preferences.yaml"
+    monkeypatch.setattr(gui, "preferences_path", prefs_path)
+
+    from smacc.session import SmaccSession
+
+    monkeypatch.setattr(
+        SmaccSession,
+        "init_lsl_stream",
+        lambda self, *a, **k: setattr(self, "outlet", None),
+    )
+
+    first = SmaccWindow(SmaccSession(tmp_path / "data", design=False))
+    qtbot.addWidget(first)
+    first._open_panel("volume")  # places + marks it positioned
+    first.panels["volume"].move(321, 234)
+    first._teardown_panels()  # persists each opened panel's geometry
+    first.session.close()
+
+    # A fresh window reads the saved geometry and reopens the tool there.
+    second = SmaccWindow(SmaccSession(tmp_path / "data", design=False))
+    qtbot.addWidget(second)
+    second._open_panel("volume")
+    assert second.panels["volume"].x() == 321
+    assert second.panels["volume"].y() == 234
+    second._teardown_panels()
+    second.session.close()
