@@ -33,6 +33,22 @@ pre-commit install         # enable the lint/format/type-check git hooks
 launcher and opens no console window, so prefer `python -m smacc` when you want
 terminal output (e.g. tracebacks).
 
+### Tests
+
+The suite runs headless. `tests/conftest.py` selects Qt's `offscreen` platform before
+any Qt import, so the GUI tests (built on
+[pytest-qt](https://pytest-qt.readthedocs.io/)) construct windows and panels with no
+display and no popups — there's no extra setup on your part. Hardware access (audio
+device enumeration, the Windows volume read-out) is stubbed in fixtures, so tests don't
+depend on the machine's audio setup.
+
+```sh
+uv run pytest --cov=smacc --cov-report=term-missing   # the coverage flags CI runs
+```
+
+To actually watch a test render, override the platform for that run (Windows:
+`$env:QT_QPA_PLATFORM = "windows"` before `uv run pytest`).
+
 ## Building the executable
 
 Build the standalone Windows executable:

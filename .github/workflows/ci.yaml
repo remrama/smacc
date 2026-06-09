@@ -30,10 +30,15 @@ jobs:
     # exactly what gets frozen into SMACC.exe. windows-2022 is the oldest hosted
     # runner available and avoids the in-progress windows-latest VS-2026 churn.
     runs-on: windows-2022
+    env:
+      # GUI tests run with no display via Qt's "offscreen" platform. conftest.py
+      # also sets this, but declaring it here keeps the intent visible in CI and
+      # holds even if a future test imports Qt before conftest runs.
+      QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
       - name: Run tests
-        run: uv run --extra dev pytest
+        run: uv run --extra dev pytest --cov=smacc --cov-report=term-missing

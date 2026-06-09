@@ -48,6 +48,12 @@ docs = [
 ]
 dev = [
     "pytest",
+    # GUI tests run headless via the Qt "offscreen" platform (set in
+    # tests/conftest.py); pytest-qt supplies the qtbot/qapp fixtures and manages
+    # the QApplication lifecycle. pytest-cov reports coverage of the now-tested
+    # Qt layer (see the test job in .github/workflows/ci.yaml).
+    "pytest-qt",
+    "pytest-cov",
     "ruff",
     "mypy",
     "pre-commit",
