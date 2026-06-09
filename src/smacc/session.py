@@ -84,6 +84,10 @@ class SmaccSession:
         # Wall-clock of the most recent "Start recording" marker (None until it is
         # pressed); dream reports are timestamped relative to it (#60).
         self.recording_start_time: datetime | None = None
+        # Saved devices from a loaded settings file that weren't connected at load
+        # time; collected by the panels during apply and surfaced once by the window
+        # so the operator knows to plug them in (or pick another) before recording.
+        self.missing_devices: list[str] = []
         # Soft interaction logs (volume/color/device/…) are gated off until the
         # main window finishes startup, so construction and study loads don't
         # spam the log; the window flips this on afterwards.
@@ -261,6 +265,16 @@ class SmaccSession:
     def log_info_msg(self, msg: str) -> None:
         """Log an INFO message (always to file; to the preview if INFO is on)."""
         self.logger.info(msg)
+
+    def note_missing_device(self, label: str, name: str) -> None:
+        """Record that a saved ``label`` device ``name`` wasn't found on load.
+
+        Always logged (a warning, not gated by ``log_interactions``) and collected
+        in :attr:`missing_devices` so the window can surface them together once the
+        whole settings load is done.
+        """
+        self.missing_devices.append(f"{label}: {name}")
+        self.logger.warning(f"Saved {label.lower()} not connected: {name}")
 
     def log_interaction(self, msg: str) -> None:
         """Log a soft interaction (volume/color/device/…) once the session is live.
