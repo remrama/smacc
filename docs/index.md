@@ -18,6 +18,7 @@ a simple, clickable interface and is commonly used in dream engineering research
 
 * [Installation](installation.md) — download and run SMACC.
 * [Usage](usage.md) — trigger cues, record dream reports, send portcodes, and more.
+* [Audio & routing](audio.md) — assign devices to roles, route cues/noise/intercom, and tame volume.
 * [Devices](devices.md) — connect compatible hardware such as a BlinkStick.
 * [Contributing](contributing.md) — develop SMACC and build these docs locally.
 
