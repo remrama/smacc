@@ -38,11 +38,14 @@ class Role:
 
 
 # The fixed role set. Two outputs and one mic cover the issue's rig; BlinkStick is
-# its own (visual) role. Kept small on purpose — extra roles can be added later.
+# its own (visual) role. The monitor mic (#37) is a second, optional input so a lab
+# can place a dedicated, sensitive mic for verifying cues without disturbing the
+# (often cheaper) dream-report mic. Kept small on purpose — more can be added later.
 ROLES: tuple[Role, ...] = (
     Role("bedroom_out", "Bedroom output", OUTPUT),
     Role("control_out", "Control-room output", OUTPUT),
     Role("bedroom_mic", "Bedroom mic", INPUT),
+    Role("monitor_mic", "Monitor mic", INPUT),
     Role("blinkstick", "BlinkStick", VISUAL),
 )
 
@@ -67,6 +70,9 @@ TARGETS: tuple[Target, ...] = (
     Target("intercom_talk", "Intercom → participant", OUTPUT, "bedroom_out"),
     Target("intercom_listen", "Intercom ← participant", OUTPUT, "", optional=True),
     Target("report_in", "Dream-report mic", INPUT, "bedroom_mic"),
+    # The room monitor (#37) defaults to the bedroom mic so the cue meter works out
+    # of the box; route it to the dedicated monitor mic for a more sensitive check.
+    Target("monitor_in", "Room monitor", INPUT, "bedroom_mic", optional=True),
     Target("visual_out", "Visual (BlinkStick)", VISUAL, "blinkstick"),
 )
 
