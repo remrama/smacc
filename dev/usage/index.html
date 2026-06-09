@@ -800,11 +800,16 @@ returns to the launcher.</p>
 <p>Place sound files where your settings expect them — by default the data directory's
 <code>cues/</code> folder (e.g. <code>~/SMACC/data/cues/</code>; <code>.wav</code>, <code>.mp3</code>, <code>.flac</code>, <code>.ogg</code>, and
 <code>.aiff</code> are supported) — and trigger them from the cue controls. SMACC seeds a few
-<code>demo-*</code> cues there so there is always something to test with.</p>
+<code>demo-*</code> cues there so there is always something to test with. You start with one
+cue — prefilled with a random demo — and use <strong>+ Add cue</strong> and each row's <strong>✕</strong> to
+add or remove cues to match a protocol (one minimum, up to 20).</p>
 <h2 id="dream-reports">Dream reports</h2>
 <p>Use the <strong>Record Dream Report</strong> button to record from the selected input device.
 Choose the device from <strong>Audio &rsaquo; Input device &rsaquo; [choose device]</strong>.
-Recordings are saved into the current session folder.</p>
+Recordings are saved into the current session folder. Each report is also stamped
+with the time elapsed since you pressed <strong>Start recording</strong> (in the Event logging
+panel), so it is easy to locate in the EEG file; if recording has not been marked
+yet, the report is still logged and SMACC reminds you to mark it.</p>
 <p>Surveys (e.g. a dream-report questionnaire on Qualtrics or REDCap) open in your
 browser. Manage your saved surveys with the <strong>Manage…</strong> button next to the survey
 dropdown — each has a name and URL and is stored in your settings YAML. Select one
@@ -840,7 +845,7 @@ session is always recoverable.</p>
 <p>Beyond portcodes, SMACC logs the important interactions too — volume, color, device,
 and fade changes — as plain log lines (no portcode), so the session record is complete.</p>
 <h3 id="event-logging-panel">Event logging panel</h3>
-<p>The manual event buttons (REM detected, Sleep onset, your custom events, …) live in the
+<p>The manual event buttons (Start recording, REM detected, Sleep onset, your custom events, …) live in the
 <strong>Event logging</strong> panel — open it from the session window's <strong>Open tools</strong> column; the
 first nine buttons take the 1–9 keyboard shortcuts while it's focused. The <strong>Lights</strong>
 toggle stays on the main window (it also flips the dark theme).</p>
