@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 
 import numpy as np
@@ -261,3 +262,49 @@ def test_normalize_survey_url_strips_surrounding_whitespace():
     assert (
         utils.normalize_survey_url("  https://example.com  ") == "https://example.com"
     )
+
+
+# ----- elapsed-time formatting (#60) ----------------------------------------
+
+
+@pytest.mark.parametrize(
+    "seconds, expected",
+    [
+        (0, "00:00:00"),
+        (5, "00:00:05"),
+        (65, "00:01:05"),
+        (3661, "01:01:01"),
+        (90061, "25:01:01"),  # past 24h keeps counting hours, never wraps
+    ],
+)
+def test_format_elapsed_renders_hms(seconds, expected):
+    assert utils.format_elapsed(timedelta(seconds=seconds)) == expected
+
+
+def test_format_elapsed_truncates_subseconds_and_clamps_negative():
+    assert utils.format_elapsed(timedelta(seconds=5, milliseconds=999)) == "00:00:05"
+    assert utils.format_elapsed(timedelta(seconds=-5)) == "00:00:00"
+
+
+# ----- random demo-cue prefill (#65) ----------------------------------------
+
+
+def test_pick_random_demo_cue_returns_a_seeded_demo(tmp_path):
+    cues = tmp_path / "cues"
+    utils.seed_demo_cues(cues, tmp_path / "missing")  # writes the synth demo-*.wav
+    picked = utils.pick_random_demo_cue(cues)
+    assert picked is not None
+    assert picked.parent == cues
+    assert picked.name.startswith("demo-")
+    assert picked.suffix.lower() in utils.AUDIO_SUFFIXES
+
+
+def test_pick_random_demo_cue_ignores_non_demo_user_files(tmp_path):
+    cues = tmp_path / "cues"
+    cues.mkdir()
+    write(cues / "mysong.wav", 8000, utils.note(440, 1, 1e4, 8000))  # not a demo-
+    assert utils.pick_random_demo_cue(cues) is None
+
+
+def test_pick_random_demo_cue_none_when_dir_missing(tmp_path):
+    assert utils.pick_random_demo_cue(tmp_path / "does-not-exist") is None

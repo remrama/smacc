@@ -54,6 +54,8 @@ class EventsWindow(ModalityWindow):
                 button.setShortcut(str(i + 1))
             if event.key == "Note":
                 button.clicked.connect(self.open_note_marker_dialogue)
+            elif event.key == "RecordingStarted":
+                button.clicked.connect(self._mark_recording_start)
             else:
                 button.clicked.connect(partial(self._emit, event.key))
             row, col = (i, 0) if i < half else (i - half, 1)
@@ -62,6 +64,10 @@ class EventsWindow(ModalityWindow):
 
     def _emit(self, key: str, _checked: bool = False) -> None:
         self.session.emit_event(key)
+
+    def _mark_recording_start(self, _checked: bool = False) -> None:
+        """Stamp the recording-start reference clock and emit its marker (#60)."""
+        self.session.mark_recording_start()
 
     def open_note_marker_dialogue(self, _checked: bool = False) -> None:
         """Prompt for free text and emit a Note marker with it."""

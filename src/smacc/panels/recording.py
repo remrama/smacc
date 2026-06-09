@@ -11,6 +11,7 @@ from .. import audio
 from ..config import SURVEY_OPTIONS
 from ..dialogs import ManageSurveysDialog
 from ..session import SmaccSession
+from ..utils import format_elapsed
 from .base import ModalityWindow, make_section_title
 
 
@@ -170,9 +171,25 @@ class RecordingWindow(ModalityWindow):
         if self.sender().isChecked():
             if survey_url := self.current_survey_url():
                 self.open_survey_url(survey_url, self.surveyComboBox.currentText())
-            # When the registry's increment flag is on, each start advances its
-            # code (201, 202, …) automatically, so reports are individually findable.
-            self.session.emit_event("DreamReportStarted")
+            # Stamp the report with the time since the "Start recording" marker so
+            # it can be found in the EEG file later (#60). With no marker yet, still
+            # log the report right away, then tell the user it's untimed. When the
+            # registry's increment flag is on, each start also advances its code
+            # (201, 202, …) automatically, so reports stay individually findable.
+            elapsed = self.session.elapsed_since_recording()
+            if elapsed is None:
+                self.session.emit_event("DreamReportStarted")
+                self.session.show_info_popup(
+                    "Recording start not marked.",
+                    "This dream report was logged, but the “Start recording” "
+                    "marker hasn’t been set, so it carries no time-since-recording "
+                    "stamp. Press “Start recording” when the EEG recording begins.",
+                    parent=self,
+                )
+            else:
+                self.session.emit_event(
+                    "DreamReportStarted", detail=f"t+{format_elapsed(elapsed)}"
+                )
         else:
             self.session.emit_event("DreamReportStopped")
 

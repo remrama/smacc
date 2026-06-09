@@ -84,6 +84,7 @@ def _stub_session():
     sess.event_code_safe_max = events.DEFAULT_SAFE_MAX
     sess.log_interactions = True
     sess._event_counts = {}
+    sess.recording_start_time = None
     sess.outlet = _FakeOutlet()
     logger = logging.getLogger("smacc-test-emit")
     logger.handlers.clear()
@@ -153,3 +154,22 @@ def test_emit_event_unknown_key_warns_without_crashing():
     sess.emit_event("Nonexistent")  # should warn, not raise
     assert sess.outlet.samples == []
     assert any("Unknown event" in m for m, _ in records)
+
+
+# ----- recording-start reference clock (#60) --------------------------------
+
+
+def test_elapsed_since_recording_is_none_until_marked():
+    sess, _ = _stub_session()
+    assert sess.elapsed_since_recording() is None
+
+
+def test_mark_recording_start_stamps_clock_and_emits_marker():
+    sess, records = _stub_session()
+    sess.mark_recording_start()
+    assert sess.recording_start_time is not None
+    # Once marked, the elapsed time is a (non-negative) duration, not None.
+    assert sess.elapsed_since_recording() is not None
+    # The marker routes through emit_event: triggered with code 51 and logged.
+    assert sess.outlet.samples == [["51"]]
+    assert records == [("Start recording - portcode 51", True)]

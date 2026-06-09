@@ -11,7 +11,7 @@ baked into filenames.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from pylsl import StreamInfo, StreamOutlet
@@ -81,6 +81,9 @@ class SmaccSession:
         self.event_code_safe_max = events.DEFAULT_SAFE_MAX
         # Per-event firing counts so an incrementing event advances its code.
         self._event_counts: dict[str, int] = {}
+        # Wall-clock of the most recent "Start recording" marker (None until it is
+        # pressed); dream reports are timestamped relative to it (#60).
+        self.recording_start_time: datetime | None = None
         # Soft interaction logs (volume/color/device/…) are gated off until the
         # main window finishes startup, so construction and study loads don't
         # spam the log; the window flips this on afterwards.
@@ -225,6 +228,23 @@ class SmaccSession:
         # gates whether it also appears in the live log viewer.
         self.logger.info(line, extra={"smacc_preview": event.preview})
 
+    def mark_recording_start(self) -> None:
+        """Stamp the recording-start reference clock and emit its marker (#60).
+
+        The reference is what each dream report's "time since recording start" is
+        measured against; pressing again restarts it (matching a restarted EEG
+        acquisition). The marker routes through the normal event path, so it lands
+        in the trigger channel and the log like any other.
+        """
+        self.recording_start_time = datetime.now()
+        self.emit_event("RecordingStarted")
+
+    def elapsed_since_recording(self) -> timedelta | None:
+        """Return the time since the recording-start marker (None if unmarked)."""
+        if self.recording_start_time is None:
+            return None
+        return datetime.now() - self.recording_start_time
+
     def set_event_codes(self, event_codes, safe_max: int | None = None) -> None:
         """Replace the live registry from a loaded/edited list of code overrides."""
         self.events = {e.key: e for e in events.merge_event_codes(event_codes)}
@@ -251,6 +271,17 @@ class SmaccSession:
         """
         if self.log_interactions:
             self.log_info_msg(msg)
+
+    def show_info_popup(self, short_msg, long_msg=None, parent=None) -> None:
+        """Record an info line and show an information dialog (parented if given)."""
+        self.log_info_msg(short_msg if long_msg is None else f"{short_msg} {long_msg}")
+        win = QtWidgets.QMessageBox(parent)
+        win.setIcon(QtWidgets.QMessageBox.Information)
+        win.setText(short_msg)
+        if long_msg is not None:
+            win.setInformativeText(long_msg)
+        win.setWindowTitle("SMACC")
+        win.exec()
 
     def show_error_popup(self, short_msg, long_msg=None, parent=None) -> None:
         """Record an error in the log and show a dialog (parented if given)."""

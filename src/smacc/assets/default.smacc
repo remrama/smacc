@@ -9,23 +9,8 @@ metadata:
 settings:
   blink_color: '#000000'
   blink_length: 1.0
-  cues:
-  - name: Cue 1
-    file: ''
-    volume: 0.2
-    loop: false
-  - name: Cue 2
-    file: ''
-    volume: 0.2
-    loop: false
-  - name: Cue 3
-    file: ''
-    volume: 0.2
-    loop: false
-  - name: Cue 4
-    file: ''
-    volume: 0.2
-    loop: false
+  # cues omitted on purpose: the one required cue autofills a random demo on first
+  # launch (#65); saving from the app writes the configured cue list back here.
   cue_attack: 0.0
   cue_release: 0.0
   noise_volume: 0.2
@@ -35,6 +20,11 @@ settings:
   survey_url: ''
   survey_options: {}
   event_codes:
+  - key: RecordingStarted
+    code: 51
+    trigger: true
+    preview: true
+    increment: false
   - key: TLRTrainingStart
     code: 43
     trigger: true
