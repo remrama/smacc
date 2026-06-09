@@ -451,7 +451,8 @@ class AudioCueWindow(ModalityWindow):
         """sounddevice callback (audio thread): render one output's cue block."""
         if status:
             self.session.logger.warning(f"Audio output status: {status}")
-        outdata[:, 0] = mixer.render(frames)
+        # The master safety cap is the single final gain stage (read live).
+        outdata[:, 0] = mixer.render(frames) * self.session.volume_cap
 
     def _poll_cue(self) -> None:
         """GUI-thread timer: finalize once the cue (its primary output) has ended."""
