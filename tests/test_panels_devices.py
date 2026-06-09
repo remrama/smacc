@@ -8,6 +8,8 @@ set). Edits flow through the combos' ``currentIndexChanged`` signals into
 
 from __future__ import annotations
 
+from PyQt6 import QtWidgets
+
 from smacc.panels.devices import DevicesWindow
 
 
@@ -70,3 +72,27 @@ def test_reload_flags_missing_bound_device(qtbot, design_session, mock_devices):
     # combo falls back to the default entry.
     assert window._role_combos["bedroom_out"].currentIndex() == 0
     assert any("Unplugged speaker" in entry for entry in design_session.missing_devices)
+
+
+def test_reload_resolves_legacy_suffixed_binding(qtbot, design_session, mock_devices):
+    # An older .smacc stored the device with the ", Windows WASAPI" suffix, but
+    # enumeration now advertises the bare name. The binding must still resolve to
+    # that device (no "missing device" notice) for backward compatibility.
+    bare = mock_devices["outputs"][1]
+    design_session.devices.bindings["bedroom_out"] = f"{bare}, Windows WASAPI"
+    window = DevicesWindow(design_session)
+    qtbot.addWidget(window)
+    window.reload_from_config()
+    assert window._role_combos["bedroom_out"].currentText() == bare
+    assert design_session.missing_devices == []
+
+
+def test_refresh_button_emits_refresh_requested(qtbot, design_session, mock_devices):
+    # The in-window Refresh button defers to the session window's rescan via this
+    # signal (rather than duplicating the PortAudio re-init).
+    window = DevicesWindow(design_session)
+    qtbot.addWidget(window)
+    button = window.findChild(QtWidgets.QPushButton)
+    assert button is not None and button.text() == "Refresh devices"
+    with qtbot.waitSignal(window.refresh_requested, timeout=1000):
+        button.click()
