@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://remrama.github.io/smacc/dev/audio/">
+        <link rel="canonical" href="https://remrama.github.io/smacc/dev/triggers/">
       
       
-        <link rel="prev" href="../usage/">
+        <link rel="prev" href="../devices/">
       
       
-        <link rel="next" href="../devices/">
+        <link rel="next" href="../contributing/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Audio & routing - SMACC</title>
+        <title>Triggers & port codes - SMACC</title>
       
     
     
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#audio-device-routing" class="md-skip">
+        <a href="#triggers-port-codes" class="md-skip">
           Skip to content
         </a>
       
@@ -132,7 +132,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Audio & routing
+              Triggers & port codes
             
           </span>
         </div>
@@ -355,37 +355,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Audio & routing
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../audio/" class="md-nav__link">
         
   
   
@@ -401,87 +374,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#roles-not-per-window-device-pickers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Roles, not per-window device pickers
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Roles, not per-window device pickers">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#monitoring-routes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Monitoring routes
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#one-audio-engine" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        One audio engine
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#volume-you-can-see" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Volume you can see
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#windows-only-on-purpose" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Windows only, on purpose
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -517,10 +409,37 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../triggers/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Triggers & port codes
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -536,6 +455,103 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-are-port-codes-and-triggers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What are port codes and triggers?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-smacc-sends-triggers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How SMACC sends triggers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pulsed-vs-set-and-hold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pulsed vs. set-and-hold
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuring-trigger-output-in-smacc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuring trigger output in SMACC
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#finding-your-parallel-port-address" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Finding your parallel-port address
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installing-the-inpout32-driver-parallel-port-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installing the InpOut32 driver (parallel port only)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verifying" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verifying
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -594,38 +610,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#roles-not-per-window-device-pickers" class="md-nav__link">
+  <a href="#what-are-port-codes-and-triggers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Roles, not per-window device pickers
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Roles, not per-window device pickers">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#monitoring-routes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Monitoring routes
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#one-audio-engine" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        One audio engine
+        What are port codes and triggers?
       
     </span>
   </a>
@@ -633,10 +621,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#volume-you-can-see" class="md-nav__link">
+  <a href="#how-smacc-sends-triggers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Volume you can see
+        How SMACC sends triggers
       
     </span>
   </a>
@@ -644,10 +632,54 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#windows-only-on-purpose" class="md-nav__link">
+  <a href="#pulsed-vs-set-and-hold" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Windows only, on purpose
+        Pulsed vs. set-and-hold
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuring-trigger-output-in-smacc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuring trigger output in SMACC
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#finding-your-parallel-port-address" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Finding your parallel-port address
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installing-the-inpout32-driver-parallel-port-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installing the InpOut32 driver (parallel port only)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verifying" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verifying
       
     </span>
   </a>
@@ -674,96 +706,143 @@
   
 
 
-<h1 id="audio-device-routing">Audio &amp; device routing</h1>
-<p>Running an overnight cueing study means juggling a <em>lot</em> of audio at once — a cue in
-the bedroom, white noise in the bedroom, your own voice over an intercom, the
-participant's voice coming back, a dream-report mic, sometimes a light cue — often
-across several physical devices and two rooms. On Windows, audio is also famously
-fiddly: the same speaker shows up under several names, and the level that actually
-reaches the participant is the product of several controls scattered across the OS.</p>
-<p>SMACC is built around that reality. This page explains how it handles devices,
-routing, and volume — the parts that are easy to get wrong at 3 a.m.</p>
-<h2 id="roles-not-per-window-device-pickers">Roles, not per-window device pickers</h2>
-<p>Instead of picking a device separately in every window, SMACC has <strong>one Devices
-window</strong> (in the <em>Tools</em> column) where you do two things:</p>
+<h1 id="triggers-port-codes">Triggers &amp; port codes</h1>
+<p>This page explains what EEG <strong>triggers</strong> and <strong>port codes</strong> are, the ways SMACC can
+send them, and how to configure each one. If you just want the steps, jump to
+<a href="#configuring-trigger-output-in-smacc">Configuring trigger output in SMACC</a>.</p>
+<h2 id="what-are-port-codes-and-triggers">What are port codes and triggers?</h2>
+<p>When you run a sleep or dream study you want to know <em>exactly when</em> things happened —
+a cue played, REM was observed, a dream report began — and line those moments up with
+the EEG recording. The standard way to do this is a <strong>trigger</strong>: at the instant of an
+event, the stimulus computer sends a small number to the EEG amplifier, which records
+it on a dedicated <strong>trigger channel</strong> alongside the brain signal. That number is the
+<strong>port code</strong> (also called an event marker or trigger code). During analysis you find
+events by their code — e.g. "every 41 is an observed REM onset."</p>
+<p>A port code is an <strong>8-bit value</strong>, so it is always an integer from <strong>1 to 255</strong>. That
+range isn't arbitrary: a hardware trigger is physically <strong>eight on/off lines</strong> (eight
+bits), and the amplifier reads them as one byte. SMACC keeps every code inside 1–255
+for exactly this reason — see <a href="../usage/#configuring-codes">Configuring codes</a> for how
+to view and edit which event sends which code.</p>
+<h2 id="how-smacc-sends-triggers">How SMACC sends triggers</h2>
+<p>SMACC always emits markers over <strong>LSL</strong> (Lab Streaming Layer), a network marker
+stream. On top of that, you can <em>optionally</em> enable <strong>one</strong> hardware transport so a
+physical trigger reaches an amplifier that doesn't read LSL. Both fire from the same
+place, so every event you log is sent the same way over every enabled path.</p>
+<table>
+<thead>
+<tr>
+<th>Transport</th>
+<th>What it is</th>
+<th>What you need</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>LSL</strong> (always on)</td>
+<td>A network marker stream recorded by an LSL-aware recorder (e.g. LabRecorder → XDF). Works on the same computer or across the network.</td>
+<td>Nothing extra.</td>
+</tr>
+<tr>
+<td><strong>Serial (USB trigger box)</strong></td>
+<td>The modern replacement for the parallel port. The box appears as a COM port; SMACC writes the code as one byte and the box mirrors it onto 8 TTL lines.</td>
+<td>A USB-serial trigger box and its COM port.</td>
+</tr>
+<tr>
+<td><strong>Parallel port (LPT)</strong></td>
+<td>The classic 25-pin port. Eight data pins carry the code byte, sampled by the amplifier.</td>
+<td>An LPT port (often an add-in card) and the <strong>InpOut32</strong> driver (see below).</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">LSL stays on</p>
+<p>Enabling a hardware transport does <strong>not</strong> turn LSL off — you always get the LSL
+marker stream as well. The hardware path is purely additional.</p>
+</div>
+<h2 id="pulsed-vs-set-and-hold">Pulsed vs. set-and-hold</h2>
+<p>Amplifiers and trigger boxes differ in how they expect the code to appear on the
+lines, so SMACC offers two modes:</p>
+<ul>
+<li><strong>Pulsed</strong> — SMACC raises the code on the lines, waits a configurable <strong>pulse
+  width</strong> (e.g. 10 ms), then drops them back to 0. Each event is a brief, distinct
+  pulse. Choose this when the amplifier expects a momentary trigger, or when you want
+  SMACC to control the pulse length.</li>
+<li><strong>Set-and-hold</strong> — SMACC writes the code once and leaves it on the lines until the
+  next event. Choose this for amplifiers that sample a held level, <strong>and</strong> for boxes
+  that generate their own fixed-width pulse when they receive a byte (SMACC just sets
+  the value; the box shapes the pulse).</li>
+</ul>
+<p>If you're not sure which your hardware wants, start with <strong>pulsed at 10 ms</strong> and
+verify with the <strong>Test</strong> button (below); switch to set-and-hold if events don't
+register cleanly.</p>
+<h2 id="configuring-trigger-output-in-smacc">Configuring trigger output in SMACC</h2>
 <ol>
-<li><strong>Bind each <em>role</em> to a device, once.</strong> The roles are the physical endpoints of a
-   rig: <strong>Bedroom output</strong>, <strong>Control-room output</strong>, <strong>Bedroom mic</strong>, and
-   <strong>BlinkStick</strong>.</li>
-<li><strong>Route each modality to a role.</strong> The audio cue, noise, intercom, and
-   dream-report recorder each point at a role.</li>
+<li>Open <strong>File ▸ Trigger output…</strong> (available both in a live session and in the
+   settings editor).</li>
+<li>Tick <strong>Enable hardware trigger output</strong>.</li>
+<li>Choose a <strong>Transport</strong>:<ul>
+<li><strong>Serial</strong> — pick your box's <strong>Port</strong> from the dropdown (click <strong>Refresh</strong> if
+  you plugged it in after opening the dialog) and set the <strong>Baud</strong> rate. If the
+  rig isn't attached right now, you can type the port name (e.g. <code>COM3</code>) directly.</li>
+<li><strong>Parallel port</strong> — enter the <strong>Address</strong> as hex (see
+  <a href="#finding-your-parallel-port-address">Finding your parallel-port address</a>).</li>
+</ul>
+</li>
+<li>Choose a <strong>Mode</strong> (pulsed or set-and-hold) and, for pulsed, a <strong>Pulse width</strong>.</li>
+<li>Click <strong>Test</strong> to send one pulse and confirm the amplifier sees it. The result
+   appears next to the button; an error explains what went wrong.</li>
+<li>Click <strong>OK</strong>.</li>
 </ol>
-<p>Because the cue, the noise, and your intercom voice can all share the <strong>Bedroom
-output</strong> role, swapping the bedroom speaker is a <em>single</em> change — not five. Every
-other window just shows a read-only indicator of where it resolves, for example
-<code>Device: Bedroom output → Speakers (USB Audio)</code>.</p>
-<div class="highlight"><pre><span></span><code>Bedroom output       Speakers (USB Audio)
-Control-room output  Headphones (Realtek)
-Bedroom mic          Microphone (USB Audio)
-──────────────────────────────────────────
-Audio cue    → Bedroom output    (monitor: Control-room output)
-Noise        → Bedroom output
-Intercom     → Bedroom output
-Dream mic    → Bedroom mic
-</code></pre></div>
-<p>The whole assignment is saved in your <code>.smacc</code> settings file, so a rig travels with
-its study. If a bound device isn't connected when a study loads, SMACC keeps going
-and tells you which one is missing rather than silently falling back.</p>
-<h3 id="monitoring-routes">Monitoring routes</h3>
-<p>Two optional routes cover the things you reach for mid-study:</p>
-<ul>
-<li><strong>Cue monitor (fan-out).</strong> Route <em>Cue monitor</em> to the control-room output and the
-  cue plays in the bedroom <strong>and</strong> the control room at once, so you hear exactly what
-  the participant heard.</li>
-<li><strong>Intercom Listen.</strong> The intercom is two-way: <strong>Talk</strong> sends your voice to the
-  participant (and is marked in the EEG record), while <strong>Listen</strong> brings the
-  participant's mic to your control-room output.</li>
-</ul>
-<h2 id="one-audio-engine">One audio engine</h2>
-<p>All real-time audio — cues, noise, the intercom, the dream-report recorder, and the
-input-level meter — runs on <a href="https://python-sounddevice.readthedocs.io/"><code>sounddevice</code></a>
-(PortAudio), through the <strong>Windows WASAPI</strong> host API.</p>
-<div class="admonition info">
-<p class="admonition-title">Why WASAPI</p>
-<p>On Windows, PortAudio lists every speaker once per host API (MME, DirectSound,
-WASAPI, WDM-KS) — which is where the "same device, several names" confusion comes
-from — and the legacy MME names are truncated to 31 characters. SMACC enumerates
-<strong>only WASAPI</strong>, so each device appears once, with its full name, on the modern
-low-latency path.</p>
+<p>The whole configuration is saved in your <code>.smacc</code>
+<a href="../usage/#settings-files-smacc">settings file</a>, so it travels with the rest of your
+setup. Because a COM port name or LPT address is specific to one computer, SMACC
+reports a clear error if the saved port can't be opened on the machine you load it on
+— re-pick it in the dialog and save again.</p>
+<div class="admonition warning">
+<p class="admonition-title">Always validate on the real hardware</p>
+<p>A successful <strong>Test</strong> confirms SMACC could open the port and write to it. It does
+<strong>not</strong> prove the amplifier recorded the correct code on its trigger channel.
+Before relying on triggers for a study, record a few test events and confirm they
+appear, with the right codes, in the EEG.</p>
 </div>
-<p>Because everything shares one engine, device names mean the same thing everywhere,
-and sending one cue to two devices at once (the fan-out) is just two streams from a
-single source.</p>
-<p><strong>Hot-plug:</strong> plug a device in after SMACC is already open and it's picked up
-automatically — no restart needed. You can also force a rescan from
-<strong>File ▸ Refresh devices</strong> (or press <code>F5</code>).</p>
-<h2 id="volume-you-can-see">Volume you can see</h2>
-<p>The most common "why is it quiet?" trap on Windows is that the level reaching the
-participant is a <em>product</em> of several controls:</p>
-<div class="highlight"><pre><span></span><code>per-cue volume  ×  output safety cap  ×  Windows app volume  ×  Windows device volume  ×  hardware knob
-</code></pre></div>
-<p>Three of those live in the OS and are invisible from most apps. SMACC makes its own
-gain explicit and adds a safety limit, in the <strong>Volume</strong> window:</p>
+<h2 id="finding-your-parallel-port-address">Finding your parallel-port address</h2>
+<p>A parallel port is addressed by a base <strong>I/O address</strong>, written in hexadecimal. The
+most common values are:</p>
 <ul>
-<li><strong>Output safety cap.</strong> A single master ceiling that is the <em>last</em> gain stage applied
-  to every cue and noise output. However loud an individual cue is set, the cap is a
-  hard limit — so a full-volume looped cue on a calibrated rig can't suddenly blast a
-  sleeping participant.</li>
-<li><strong>A read-only view of the Windows stages.</strong> The window shows the current <strong>system
-  output volume</strong> and <strong>SMACC's own level</strong> in the Windows Volume Mixer, so the hidden
-  OS stages are right in front of you.</li>
+<li><code>0x378</code> — the usual address for the first parallel port (LPT1).</li>
+<li><code>0x278</code> — a common second port (LPT2).</li>
+<li><code>0x3BC</code> — older onboard ports.</li>
 </ul>
-<div class="admonition tip">
-<p class="admonition-title">Calibrating cue level</p>
-<p>For levels that reproduce across nights and participants, pin the Windows device
-and app volumes to 100%, then calibrate entirely with the per-cue volumes and the
-safety cap inside SMACC. That way one place — SMACC — determines how loud a cue is.</p>
-</div>
-<h2 id="windows-only-on-purpose">Windows only, on purpose</h2>
-<p>This device and volume handling is Windows-specific (WASAPI, the volume mixer), and
-the GUI toolkit (Qt 6) needs Windows 10 or later. Supporting one operating system
-well — the one sleep labs actually run on — is a deliberate trade for getting these
-subtleties right.</p>
+<p>Add-in PCIe/PCI parallel cards are frequently mapped somewhere else entirely, so
+<strong>don't assume</strong> — look it up:</p>
+<ol>
+<li>Open <strong>Device Manager</strong> (press <code>Win+X</code>, then choose Device Manager).</li>
+<li>Expand <strong>Ports (COM &amp; LPT)</strong> and double-click your parallel port.</li>
+<li>Go to the <strong>Resources</strong> tab and read the first <strong>I/O Range</strong> — the start of that
+   range is your address. Enter it in SMACC with a <code>0x</code> prefix (e.g. <code>0x378</code>).</li>
+</ol>
+<h2 id="installing-the-inpout32-driver-parallel-port-only">Installing the InpOut32 driver (parallel port only)</h2>
+<p>Modern Windows blocks direct port access from ordinary programs, so the parallel-port
+path needs a small kernel driver, <strong>InpOut32 / inpoutx64</strong>. SMACC does <strong>not</strong>
+download or install it for you (an earlier version did, and it proved fragile and
+required admin rights every launch). Install it once, manually:</p>
+<ol>
+<li>Download <strong>InpOutBinaries</strong> from <a href="https://www.highrez.co.uk/downloads/inpout32/">highrez.co.uk</a>.</li>
+<li>Run the included <strong><code>InstallDriver.exe</code></strong> once (as administrator) to install the
+   kernel driver.</li>
+<li>Make sure <strong><code>inpoutx64.dll</code></strong> is where SMACC can load it — on the system path, in
+   <code>C:\Windows\System32</code>, or beside <code>SMACC.exe</code>.</li>
+</ol>
+<p>If the driver isn't available, SMACC's parallel transport reports a clear error and
+falls back to LSL only — it never crashes a session over a missing driver.</p>
+<h2 id="verifying">Verifying</h2>
+<ul>
+<li>Use the <strong>Test</strong> button in the Trigger output dialog for a quick "can SMACC drive
+  the line?" check.</li>
+<li>Then confirm end-to-end on the amplifier: record a short block, fire a few events
+  from the <strong>Event logging</strong> window, and check that the codes land on the EEG trigger
+  channel. Only the real recording proves the path works.</li>
+</ul>
 
 
 
