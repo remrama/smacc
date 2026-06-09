@@ -374,10 +374,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#study-files-smacc" class="md-nav__link">
+  <a href="#settings-files-smacc" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Study files (.smacc)
+        Settings files (.smacc)
       
     </span>
   </a>
@@ -561,10 +561,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#study-files-smacc" class="md-nav__link">
+  <a href="#settings-files-smacc" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Study files (.smacc)
+        Settings files (.smacc)
       
     </span>
   </a>
@@ -645,24 +645,31 @@ file. Once downloaded, double-clicking this file will run SMACC.</p>
 <h2 id="optional-setup">Optional setup</h2>
 <h3 id="data-directory">Data directory</h3>
 <p>By default SMACC stores everything under <code>~/SMACC</code>. To use a different location,
-set an environment variable called <code>SMACC_DATA_DIRECTORY</code> to whatever directory
-you want. SMACC will create it and all of the subfolders (if not already present).</p>
-<p>Each run gets its own timestamped folder under <code>~/SMACC/sessions/</code>
-(e.g. <code>smacc-20260607-223015/</code>) holding that run's <code>.log</code>, dream-report
-recordings, and any exports. Subject/session are optional metadata (set from
-<strong>File &rsaquo; Session info…</strong>) recorded inside the log/exports rather than in
-filenames. Window/theme/log-preview choices are remembered in
-<code>~/SMACC/preferences.yaml</code>.</p>
-<h3 id="study-files-smacc">Study files (<code>.smacc</code>)</h3>
-<p>A reusable setup can be saved to a portable <code>.smacc</code> study file (see
-<a href="../usage/#study-config-smacc">Usage</a>). On the Windows build, the first launch
-offers to associate <code>.smacc</code> files so you can <strong>double-click one to open SMACC with
-that study loaded</strong>; you can also (re)enable this from
+set an environment variable called <code>SMACC_DIRECTORY</code> to whatever directory you
+want (the older <code>SMACC_DATA_DIRECTORY</code> is still honored as a fallback). SMACC
+will create it and all of the subfolders (if not already present).</p>
+<p>Your reusable setup lives in a <strong>settings file</strong> (<code>.smacc</code>): cue files, volumes,
+event codes, and the <strong>data directory</strong> where its runs are written. SMACC seeds a
+<code>default.smacc</code> in the SMACC directory (with data directory <code>~/SMACC/data</code>) and
+opens it when you don't pick another, so it works out of the box. You can keep your
+own settings files anywhere.</p>
+<p>Each run gets its own timestamped folder under the settings file's data directory
+(e.g. <code>smacc-20260607-223015/</code>) holding that run's <code>.log</code>, dream-report recordings,
+and any exports. Subject/session are optional metadata (set from <strong>File &rsaquo;
+Session info…</strong>) recorded inside the log/exports rather than in filenames. Interface
+choices (theme/window/log-preview) are machine-level and remembered globally in
+<code>~/SMACC/preferences.yaml</code> (edit them from the launcher's <strong>File &rsaquo;
+Preferences</strong>), separate from any settings file.</p>
+<h3 id="settings-files-smacc">Settings files (<code>.smacc</code>)</h3>
+<p>Your reusable setup is saved to a portable <code>.smacc</code> settings file (see
+<a href="../usage/#settings-files-smacc">Usage</a>). On the Windows build, the first launch
+offers to associate <code>.smacc</code> files so you can <strong>double-click one to open SMACC and
+run a session with it</strong>; you can also (re)enable this from
 <strong>File &rsaquo; Associate .smacc files (Windows)</strong>.</p>
 <h3 id="audio-cues">Audio cues</h3>
-<p>SMACC seeds a few <code>demo-*</code> cue files into <code>~/SMACC/cues</code> on first launch
-(restored if you delete them), so there is always something to test with. You can
-also place your own sound files there — <code>.wav</code>, <code>.mp3</code>, <code>.flac</code>, <code>.ogg</code>, and
+<p>SMACC seeds a few <code>demo-*</code> cue files into the default data directory's <code>cues/</code>
+folder (restored if you delete them), so there is always something to test with. You
+can also place your own sound files there — <code>.wav</code>, <code>.mp3</code>, <code>.flac</code>, <code>.ogg</code>, and
 <code>.aiff</code> are all supported.</p>
 <h3 id="dream-report-survey">Dream report survey</h3>
 <p>The <strong>Record Dream Report</strong> button can optionally pop open a survey URL — for
