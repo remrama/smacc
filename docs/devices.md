@@ -1,7 +1,9 @@
 # Compatible devices
 
 SMACC can drive a small number of external devices for cueing. This page lists
-the supported hardware and what each one needs.
+the supported hardware and what each one needs. For how SMACC *assigns and routes*
+devices — roles, the Devices window, and volume — see
+[Audio & device routing](audio.md).
 
 ## BlinkStick
 

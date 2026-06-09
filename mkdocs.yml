@@ -47,5 +47,6 @@ nav:
   - Home: index.md
   - Installation: installation.md
   - Usage: usage.md
+  - Audio & routing: audio.md
   - Devices: devices.md
   - Contributing: contributing.md
