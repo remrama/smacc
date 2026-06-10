@@ -137,13 +137,28 @@ class BiocalsWindow(ModalityWindow):
         self.statusLabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         # Stack table: a persistent header row plus one rebuildable row per
-        # biocal. Header labels are created once and reused across rebuilds, so
+        # biocal. Header widgets are created once and reused across rebuilds, so
         # a rebuild only reparents widgets — live controls survive untouched.
+        # The Seq and Voice headers are master checkboxes: clicking one checks or
+        # unchecks that column for every row at once (a quick "uncheck all"), and
+        # each reflects its column's state (all / none / mixed = partially checked).
         self._grid = QtWidgets.QGridLayout()
         self._grid.setVerticalSpacing(4)  # keep the multi-row stack short
-        self._header_labels = [
-            self._make_header_label(title)
-            for title in ("Seq", "Voice", "Biocal", "Duration", "", "", "")
+        self._seqHeader = self._make_header_checkbox(
+            "Seq", "Include every biocal in the played sequence (click to toggle all)."
+        )
+        self._seqHeader.clicked.connect(self._on_seq_header_clicked)
+        self._voiceHeader = self._make_header_checkbox(
+            "Voice", "Announce every biocal with its voice instruction (click to toggle all)."
+        )
+        self._voiceHeader.clicked.connect(self._on_voice_header_clicked)
+        self._header_widgets: list[QtWidgets.QWidget] = [
+            self._seqHeader,
+            self._voiceHeader,
+            *(
+                self._make_header_label(title)
+                for title in ("Biocal", "Duration", "", "", "")
+            ),
         ]
 
         addCombo = QtWidgets.QComboBox(self)
@@ -191,6 +206,13 @@ class BiocalsWindow(ModalityWindow):
         label = QtWidgets.QLabel(text, self)
         label.setStyleSheet("font-weight: bold;")
         return label
+
+    def _make_header_checkbox(self, text: str, status_tip: str) -> QtWidgets.QCheckBox:
+        """A bold column-header checkbox that toggles its whole column at once."""
+        box = QtWidgets.QCheckBox(text, self)
+        box.setStyleSheet("font-weight: bold;")
+        box.setStatusTip(status_tip)
+        return box
 
     def _make_row(self, state: biocals.BiocalRow) -> BiocalRowWidgets:
         """Build one fully-wired stack row and append it to ``self.rows``."""
@@ -258,8 +280,8 @@ class BiocalsWindow(ModalityWindow):
         """
         while self._grid.count():
             self._grid.takeAt(0)  # drop the layout item only; widgets are reused
-        for col, label in enumerate(self._header_labels):
-            self._grid.addWidget(label, 0, col)
+        for col, widget in enumerate(self._header_widgets):
+            self._grid.addWidget(widget, 0, col)
         for r, row in enumerate(self.rows, start=1):
             self._grid.addWidget(row.seqCheckBox, r, 0)
             self._grid.addWidget(row.voiceCheckBox, r, 1)
@@ -271,6 +293,7 @@ class BiocalsWindow(ModalityWindow):
         self._grid.setColumnStretch(2, 1)
         self._refresh_structure_buttons()
         self._update_sequence_enabled()
+        self._refresh_column_headers()
 
     def _set_rows(self, states: list[biocals.BiocalRow]) -> None:
         """Replace the whole stack (initial build and settings loads)."""
@@ -354,11 +377,58 @@ class BiocalsWindow(ModalityWindow):
             f"Biocal '{row.button.text()}' sequence {'on' if checked else 'off'}"
         )
         self._update_sequence_enabled()
+        self._refresh_column_headers()
 
     def _on_voice_toggled(self, row: BiocalRowWidgets, checked: bool) -> None:
         self.session.log_interaction(
             f"Biocal '{row.button.text()}' voice {'on' if checked else 'off'}"
         )
+        self._refresh_column_headers()
+
+    def _on_seq_header_clicked(self, checked: bool) -> None:
+        """Master Seq checkbox: set every row's sequence flag at once."""
+        self._set_column("seqCheckBox", checked)
+        self.session.log_interaction(
+            f"All biocals sequence {'on' if checked else 'off'}"
+        )
+        self._refresh_column_headers()
+        self._update_sequence_enabled()
+
+    def _on_voice_header_clicked(self, checked: bool) -> None:
+        """Master Voice checkbox: set every row's voice flag at once."""
+        self._set_column("voiceCheckBox", checked)
+        self.session.log_interaction(f"All biocals voice {'on' if checked else 'off'}")
+        self._refresh_column_headers()
+
+    def _set_column(self, attr: str, checked: bool) -> None:
+        """Set a checkbox column across every row without firing per-row handlers.
+
+        Signals are blocked so a bulk toggle logs one summary line (from the header
+        handler) instead of one per row; ``gather_state`` reads the boxes directly,
+        so the saved state stays correct regardless.
+        """
+        for row in self.rows:
+            box: QtWidgets.QCheckBox = getattr(row, attr)
+            box.blockSignals(True)
+            box.setChecked(checked)
+            box.blockSignals(False)
+
+    def _refresh_column_headers(self) -> None:
+        """Reflect each column's state in its master header: all / none / mixed."""
+        for header, attr in (
+            (self._seqHeader, "seqCheckBox"),
+            (self._voiceHeader, "voiceCheckBox"),
+        ):
+            states = [getattr(row, attr).isChecked() for row in self.rows]
+            if states and all(states):
+                check_state = QtCore.Qt.CheckState.Checked
+            elif any(states):
+                check_state = QtCore.Qt.CheckState.PartiallyChecked
+            else:
+                check_state = QtCore.Qt.CheckState.Unchecked
+            header.blockSignals(True)
+            header.setCheckState(check_state)
+            header.blockSignals(False)
 
     def _on_duration_changed(self, row: BiocalRowWidgets, value: int) -> None:
         self.session.log_interaction(
