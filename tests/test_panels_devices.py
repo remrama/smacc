@@ -93,7 +93,7 @@ def test_refresh_button_emits_refresh_requested(qtbot, design_session, mock_devi
     window = DevicesWindow(design_session)
     qtbot.addWidget(window)
     button = window.findChild(QtWidgets.QPushButton)
-    assert button is not None and button.text() == "Refresh devices"
+    assert button is not None and button.text() == "Refresh devices (F5)"
     with qtbot.waitSignal(window.refresh_requested, timeout=1000):
         button.click()
 

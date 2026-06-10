@@ -133,12 +133,12 @@ class DevicesWindow(ModalityWindow):
             self._route_combos[target.key] = combo
             routing_form.addRow(f"{target.label} using:", combo)
 
-        refresh_button = QtWidgets.QPushButton("Refresh devices", self)
+        refresh_button = QtWidgets.QPushButton("Refresh devices (F5)", self)
         refresh_button.setStatusTip(
             "Rescan for audio devices, BlinkSticks, and Hue lights (e.g. after "
             "plugging one in)."
         )
-        refresh_button.setToolTip("Rescan for devices plugged in after launch (F5).")
+        refresh_button.setToolTip("Rescan for devices plugged in after launch")
         # F5 lives here now (the old File ▸ Refresh devices menu entry was removed):
         # rescan when this window is focused.
         refresh_button.setShortcut("F5")
@@ -156,20 +156,22 @@ class DevicesWindow(ModalityWindow):
         buttons.addWidget(hue_button)
 
         hint = QtWidgets.QLabel(
-            "Bind each role to a device once, then route each modality to a role. "
-            "Plugged a device in after launch? Refresh devices (or press F5)."
+            "Bind each role to a device once, then route each modality to a role."
         )
         hint.setWordWrap(True)
 
+        # Hint and action buttons sit above the dropdowns so they're visible
+        # without scrolling/resizing (the forms below can grow long).
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(make_section_title("Devices"))
+        layout.addWidget(hint)
+        layout.addLayout(buttons)
+        layout.addSpacing(8)
         layout.addWidget(self._subheading("Roles → devices"))
         layout.addLayout(roles_form)
         layout.addSpacing(8)
         layout.addWidget(self._subheading("Modalities → roles"))
         layout.addLayout(routing_form)
-        layout.addWidget(hint)
-        layout.addLayout(buttons)
         layout.addStretch(1)
         central = QtWidgets.QWidget()
         central.setLayout(layout)
