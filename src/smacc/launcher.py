@@ -121,10 +121,11 @@ class LauncherWindow(QtWidgets.QMainWindow):
         layout.addStretch(1)
         # Link to the documentation site (not the repo), hyperlinked. Rich text +
         # open-external-links makes it clickable; we don't disable the label
-        # (which would also kill the link), so style it subdued instead.
+        # (which would also kill the link), so style it subdued instead. The link
+        # text is the short word "documentation" rather than the full URL so the
+        # footer doesn't force the whole launcher wider than it needs to be.
         footer = QtWidgets.QLabel(
-            f'v{VERSION} — <a href="https://remrama.github.io/smacc">'
-            "remrama.github.io/smacc</a>"
+            f'v{VERSION} — <a href="https://remrama.github.io/smacc">documentation</a>'
         )
         footer.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         footer.setTextFormat(QtCore.Qt.TextFormat.RichText)
@@ -140,7 +141,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
         # Reopen where it was last left (machine-local), else the default anchor.
         prefs = preferences.load_preferences(preferences_path)
         geometry = preferences.window_geometry(prefs, _LAUNCHER_WINDOW_ID)
-        if not windowstate.restore_geometry(self, geometry, default_size=(340, 360)):
+        if not windowstate.restore_geometry(self, geometry, default_size=(300, 360)):
             self._move_to_default_position()
 
     def _move_to_default_position(self) -> None:
