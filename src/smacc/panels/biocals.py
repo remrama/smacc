@@ -122,11 +122,12 @@ class BiocalsWindow(ModalityWindow):
         header.addRow("Voice volume:", voiceVolumeSpin)
 
         # The timekeeper: counts the active task window down (and shows the
-        # upcoming window during an announcement). Big and glanceable.
+        # upcoming window during an announcement). Glanceable, but kept compact so
+        # the whole stack fits without a tall window.
         countdownLabel = QtWidgets.QLabel("00:00:00", self)
         countdownLabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         font = QtGui.QFont()
-        font.setPointSize(28)
+        font.setPointSize(20)
         font.setBold(True)
         countdownLabel.setFont(font)
         countdownLabel.setStatusTip("Time remaining in the running biocal.")
@@ -139,6 +140,7 @@ class BiocalsWindow(ModalityWindow):
         # biocal. Header labels are created once and reused across rebuilds, so
         # a rebuild only reparents widgets — live controls survive untouched.
         self._grid = QtWidgets.QGridLayout()
+        self._grid.setVerticalSpacing(4)  # keep the multi-row stack short
         self._header_labels = [
             self._make_header_label(title)
             for title in ("Seq", "Voice", "Biocal", "Duration", "", "", "")
@@ -171,13 +173,14 @@ class BiocalsWindow(ModalityWindow):
         self.sequenceButton = sequenceButton
 
         layout = QtWidgets.QVBoxLayout()
+        layout.setSpacing(6)  # tighter than the default so the stack stays compact
         layout.addWidget(make_section_title("Biocals"))
         layout.addLayout(header)
         layout.addWidget(countdownLabel)
         layout.addWidget(self.statusLabel)
         layout.addLayout(self._grid)
         layout.addLayout(addRow)
-        layout.addSpacing(8)
+        layout.addSpacing(4)
         layout.addWidget(sequenceButton)
         layout.addStretch(1)
         central = QtWidgets.QWidget()
