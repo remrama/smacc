@@ -29,7 +29,7 @@ sleep and lucid-dreaming experiments.
 2. Click **Visual cue** in the *Tools* column.
 3. Bind your BlinkStick to the **BlinkStick** role in the **Devices** window (in
    the *Tools* column). Plug one in after launch and it's detected automatically,
-   or choose **File ▸ Refresh devices** (or press `F5`) to rescan.
+   or click **Refresh devices** in the Devices window (or press `F5`) to rescan.
 4. Configure a light cue — color, brightness, pattern (steady, or a pulse/flash at
    a rate in Hz), and length (or **Loop** until stopped) — and add more cues with
    **+ Add cue** if the protocol needs several. See [Visual cues](visual.md) for
@@ -44,8 +44,8 @@ serial on the next launch (and flagged if it isn't plugged in).
 
 !!! note
     If the visual cue window reports that no light is set, open the **Devices**
-    window and bind one to the **BlinkStick** role (plug it in first; use
-    **File ▸ Refresh devices** or `F5` if it isn't listed). No restart needed.
+    window and bind one to the **BlinkStick** role (plug it in first; click
+    **Refresh devices** there, or press `F5`, if it isn't listed). No restart needed.
 
 ## Philips Hue
 

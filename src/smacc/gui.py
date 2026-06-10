@@ -39,7 +39,7 @@ from .panels.noise import NoiseWindow
 from .panels.recording import RecordingWindow
 from .panels.visual import VisualWindow
 from .panels.volume import VolumeWindow
-from .paths import BIOCALS_DIR, LOGO_PATH, preferences_path
+from .paths import BIOCALS_DIR, LOGO_PATH, is_default_settings, preferences_path
 from .qtlog import QtLogHandler
 from .session import SmaccSession
 from .toolwindow import ToolWindow
@@ -96,8 +96,8 @@ class SmaccWindow(ToolWindow):
             "volume": VolumeWindow(self.session),
         }
         self.devices_window.changed.connect(self._refresh_device_indicators)
-        # The Devices window's Refresh button runs the same rescan as File ▸ Refresh
-        # devices / F5 (PortAudio re-init + BlinkStick scan), not a duplicate.
+        # The Devices window's Refresh button (and its F5 shortcut) runs this rescan
+        # (PortAudio re-init + BlinkStick scan); it's the only entry point now.
         self.devices_window.refresh_requested.connect(self.refresh_all_devices)
         # Hot-plug doorbell: Qt6's QMediaDevices fires when an audio device is added
         # or removed; that triggers an automatic rescan. Audio I/O stays on
@@ -288,11 +288,17 @@ class SmaccWindow(ToolWindow):
         """Restore a tool window's saved geometry; return True iff a position was set.
 
         Size is applied regardless; a missing/off-screen position returns False so the
-        caller falls back to the cascade placement.
+        caller falls back to the cascade placement. The fallback size is the window's
+        content ``sizeHint`` — not ``width()``/``height()``, which on a not-yet-shown
+        window is Qt's generic 640×480 default. Using that default would force every
+        first-opened tool to the same oversized box (e.g. the slim Volume window),
+        which read as window sizes "bleeding" across tools; the sizeHint opens each at
+        its own natural size instead.
         """
         geometry = preferences.window_geometry(self._prefs, key)
+        hint = window.sizeHint()
         return windowstate.restore_geometry(
-            window, geometry, default_size=(window.width(), window.height())
+            window, geometry, default_size=(hint.width(), hint.height())
         )
 
     def _position_panel(self, window: QtWidgets.QWidget, key: str) -> None:
@@ -368,14 +374,9 @@ class SmaccWindow(ToolWindow):
         alwaysOnTopAction.toggled.connect(self.toggle_always_on_top)
         self._always_on_top_action = alwaysOnTopAction
 
-        # Available in both modes (devices are configured in the editor and a session).
-        refreshDevicesAction = QtGui.QAction("&Refresh devices", self)
-        refreshDevicesAction.setShortcut("F5")
-        refreshDevicesAction.setStatusTip(
-            "Rescan for audio devices and BlinkSticks (e.g. after plugging one in)."
-        )
-        refreshDevicesAction.triggered.connect(self.refresh_all_devices)
-
+        # Device rescanning lives on the Devices window's Refresh button (which also
+        # carries the F5 shortcut), not in this menu — hot-plugging is detected
+        # automatically, so a menu entry here was redundant.
         menu_bar = self.menuBar()
         assert menu_bar is not None
         fileMenu = menu_bar.addMenu("&File")
@@ -396,8 +397,6 @@ class SmaccWindow(ToolWindow):
                 triggerOutputAction,
                 alwaysOnTopAction,
             )
-        fileMenu.addSeparator()
-        fileMenu.addAction(refreshDevicesAction)
         fileMenu.addSeparator()
         fileMenu.addAction(quitAction)
 
@@ -786,7 +785,7 @@ class SmaccWindow(ToolWindow):
         """A device was added/removed: quietly rescan when nothing is streaming.
 
         Skipped while audio is live (a PortAudio re-init would cut it); the operator
-        can use File ▸ Refresh devices once idle.
+        can use the Devices window's Refresh button once idle.
         """
         if any(panel.is_streaming() for panel in self.panels.values()):
             return
@@ -817,7 +816,8 @@ class SmaccWindow(ToolWindow):
             "Some saved devices aren’t connected.",
             "These devices from the settings file weren’t found:\n"
             f"{items}\n\n"
-            "Plug them in and choose File ▸ Refresh devices, or pick another device.",
+            "Plug them in and click Refresh devices in the Devices window, or pick "
+            "another device.",
             parent=self,
         )
 
@@ -843,7 +843,7 @@ class SmaccWindow(ToolWindow):
         )
 
     def refresh_all_devices(self) -> None:
-        """Rescan for devices plugged in after launch (File ▸ Refresh devices, F5).
+        """Rescan for devices plugged in after launch (the Devices window's Refresh, F5).
 
         BlinkSticks are a live USB scan and Hue lights a live bridge query, so both
         are always rescanned. PortAudio caches its device list at initialization,
@@ -871,7 +871,7 @@ class SmaccWindow(ToolWindow):
                 "Audio devices not fully rescanned.",
                 "BlinkSticks and Hue lights were rescanned. To rescan audio "
                 "devices too, stop playback, recording, and the level meter, "
-                "then choose Refresh devices again.",
+                "then click Refresh devices again.",
                 parent=self,
             )
         else:
@@ -946,10 +946,13 @@ class SmaccWindow(ToolWindow):
         """Once, on the first packaged-build launch, offer to associate .smacc files."""
         if not winassoc.is_associatable() or self._prefs.get("association_prompted"):
             return
-        self._prefs["association_prompted"] = True  # one-time, whatever they choose
-        # Persist the one-time flag immediately so it survives even if multiple
-        # windows write preferences this run (the launcher also writes recents).
-        preferences.update_preferences(preferences_path, {"association_prompted": True})
+        # If .smacc is already associated with this build (e.g. from a prior install,
+        # or a launch whose preferences didn't persist), there is nothing to ask —
+        # just record that the prompt is done so we don't keep re-asking.
+        if winassoc.is_registered():
+            self._remember_association_prompted()
+            return
+        self._remember_association_prompted()  # one-time, whatever they choose
         reply = QtWidgets.QMessageBox.question(
             self,
             "Associate .smacc files?",
@@ -959,23 +962,38 @@ class SmaccWindow(ToolWindow):
         if reply == QtWidgets.QMessageBox.StandardButton.Yes:
             try:
                 winassoc.register_smacc()
-                self.session.log_info_msg("Associated .smacc files with SMACC")
             except OSError as exc:
                 self.show_error_popup("Could not associate .smacc files.", str(exc))
+
+    def _remember_association_prompted(self) -> None:
+        """Record (in memory and on disk) that the one-time association prompt is done.
+
+        Persisted immediately so it survives even if several windows write preferences
+        this run (the launcher also writes recents). The association itself is a
+        machine/registry action, not session data, so it is deliberately not logged.
+        """
+        self._prefs["association_prompted"] = True
+        preferences.update_preferences(preferences_path, {"association_prompted": True})
 
     def save_settings_in_place(self) -> bool:
         """Save to the current .smacc without prompting; fall back to Save-As if new.
 
-        Returns True if the settings were written, False if cancelled.
+        Returns True if the settings were written, False if cancelled. SMACC's seeded
+        ``default.smacc`` is treated as a read-only template: saving it redirects to
+        Save-As so the default stays a known-good starting point.
         """
-        if self.settings_path:
+        if self.settings_path and not is_default_settings(self.settings_path):
             return self._write_settings(self.settings_path)
         return self.export_settings()
 
     def export_settings(self) -> bool:
         """Prompt for a path (Save-As) and write the settings there. Returns success."""
         # Default to the file we loaded, else a settings.smacc beside the data dir.
-        default = self.settings_path or str(self.data_dir / "settings.smacc")
+        # Never pre-fill the protected default.smacc — suggest a fresh name instead.
+        if self.settings_path and not is_default_settings(self.settings_path):
+            default = self.settings_path
+        else:
+            default = str(self.data_dir / "settings.smacc")
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "Save settings (.smacc)", str(default), "SMACC settings (*.smacc)"
         )
@@ -985,6 +1003,16 @@ class SmaccWindow(ToolWindow):
 
     def _write_settings(self, path: str) -> bool:
         """Write the current settings to ``path`` (relativizing paths). Returns success."""
+        # The seeded default.smacc is SMACC's known-good template; refuse to overwrite
+        # it (e.g. if it's hand-picked in the Save-As dialog) and point at Save-As.
+        if is_default_settings(path):
+            self.show_error_popup(
+                "Can’t overwrite the default settings.",
+                "default.smacc is SMACC's built-in template and stays read-only so it "
+                "remains a reliable starting point. Save your changes to a new .smacc "
+                "file instead.",
+            )
+            return False
         # Make referenced cue/noise/data paths relative to the file when possible.
         portable = settings.relativize_paths(self.gather_settings(), Path(path).parent)
         try:

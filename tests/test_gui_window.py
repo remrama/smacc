@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from smacc import gui, triggers, winvolume
+from smacc import gui, paths, triggers, winvolume
 from smacc.gui import SmaccWindow
 
 
@@ -58,9 +58,9 @@ def test_window_builds_in_session_mode(
 def test_devices_refresh_button_runs_window_rescan(
     qtbot, live_session, mock_devices, silence_dialogs, monkeypatch
 ):
-    # The Devices window's Refresh button must drive the same rescan as
-    # File ▸ Refresh devices (F5), not a parallel one. Stub the real rescan (it
-    # would re-init PortAudio) on the class so the wired-up connection hits it.
+    # The Devices window's Refresh button (and its F5 shortcut) must drive the
+    # window rescan, not a parallel one. Stub the real rescan (it would re-init
+    # PortAudio) on the class so the wired-up connection hits it.
     calls: list[bool] = []
     monkeypatch.setattr(
         SmaccWindow, "refresh_all_devices", lambda self: calls.append(True)
@@ -69,6 +69,38 @@ def test_devices_refresh_button_runs_window_rescan(
     qtbot.addWidget(window)
     window.devices_window.refresh_requested.emit()
     assert calls == [True]
+
+
+# ----- default settings are protected from overwrite -------------------------
+
+
+def test_is_default_settings_distinguishes_paths(tmp_path):
+    assert paths.is_default_settings(paths.DEFAULT_SETTINGS_PATH)
+    assert paths.is_default_settings(str(paths.DEFAULT_SETTINGS_PATH))
+    assert not paths.is_default_settings(tmp_path / "mine.smacc")
+
+
+def test_editor_save_of_default_redirects_to_save_as(
+    qtbot, design_session, mock_devices, silence_dialogs, monkeypatch
+):
+    # Editing the seeded default and hitting Save must go to Save-As, never an
+    # in-place overwrite of default.smacc (it's SMACC's known-good template).
+    window = SmaccWindow(design_session)
+    qtbot.addWidget(window)
+    window.settings_path = str(paths.DEFAULT_SETTINGS_PATH)
+    called: list[bool] = []
+    monkeypatch.setattr(window, "export_settings", lambda: called.append(True) or True)
+    assert window.save_settings_in_place() is True
+    assert called == [True]
+
+
+def test_write_settings_refuses_the_default_path(
+    qtbot, design_session, mock_devices, silence_dialogs
+):
+    # Even if default.smacc is hand-picked in the Save-As dialog, writing is refused.
+    window = SmaccWindow(design_session)
+    qtbot.addWidget(window)
+    assert window._write_settings(str(paths.DEFAULT_SETTINGS_PATH)) is False
 
 
 # ----- settings gather/apply contract ----------------------------------------

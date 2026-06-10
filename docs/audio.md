@@ -80,8 +80,8 @@ and sending one cue to two devices at once (the fan-out) is two streams from a s
 source.
 
 **Hot-plug:** plug a device in after SMACC is already open and it's picked up
-automatically, with no restart needed. You can also force a rescan from
-**File ▸ Refresh devices** (or press `F5`).
+automatically, with no restart needed. You can also force a rescan with the
+**Refresh devices** button in the Devices window (or press `F5`).
 
 ## Is the cue reaching the bedroom?
 

@@ -93,8 +93,8 @@ class DevicesWindow(ModalityWindow):
 
     # Fired whenever a binding/route changes, so the window can refresh indicators.
     changed = QtCore.pyqtSignal()
-    # Fired by the Refresh button; the session window runs the same rescan as
-    # File ▸ Refresh devices (PortAudio re-init + a live BlinkStick scan).
+    # Fired by the Refresh button (and its F5 shortcut); the session window runs the
+    # rescan (PortAudio re-init + a live BlinkStick scan).
     refresh_requested = QtCore.pyqtSignal()
 
     def __init__(self, session: SmaccSession, parent: QtWidgets.QWidget | None = None):
@@ -137,6 +137,9 @@ class DevicesWindow(ModalityWindow):
             "plugging one in)."
         )
         refresh_button.setToolTip("Rescan for devices plugged in after launch (F5).")
+        # F5 lives here now (the old File ▸ Refresh devices menu entry was removed):
+        # rescan when this window is focused.
+        refresh_button.setShortcut("F5")
         refresh_button.clicked.connect(self.refresh_requested)
 
         hue_button = QtWidgets.QPushButton("Set up Philips Hue…", self)
@@ -252,7 +255,7 @@ class DevicesWindow(ModalityWindow):
             combo.blockSignals(False)
 
     def refresh_device_lists(self) -> None:
-        """Re-enumerate the role device dropdowns (the File ▸ Refresh devices hook)."""
+        """Re-enumerate the role device dropdowns (the Refresh devices hook)."""
         self._populate_role_combos()
 
     def setup_hue_bridge(self) -> None:
