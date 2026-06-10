@@ -232,10 +232,20 @@ and fade changes — as plain log lines (no portcode), so the session record is 
 
 ### Event logging panel
 
-The manual event buttons (Start recording, REM detected, Sleep onset, your custom events, …) live in the
-**Event logging** panel — open it from the session window's **Tools** column; the
-first nine buttons take the 1–9 keyboard shortcuts while it's focused. The **Lights**
-toggle stays on the main window (it also flips the dark theme).
+The manual event buttons (the sleep-stage family, Signal observed, Sleep onset, Note,
+your custom events, …) live in the **Event logging** panel — open it from the session
+window's **Tools** column. The sleep-stage buttons take a fixed keypad — **0** Wake,
+**1** N1, **2** N2, **3** N3, **4** REM — and the remaining buttons take **5**–**9** in
+order; the shortcuts are active while the panel is focused. The **Lights** toggle stays
+on the main window (it also flips the dark theme).
+
+**Signal observed.** One button covers every lucidity/communication signal a study uses
+(LRLR, sniff, facial, …), so you don't need a separate button per signal. Pick the
+**signal** type (the box is editable — type your own and it's remembered for the rest of
+the session) and a **confidence** (certain / probable / possible) beside the button;
+pressing it fires the marker immediately and logs your selection as the detail, so the
+marker's timing tracks the observation. Confidence is recorded as a comment — it never
+changes whether the marker reaches the EEG.
 
 ### Where codes live
 

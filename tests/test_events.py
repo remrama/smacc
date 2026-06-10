@@ -31,6 +31,33 @@ def test_recording_started_is_a_default_manual_marker():
     assert rec.increment is False
 
 
+def test_signal_and_stage_markers_are_default_manual_triggers():
+    # #121: the residual single-study buttons were revised. The sleep-stage family,
+    # the generic signal marker, and arousal/artifact are manual, triggered, fixed
+    # codes (occurrences are counted in the log, not incremented on the channel).
+    by_key = {e.key: e for e in events.default_events()}
+    expected = {
+        "WakeDetected": 52,
+        "N1Detected": 53,
+        "N2Detected": 54,
+        "N3Detected": 55,
+        "REMDetected": 41,
+        "SignalObserved": 45,
+        "ArousalDetected": 56,
+        "ArtifactDetected": 57,
+    }
+    for key, code in expected.items():
+        marker = by_key[key]
+        assert marker.code == code
+        assert marker.category == "manual"
+        assert marker.trigger is True
+        assert marker.increment is False
+    # The TLR-specific pair was generalized and the LRLR button folded into the
+    # generic signal marker — the old keys are gone.
+    assert {"TrainingStart", "TrainingEnd"} <= by_key.keys()
+    assert not {"TLRTrainingStart", "TLRTrainingEnd", "LRLRDetected"} & by_key.keys()
+
+
 def test_chat_events_are_log_only_by_default():
     # #92: a typed exchange is rapid and conversational, so neither chat direction
     # triggers (or previews) unless a study flips it on; the codes extend the

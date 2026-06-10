@@ -229,7 +229,7 @@ def test_emit_event_hardware_failure_disables_transport_and_keeps_lsl():
     assert sess.trigger_out is None  # transport dropped after the failure
     assert any("Hardware trigger failed" in m for m, _ in records)
     # A later event still logs and pushes LSL without raising.
-    sess.emit_event("LRLRDetected")
+    sess.emit_event("SignalObserved")
     assert sess.outlet.samples == [["41"], ["45"]]
 
 

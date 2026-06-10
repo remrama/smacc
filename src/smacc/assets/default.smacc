@@ -38,28 +38,23 @@ settings:
   biocals:
     voice_volume: 0.5
   event_codes:
-  - key: RecordingStarted
-    code: 51
+  - key: WakeDetected
+    code: 52
     trigger: true
     preview: true
     increment: false
-  - key: TLRTrainingStart
-    code: 43
+  - key: N1Detected
+    code: 53
     trigger: true
     preview: true
     increment: false
-  - key: TLRTrainingEnd
-    code: 44
+  - key: N2Detected
+    code: 54
     trigger: true
     preview: true
     increment: false
-  - key: TechInRoom
-    code: 42
-    trigger: true
-    preview: true
-    increment: false
-  - key: SleepOnset
-    code: 46
+  - key: N3Detected
+    code: 55
     trigger: true
     preview: true
     increment: false
@@ -68,8 +63,28 @@ settings:
     trigger: true
     preview: true
     increment: false
-  - key: LRLRDetected
+  - key: SleepOnset
+    code: 46
+    trigger: true
+    preview: true
+    increment: false
+  - key: ArousalDetected
+    code: 56
+    trigger: true
+    preview: true
+    increment: false
+  - key: ArtifactDetected
+    code: 57
+    trigger: true
+    preview: true
+    increment: false
+  - key: SignalObserved
     code: 45
+    trigger: true
+    preview: true
+    increment: false
+  - key: Note
+    code: 50
     trigger: true
     preview: true
     increment: false
@@ -78,8 +93,23 @@ settings:
     trigger: true
     preview: true
     increment: false
-  - key: Note
-    code: 50
+  - key: TechInRoom
+    code: 42
+    trigger: true
+    preview: true
+    increment: false
+  - key: TrainingStart
+    code: 43
+    trigger: true
+    preview: true
+    increment: false
+  - key: TrainingEnd
+    code: 44
+    trigger: true
+    preview: true
+    increment: false
+  - key: RecordingStarted
+    code: 51
     trigger: true
     preview: true
     increment: false
