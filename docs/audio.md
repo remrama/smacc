@@ -50,7 +50,8 @@ Three optional routes cover the things you reach for mid-study:
 * **Listen through intercom.** The intercom is two-way: **Speak through intercom**
   sends your voice to the participant (and is marked in the EEG record), while
   **Listen through intercom** brings the participant's mic to your control-room
-  speakers.
+  speakers. The intercom also has a typed [text-chat mode](usage.md#text-chat)
+  (no audio device involved) for hearing-impaired participants.
 * **Monitor the bedroom.** A microphone meter in the Audio cue window that confirms a
   cue is audible in the bedroom (see
   [below](#is-the-cue-reaching-the-bedroom)). It defaults to the **Bedroom mic**, or

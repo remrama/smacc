@@ -200,6 +200,25 @@ def default_events() -> list[EventDef]:
         # The stop pairs with 66 at the next free code (67 predates it).
         EventDef("VisualStopped", "Visual stopped", 68),
         EventDef("SurveyOpened", "Survey opened", 67),
+        # --- Text chat (#92): log-only by default. A typed exchange is rapid and
+        # conversational, so neither direction triggers (or previews) unless a
+        # study flips it on; the verbatim text always lands on a DEBUG log line.
+        EventDef(
+            "ChatMessageSent",
+            "Chat to participant",
+            69,
+            trigger=False,
+            preview=False,
+            tooltip="Mark a typed intercom message shown to the participant",
+        ),
+        EventDef(
+            "ChatMessageReceived",
+            "Chat from participant",
+            70,
+            trigger=False,
+            preview=False,
+            tooltip="Mark a typed reply from the participant",
+        ),
         # --- Biocals: run from the Biocals window (#78) -------------------------
         *_biocal_events(),
         # --- System -----------------------------------------------------------

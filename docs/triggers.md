@@ -50,6 +50,8 @@ study can retune any code in the **Event codes** editor; the change travels in i
 | 66 | Visual started | `VisualStarted` | |
 | 67 | Survey opened | `SurveyOpened` | |
 | 68 | Visual stopped | `VisualStopped` | the light is actually off (pairs with 66) |
+| 69 | Chat to participant | `ChatMessageSent` | typed intercom message; log-only by default |
+| 70 | Chat from participant | `ChatMessageReceived` | participant's typed reply; log-only by default |
 | 100 | SMACC initialized | `TriggerInitialization` | startup connection test; not a stimulus marker |
 | 105 | Biocal sequence started | `BiocalSequenceStarted` | brackets a played biocal sequence |
 | 106 | Biocal sequence stopped | `BiocalSequenceStopped` | completed or aborted |

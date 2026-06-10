@@ -40,6 +40,9 @@ settings:
   # --- Survey ----------------------------------------------------------------
   survey_url: ""
   survey_options: {}
+  # --- Participant text chat ---------------------------------------------------
+  chat_font_size: 18
+  chat_red_text: false
   # --- Biocals ---------------------------------------------------------------
   biocals:
     voice_volume: 0.5
@@ -95,7 +98,7 @@ settings:
 Every panel contributes its own keys; a few window-level blocks travel alongside.
 Any key may be omitted — each falls back to its default.
 
-### Audio, noise, visual, survey, volume
+### Audio, noise, visual, survey, chat, volume
 
 | Key | Type | Meaning |
 |---|---|---|
@@ -111,6 +114,8 @@ Any key may be omitted — each falls back to its default.
 | `visual_release` | seconds | Brightness fade-out applied to a stopping visual cue. |
 | `survey_url` | string | The selected survey URL. |
 | `survey_options` | mapping | Named survey presets: label → URL. |
+| `chat_font_size` | integer | Participant chat window text size, in points (8–72). |
+| `chat_red_text` | boolean | Red-shifted night text in the participant chat window. |
 | `volume_cap` | 0–1 | Master output safety cap multiplied into every stimulus (`1.0` = no cap). |
 | `output_latency` | `high` \| `low` | Output buffer for the cue + noise streams: `high` is robust (default), `low` trims marker-to-sound delay where the device allows it (often unchanged on shared-mode WASAPI). See [Latency](../latency.md). |
 

@@ -49,6 +49,21 @@ marker lines up with the sound rather than SMACC's buffer (see
 That `DEBUG` line is deliberately **not** a `" - portcode N"` line, so the
 [BIDS export](bids-export.md) counts the event once, at its onset.
 
+### Text-chat transcript
+
+Each [text-chat](../usage.md#text-chat) message is written verbatim to a `DEBUG`
+line, one per message — in the file for the record, out of the live preview and
+the BIDS export by default:
+
+```text
+2026-06-09 23:41:12.402, DEBUG, Chat to participant: Are you comfortable?
+2026-06-09 23:41:35.118, DEBUG, Chat from participant: yes
+```
+
+If a study flips the chat events' triggers on, the marker lines fire alongside —
+bare (`Chat to participant - portcode 69`), without the message text, so the
+trigger channel and the export stay legible.
+
 ## Embedded settings blocks
 
 The log carries the **complete settings the run used**, so a session stays

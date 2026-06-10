@@ -140,6 +140,47 @@ are missing (a biocal with a missing voice still runs, just unvoiced). The share
 **Voice volume** rides the cue route, so the master output cap and the
 control-room monitor fan-out apply to instructions exactly as they do to cues.
 
+## Intercom
+
+The **Intercom** window is the live channel between the control room and the
+bedroom. **Talk** pipes your mic to the participant's output (click to latch, or
+hold the **spacebar** anywhere in SMACC as push-to-talk) and is marked in the EEG
+record; **Listen** brings the bedroom mic to your control-room speakers, unmarked.
+The two directions route through roles set once in the **Devices** window (see
+[Audio &amp; routing](audio.md)).
+
+### Text chat
+
+Below the voice controls is a **typed channel** — for hearing-impaired
+participants, or whenever audio would intrude or you want the exchange in writing.
+You type in the Intercom panel; the participant reads and replies in a separate
+**Participant chat** window made for a dark bedroom: always dark regardless of the
+lights toggle, large text (default 18 pt, resize with `Ctrl+=` / `Ctrl+-`), and an
+optional **red night text** mode (**Display** menu), with no flashing and no
+sounds.
+
+**Setup.** The first cut assumes one computer: extend the desktop onto a
+bedroom-facing monitor and plug in a second keyboard for the participant. Click
+**Pass keyboard to participant** to open the participant window, drag it onto the
+bedroom display once, and it reopens there next session.
+
+**One keyboard at a time.** Windows gives the machine a single input focus, so the
+two keyboards type into whichever window is active — text chat is half-duplex,
+like push-to-talk. **Pass keyboard to participant** (or `Ctrl+Enter`, which sends
+your message first) activates the participant window so their keystrokes land
+there; clicking back into SMACC takes the focus back. The participant window shows
+a banner — *"● The keyboard is yours"* / *"○ Waiting"* — so a drowsy participant
+always knows whether typing will land.
+
+**What's recorded.** Every message is written verbatim to the session log as a
+DEBUG line (tick *Debug* above the log preview to watch the exchange live). By
+default no portcodes fire and nothing reaches the BIDS events export — a typed
+exchange is rapid and conversational, and would flood the marker channel. If a
+study needs marker timestamps, flip the trigger on for `Chat to participant`
+(code 69) and/or `Chat from participant` (code 70) in **File &rsaquo; Event
+codes…**; the markers stay bare (no message text) so the trigger channel remains
+legible.
+
 ## EEG portcodes
 
 SMACC marks experiment events — a cue played, a dream report, observed REM, the
