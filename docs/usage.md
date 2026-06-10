@@ -65,6 +65,17 @@ can confirm a cue is audible to the participant, not just leaving SMACC. See
 [Audio &amp; routing](audio.md#is-the-cue-reaching-the-bedroom) for how to read them
 and how to set up a dedicated monitor mic.
 
+## Visual cues
+
+Light cues live in the **Visual cue** window: one row per cue — color, brightness,
+pattern (steady, a smooth pulse, or a flash at a rate in Hz), length, and loop —
+with a shared fade-in/out, fired on a USB BlinkStick or a Philips Hue light. You
+start with a single red steady cue and use **+ Add cue** / **✕** to match a
+protocol (one minimum, up to 10). Every play and stop is marked in the EEG record,
+every stop path turns the light off, and a *Sending* swatch mirrors exactly what
+SMACC is emitting. See [Visual cues](visual.md) for the patterns, the
+BlinkStick-vs-Hue comparison, marker timing, and the photosensitivity notes.
+
 ## Dream reports
 
 Use the **Record Dream Report** button to record from the mic bound to the
