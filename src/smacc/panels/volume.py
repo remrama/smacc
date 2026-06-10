@@ -13,7 +13,7 @@ from PyQt6 import QtCore, QtWidgets
 
 from .. import winvolume
 from ..session import SmaccSession
-from .base import ModalityWindow, make_section_title
+from .base import ModalityWindow, make_section_title, restore_spin_value
 
 
 class VolumeWindow(ModalityWindow):
@@ -121,7 +121,7 @@ class VolumeWindow(ModalityWindow):
 
     def apply_state(self, state: dict) -> None:
         if (v := state.get("volume_cap")) is not None:
-            self.capSpinBox.setValue(float(v))  # fires set_cap -> session.volume_cap
+            restore_spin_value(self.capSpinBox, v)  # fires set_cap on success
         if (lat := state.get("output_latency")) in ("high", "low"):
             index = self.latencyCombo.findData(lat)
             if index >= 0:

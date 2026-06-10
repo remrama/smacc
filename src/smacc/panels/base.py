@@ -77,6 +77,19 @@ def make_section_title(text: str) -> QtWidgets.QLabel:
     return label
 
 
+def restore_spin_value(spin: QtWidgets.QDoubleSpinBox, value: object) -> bool:
+    """Best-effort restore of a persisted numeric spinbox value.
+
+    Hand-edited studies should not crash a load because one optional scalar is
+    malformed. Returning False lets callers keep the widget's current/default value.
+    """
+    try:
+        spin.setValue(float(value))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
 class ModalityWindow(QtWidgets.QMainWindow):
     """Base class for a single modality's window.
 

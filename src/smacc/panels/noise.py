@@ -12,7 +12,12 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import utils
 from ..session import SmaccSession
-from .base import ModalityWindow, describe_target, make_section_title
+from .base import (
+    ModalityWindow,
+    describe_target,
+    make_section_title,
+    restore_spin_value,
+)
 
 NOISE_RATE = 44100
 # Seconds of colored noise pre-generated per Play and then looped. A single
@@ -306,7 +311,7 @@ class NoiseWindow(ModalityWindow):
 
     def apply_state(self, state: dict) -> None:
         if (v := state.get("noise_volume")) is not None:
-            self.noisevolumeSpinBox.setValue(float(v))
+            restore_spin_value(self.noisevolumeSpinBox, v)
         if color := state.get("noise_color"):
             idx = self.available_noisecolors_dropdown.findText(color)
             if idx >= 0:

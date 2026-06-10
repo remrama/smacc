@@ -27,7 +27,12 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import hue, lights
 from ..session import SmaccSession
-from .base import ModalityWindow, describe_target, make_section_title
+from .base import (
+    ModalityWindow,
+    describe_target,
+    make_section_title,
+    restore_spin_value,
+)
 
 # One light cue is always required; the cap is lower than the audio board's 20
 # because rows are wide and a light protocol rarely needs more than a few variants.
@@ -646,9 +651,9 @@ class VisualWindow(ModalityWindow):
                 if isinstance(cue, dict):
                     self._apply_cue(slot, cue)
         if (v := state.get("visual_attack")) is not None:
-            self.attackSpinBox.setValue(float(v))
+            restore_spin_value(self.attackSpinBox, v)
         if (v := state.get("visual_release")) is not None:
-            self.releaseSpinBox.setValue(float(v))
+            restore_spin_value(self.releaseSpinBox, v)
 
     def _apply_cue(self, slot: LightSlot, cue: dict) -> None:
         if name := cue.get("name"):
@@ -658,14 +663,14 @@ class VisualWindow(ModalityWindow):
             if qcolor.isValid():
                 self._set_slot_color(slot, qcolor.red(), qcolor.green(), qcolor.blue())
         if (v := cue.get("brightness")) is not None:
-            slot.brightnessSpinBox.setValue(float(v))
+            restore_spin_value(slot.brightnessSpinBox, v)
         pattern = cue.get("pattern")
         if pattern in lights.PATTERNS:
             slot.patternCombo.setCurrentIndex(slot.patternCombo.findData(pattern))
         if (v := cue.get("rate")) is not None:
-            slot.rateSpinBox.setValue(float(v))
+            restore_spin_value(slot.rateSpinBox, v)
         if (v := cue.get("length")) is not None:
-            slot.lengthSpinBox.setValue(float(v))
+            restore_spin_value(slot.lengthSpinBox, v)
         slot.loopCheckBox.setChecked(bool(cue.get("loop", False)))
 
     def cleanup(self) -> None:
