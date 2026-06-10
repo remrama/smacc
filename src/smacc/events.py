@@ -120,43 +120,36 @@ def default_events() -> list[EventDef]:
     """
     return [
         # --- Manual / observational: the auto-built event-grid buttons --------
+        # Sleep-stage observations. These mark when the operator *observes* a stage
+        # (which can lag its true onset) — not continuous scoring. The grid binds
+        # them to a fixed keypad 0=Wake, 1=N1, 2=N2, 3=N3, 4=REM (panels/events.py).
         EventDef(
-            "RecordingStarted",
-            "Start recording",
-            51,
+            "WakeDetected",
+            "Wake detected",
+            52,
             category="manual",
-            tooltip=(
-                "Mark the start of the EEG recording; sets the reference clock "
-                "for dream-report timestamps"
-            ),
+            tooltip="Mark observed wakefulness (the participant is awake)",
         ),
         EventDef(
-            "TLRTrainingStart",
-            "TLR training start",
-            43,
+            "N1Detected",
+            "N1 detected",
+            53,
             category="manual",
-            tooltip="Mark the start of Targeted Lucidity Reactivation training",
+            tooltip="Mark observed stage N1 (light sleep)",
         ),
         EventDef(
-            "TLRTrainingEnd",
-            "TLR training end",
-            44,
+            "N2Detected",
+            "N2 detected",
+            54,
             category="manual",
-            tooltip="Mark the end of Targeted Lucidity Reactivation training",
+            tooltip="Mark observed stage N2",
         ),
         EventDef(
-            "TechInRoom",
-            "Tech in room",
-            42,
+            "N3Detected",
+            "N3 detected",
+            55,
             category="manual",
-            tooltip="Mark the entry of an experimenter/technician in the bedroom",
-        ),
-        EventDef(
-            "SleepOnset",
-            "Sleep onset",
-            46,
-            category="manual",
-            tooltip="Mark observed sleep onset",
+            tooltip="Mark observed stage N3 (slow-wave sleep)",
         ),
         EventDef(
             "REMDetected",
@@ -166,11 +159,50 @@ def default_events() -> list[EventDef]:
             tooltip="Mark observed REM",
         ),
         EventDef(
-            "LRLRDetected",
-            "LRLR detected",
+            "SleepOnset",
+            "Sleep onset",
+            46,
+            category="manual",
+            tooltip=(
+                "Mark observed sleep onset (the first persistent transition into "
+                "sleep), distinct from a per-stage N1 observation"
+            ),
+        ),
+        EventDef(
+            "ArousalDetected",
+            "Arousal detected",
+            56,
+            category="manual",
+            tooltip="Mark an observed transient arousal (a brief intrusion of wakefulness)",
+        ),
+        EventDef(
+            "ArtifactDetected",
+            "Artifact detected",
+            57,
+            category="manual",
+            tooltip="Mark an observed EEG artifact (movement, electrode noise, etc.)",
+        ),
+        # The generic lucidity/communication-signal marker (#121). One button covers
+        # every signal a study uses (LRLR, sniff, facial, …): the signal type and an
+        # optional confidence are picked beside the button and logged as the detail,
+        # so the marker fires instantly (timing tracks the observation) with no
+        # blocking dialog. Keeps the old LRLR slot (code 45).
+        EventDef(
+            "SignalObserved",
+            "Signal observed",
             45,
             category="manual",
-            tooltip="Mark an observed left-right-left-right lucid signal",
+            tooltip=(
+                "Mark an observed lucidity/communication signal; set its type and "
+                "confidence beside the button"
+            ),
+        ),
+        EventDef(
+            "Note",
+            "Note",
+            50,
+            category="manual",
+            tooltip="Mark a note and enter free text",
         ),
         EventDef(
             "Clapper",
@@ -180,11 +212,38 @@ def default_events() -> list[EventDef]:
             tooltip="Synchronize a marker with EEG",
         ),
         EventDef(
-            "Note",
-            "Note",
-            50,
+            "TechInRoom",
+            "Tech in room",
+            42,
             category="manual",
-            tooltip="Mark a note and enter free text",
+            tooltip="Mark the entry of an experimenter/technician in the bedroom",
+        ),
+        # Training/learning phase — was the TLR-specific pair; generalized in #121
+        # since a learning phase is common to memory- and lucidity-reactivation
+        # studies alike (TMR cue learning, TLR practice, …).
+        EventDef(
+            "TrainingStart",
+            "Training start",
+            43,
+            category="manual",
+            tooltip="Mark the start of a training/learning phase (e.g. TMR cue learning, TLR practice)",
+        ),
+        EventDef(
+            "TrainingEnd",
+            "Training end",
+            44,
+            category="manual",
+            tooltip="Mark the end of a training/learning phase",
+        ),
+        EventDef(
+            "RecordingStarted",
+            "Start recording",
+            51,
+            category="manual",
+            tooltip=(
+                "Mark the start of the EEG recording; sets the reference clock "
+                "for dream-report timestamps"
+            ),
         ),
         # --- Lights: driven by the lightswitch toggle, not the grid -----------
         EventDef("LightsOff", "Lights off", 47),
