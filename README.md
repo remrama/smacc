@@ -11,6 +11,7 @@ A clickable interface for running sleep-related experiments.
 Used for dream engineering by the [Paller Lab](https://sites.northwestern.edu/pallerlab/) at Northwestern University and the [DxE Lab](https://www.dreamengineeringlab.com/) at the Center for Advanced Research in Sleep Medicine.
 
 * Trigger audio cues
+* Trigger visual cues (BlinkStick or Philips Hue)
 * Collect dream reports
 * Trigger EEG portcodes
 * Save a detailed event log

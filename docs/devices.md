@@ -3,7 +3,8 @@
 SMACC can drive a small number of external devices for cueing. This page lists
 the supported hardware and what each one needs. For how SMACC *assigns and routes*
 devices — roles, the Devices window, and volume — see
-[Audio & device routing](audio.md).
+[Audio & device routing](audio.md); for using the light devices — patterns,
+timing, choosing between them, and safety — see [Visual cues](visual.md).
 
 ## BlinkStick
 
@@ -31,14 +32,15 @@ sleep and lucid-dreaming experiments.
    or choose **File ▸ Refresh devices** (or press `F5`) to rescan.
 4. Configure a light cue — color, brightness, pattern (steady, or a pulse/flash at
    a rate in Hz), and length (or **Loop** until stopped) — and add more cues with
-   **+ Add cue** if the protocol needs several.
+   **+ Add cue** if the protocol needs several. See [Visual cues](visual.md) for
+   what each pattern is for.
 5. Click a cue's **Play** to fire it; **Stop** turns the light off early. The rest
    of SMACC stays responsive while the light is on.
 
-Your chosen device, color, and length are saved in the `.smacc` settings file (see
-[Usage › Settings files](usage.md#settings-files-smacc)), so the visual-cue setup
-travels with the rest of your configuration; the device is reconnected by name on
-the next launch (and flagged if it isn't plugged in).
+Your chosen device and the whole cue board are saved in the `.smacc` settings file
+(see [Usage › Settings files](usage.md#settings-files-smacc)), so the visual-cue
+setup travels with the rest of your configuration; the device is reconnected by
+serial on the next launch (and flagged if it isn't plugged in).
 
 !!! note
     If the visual cue window reports that no light is set, open the **Devices**
@@ -60,10 +62,8 @@ over the local network. Setup is once per bridge:
    cue** to **Philips Hue**.
 
 The bridge IP and pairing key are stored in the study's `.smacc` (the key is a
-local-network credential — treat the file accordingly). Two constraints to know:
-every command is an HTTP round-trip, so a Hue cue's onset lags its marker by tens
-of milliseconds (time-locked protocols should keep the BlinkStick), and the
-bridge's rate limits rule out the **flash** pattern — SMACC refuses it on Hue
-rather than degrade it silently. Steady cues and slow pulses work well. A full
-comparison of the two devices is coming with the visual-cues docs page
-([#53](https://github.com/remrama/smacc/issues/53)).
+local-network credential — treat the file accordingly). Hue suits ambient,
+room-scale light; it can't flash and its onsets lag their markers, so time-locked
+protocols should keep the BlinkStick — see the full
+[BlinkStick-vs-Hue comparison](visual.md#blinkstick-or-philips-hue), and the
+network note there if the rig lives on a university Wi-Fi.
