@@ -466,6 +466,17 @@ class SmaccWindow(ToolWindow):
     ):
         """Session File menu: run-only. Author settings in the editor; analyze past
         runs (including event export) from the launcher. Here you record events."""
+        # Snapshot the live session's current configuration to a SMACC file —
+        # the in-session counterpart of the editor's Save-As (a session never
+        # silently rewrites the file it was started from).
+        saveAsAction = QtGui.QAction("Save SMACC file &as…", self)
+        saveAsAction.setShortcut("Ctrl+Shift+S")
+        saveAsAction.setStatusTip(
+            "Save a snapshot of the current session's settings to a .smacc file."
+        )
+        saveAsAction.triggered.connect(self.export_settings)
+        fileMenu.addAction(saveAsAction)
+        fileMenu.addSeparator()
         fileMenu.addAction(sessionInfoAction)
         fileMenu.addAction(eventCodesAction)
         fileMenu.addAction(triggerOutputAction)

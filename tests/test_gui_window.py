@@ -55,6 +55,32 @@ def test_window_builds_in_session_mode(
     assert hasattr(window, "lightswitchButton")
 
 
+def test_session_file_menu_offers_save_as(
+    qtbot, live_session, mock_devices, silence_dialogs, monkeypatch
+):
+    # A live session can snapshot its current settings to a SMACC file from
+    # File → Save SMACC file as… (wired to the existing export path). The class
+    # is patched *before* construction — the menu action captures the bound
+    # method then, and the real one would block on a modal file dialog.
+    called: list[bool] = []
+    monkeypatch.setattr(
+        SmaccWindow, "export_settings", lambda self: called.append(True) or True
+    )
+    window = SmaccWindow(live_session)
+    qtbot.addWidget(window)
+    save_as = next(
+        (
+            a
+            for a in window.menuBar().actions()[0].menu().actions()
+            if a.text().replace("&", "") == "Save SMACC file as…"
+        ),
+        None,
+    )
+    assert save_as is not None
+    save_as.trigger()
+    assert called == [True]
+
+
 def test_devices_refresh_button_runs_window_rescan(
     qtbot, live_session, mock_devices, silence_dialogs, monkeypatch
 ):
