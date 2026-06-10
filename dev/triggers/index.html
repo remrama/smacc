@@ -556,6 +556,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="How SMACC sends triggers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-is-the-baud-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is the baud rate?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -898,6 +915,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="How SMACC sends triggers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-is-the-baud-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is the baud rate?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1314,6 +1348,27 @@ place, so every event you log is sent the same way over every enabled path.</p>
 <p>Enabling a hardware transport does <strong>not</strong> turn LSL off — you always get the LSL
 marker stream as well. The hardware path is purely additional.</p>
 </div>
+<h3 id="what-is-the-baud-rate">What is the baud rate?</h3>
+<p>For the <strong>serial (USB trigger box)</strong> transport you also set a <strong>baud rate</strong> — the
+speed, in bits per second, at which SMACC talks to the box over its COM port. It is a
+property of the <em>serial link</em>, not of the trigger codes: the same 8-bit code (1–255)
+is sent either way; baud only controls how fast that byte goes out.</p>
+<p>The one rule that matters is that <strong>both ends must use the same baud rate.</strong> Your box
+is configured (by a switch, firmware, or its manual) to expect a specific rate, and
+SMACC has to match it — a mismatch produces garbled or missed triggers, not an error.</p>
+<ul>
+<li><strong>Where to find it:</strong> check your trigger box's manual or its configuration utility.
+  Common rates are 9600, 19200, 38400, 57600, <strong>115200</strong>, and 230400.</li>
+<li><strong>SMACC's default is 115200</strong>, which many modern USB trigger boxes (e.g. typical
+  BrainProducts/Neurospec-style adapters) use out of the box. If yours specifies a
+  different rate, pick it from the dropdown (or type any other value).</li>
+<li><strong>Higher isn't "better."</strong> A faster rate shaves only microseconds off a one-byte
+  write, which is negligible next to audio/event timing — so choose the rate your box
+  expects rather than the largest one.</li>
+</ul>
+<p>If triggers don't register, a wrong baud rate is one of the first things to check
+(alongside the COM port and the <a href="#pulsed-vs-set-and-hold">pulsed vs. set-and-hold</a>
+mode).</p>
 <h2 id="pulsed-vs-set-and-hold">Pulsed vs. set-and-hold</h2>
 <p>Amplifiers and trigger boxes differ in how they expect the code to appear on the
 lines, so SMACC offers two modes:</p>
@@ -1337,8 +1392,10 @@ register cleanly.</p>
 <li>Tick <strong>Enable hardware trigger output</strong>.</li>
 <li>Choose a <strong>Transport</strong>:<ul>
 <li><strong>Serial</strong> — pick your box's <strong>Port</strong> from the dropdown (click <strong>Refresh</strong> if
-  you plugged it in after opening the dialog) and set the <strong>Baud</strong> rate. If the
-  rig isn't attached right now, you can type the port name (e.g. <code>COM3</code>) directly.</li>
+  you plugged it in after opening the dialog) and set the <strong>Baud</strong> rate to match
+  your box (see <a href="#what-is-the-baud-rate">What is the baud rate?</a>; SMACC defaults to
+  115200). If the rig isn't attached right now, you can type the port name (e.g.
+  <code>COM3</code>) directly.</li>
 <li><strong>Parallel port</strong> — enter the <strong>Address</strong> as hex (see
   <a href="#finding-your-parallel-port-address">Finding your parallel-port address</a>).</li>
 </ul>

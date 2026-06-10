@@ -945,17 +945,29 @@
 
 
 <h1 id="installation">Installation</h1>
-<p>To install SMACC, go to the <a href="https://github.com/remrama/smacc/releases">releases page</a>,
-click the <em>Assets</em> dropdown for the latest release, and download the <em>SMACC.exe</em>
-file. Once downloaded, double-clicking this file will run SMACC.</p>
+<p><a class="md-button md-button--primary" href="https://github.com/remrama/smacc/releases/latest/download/SMACC.exe">Download SMACC.exe</a></p>
+<p>The button above always downloads the latest release. (You can also browse every
+release on the <a href="https://github.com/remrama/smacc/releases">releases page</a> — click the
+<em>Assets</em> dropdown and pick <em>SMACC.exe</em>.) SMACC is a single file: once downloaded,
+double-click it to run. There is no installer.</p>
 <div class="admonition note">
 <p class="admonition-title">System requirements</p>
 <p>SMACC runs on 64-bit Windows 10 or later.</p>
 </div>
+<div class="admonition warning">
+<p class="admonition-title">Windows SmartScreen — “Windows protected your PC”</p>
+<p>SMACC isn't code-signed, so the first time you run it Windows SmartScreen may show
+a blue <strong>“Windows protected your PC”</strong> box. This is expected for any new,
+unsigned program. To run SMACC anyway, click <strong>More info</strong>, then <strong>Run anyway</strong>.
+Windows usually stops warning after the first launch.</p>
+</div>
 <div class="admonition note">
-<p class="admonition-title">Administrator privileges</p>
+<p class="admonition-title">Administrator privileges and the UAC prompt</p>
 <p>For some features you will need to open SMACC with Administrator privileges
-(right-click the file and select <strong>Run as administrator</strong>).</p>
+(right-click the file and select <strong>Run as administrator</strong>). Windows then shows a
+<strong>User Account Control (UAC)</strong> prompt asking whether to allow the app to make
+changes — click <strong>Yes</strong> to continue. For everyday use (audio cues, dream reports,
+LSL markers) you can run SMACC normally, without administrator rights.</p>
 </div>
 <h2 id="optional-setup">Optional setup</h2>
 <h3 id="data-directory">Data directory</h3>
