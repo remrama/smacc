@@ -32,6 +32,23 @@ just `"{label}"` when it does not. The code-to-event map is the study's
 [`event_codes`](settings-file.md#event_codes) registry; see the
 [default code catalog](../triggers.md#default-event-codes).
 
+### Stimulus marker timing
+
+Most markers are stamped when SMACC fires them. **Audio cue and noise** markers are
+the exception: their timestamp — in the log line *and* the LSL stream — is the
+*estimated onset* (the fire time plus the output stream's reported latency), so the
+marker lines up with the sound rather than SMACC's buffer (see
+[Latency](../latency.md)). The raw software-trigger instant rides alongside on a
+`DEBUG` line:
+
+```text
+2026-06-09 22:18:30.858, DEBUG, Cue started: Piano cue: software trigger at 22:18:30.858, marker advanced +22.0 ms to estimated onset (output latency)
+2026-06-09 22:18:30.880, INFO, Cue started: Piano cue - portcode 60
+```
+
+That `DEBUG` line is deliberately **not** a `" - portcode N"` line, so the
+[BIDS export](bids-export.md) counts the event once, at its onset.
+
 ## Embedded settings blocks
 
 The log carries the **complete settings the run used**, so a session stays
