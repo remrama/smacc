@@ -148,8 +148,8 @@ register cleanly.
 
 ## Configuring trigger output in SMACC
 
-1. Open **File ▸ Trigger output…** (available both in a live session and in the
-   settings editor).
+1. Open **File ▸ Trigger output…** (available both in a live Session and in the
+   Editor).
 2. Tick **Enable hardware trigger output**.
 3. Choose a **Transport**:
     * **Serial** — pick your box's **Port** from the dropdown (click **Refresh** if
@@ -164,8 +164,8 @@ register cleanly.
    appears next to the button; an error explains what went wrong.
 6. Click **OK**.
 
-The whole configuration is saved in your `.smacc`
-[settings file](usage.md#settings-files-smacc), so it travels with the rest of your
+The whole configuration is saved in your
+[SMACC file](smacc-files.md), so it travels with the rest of your
 setup. Because a COM port name or LPT address is specific to one computer, SMACC
 reports a clear error if the saved port can't be opened on the machine you load it on
 — re-pick it in the dialog and save again.

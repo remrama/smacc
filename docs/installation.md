@@ -32,29 +32,28 @@ set an environment variable called `SMACC_DIRECTORY` to whatever directory you
 want (the older `SMACC_DATA_DIRECTORY` is still honored as a fallback). SMACC
 will create it and all of the subfolders (if not already present).
 
-Your reusable setup lives in a **settings file** (`.smacc`): cue files, volumes,
+Your reusable setup lives in a **SMACC file** (`.smacc`): cue files, volumes,
 event codes, and the **data directory** where its runs are written. SMACC seeds a
 `default.smacc` in the SMACC directory (with data directory `~/SMACC/data`) and
 opens it when you don't pick another, so it works out of the box. You can keep your
-own settings files anywhere.
+own SMACC files anywhere. See [SMACC files](smacc-files.md).
 
-Each run gets its own timestamped folder under the settings file's data directory
+Each run gets its own timestamped folder under the SMACC file's data directory
 (e.g. `smacc-20260607-223015/`) holding that run's `.log`, dream-report recordings,
 and any exports. Subject/session are optional metadata (set from **File &rsaquo;
 Session info…**) recorded inside the log/exports rather than in filenames. Display
 choices that apply to a session — **always-on-top** and which **log-preview** levels
-show — are stored in the `.smacc` settings file (edit them from the launcher's
-**File &rsaquo; Preferences**), so they travel with the study. The machine itself
-remembers window positions and sizes and your recent files in
+show — are stored in the SMACC file too, so they travel with the study. The machine
+itself remembers window positions and sizes and your recent files in
 `~/SMACC/preferences.yaml`, restored on the next launch.
 
-### Settings files (`.smacc`)
+### SMACC files (`.smacc`)
 
-Your reusable setup is saved to a portable `.smacc` settings file (see
-[Usage](usage.md#settings-files-smacc)). On the Windows build, the first launch
+Your reusable setup is saved to a portable SMACC file (see
+[SMACC files](smacc-files.md)). On the Windows build, the first launch
 offers to associate `.smacc` files so you can **double-click one to open SMACC and
 run a session with it**; you can also (re)enable this from
-**File &rsaquo; Associate .smacc files (Windows)**.
+**File &rsaquo; Associate .smacc files (Windows)** in the Launcher.
 
 ### Audio cues
 
@@ -70,7 +69,7 @@ The **Record Dream Report** button can optionally pop open a survey — one of t
 built-in dream questionnaires (opened in a SMACC window, responses saved into the
 run folder) or a survey URL hosted on e.g. Qualtrics or REDCap (opened in the
 browser). Manage them from the Dream-recording panel's **Manage…** button; saved
-URLs persist in your settings YAML. Pick one from the survey dropdown to open it
+URLs persist in your SMACC file. Pick one from the survey dropdown to open it
 automatically when recording starts, or open any survey on its own from
 **File &rsaquo; Surveys**. See [Surveys](surveys.md).
 

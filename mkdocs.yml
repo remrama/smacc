@@ -48,6 +48,7 @@ nav:
   - Home: index.md
   - Installation: installation.md
   - Usage: usage.md
+  - SMACC files: smacc-files.md
   - Audio & routing: audio.md
   - Visual cues: visual.md
   - Latency: latency.md
@@ -56,7 +57,7 @@ nav:
   - Triggers & port codes: triggers.md
   - Reference:
     - File formats: reference/index.md
-    - Settings file (.smacc): reference/settings-file.md
+    - SMACC file (.smacc): reference/settings-file.md
     - Preferences file: reference/preferences-file.md
     - Session log: reference/session-log.md
     - BIDS export: reference/bids-export.md

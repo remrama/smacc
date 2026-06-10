@@ -29,7 +29,7 @@ sleep and lucid-dreaming experiments.
 2. Click **Visual cue** in the *Tools* column.
 3. Bind your BlinkStick to the **BlinkStick** role in the **Devices** window (in
    the *Tools* column). Plug one in after launch and it's detected automatically,
-   or click **Refresh devices** in the Devices window (or press `F5`) to rescan.
+   or click **Refresh devices (F5)** in the Devices window to rescan.
 4. Configure a light cue — color, brightness, pattern (steady, or a pulse/flash at
    a rate in Hz), and length (or **Loop** until stopped) — and add more cues with
    **+ Add cue** if the protocol needs several. See [Visual cues](visual.md) for
@@ -37,15 +37,15 @@ sleep and lucid-dreaming experiments.
 5. Click a cue's **Play** to fire it; **Stop** turns the light off early. The rest
    of SMACC stays responsive while the light is on.
 
-Your chosen device and the whole cue board are saved in the `.smacc` settings file
-(see [Usage › Settings files](usage.md#settings-files-smacc)), so the visual-cue
+Your chosen device and the whole cue board are saved in the
+[SMACC file](smacc-files.md), so the visual-cue
 setup travels with the rest of your configuration; the device is reconnected by
 serial on the next launch (and flagged if it isn't plugged in).
 
 !!! note
     If the visual cue window reports that no light is set, open the **Devices**
     window and bind one to the **BlinkStick** role (plug it in first; click
-    **Refresh devices** there, or press `F5`, if it isn't listed). No restart needed.
+    **Refresh devices (F5)** there if it isn't listed). No restart needed.
 
 ## Philips Hue
 
