@@ -17,7 +17,7 @@ from pathlib import Path
 from pylsl import StreamInfo, StreamOutlet
 from PyQt6 import QtWidgets
 
-from . import bids, devices, events, settings, triggers
+from . import bids, devices, events, hue, settings, triggers
 from .config import VERSION
 
 
@@ -81,6 +81,10 @@ class SmaccSession:
         # both LSL and this transport from the single emit_event path.
         self.trigger_config = triggers.TriggerConfig()
         self.trigger_out: triggers.TriggerOutput | None = None
+        # Philips Hue bridge config (#53): rig state like the device bindings,
+        # persisted in the study's ``hue`` block and edited in the Devices window.
+        # Stateless REST — nothing to open; the visual panel resolves from it.
+        self.hue_config = hue.HueConfig()
         # The live event-marker registry (codes + routing flags), keyed by event
         # key. Defaults here; a loaded study overrides them via set_event_codes().
         self.events = {e.key: e for e in events.default_events()}

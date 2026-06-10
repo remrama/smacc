@@ -266,3 +266,20 @@ def test_tool_window_geometry_persists_and_restores(
     assert second.panels["volume"].y() == 234
     second._teardown_panels()
     second.session.close()
+
+
+def test_hue_config_round_trips_through_settings(
+    qtbot, design_session, mock_devices, silence_dialogs, monkeypatch
+):
+    from smacc import hue
+
+    # The post-load device re-enumeration must not hit the network.
+    monkeypatch.setattr(hue, "targets", lambda cfg: [])
+    window = SmaccWindow(design_session)
+    qtbot.addWidget(window)
+    state = window.gather_settings()
+    assert state["hue"] == {"bridge_ip": "", "app_key": ""}
+    state["hue"] = {"bridge_ip": "192.168.1.50", "app_key": "k"}
+    window.apply_settings(state)
+    assert window.gather_settings()["hue"]["bridge_ip"] == "192.168.1.50"
+    assert design_session.hue_config.configured

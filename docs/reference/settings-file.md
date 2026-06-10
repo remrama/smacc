@@ -68,6 +68,10 @@ settings:
     address: "0x378"
     mode: pulsed
     pulse_ms: 10
+  # --- Philips Hue bridge (visual cues) ---------------------------------------
+  hue:
+    bridge_ip: ""
+    app_key: ""
   # --- Data directory + interface --------------------------------------------
   data_directory: data
   preview_levels: [INFO, WARNING, ERROR, CRITICAL]
@@ -157,7 +161,7 @@ and [Devices](../devices.md)).
 
 | Key | Type | Meaning |
 |---|---|---|
-| `bindings` | mapping | Role key → device name. Roles: `bedroom_out`, `control_out`, `bedroom_mic`, `monitor_mic`, `blinkstick`. |
+| `bindings` | mapping | Role key → device key. Roles: `bedroom_out`, `control_out`, `bedroom_mic`, `monitor_mic`, `blinkstick` (a stick's serial), `hue` (a bridge target like `light:3` or `group:1`). |
 | `routing` | mapping | Target key → role key (`""` = off). Targets: `cue_out`, `cue_monitor`, `noise_out`, `intercom_talk`, `intercom_listen`, `report_in`, `monitor_in`, `visual_out`. |
 
 A missing `devices` block loads the defaults (each target on its default role, with
@@ -177,6 +181,18 @@ Optional hardware TTL trigger output, mirrored alongside the always-on LSL strea
 | `address` | string | Parallel-port base address as hex, e.g. `0x378`. |
 | `mode` | `pulsed` \| `hold` | Pulse the code then drop, or set-and-hold until the next event. |
 | `pulse_ms` | integer | Pulse width in ms when `mode: pulsed` (default 10). |
+
+### `hue`
+
+The Philips Hue bridge used for visual cues (see [Devices › Philips Hue](../devices.md#philips-hue)),
+paired once in the Devices window. Like the device bindings, this is rig state
+that travels with the study — note that `app_key` is the bridge credential minted
+by pairing, stored in plain text.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `bridge_ip` | string | The bridge's IP on the rig's network. |
+| `app_key` | string | The app key minted by press-button pairing (blank = not set up). |
 
 ## Paths and portability
 

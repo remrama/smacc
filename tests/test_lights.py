@@ -193,3 +193,73 @@ def test_brightness_and_loop_apply_live():
     engine.loop = False  # past duration with loop now off -> done at next frame
     assert engine.frame(50.1) == (0, 0, 0)
     assert engine.ended
+
+
+# ----- FrameWriter ---------------------------------------------------------------
+
+
+class _RecordingBackend:
+    def __init__(self) -> None:
+        self.frames: list[tuple[int, int, int]] = []
+
+    def apply(self, rgb) -> None:
+        self.frames.append(rgb)
+
+    def off(self) -> None:
+        self.frames.append((0, 0, 0))
+
+
+class _FailingBackend(_RecordingBackend):
+    def apply(self, rgb) -> None:
+        raise OSError("bridge unreachable")
+
+
+def _wait_for(predicate, timeout: float = 2.0) -> bool:
+    import time
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        time.sleep(0.005)
+    return False
+
+
+def test_frame_writer_applies_the_submitted_frame():
+    backend = _RecordingBackend()
+    writer = lights.FrameWriter(backend)
+    writer.submit((1, 2, 3))
+    assert _wait_for(lambda: backend.frames)
+    writer.stop()
+    assert backend.frames == [(1, 2, 3)]
+    assert writer.error is None
+
+
+def test_frame_writer_skips_duplicate_frames():
+    # A steady cue submits the same frame every tick; only changes cost a write.
+    backend = _RecordingBackend()
+    writer = lights.FrameWriter(backend)
+    writer.submit((9, 9, 9))
+    assert _wait_for(lambda: backend.frames)
+    writer.submit((9, 9, 9))
+    writer.submit((9, 9, 9))
+    writer.stop()
+    assert backend.frames == [(9, 9, 9)]
+
+
+def test_frame_writer_seeded_first_frame_is_not_rewritten():
+    # play_slot applies the first frame synchronously, then seeds the writer with
+    # it — resubmitting that frame must not hit the device a second time.
+    backend = _RecordingBackend()
+    writer = lights.FrameWriter(backend, applied=(5, 5, 5))
+    writer.submit((5, 5, 5))
+    writer.stop()
+    assert backend.frames == []
+
+
+def test_frame_writer_captures_the_first_error_and_stops():
+    writer = lights.FrameWriter(_FailingBackend())
+    writer.submit((1, 1, 1))
+    assert _wait_for(lambda: writer.error is not None)
+    writer.stop()  # already exited; join returns immediately
+    assert "bridge unreachable" in (writer.error or "")

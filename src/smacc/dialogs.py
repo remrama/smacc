@@ -5,7 +5,7 @@ from dataclasses import replace
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from . import events, triggers
+from . import events, hue, triggers
 from .utils import normalize_survey_url
 
 
@@ -727,4 +727,139 @@ class TriggerOutputDialog(QtWidgets.QDialog):
             address=self.addressEdit.text().strip() or triggers.DEFAULT_LPT_ADDRESS,
             mode=self.modeCombo.currentData(),
             pulse_ms=self.pulseSpin.value(),
+        )
+
+
+class HueBridgeDialog(QtWidgets.QDialog):
+    """Find and pair with a Philips Hue bridge (#53).
+
+    The flow mirrors the Hue app's: find the bridge's IP (auto-discovery, or type
+    it in), press the bridge's round link button, then Pair — the bridge mints the
+    app key SMACC stores. A Test button lists the bridge's lights/groups inline so
+    the rig can be verified before relying on it. The dialog edits a copy; the
+    caller reads :meth:`get_config` only when accepted.
+    """
+
+    def __init__(self, config: hue.HueConfig, parent=None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Philips Hue bridge")
+        self.setWindowFlags(
+            self.windowFlags() ^ QtCore.Qt.WindowType.WindowContextHelpButtonHint
+        )
+        self._app_key = config.app_key
+
+        hint = QtWidgets.QLabel(
+            "Pair once per bridge: find its IP, press the round link button on "
+            "the bridge itself, then click Pair within 30 seconds. The pairing "
+            "key is stored in the study's .smacc file."
+        )
+        hint.setWordWrap(True)
+
+        self.ipEdit = QtWidgets.QLineEdit(config.bridge_ip, self)
+        self.ipEdit.setPlaceholderText("e.g. 192.168.1.23")
+        self.ipEdit.setStatusTip("The bridge's IP on this network.")
+        self.ipEdit.textChanged.connect(self._refresh_status)
+        discoverButton = QtWidgets.QPushButton("Find bridge", self)
+        discoverButton.setStatusTip(
+            "Ask Philips' discovery service for bridges on this network."
+        )
+        discoverButton.clicked.connect(self._discover)
+        ipRow = QtWidgets.QHBoxLayout()
+        ipRow.addWidget(self.ipEdit)
+        ipRow.addWidget(discoverButton)
+
+        pairButton = QtWidgets.QPushButton("Pair", self)
+        pairButton.setStatusTip(
+            "Mint an app key (press the bridge's link button first)."
+        )
+        pairButton.clicked.connect(self._pair)
+        testButton = QtWidgets.QPushButton("Test", self)
+        testButton.setStatusTip(
+            "List the bridge's lights and groups with the current key."
+        )
+        testButton.clicked.connect(self._test)
+        actionRow = QtWidgets.QHBoxLayout()
+        actionRow.addWidget(pairButton)
+        actionRow.addWidget(testButton)
+
+        self.statusLabel = QtWidgets.QLabel(self)
+        self.statusLabel.setWordWrap(True)
+        self._refresh_status()
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+
+        form = QtWidgets.QFormLayout()
+        form.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        form.addRow("Bridge IP:", ipRow)
+        form.addRow(actionRow)
+        form.addRow(self.statusLabel)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(hint)
+        layout.addLayout(form)
+        layout.addWidget(buttons)
+        self.setLayout(layout)
+
+    # ----- actions (each is one user-initiated, short-timeout bridge call) ----
+
+    def _discover(self) -> None:
+        found = hue.discover()
+        if found:
+            self.ipEdit.setText(found[0])
+            extra = f" (+{len(found) - 1} more)" if len(found) > 1 else ""
+            self._set_status(f"Found a bridge at {found[0]}{extra}.")
+        else:
+            self._set_status(
+                "No bridge found. Enter its IP by hand (the Hue app shows it "
+                "under bridge settings)."
+            )
+
+    def _pair(self) -> None:
+        ip = self.ipEdit.text().strip()
+        if not ip:
+            self._set_status("Enter the bridge IP first.")
+            return
+        try:
+            self._app_key = hue.pair(ip)
+        except hue.HueError as err:
+            self._set_status(str(err))
+            return
+        self._set_status("Paired ✓ — now Test, then OK.")
+
+    def _test(self) -> None:
+        cfg = self.get_config()
+        if not cfg.configured:
+            self._set_status("Pair with the bridge first.")
+            return
+        try:
+            found = hue.targets(cfg)
+        except hue.HueError as err:
+            self._set_status(str(err))
+            return
+        n_lights = sum(1 for _, key in found if key.startswith("light:"))
+        n_groups = len(found) - n_lights
+        self._set_status(
+            f"Bridge OK: {n_lights} light(s), {n_groups} group(s). Bind one to "
+            "the Philips Hue role after closing this dialog."
+        )
+
+    def _set_status(self, text: str) -> None:
+        self.statusLabel.setText(text)
+
+    def _refresh_status(self) -> None:
+        """The resting status line: paired or not, for the current IP."""
+        if self._app_key:
+            self._set_status("Paired ✓")
+        else:
+            self._set_status("Not paired yet.")
+
+    def get_config(self) -> hue.HueConfig:
+        """The edited config (read by the caller when the dialog is accepted)."""
+        return hue.HueConfig(
+            bridge_ip=self.ipEdit.text().strip(), app_key=self._app_key
         )

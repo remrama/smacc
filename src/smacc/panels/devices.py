@@ -16,7 +16,8 @@ import sounddevice as sd
 from blinkstick import blinkstick
 from PyQt6 import QtCore, QtWidgets
 
-from .. import devices
+from .. import devices, hue
+from ..dialogs import HueBridgeDialog
 from ..session import SmaccSession
 from .base import (
     ModalityWindow,
@@ -73,6 +74,18 @@ def blinkstick_devices() -> list[tuple[str, str]]:
         return []
 
 
+def hue_devices(cfg: hue.HueConfig) -> list[tuple[str, str]]:
+    """Return ``(label, key)`` for each Hue light/group (best effort).
+
+    Empty when the bridge isn't set up or can't be reached — the combo then only
+    offers "(none)", and the Set up button is the path forward.
+    """
+    try:
+        return hue.targets(cfg)
+    except hue.HueError:
+        return []
+
+
 class DevicesWindow(ModalityWindow):
     """Bind devices to roles and route modalities to roles (edits session.devices)."""
 
@@ -120,10 +133,22 @@ class DevicesWindow(ModalityWindow):
 
         refresh_button = QtWidgets.QPushButton("Refresh devices", self)
         refresh_button.setStatusTip(
-            "Rescan for audio devices and BlinkSticks (e.g. after plugging one in)."
+            "Rescan for audio devices, BlinkSticks, and Hue lights (e.g. after "
+            "plugging one in)."
         )
         refresh_button.setToolTip("Rescan for devices plugged in after launch (F5).")
         refresh_button.clicked.connect(self.refresh_requested)
+
+        hue_button = QtWidgets.QPushButton("Set up Philips Hue…", self)
+        hue_button.setStatusTip(
+            "Pair with a Hue bridge so its lights can serve as the visual cue (#53)."
+        )
+        hue_button.setToolTip("Find and pair with a Philips Hue bridge")
+        hue_button.clicked.connect(self.setup_hue_bridge)
+
+        buttons = QtWidgets.QHBoxLayout()
+        buttons.addWidget(refresh_button)
+        buttons.addWidget(hue_button)
 
         hint = QtWidgets.QLabel(
             "Bind each role to a device once, then route each modality to a role. "
@@ -139,7 +164,7 @@ class DevicesWindow(ModalityWindow):
         layout.addWidget(self._subheading("Modalities → roles"))
         layout.addLayout(routing_form)
         layout.addWidget(hint)
-        layout.addWidget(refresh_button)
+        layout.addLayout(buttons)
         layout.addStretch(1)
         central = QtWidgets.QWidget()
         central.setLayout(layout)
@@ -159,7 +184,11 @@ class DevicesWindow(ModalityWindow):
             previous = current_device_key(combo)
             combo.blockSignals(True)
             combo.clear()
-            if role.kind == devices.VISUAL:
+            if role.key == "hue":
+                combo.addItem(_NONE_LABEL, "")
+                for label, key in hue_devices(self.session.hue_config):
+                    combo.addItem(label, key)
+            elif role.kind == devices.VISUAL:
                 combo.addItem(_NONE_LABEL, "")
                 for label, serial in blinkstick_devices():
                     combo.addItem(label, serial)
@@ -225,3 +254,13 @@ class DevicesWindow(ModalityWindow):
     def refresh_device_lists(self) -> None:
         """Re-enumerate the role device dropdowns (the File ▸ Refresh devices hook)."""
         self._populate_role_combos()
+
+    def setup_hue_bridge(self) -> None:
+        """Open the Hue pairing dialog; on accept, store the config and re-list."""
+        dialog = HueBridgeDialog(self.session.hue_config, parent=self)
+        if not dialog.exec():
+            return
+        self.session.hue_config = dialog.get_config()
+        self.session.log_interaction("Philips Hue bridge configured")
+        self._populate_role_combos()  # the Hue role now lists the bridge's lights
+        self.changed.emit()

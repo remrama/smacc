@@ -96,3 +96,28 @@ def test_refresh_button_emits_refresh_requested(qtbot, design_session, mock_devi
     assert button is not None and button.text() == "Refresh devices"
     with qtbot.waitSignal(window.refresh_requested, timeout=1000):
         button.click()
+
+
+def test_hue_role_combo_lists_bridge_targets(
+    qtbot, design_session, mock_devices, monkeypatch
+):
+    from smacc import hue
+
+    design_session.hue_config = hue.HueConfig("192.168.1.50", "key")
+    monkeypatch.setattr(hue, "targets", lambda cfg: [("Bed lamp (light 1)", "light:1")])
+    window = DevicesWindow(design_session)
+    qtbot.addWidget(window)
+    combo = window._role_combos["hue"]
+    assert [combo.itemText(i) for i in range(combo.count())] == [
+        "(none)",
+        "Bed lamp (light 1)",
+    ]
+    combo.setCurrentIndex(1)  # bind the lamp
+    assert design_session.devices.bindings["hue"] == "light:1"
+
+
+def test_hue_role_combo_is_empty_without_a_bridge(qtbot, design_session, mock_devices):
+    window = DevicesWindow(design_session)
+    qtbot.addWidget(window)
+    combo = window._role_combos["hue"]
+    assert [combo.itemText(i) for i in range(combo.count())] == ["(none)"]

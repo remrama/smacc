@@ -15,6 +15,7 @@ from smacc import (
     bids,
     biocals,
     devices,
+    hue,
     preferences,
     settings,
     triggers,
@@ -660,6 +661,9 @@ class SmaccWindow(ToolWindow):
         state["event_code_safe_max"] = self.session.event_code_safe_max
         # Optional hardware-trigger config (transport/port/mode/…), also window-level.
         state["trigger_output"] = self.session.trigger_config.to_dict()
+        # Philips Hue bridge config (#53): rig state that travels with the study,
+        # like the device bindings. The app key is a local-network credential.
+        state["hue"] = self.session.hue_config.to_dict()
         # The data directory (where runs are written) travels with the settings;
         # the editor can repoint it, so read the window's copy, not the session's.
         state["data_directory"] = str(self.data_dir)
@@ -711,6 +715,10 @@ class SmaccWindow(ToolWindow):
             # Open the transport now so a bad port/driver is reported at load.
             self.session.trigger_config = triggers.load(state)
             trigger_error = self.session.set_trigger_output(self.session.trigger_config)
+            # Hue bridge config before the Devices reload: the Hue role's dropdown
+            # enumerates from the (newly loaded) bridge, so a bound light matches.
+            self.session.hue_config = hue.load(state)
+            self.devices_window.refresh_device_lists()
             self._rebuild_events_panel()  # a loaded study may add/remove buttons
             self.devices_window.reload_from_config()  # sync widgets + flag missing
             self._refresh_device_indicators()
@@ -837,10 +845,11 @@ class SmaccWindow(ToolWindow):
     def refresh_all_devices(self) -> None:
         """Rescan for devices plugged in after launch (File ▸ Refresh devices, F5).
 
-        BlinkSticks are a live USB scan, so they are always rescanned. PortAudio
-        caches its device list at initialization, so audio devices are only picked
-        up by re-initializing it — which invalidates open streams, so that is done
-        only while nothing is playing, recording, or monitoring.
+        BlinkSticks are a live USB scan and Hue lights a live bridge query, so both
+        are always rescanned. PortAudio caches its device list at initialization,
+        so audio devices are only picked up by re-initializing it — which
+        invalidates open streams, so that is done only while nothing is playing,
+        recording, or monitoring.
         """
         was_logging = self.session.log_interactions
         self.session.log_interactions = False  # don't spam logs as lists repopulate
@@ -860,9 +869,9 @@ class SmaccWindow(ToolWindow):
         if audio_active:
             self.session.show_info_popup(
                 "Audio devices not fully rescanned.",
-                "BlinkSticks were rescanned. To rescan audio devices too, stop "
-                "playback, recording, and the level meter, then choose Refresh "
-                "devices again.",
+                "BlinkSticks and Hue lights were rescanned. To rescan audio "
+                "devices too, stop playback, recording, and the level meter, "
+                "then choose Refresh devices again.",
                 parent=self,
             )
         else:

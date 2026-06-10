@@ -38,7 +38,7 @@ def test_describe_target_unbound_audio_reads_system_default(design_session):
 
 def test_describe_target_unbound_visual_reads_not_set(design_session):
     session = _session_with(design_session, {})
-    assert base.describe_target(session, "visual_out") == "Bedroom lights (not set)"
+    assert base.describe_target(session, "visual_out") == "BlinkStick (not set)"
 
 
 def test_describe_target_off_route_reads_off(design_session):

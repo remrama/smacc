@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from PyQt6 import QtGui, QtWidgets
 
-from smacc import lights
+from smacc import hue, lights
 from smacc.panels.visual import MAX_LIGHT_SLOTS, VisualWindow
 
 
@@ -34,6 +34,23 @@ class _DeadLight(_FakeLight):
         raise OSError("usb gone")
 
 
+class _SyncWriter:
+    """FrameWriter stand-in: applies on submit, no thread — deterministic tests."""
+
+    def __init__(self, backend, applied=None) -> None:
+        self._backend = backend
+        self.error: str | None = None
+
+    def submit(self, rgb) -> None:
+        try:
+            self._backend.apply(rgb)
+        except Exception as exc:  # mirror the real writer's error capture
+            self.error = str(exc)
+
+    def stop(self, timeout: float = 2.0) -> None:
+        pass
+
+
 def _spies(panel, monkeypatch):
     """Replace the session's marker + popup sinks with recording lists."""
     events: list[tuple[str, str | None]] = []
@@ -52,12 +69,13 @@ def _spies(panel, monkeypatch):
 
 
 def _board(qtbot, design_session, monkeypatch, backend=None):
-    """A board with a fake clock + backend, plus its event/popup spies."""
+    """A board with a fake clock + backend + sync writer, plus its spies."""
     panel = VisualWindow(design_session)
     qtbot.addWidget(panel)
     clock = {"t": 0.0}
     panel._clock = lambda: clock["t"]
     panel._backend = backend if backend is not None else _FakeLight()
+    panel._make_writer = _SyncWriter  # no writer thread: frames apply inline
     events, popups = _spies(panel, monkeypatch)
     return panel, clock, events, popups
 
@@ -206,11 +224,24 @@ def test_failed_write_mid_cue_stops_marks_and_reports(
 ):
     panel, clock, events, popups = _board(qtbot, design_session, monkeypatch)
     panel.play_slot(panel.slots[0])
-    panel._active_backend = _DeadLight()  # the stick vanishes mid-cue
+    # The device vanishes mid-cue: the writer captures the failure on its thread
+    # and the next tick polls it.
+    panel._writer.error = "usb gone"
     clock["t"] = 0.5
     panel._tick()
     assert events[-1] == ("VisualStopped", "Light 1")  # marker before the popup
     assert popups
+    assert not panel._timer.isActive()
+
+
+def test_failed_first_frame_reports_without_markers(qtbot, design_session, monkeypatch):
+    # The first frame is applied synchronously, so an unreachable device is
+    # reported at the click and no start marker fires for a cue that never lit.
+    panel, clock, events, popups = _board(
+        qtbot, design_session, monkeypatch, backend=_DeadLight()
+    )
+    panel.play_slot(panel.slots[0])
+    assert popups and not events
     assert not panel._timer.isActive()
 
 
@@ -279,3 +310,33 @@ def test_color_can_be_picked_with_no_device(qtbot, design_session, monkeypatch):
     panel.pick_slot_color(panel.slots[0])
     assert panel.slots[0].rgb == (0x11, 0x22, 0x33)
     assert not popups  # choosing a color never needs hardware
+
+
+def test_visual_route_to_hue_resolves_a_hue_backend(qtbot, design_session):
+    design_session.hue_config = hue.HueConfig("192.168.1.50", "key")
+    design_session.devices.bindings["hue"] = "light:1"
+    design_session.devices.routing["visual_out"] = "hue"
+    panel = VisualWindow(design_session)
+    qtbot.addWidget(panel)
+    assert isinstance(panel._backend, hue.HueBackend)
+    assert "Philips Hue" in panel.deviceLabel.text()
+
+
+def test_flash_is_refused_on_a_backend_without_flash_support(
+    qtbot, design_session, monkeypatch
+):
+    class _NoFlashLight(_FakeLight):
+        supports_flash = False
+
+    panel, clock, events, popups = _board(
+        qtbot, design_session, monkeypatch, backend=_NoFlashLight()
+    )
+    panel.add_slot()
+    steady, flashy = panel.slots
+    flashy.patternCombo.setCurrentIndex(flashy.patternCombo.findData(lights.FLASH))
+    panel.play_slot(steady)  # steady is fine on any backend
+    panel.play_slot(flashy)  # refused — and must not kill the lit steady cue
+    assert popups
+    assert events == [("VisualStarted", "Light 1")]
+    assert panel._active_slot is steady
+    assert panel._timer.isActive()

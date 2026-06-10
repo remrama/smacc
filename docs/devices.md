@@ -26,7 +26,7 @@ sleep and lucid-dreaming experiments.
 
 1. Plug the BlinkStick into a USB port, then launch SMACC.
 2. Click **Visual cue** in the *Tools* column.
-3. Bind your BlinkStick to the **Bedroom lights** role in the **Devices** window (in
+3. Bind your BlinkStick to the **BlinkStick** role in the **Devices** window (in
    the *Tools* column). Plug one in after launch and it's detected automatically,
    or choose **File ▸ Refresh devices** (or press `F5`) to rescan.
 4. Configure a light cue — color, brightness, pattern (steady, or a pulse/flash at
@@ -41,12 +41,29 @@ travels with the rest of your configuration; the device is reconnected by name o
 the next launch (and flagged if it isn't plugged in).
 
 !!! note
-    If the visual cue window reports that no BlinkStick is set, open the **Devices**
-    window and bind one to the **Bedroom lights** role (plug it in first; use
+    If the visual cue window reports that no light is set, open the **Devices**
+    window and bind one to the **BlinkStick** role (plug it in first; use
     **File ▸ Refresh devices** or `F5` if it isn't listed). No restart needed.
 
-## More devices
+## Philips Hue
 
-Support for additional hardware is planned — for example a
-[Philips Hue](https://github.com/remrama/smacc/issues/53) bridge for ambient room
-lighting. This page will grow as devices are added.
+A [Philips Hue](https://www.philips-hue.com/) bridge is the room-scale alternative
+to the BlinkStick: the visual cue drives an ordinary Hue bulb (or a whole group)
+over the local network. Setup is once per bridge:
+
+1. In the **Devices** window, click **Set up Philips Hue…**.
+2. Click **Find bridge** (or type the bridge's IP — the Hue app shows it under
+   bridge settings).
+3. Press the round **link button** on the bridge itself, then click **Pair**
+   within 30 seconds. **Test** lists the bridge's lights to confirm.
+4. Bind a light or group to the **Philips Hue** role, and route **Present visual
+   cue** to **Philips Hue**.
+
+The bridge IP and pairing key are stored in the study's `.smacc` (the key is a
+local-network credential — treat the file accordingly). Two constraints to know:
+every command is an HTTP round-trip, so a Hue cue's onset lags its marker by tens
+of milliseconds (time-locked protocols should keep the BlinkStick), and the
+bridge's rate limits rule out the **flash** pattern — SMACC refuses it on Hue
+rather than degrade it silently. Steady cues and slow pulses work well. A full
+comparison of the two devices is coming with the visual-cues docs page
+([#53](https://github.com/remrama/smacc/issues/53)).

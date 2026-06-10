@@ -15,8 +15,8 @@ Instead of picking a device separately in every window, SMACC has one **Devices
 window** (in the *Tools* column) where you do two things:
 
 1. **Bind each _role_ to a device, once.** The roles are the physical endpoints of a
-   rig: **Bedroom speakers**, **Control-room speakers**, **Bedroom mic**, and
-   **Bedroom lights**.
+   rig: **Bedroom speakers**, **Control-room speakers**, **Bedroom mic**, plus the
+   light devices (**BlinkStick**, **Philips Hue**).
 2. **Route each modality to a role.** The cue, noise, intercom, and dream-report
    recorder each point at a role.
 
