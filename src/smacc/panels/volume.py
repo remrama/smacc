@@ -40,8 +40,11 @@ class VolumeWindow(ModalityWindow):
         self.capSpinBox = capSpinBox
 
         latencyCombo = QtWidgets.QComboBox(self)
-        latencyCombo.addItem("High — robust (default)", "high")
-        latencyCombo.addItem("Low — less delay", "low")
+        latencyCombo.addItem("High (robust)", "high")
+        latencyCombo.addItem("Low (less delay)", "low")
+        # Cap the width so this combo doesn't stretch the whole window (the full
+        # explanation lives in the status tip and the docs).
+        latencyCombo.setMaximumWidth(150)
         latencyCombo.setStatusTip(
             "Output buffer for cue + noise: High is robust (fewer glitches); Low "
             "trims marker-to-sound delay but risks underruns. Applies to the next "
@@ -60,10 +63,10 @@ class VolumeWindow(ModalityWindow):
 
         form = QtWidgets.QFormLayout()
         form.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-        form.addRow("Output safety cap:", capSpinBox)
-        form.addRow("Output latency:", self.latencyCombo)
-        form.addRow("System output volume:", self.endpointLabel)
-        form.addRow("SMACC app volume:", self.appLabel)
+        form.addRow("Safety cap:", capSpinBox)
+        form.addRow("Latency:", self.latencyCombo)
+        form.addRow("System volume:", self.endpointLabel)
+        form.addRow("App volume:", self.appLabel)
 
         note = QtWidgets.QLabel(
             "The Windows volumes above multiply with SMACC's per-cue volume and this "
@@ -71,6 +74,10 @@ class VolumeWindow(ModalityWindow):
             "volumes to 100% and calibrate with the cap and per-cue volumes here."
         )
         note.setWordWrap(True)
+        # Without a width cap the wrapped note dictates a wide window; this keeps the
+        # Volume tool slim (it just shows a cap spinner and a couple of readouts), so
+        # the note wraps to more lines instead of stretching everything out.
+        note.setMaximumWidth(300)
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(make_section_title("Volume"))
