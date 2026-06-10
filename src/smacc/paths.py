@@ -1,5 +1,6 @@
 """Filesystem paths and bundled-asset locations for SMACC."""
 
+import os
 import sys
 from pathlib import Path
 
@@ -37,3 +38,22 @@ DEFAULT_DATA_DIR = smacc_directory / "data"
 # can replace any file with its own recording (same name) — seeding never
 # overwrites — and their presence is verified at each session start.
 BIOCALS_DIR = smacc_directory / "biocals"
+
+
+def is_default_settings(path: str | Path) -> bool:
+    """True if ``path`` is the seeded ``default.smacc`` (case/realpath-insensitive).
+
+    The editor uses this to keep SMACC's known-good default template from being
+    overwritten — saving the default redirects to Save-As instead. Compares resolved,
+    case-normalized paths so it holds regardless of how the path was spelled and even
+    if the file doesn't exist yet (a Save-As target the user typed by hand).
+    """
+
+    def _norm(p: str | Path) -> str:
+        try:
+            resolved = Path(p).expanduser().resolve()
+        except OSError:
+            resolved = Path(p).expanduser()
+        return os.path.normcase(str(resolved))
+
+    return _norm(path) == _norm(DEFAULT_SETTINGS_PATH)

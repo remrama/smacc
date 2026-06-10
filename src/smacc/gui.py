@@ -39,7 +39,7 @@ from .panels.noise import NoiseWindow
 from .panels.recording import RecordingWindow
 from .panels.visual import VisualWindow
 from .panels.volume import VolumeWindow
-from .paths import BIOCALS_DIR, LOGO_PATH, preferences_path
+from .paths import BIOCALS_DIR, LOGO_PATH, is_default_settings, preferences_path
 from .qtlog import QtLogHandler
 from .session import SmaccSession
 from .toolwindow import ToolWindow
@@ -978,16 +978,22 @@ class SmaccWindow(ToolWindow):
     def save_settings_in_place(self) -> bool:
         """Save to the current .smacc without prompting; fall back to Save-As if new.
 
-        Returns True if the settings were written, False if cancelled.
+        Returns True if the settings were written, False if cancelled. SMACC's seeded
+        ``default.smacc`` is treated as a read-only template: saving it redirects to
+        Save-As so the default stays a known-good starting point.
         """
-        if self.settings_path:
+        if self.settings_path and not is_default_settings(self.settings_path):
             return self._write_settings(self.settings_path)
         return self.export_settings()
 
     def export_settings(self) -> bool:
         """Prompt for a path (Save-As) and write the settings there. Returns success."""
         # Default to the file we loaded, else a settings.smacc beside the data dir.
-        default = self.settings_path or str(self.data_dir / "settings.smacc")
+        # Never pre-fill the protected default.smacc — suggest a fresh name instead.
+        if self.settings_path and not is_default_settings(self.settings_path):
+            default = self.settings_path
+        else:
+            default = str(self.data_dir / "settings.smacc")
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "Save settings (.smacc)", str(default), "SMACC settings (*.smacc)"
         )
@@ -997,6 +1003,16 @@ class SmaccWindow(ToolWindow):
 
     def _write_settings(self, path: str) -> bool:
         """Write the current settings to ``path`` (relativizing paths). Returns success."""
+        # The seeded default.smacc is SMACC's known-good template; refuse to overwrite
+        # it (e.g. if it's hand-picked in the Save-As dialog) and point at Save-As.
+        if is_default_settings(path):
+            self.show_error_popup(
+                "Can’t overwrite the default settings.",
+                "default.smacc is SMACC's built-in template and stays read-only so it "
+                "remains a reliable starting point. Save your changes to a new .smacc "
+                "file instead.",
+            )
+            return False
         # Make referenced cue/noise/data paths relative to the file when possible.
         portable = settings.relativize_paths(self.gather_settings(), Path(path).parent)
         try:
