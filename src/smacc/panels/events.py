@@ -12,6 +12,8 @@ from functools import partial
 
 from PyQt6 import QtWidgets
 
+from .. import events
+from ..dialogs import AddEventDialog
 from ..session import SmaccSession
 from .base import ModalityWindow, make_section_title
 
@@ -43,6 +45,7 @@ class EventsWindow(ModalityWindow):
         outer.addWidget(make_section_title("Event logging"))
         outer.addLayout(self._grid)
         outer.addLayout(self._build_signal_controls())
+        outer.addLayout(self._build_add_event_row())
         outer.addStretch(1)
         self.setCentralWidget(container)
         self.rebuild()
@@ -74,6 +77,64 @@ class EventsWindow(ModalityWindow):
             self._confidence_group.addButton(radio)
             row.addWidget(radio)
         return row
+
+    def _build_add_event_row(self) -> QtWidgets.QHBoxLayout:
+        """A row with the Add event… button (the natural place to look for it).
+
+        Removing or retuning an event still lives in File ▸ Event codes…, which
+        shows the whole registry; adding a button is the common mid-setup act,
+        so it's offered right here where the buttons appear.
+        """
+        addButton = QtWidgets.QPushButton("Add event…", self)
+        addButton.setStatusTip(
+            "Add a custom event button (label + port code); it appears here and "
+            "can be retuned or removed in File ▸ Event codes…."
+        )
+        addButton.clicked.connect(self.add_custom_event)
+        row = QtWidgets.QHBoxLayout()
+        row.addWidget(addButton)
+        row.addStretch(1)
+        return row
+
+    def add_custom_event(self, _checked: bool = False) -> None:
+        """Define a custom event and add it to the live registry (and this grid).
+
+        The same validation as the Event codes editor applies: hard errors
+        (duplicate triggered code, bad range) block the add, soft warnings (above
+        the safe max) ask first. A successful add is logged loudly (WARNING) like
+        any registry change, so the session's code map stays traceable.
+        """
+        used = [e.code for e in self.session.events.values() if isinstance(e.code, int)]
+        suggested = min((max(used) + 1) if used else events.CODE_MIN, events.CODE_MAX)
+        dialog = AddEventDialog(suggested, parent=self)
+        if not dialog.exec():
+            return
+        label, code, tooltip, increment = dialog.get_inputs()
+        event = events.make_custom_event(
+            label,
+            code,
+            self.session.events.keys(),
+            tooltip=tooltip,
+            increment=increment,
+        )
+        candidate = [*self.session.events.values(), event]
+        errors, warnings = events.validate_events(
+            candidate, self.session.event_code_safe_max
+        )
+        if errors:
+            QtWidgets.QMessageBox.warning(
+                self, "Add event", "Please fix these first:\n\n" + "\n".join(errors)
+            )
+            return
+        if warnings:
+            reply = QtWidgets.QMessageBox.question(
+                self, "Add event", "Add anyway?\n\n" + "\n".join(warnings)
+            )
+            if reply != QtWidgets.QMessageBox.StandardButton.Yes:
+                return
+        self.session.events[event.key] = event
+        self.session.logger.warning(f"Event added: {event.label} (code {event.code})")
+        self.rebuild()
 
     def rebuild(self) -> None:
         """Regenerate the buttons from the session's manual-category events.

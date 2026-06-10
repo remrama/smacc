@@ -137,6 +137,24 @@ def test_intercom_panel_round_trips_chat_presets(qtbot, design_session):
     assert got["chat_participant_presets"] == ["Yes", "No"]
 
 
+def test_intercom_meters_track_each_live_bridge(qtbot, design_session):
+    # Each direction has a level meter fed from its bridge's input callback; an
+    # idle direction's meter reads empty, a live one shows the stashed level.
+    panel = IntercomWindow(design_session)
+    qtbot.addWidget(panel)
+    panel._render_levels()
+    assert panel.talkMeter.value() == 0  # both idle
+    assert panel.listenMeter.value() == 0
+    # Simulate a live talk bridge whose callback measured a -20 dBFS block.
+    panel._talk._input = object()  # active() keys off an open stream
+    panel._talk.level_db = -20.0
+    panel._render_levels()
+    assert panel.talkMeter.value() > 0
+    assert "-20 dBFS" in panel.talkMeter.format()
+    assert panel.listenMeter.value() == 0  # listen still idle
+    panel._talk._input = None
+
+
 def test_visual_panel_round_trips(qtbot, design_session):
     panel = VisualWindow(design_session)
     qtbot.addWidget(panel)
@@ -367,6 +385,8 @@ def test_tool_window_always_on_top_toggle(qtbot, design_session):
     panel = NoiseWindow(design_session)
     qtbot.addWidget(panel)
     assert panel.is_always_on_top() is False  # default off
+    # Every window binds the same window-scoped shortcut to its own toggle.
+    assert panel._always_on_top_action.shortcut().toString() == "Ctrl+T"
     panel.set_always_on_top(True)
     assert panel.is_always_on_top() is True
     assert panel._always_on_top_action.isChecked() is True
@@ -398,3 +418,26 @@ def test_tool_window_stays_visible_across_always_on_top_toggle(qtbot, design_ses
     panel.hide()
     panel.set_always_on_top(True)
     assert not panel.isVisible()
+
+
+def test_tool_window_file_menu_close_hides_the_window(qtbot, design_session):
+    # Every tool window carries File → Close window (Ctrl+W); closing only hides
+    # the window (the session keeps running), exactly like the title-bar X.
+    panel = NoiseWindow(design_session)
+    qtbot.addWidget(panel)
+    panel.show()
+    qtbot.waitExposed(panel)
+    close = next(
+        (
+            a
+            for a in panel.menuBar().actions()[0].menu().actions()
+            if a.text().replace("&", "") == "Close window"
+        ),
+        None,
+    )
+    assert close is not None
+    assert close.shortcut().toString() == "Ctrl+W"
+    close.trigger()
+    assert not panel.isVisible()
+    panel.show()  # reopens with its state intact, like the launcher buttons do
+    assert panel.isVisible()

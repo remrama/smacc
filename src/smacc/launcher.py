@@ -159,6 +159,8 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self.move(avail.left() + 48, avail.top() + 48)
 
     def _build_menu(self) -> None:
+        style = self.style()
+        assert style is not None
         menu_bar = self.menuBar()
         assert menu_bar is not None
         fileMenu = menu_bar.addMenu("&File")
@@ -173,11 +175,19 @@ class LauncherWindow(QtWidgets.QMainWindow):
             )
             associateAction.triggered.connect(self.associate_files)
             fileMenu.addSeparator()
-        aboutAction = fileMenu.addAction("&About")
+        aboutAction = fileMenu.addAction(
+            style.standardIcon(
+                QtWidgets.QStyle.StandardPixmap.SP_MessageBoxInformation
+            ),
+            "&About",
+        )
         assert aboutAction is not None
         aboutAction.setStatusTip("About SMACC (version and links).")
         aboutAction.triggered.connect(self.show_about_popup)
-        quitAction = fileMenu.addAction("&Quit")
+        quitAction = fileMenu.addAction(
+            style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DialogCloseButton),
+            "&Quit",
+        )
         assert quitAction is not None
         quitAction.setShortcut("Ctrl+Q")
         quitAction.setStatusTip("Quit SMACC.")

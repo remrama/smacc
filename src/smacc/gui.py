@@ -121,9 +121,18 @@ class SmaccWindow(ToolWindow):
         # Hot-plug doorbell: Qt6's QMediaDevices fires when an audio device is added
         # or removed; that triggers an automatic rescan. Audio I/O stays on
         # sounddevice — QMediaDevices is used only as the "something changed" signal.
+        # Debounced through a single-shot timer: Windows fires these in bursts
+        # (dozens within a second, e.g. when a Bluetooth device renegotiates or a
+        # stream opens/closes), and each rescan tears PortAudio down and back up —
+        # doing that dozens of times back-to-back has crashed the app mid-burst.
+        # Restarting the timer per signal coalesces a burst into one rescan.
         self._media_devices = QMediaDevices(self)
-        self._media_devices.audioOutputsChanged.connect(self._on_devices_hotplug)
-        self._media_devices.audioInputsChanged.connect(self._on_devices_hotplug)
+        self._hotplug_timer = QtCore.QTimer(self)
+        self._hotplug_timer.setSingleShot(True)
+        self._hotplug_timer.setInterval(1000)  # rescan once a burst has gone quiet
+        self._hotplug_timer.timeout.connect(self._on_devices_hotplug)
+        self._media_devices.audioOutputsChanged.connect(self._hotplug_timer.start)
+        self._media_devices.audioInputsChanged.connect(self._hotplug_timer.start)
 
         self.init_main_window()  # builds the menu + log handler (does not show yet)
         self._apply_preferences(self._prefs)
@@ -387,6 +396,9 @@ class SmaccWindow(ToolWindow):
         # can set its state, but only surfaced in a session's menu (tool windows carry
         # their own toggle on the ModalityWindow base).
         alwaysOnTopAction = QtGui.QAction("Always on &top", self)
+        # The same Ctrl+T every tool window carries (see ModalityWindow); the
+        # default WindowShortcut context pins whichever window is active.
+        alwaysOnTopAction.setShortcut("Ctrl+T")
         alwaysOnTopAction.setStatusTip(
             "Keep the SMACC window above other applications."
         )
@@ -818,10 +830,12 @@ class SmaccWindow(ToolWindow):
             panel.refresh_device_indicator()
 
     def _on_devices_hotplug(self) -> None:
-        """A device was added/removed: quietly rescan when nothing is streaming.
+        """Devices changed (debounce timer fired): rescan when nothing is streaming.
 
-        Skipped while audio is live (a PortAudio re-init would cut it); the operator
-        can use the Devices window's Refresh button once idle.
+        Reached only via ``_hotplug_timer``, which coalesces Windows' bursts of
+        change signals into one rescan. Skipped while audio is live (a PortAudio
+        re-init would cut it); the operator can use the Devices window's Refresh
+        button once idle.
         """
         if any(panel.is_streaming() for panel in self.panels.values()):
             return

@@ -159,7 +159,10 @@ bedroom. **Talk** pipes your mic to the participant's output (click to latch, or
 hold the **spacebar** anywhere in SMACC as push-to-talk) and is marked in the EEG
 record; **Listen** brings the bedroom mic to your control-room speakers, unmarked.
 The two directions route through roles set once in the **Devices** window (see
-[Audio &amp; routing](audio.md)).
+[Audio &amp; routing](audio.md)). A **level meter** beside each button shows the
+live input level while that direction is on — signal on the bar means audio is
+actually flowing (your mic for Talk, the participant's mic for Listen), not just
+a latched button.
 
 ### Text chat
 
@@ -227,9 +230,10 @@ can set:
 hardware only accepts a limited range (some older systems do). Codes must be unique
 among triggered events and within 1–255; the editor blocks anything else.
 
-**Custom events.** Use **Add event…** to create your own button events (a label and a
-code); they appear in the **Event logging** panel alongside the built-ins and can be
-removed again with **Remove**. Built-in events can be retuned but not removed or renamed.
+**Custom events.** Use **Add event…** — in the **Event logging** panel itself, or in
+this editor — to create your own button events (a label and a code); they appear in
+the Event logging panel alongside the built-ins and can be removed again with the
+editor's **Remove**. Built-in events can be retuned but not removed or renamed.
 
 The editor stays available throughout a session. If you change a code mid-session, the
 change is written to the log with a timestamp, so the code-to-event mapping for that
@@ -284,10 +288,14 @@ story (creating, the data directory, opening by double-click), and the
 
 Some display choices apply to a session and travel with the study in the SMACC
 file: **always-on-top** (toggled per window — the Session window's **File**
-menu, or each tool window's **View** menu) and which **log levels** show in the
-preview (the checkboxes above the log preview). Save them with the rest of the
-configuration from the Editor or with **File &rsaquo; Save SMACC file as…** in a
-Session.
+menu, or each tool window's **View** menu, or **Ctrl+T** in whichever window is
+active) and which **log levels** show in the preview (the checkboxes above the
+log preview). Save them with the rest of the configuration from the Editor or
+with **File &rsaquo; Save SMACC file as…** in a Session.
+
+Tool windows close with **Ctrl+W** (or **File &rsaquo; Close window**) — that
+only hides the window, with its state intact; the session keeps running and the
+Session window's Tools column reopens it.
 
 Separately, the machine remembers window positions and sizes and your recent files in
 `~/SMACC/preferences.yaml`, restored on the next launch.

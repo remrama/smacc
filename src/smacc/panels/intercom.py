@@ -26,6 +26,7 @@ from ..dialogs import ManageChatPresetsDialog
 from ..session import SmaccSession
 from .base import ModalityWindow, describe_target, make_section_title, resolve_device
 from .chat import EXPERIMENTER, ChatPresets, ChatTranscript, post_chat_message
+from .meter import LevelMeter
 
 # Cap an experimenter prompt's button label so a long standardized question doesn't
 # stretch the panel; the full text rides along in the tooltip/status tip.
@@ -50,6 +51,9 @@ class _Bridge:
         self._output: sd.OutputStream | None = None
         self._queue: queue.Queue | None = None
         self._resampler: audio.LinearResampler | None = None
+        # Latest input level (dBFS), stashed by the audio callback for the
+        # window's level meters (a plain float store; the GUI timer reads it).
+        self.level_db = audio.FLOOR_DBFS
 
     def active(self) -> bool:
         """True while either stream is open."""
@@ -96,9 +100,11 @@ class _Bridge:
         self._output = None
         self._queue = None
         self._resampler = None
+        self.level_db = audio.FLOOR_DBFS
         return stopped
 
     def _in_callback(self, indata, frames, time, status) -> None:
+        self.level_db = audio.rms_dbfs(indata)
         if self._queue is not None:
             try:
                 self._queue.put_nowait(indata[:, 0].copy())
@@ -138,6 +144,11 @@ class IntercomWindow(ModalityWindow):
         self._talk = _Bridge()  # experimenter mic -> participant output
         self._listen = _Bridge()  # participant mic -> control-room output
         self._talk_push = False  # True while talk is held via the spacebar
+        # Renders each live bridge's input level onto its meter; runs only while
+        # a direction is on (started/stopped by the toggles).
+        self._level_timer = QtCore.QTimer(self)
+        self._level_timer.setInterval(50)  # ~20 Hz display refresh
+        self._level_timer.timeout.connect(self._render_levels)
         self._transcript = (
             transcript if transcript is not None else ChatTranscript(self)
         )
@@ -174,6 +185,22 @@ class IntercomWindow(ModalityWindow):
         listenButton.setCheckable(True)
         listenButton.toggled.connect(self.toggle_listen)
         self.listenButton = listenButton
+
+        # A level meter beside each direction, fed from that bridge's live input
+        # callback — signal on the bar means audio is actually flowing (your mic
+        # for Talk, the participant's mic for Listen), not just a latched button.
+        self.talkMeter = LevelMeter(self)
+        self.talkMeter.setStatusTip("Your mic's live level while Talk is on.")
+        self.listenMeter = LevelMeter(self)
+        self.listenMeter.setStatusTip(
+            "The participant mic's live level while Listen is on."
+        )
+        talkRow = QtWidgets.QHBoxLayout()
+        talkRow.addWidget(talkButton, 1)
+        talkRow.addWidget(self.talkMeter, 1)
+        listenRow = QtWidgets.QHBoxLayout()
+        listenRow.addWidget(listenButton, 1)
+        listenRow.addWidget(self.listenMeter, 1)
 
         # --- Text chat (#92): the experimenter's view of the typed channel -----
         chatView = QtWidgets.QPlainTextEdit(self)
@@ -228,9 +255,9 @@ class IntercomWindow(ModalityWindow):
         layout.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         layout.addRow(make_section_title("Intercom"))
         layout.addRow("To participant:", self.talkDeviceLabel)
-        layout.addRow(talkButton)
+        layout.addRow(talkRow)
         layout.addRow("From participant:", self.listenDeviceLabel)
-        layout.addRow(listenButton)
+        layout.addRow(listenRow)
         layout.addRow(make_section_title("Text chat"))
         layout.addRow(chatView)
         layout.addRow(self._presetContainer)
@@ -300,6 +327,26 @@ class IntercomWindow(ModalityWindow):
         """True while either direction is live."""
         return self._talk.active() or self._listen.active()
 
+    def _sync_level_timer(self) -> None:
+        """Run the meter refresh only while a direction is live; clear idle bars."""
+        if self.is_streaming():
+            if not self._level_timer.isActive():
+                self._level_timer.start()
+        else:
+            self._level_timer.stop()
+        self._render_levels()
+
+    def _render_levels(self) -> None:
+        """GUI-thread timer: render each live bridge's input level onto its meter."""
+        for bridge, meter in (
+            (self._talk, self.talkMeter),
+            (self._listen, self.listenMeter),
+        ):
+            if bridge.active():
+                meter.show_level(bridge.level_db)
+            else:
+                meter.clear_level()
+
     def toggle_talk(self, enabled: bool) -> None:
         """Start/stop piping the experimenter mic to the participant output.
 
@@ -321,6 +368,7 @@ class IntercomWindow(ModalityWindow):
             self.session.emit_event("IntercomStarted")
         elif self._talk.stop():
             self.session.emit_event("IntercomStopped")
+        self._sync_level_timer()
 
     def toggle_listen(self, enabled: bool) -> None:
         """Start/stop piping the participant mic to the control-room output.
@@ -348,6 +396,7 @@ class IntercomWindow(ModalityWindow):
         else:
             self._listen.stop()
             self.session.log_interaction("Intercom listen off")
+        self._sync_level_timer()
 
     @staticmethod
     def _is_text_widget_focused() -> bool:
@@ -401,5 +450,6 @@ class IntercomWindow(ModalityWindow):
         app = QtWidgets.QApplication.instance()
         if app is not None:
             app.removeEventFilter(self)
+        self._level_timer.stop()
         self._talk.stop()
         self._listen.stop()

@@ -149,7 +149,28 @@ class ModalityWindow(QtWidgets.QMainWindow):
         self.setWindowTitle(self.TITLE)
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
+        self._build_file_menu()
         self._build_view_menu()
+
+    def _build_file_menu(self) -> None:
+        """Add a minimal File menu carrying this window's close action.
+
+        Closing a tool window only hides it (see :meth:`closeEvent`) — the
+        session keeps running — so Ctrl+W is safe to reach for, unlike the
+        session window's Ctrl+Q, which ends the whole session.
+        """
+        menu_bar = self.menuBar()
+        assert menu_bar is not None
+        fileMenu = menu_bar.addMenu("&File")
+        assert fileMenu is not None
+        closeAction = QtGui.QAction("&Close window", self)
+        closeAction.setShortcut("Ctrl+W")
+        closeAction.setStatusTip(
+            f"Close the {self.TITLE} window (the session keeps running; "
+            "reopen it from the session window)."
+        )
+        closeAction.triggered.connect(self.close)
+        fileMenu.addAction(closeAction)
 
     def _build_view_menu(self) -> None:
         """Add a minimal View menu carrying this window's always-on-top toggle."""
@@ -158,6 +179,10 @@ class ModalityWindow(QtWidgets.QMainWindow):
         viewMenu = menu_bar.addMenu("&View")
         assert viewMenu is not None
         action = QtGui.QAction("Always on &top", self)
+        # Every window carries the same shortcut; the default WindowShortcut
+        # context scopes each to its own window, so Ctrl+T pins whichever
+        # window is active.
+        action.setShortcut("Ctrl+T")
         action.setStatusTip(f"Keep the {self.TITLE} window above other applications.")
         action.setCheckable(True)
         action.toggled.connect(self.toggle_always_on_top)
