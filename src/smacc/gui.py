@@ -24,9 +24,7 @@ from smacc import (
 )
 
 from .dialogs import (
-    EventCodesDialog,
     SessionInfoDialog,
-    TriggerOutputDialog,
     ask_initial_or_final,
 )
 from .panels.audio import AudioCueWindow
@@ -36,6 +34,7 @@ from .panels.chat import ChatPresets, ChatTranscript, ParticipantChatWindow
 from .panels.devices import DevicesWindow
 from .panels.events import EventsWindow
 from .panels.intercom import IntercomWindow
+from .panels.markers import MarkersWindow
 from .panels.noise import NoiseWindow
 from .panels.recording import RecordingWindow
 from .panels.visual import VisualWindow
@@ -109,10 +108,19 @@ class SmaccWindow(ToolWindow):
             # panel's "Pass keyboard" button, which also hands it keyboard focus.
             "chat": ParticipantChatWindow(self.session, chat_transcript, chat_presets),
             "devices": self.devices_window,
+            "markers": MarkersWindow(self.session),
             "volume": VolumeWindow(self.session),
         }
         cast(IntercomWindow, self.panels["intercom"]).open_participant_chat.connect(
             partial(self._open_panel, "chat")
+        )
+        # The Markers window owns all marker configuration (registry + transport);
+        # applying it re-renders the registry's other consumers (the event grid),
+        # and a grid-side Add event… refreshes the Markers staging in turn.
+        markers_window = cast(MarkersWindow, self.panels["markers"])
+        markers_window.changed.connect(self._refresh_registry_views)
+        cast(EventsWindow, self.panels["events"]).registry_changed.connect(
+            markers_window.reload_from_session
         )
         self.devices_window.changed.connect(self._refresh_device_indicators)
         # The Devices window's Refresh button (and its F5 shortcut) runs this rescan
@@ -232,6 +240,7 @@ class SmaccWindow(ToolWindow):
         "recording": "Dream recording",
         "intercom": "Intercom",
         "devices": "Devices",
+        "markers": "Markers",
         "volume": "Volume",
     }
 
@@ -246,6 +255,8 @@ class SmaccWindow(ToolWindow):
         "recording": "Record a spoken dream report, monitor input level, open surveys.",
         "intercom": "Talk, listen, or text-chat with the participant over the intercom.",
         "devices": "Bind devices to roles and route each modality to a role.",
+        "markers": "Configure every event marker: port codes, LSL/TTL routing, "
+        "preview, and the hardware trigger output.",
         "volume": "Set a master output volume safety cap.",
     }
 
@@ -377,19 +388,8 @@ class SmaccWindow(ToolWindow):
         )
         sessionInfoAction.triggered.connect(self.session_info)
 
-        eventCodesAction = QtGui.QAction("&Event codes…", self)
-        eventCodesAction.setStatusTip(
-            "View/edit event-marker port codes and what's logged vs. triggered."
-        )
-        eventCodesAction.triggered.connect(self.edit_event_codes)
-        self._event_codes_action = eventCodesAction
-
-        triggerOutputAction = QtGui.QAction("&Trigger output…", self)
-        triggerOutputAction.setStatusTip(
-            "Configure optional hardware TTL trigger output (serial/parallel) "
-            "alongside LSL."
-        )
-        triggerOutputAction.triggered.connect(self.edit_trigger_output)
+        # Marker configuration (the registry + the hardware trigger transport)
+        # lives in the Markers tool window — a launcher button, not a menu item.
 
         # Always-on-top is a per-window interface choice that travels with the study
         # (applied by _apply_always_on_top_settings). Built in both modes so settings
@@ -419,16 +419,10 @@ class SmaccWindow(ToolWindow):
         # _apply_preferences can iterate it uniformly in both modes.
         self._preview_level_boxes: dict[int, QtWidgets.QCheckBox] = {}
         if self.design:
-            self._build_editor_file_menu(
-                fileMenu, sessionInfoAction, eventCodesAction, triggerOutputAction
-            )
+            self._build_editor_file_menu(fileMenu, sessionInfoAction)
         else:
             self._build_session_file_menu(
-                fileMenu,
-                sessionInfoAction,
-                eventCodesAction,
-                triggerOutputAction,
-                alwaysOnTopAction,
+                fileMenu, sessionInfoAction, alwaysOnTopAction
             )
         fileMenu.addSeparator()
         fileMenu.addAction(quitAction)
@@ -439,9 +433,7 @@ class SmaccWindow(ToolWindow):
         assert surveysMenu is not None
         surveysMenu.aboutToShow.connect(lambda: self._rebuild_surveys_menu(surveysMenu))
 
-    def _build_editor_file_menu(
-        self, fileMenu, sessionInfoAction, eventCodesAction, triggerOutputAction
-    ):
+    def _build_editor_file_menu(self, fileMenu, sessionInfoAction):
         """Editor File menu: save/import settings + the config editors (no live run)."""
         saveAction = QtGui.QAction("&Save SMACC file", self)
         saveAction.setShortcut("Ctrl+S")
@@ -466,18 +458,9 @@ class SmaccWindow(ToolWindow):
             fileMenu.addAction(action)
         fileMenu.addSeparator()
         fileMenu.addAction(sessionInfoAction)
-        fileMenu.addAction(eventCodesAction)
-        fileMenu.addAction(triggerOutputAction)
         self._add_surveys_menu(fileMenu)
 
-    def _build_session_file_menu(
-        self,
-        fileMenu,
-        sessionInfoAction,
-        eventCodesAction,
-        triggerOutputAction,
-        alwaysOnTopAction,
-    ):
+    def _build_session_file_menu(self, fileMenu, sessionInfoAction, alwaysOnTopAction):
         """Session File menu: run-only. Author settings in the editor; analyze past
         runs (including event export) from the launcher. Here you record events."""
         # Snapshot the live session's current configuration to a SMACC file —
@@ -492,8 +475,6 @@ class SmaccWindow(ToolWindow):
         fileMenu.addAction(saveAsAction)
         fileMenu.addSeparator()
         fileMenu.addAction(sessionInfoAction)
-        fileMenu.addAction(eventCodesAction)
-        fileMenu.addAction(triggerOutputAction)
         self._add_surveys_menu(fileMenu)
         fileMenu.addSeparator()
         fileMenu.addAction(alwaysOnTopAction)
@@ -766,7 +747,7 @@ class SmaccWindow(ToolWindow):
             # enumerates from the (newly loaded) bridge, so a bound light matches.
             self.session.hue_config = hue.load(state)
             self.devices_window.refresh_device_lists()
-            self._rebuild_events_panel()  # a loaded study may add/remove buttons
+            self._refresh_registry_views()  # a loaded study may add/remove buttons
             self.devices_window.reload_from_config()  # sync widgets + flag missing
             self._refresh_device_indicators()
             # Interface choices carried by the study: preview levels and per-window
@@ -818,11 +799,19 @@ class SmaccWindow(ToolWindow):
         for key, panel in self.panels.items():
             panel.set_always_on_top(bool(tool_map.get(key, False)))
 
-    def _rebuild_events_panel(self) -> None:
-        """Rebuild the Event logging panel's buttons after the registry changes."""
+    def _refresh_registry_views(self) -> None:
+        """Re-render the registry's consumers after it changes.
+
+        The Event logging grid rebuilds its buttons (and their routing tooltips);
+        the Markers window re-reads the session so its staging never goes stale.
+        Reached after a study load and after a Markers-window Apply.
+        """
         panel = self.panels.get("events")
         if isinstance(panel, EventsWindow):
             panel.rebuild()
+        markers = self.panels.get("markers")
+        if isinstance(markers, MarkersWindow):
+            markers.reload_from_session()
 
     def _refresh_device_indicators(self) -> None:
         """Re-render every panel's device indicator from session.devices."""
@@ -1158,80 +1147,6 @@ class SmaccWindow(ToolWindow):
             meta["session"] = session
             meta["notes"] = notes
             self.session.log_info_msg("Updated session metadata")
-
-    def edit_event_codes(self) -> None:
-        """Open the event-code editor; apply edits live and log every change.
-
-        The editor stays available throughout a session (there's no reliable
-        lock point yet), so each change is logged loudly (WARNING) to keep the
-        code map traceable for the session even if it changes mid-study.
-        """
-        before = {e.key: e for e in self.session.events.values()}
-        dialog = EventCodesDialog(
-            list(self.session.events.values()),
-            self.session.event_code_safe_max,
-            parent=self,
-        )
-        if not dialog.exec():
-            return
-        new_events = dialog.get_events()
-        safe_max = dialog.get_safe_max()
-        new_by_key = {e.key: e for e in new_events}
-        for event in new_events:
-            old = before.get(event.key)
-            if old is None:
-                self.session.logger.warning(
-                    f"Event added: {event.label} (code {event.code})"
-                )
-                continue
-            changes = []
-            if old.code != event.code:
-                changes.append(f"code {old.code}->{event.code}")
-            if old.lsl != event.lsl:
-                changes.append(f"LSL {'on' if event.lsl else 'off'}")
-            if old.ttl != event.ttl:
-                changes.append(f"TTL {'on' if event.ttl else 'off'}")
-            if old.preview != event.preview:
-                changes.append(f"preview {'on' if event.preview else 'off'}")
-            if old.increment != event.increment:
-                changes.append(f"increment {'on' if event.increment else 'off'}")
-            if changes:
-                self.session.logger.warning(
-                    f"Port code changed: {event.label} ({', '.join(changes)})"
-                )
-        for key, old in before.items():
-            if key not in new_by_key:
-                self.session.logger.warning(f"Event removed: {old.label}")
-        if safe_max != self.session.event_code_safe_max:
-            self.session.logger.warning(
-                f"Event-code safe max changed: "
-                f"{self.session.event_code_safe_max} -> {safe_max}"
-            )
-        self.session.events = new_by_key
-        self.session.event_code_safe_max = safe_max
-        self._rebuild_events_panel()
-
-    def edit_trigger_output(self) -> None:
-        """Open the hardware-trigger editor; apply and (re)open the transport on OK.
-
-        A change is logged loudly (WARNING) like an event-code edit: the transport
-        can change mid-session, and the log is the record of what actually fired. In
-        the editor (design mode) no hardware is opened — the config is only authored
-        and saved with the study.
-        """
-        before = self.session.trigger_config
-        dialog = TriggerOutputDialog(
-            before, test_callback=self.session.test_trigger, parent=self
-        )
-        if not dialog.exec():
-            return
-        config = dialog.get_config()
-        if config != before:
-            self.session.logger.warning(f"Trigger output changed: {config.summary()}")
-        self.session.trigger_config = config
-        error = self.session.set_trigger_output(config)
-        if error:
-            self.show_error_popup("Hardware trigger unavailable.", error)
 
     def _teardown_panels(self) -> None:
         """Stop and close every modality window (called when this window closes).

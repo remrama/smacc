@@ -40,6 +40,18 @@ def test_sleep_stage_buttons_use_a_fixed_keypad(tmp_path, qtbot):
     assert shortcuts["REM detected (4)"] == "4"
 
 
+def test_buttons_carry_code_and_routing_in_their_tooltips(tmp_path, qtbot):
+    # Each grid button's tooltip carries its event's code + routing (#132), so an
+    # operator can tell what a press sends without opening the Markers window.
+    win, session = _events_window(tmp_path, qtbot)
+    rem = next(
+        b
+        for b in win.findChildren(QtWidgets.QPushButton)
+        if b.text().startswith("REM detected")
+    )
+    assert "code 41 → LSL + TTL" in rem.toolTip()
+
+
 def test_signal_observed_tags_type_and_confidence(tmp_path, qtbot, monkeypatch):
     win, session = _events_window(tmp_path, qtbot)
     calls: list[tuple[str, dict]] = []
@@ -63,7 +75,7 @@ def test_signal_observed_remembers_a_typed_signal(tmp_path, qtbot, monkeypatch):
 def test_add_event_button_adds_to_registry_and_grid(tmp_path, qtbot, monkeypatch):
     # The panel's Add event… button defines a custom event in place: it lands in
     # the session registry and its button appears in the grid without a detour
-    # through File ▸ Event codes….
+    # through the Markers window.
     from smacc import dialogs
 
     win, session = _events_window(tmp_path, qtbot)
