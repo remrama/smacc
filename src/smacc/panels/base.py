@@ -158,6 +158,10 @@ class ModalityWindow(QtWidgets.QMainWindow):
         viewMenu = menu_bar.addMenu("&View")
         assert viewMenu is not None
         action = QtGui.QAction("Always on &top", self)
+        # Every window carries the same shortcut; the default WindowShortcut
+        # context scopes each to its own window, so Ctrl+T pins whichever
+        # window is active.
+        action.setShortcut("Ctrl+T")
         action.setStatusTip(f"Keep the {self.TITLE} window above other applications.")
         action.setCheckable(True)
         action.toggled.connect(self.toggle_always_on_top)

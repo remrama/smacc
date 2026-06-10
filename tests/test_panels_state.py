@@ -367,6 +367,8 @@ def test_tool_window_always_on_top_toggle(qtbot, design_session):
     panel = NoiseWindow(design_session)
     qtbot.addWidget(panel)
     assert panel.is_always_on_top() is False  # default off
+    # Every window binds the same window-scoped shortcut to its own toggle.
+    assert panel._always_on_top_action.shortcut().toString() == "Ctrl+T"
     panel.set_always_on_top(True)
     assert panel.is_always_on_top() is True
     assert panel._always_on_top_action.isChecked() is True

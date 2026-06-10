@@ -396,6 +396,9 @@ class SmaccWindow(ToolWindow):
         # can set its state, but only surfaced in a session's menu (tool windows carry
         # their own toggle on the ModalityWindow base).
         alwaysOnTopAction = QtGui.QAction("Always on &top", self)
+        # The same Ctrl+T every tool window carries (see ModalityWindow); the
+        # default WindowShortcut context pins whichever window is active.
+        alwaysOnTopAction.setShortcut("Ctrl+T")
         alwaysOnTopAction.setStatusTip(
             "Keep the SMACC window above other applications."
         )
