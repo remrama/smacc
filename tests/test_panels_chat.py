@@ -13,15 +13,17 @@ from dataclasses import replace
 
 from PyQt6 import QtCore
 
-from smacc import bids, winvolume
+from smacc import bids, config, winvolume
 from smacc.gui import SmaccWindow
 from smacc.panels.chat import (
     EXPERIMENTER,
     FONT_DEFAULT,
     FONT_MAX,
     PARTICIPANT,
+    ChatPresets,
     ChatTranscript,
     ParticipantChatWindow,
+    _clean_presets,
     post_chat_message,
     sanitize_message,
 )
@@ -197,6 +199,82 @@ def test_transcript_is_shared_between_both_views(qtbot, design_session):
     assert "Participant:  yes" in intercom.chatView.toPlainText()
 
 
+# ----- quick-reply presets (#112) ---------------------------------------------
+
+
+def test_chat_presets_seed_defaults_and_round_trip():
+    presets = ChatPresets()
+    # Seeded from the config defaults (cleaned), and gathered back verbatim.
+    assert presets.experimenter == _clean_presets(config.CHAT_EXPERIMENTER_PRESETS)
+    assert presets.participant == _clean_presets(config.CHAT_PARTICIPANT_PRESETS)
+    assert presets.gather_state() == {
+        "chat_experimenter_presets": presets.experimenter,
+        "chat_participant_presets": presets.participant,
+    }
+    # A present list replaces; an absent key keeps the current (default) list.
+    presets.apply_state({"chat_experimenter_presets": ["Are you awake?"]})
+    assert presets.experimenter == ["Are you awake?"]
+    assert presets.participant == _clean_presets(config.CHAT_PARTICIPANT_PRESETS)
+    # An explicitly empty list is respected as a deliberately cleared one.
+    presets.apply_state({"chat_participant_presets": []})
+    assert presets.participant == []
+
+
+def test_chat_presets_cap_participant_and_tolerate_garbage():
+    presets = ChatPresets()
+    presets.apply_state(
+        {
+            "chat_participant_presets": [f"reply {i}" for i in range(20)],
+            "chat_experimenter_presets": "not a list",  # hand-edited junk
+        }
+    )
+    assert len(presets.participant) == config.MAX_PARTICIPANT_PRESETS
+    assert presets.experimenter == []  # coerced to empty rather than crashing a load
+
+
+def test_intercom_preset_button_sends_through_chat_path(design_session):
+    records = _capture_session_log(design_session)
+    presets = ChatPresets()
+    presets.set(["Are you awake?"], [])
+    panel = IntercomWindow(design_session, presets=presets)
+    assert len(panel._preset_buttons) == 1
+    panel._preset_buttons[0].click()
+    assert "You:  Are you awake?" in panel.chatView.toPlainText()
+    messages = [r.getMessage() for r in records]
+    assert "Chat to participant: Are you awake?" in messages
+    assert all(r.levelno == logging.DEBUG for r in records)  # log-only by default
+
+
+def test_participant_number_key_sends_only_when_entry_empty(qtbot, design_session):
+    presets = ChatPresets()
+    presets.set([], ["I'm awake", "Got it"])
+    window = ParticipantChatWindow(design_session, presets=presets)
+    qtbot.addWidget(window)
+    assert len(window._preset_buttons) == 2
+    # Empty entry: a bare number key sends the matching reply (key not typed).
+    qtbot.keyClick(window.entry, QtCore.Qt.Key.Key_2)
+    assert window._transcript.messages == [(PARTICIPANT, "Got it")]
+    assert window.entry.text() == ""
+    # With text already typed, digits type normally — no preset fires.
+    window.entry.setText("3")
+    qtbot.keyClick(window.entry, QtCore.Qt.Key.Key_1)
+    assert window._transcript.messages == [(PARTICIPANT, "Got it")]  # unchanged
+    assert window.entry.text() == "31"
+
+
+def test_presets_shared_object_updates_both_views(qtbot, design_session):
+    presets = ChatPresets()
+    intercom = IntercomWindow(design_session, presets=presets)
+    participant = ParticipantChatWindow(design_session, presets=presets)
+    qtbot.addWidget(intercom)
+    qtbot.addWidget(participant)
+    presets.set(["Are you awake?"], ["Yes", "No"])
+    # One shared object; both views rebuilt from its `changed` signal.
+    assert [b.toolTip() for b in intercom._preset_buttons] == ["Are you awake?"]
+    assert len(participant._preset_buttons) == 2
+    assert participant._preset_buttons[0].text() == "1.  Yes"
+
+
 # ----- main-window wiring -----------------------------------------------------
 
 
@@ -225,3 +303,6 @@ def test_window_wires_chat_panel_without_launcher_button(
     assert state["chat_font_size"] == FONT_DEFAULT
     assert state["chat_red_text"] is False
     assert "chat" in state["tool_always_on_top"]
+    # The quick-reply presets travel too (persisted by the Intercom panel).
+    assert state["chat_experimenter_presets"] == intercom._presets.experimenter
+    assert state["chat_participant_presets"] == intercom._presets.participant

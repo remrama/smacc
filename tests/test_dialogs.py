@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 from PyQt6 import QtWidgets
 
-from smacc import dialogs, events, triggers
+from smacc import config, dialogs, events, triggers
 
 # ----- ask_initial_or_final --------------------------------------------------
 
@@ -78,6 +78,60 @@ def test_manage_surveys_remove_selected(qtbot):
     dialog.listWidget.setCurrentRow(0)
     dialog._remove_selected()
     assert dialog.get_options() == {"Pre survey": "https://b.example"}
+
+
+# ----- ManageChatPresetsDialog (#112) ----------------------------------------
+
+
+def test_manage_chat_presets_round_trips_both_lists(qtbot):
+    dialog = dialogs.ManageChatPresetsDialog(
+        ["Are you awake?", "Going back to sleep now."], ["Got it", "Yes"]
+    )
+    qtbot.addWidget(dialog)
+    experimenter, participant = dialog.get_presets()
+    assert experimenter == ["Are you awake?", "Going back to sleep now."]
+    assert participant == ["Got it", "Yes"]
+
+
+def test_manage_chat_presets_reorders_participant_replies(qtbot):
+    # Order is meaningful: it maps to the number keys, so rows can be moved.
+    dialog = dialogs.ManageChatPresetsDialog([], ["Yes", "No", "Maybe"])
+    qtbot.addWidget(dialog)
+    editor = dialog._participant
+    editor.listWidget.setCurrentRow(2)
+    editor._move(-1)  # "Maybe" moves up past "No"
+    assert dialog.get_presets()[1] == ["Yes", "Maybe", "No"]
+    editor.listWidget.setCurrentRow(0)
+    editor._move(-1)  # already at the top: a no-op
+    assert dialog.get_presets()[1] == ["Yes", "Maybe", "No"]
+
+
+def test_manage_chat_presets_remove_selected(qtbot):
+    dialog = dialogs.ManageChatPresetsDialog(["A", "B"], ["Yes"])
+    qtbot.addWidget(dialog)
+    dialog._experimenter.listWidget.setCurrentRow(0)
+    dialog._experimenter._remove_selected()
+    assert dialog.get_presets()[0] == ["B"]
+
+
+def test_manage_chat_presets_caps_participant_replies(qtbot, monkeypatch):
+    full = [f"r{i}" for i in range(config.MAX_PARTICIPANT_PRESETS)]
+    dialog = dialogs.ManageChatPresetsDialog([], full)
+    qtbot.addWidget(dialog)
+    # At the cap, Add warns (a blocking QMessageBox) and refuses to grow the list.
+    monkeypatch.setattr(QtWidgets.QMessageBox, "information", lambda *a, **k: None)
+    dialog._participant._add()
+    assert len(dialog.get_presets()[1]) == config.MAX_PARTICIPANT_PRESETS
+
+
+def test_manage_chat_presets_add_trims_via_input_dialog(qtbot, monkeypatch):
+    dialog = dialogs.ManageChatPresetsDialog(["A"], [])
+    qtbot.addWidget(dialog)
+    monkeypatch.setattr(
+        QtWidgets.QInputDialog, "getText", lambda *a, **k: ("  Are you awake?  ", True)
+    )
+    dialog._experimenter._add()
+    assert dialog.get_presets()[0] == ["A", "Are you awake?"]
 
 
 # ----- AddEventDialog --------------------------------------------------------
