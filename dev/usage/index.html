@@ -1346,7 +1346,7 @@ fires on an early stop (the preceding start code identifies which biocal). A pla
 sequence is bracketed by its own start/stop codes and otherwise fires the identical
 per-biocal markers. Defaults: sequence start/stop <strong>105</strong>/<strong>106</strong>, cancelled
 <strong>107</strong>, completed <strong>108</strong>, and one start code per biocal in the <strong>110–126</strong> band —
-all retunable in <strong>File &rsaquo; Event codes…</strong> like any built-in event.</p>
+all retunable in the <strong>Markers</strong> window like any built-in event.</p>
 <p><strong>Sequences.</strong> <strong>Play sequence</strong> runs every Seq-checked row top to bottom,
 depressing each button as it goes. Pressing the <em>active biocal's</em> button skips just
 that item (cancel marker, then on to the next); pressing the sequence button again
@@ -1406,21 +1406,28 @@ DEBUG line (tick <em>Debug</em> above the log preview to watch the exchange live
 default no portcodes fire and nothing reaches the BIDS events export — a typed
 exchange is rapid and conversational, and would flood the marker channel. If a
 study needs marker timestamps, route <code>Chat to participant</code> (code 69) and/or
-<code>Chat from participant</code> (code 70) to LSL/TTL in <strong>File &rsaquo; Event codes…</strong>;
+<code>Chat from participant</code> (code 70) to LSL/TTL in the <strong>Markers</strong> window;
 the markers stay bare (no message text) so the trigger channel remains legible.</p>
 <h2 id="eeg-portcodes">EEG portcodes</h2>
 <p>SMACC marks experiment events — a cue played, a dream report, observed REM, the
 lights toggled — by sending a numeric <strong>portcode</strong> to its marker stream and writing a
 matching line to the session log, keeping cue delivery and your neural data in sync.</p>
 <h3 id="configuring-codes">Configuring codes</h3>
-<p>Open <strong>File &rsaquo; Event codes…</strong> to see every event in one table. For each event you
-can set:</p>
+<p>Open the <strong>Markers</strong> window from the <strong>Tools</strong> column (in a Session or in the
+Editor). It is the definitive home for everything about event signaling: a
+<strong>routing legend</strong> (what the log file, the live preview, LSL, and TTL each
+receive, and which switch governs it), the full event registry grouped by
+category — including the events with no grid button (lights, panel controls,
+biocals, chat, system) — and the
+<a href="../triggers/#configuring-trigger-output-in-smacc">hardware TTL transport</a>.
+For each event you can set:</p>
 <ul>
 <li><strong>Code</strong> — the 8-bit portcode (1–255) sent when the event triggers.</li>
 <li><strong>LSL</strong> — whether a firing sends the code over the LSL marker stream.</li>
-<li><strong>TTL</strong> — whether a firing sends the code over the hardware TTL trigger (when one
-  is configured; see <a href="../triggers/">Triggers &amp; port codes</a>). An event with neither
-  LSL nor TTL ticked is log-only.</li>
+<li><strong>TTL</strong> — whether a firing sends the code over the hardware TTL trigger. The
+  column is grayed out until a transport is enabled in the window's <strong>Hardware
+  TTL transport</strong> section (the ticks are kept and re-arm with it). An event with
+  neither LSL nor TTL ticked is log-only.</li>
 <li><strong>Preview</strong> — whether the event shows in the live log preview. The session log
   <em>file</em> always records every event regardless; this only controls the on-screen
   preview.</li>
@@ -1428,17 +1435,19 @@ can set:</p>
   reports</strong>: 201, 202, 203, …) so individual occurrences are findable in the trigger
   channel. Off uses one fixed code each time.</li>
 </ul>
-<p><strong>Safe max code</strong> raises a soft warning for TTL-routed codes above it — handy when
-your trigger hardware only accepts a limited range (some older systems do; LSL
+<p><strong>TTL safe max code</strong> raises a soft warning for TTL-routed codes above it — handy
+when your trigger hardware only accepts a limited range (some older systems do; LSL
 carries any code). Codes must be unique among routed events and within 1–255; the
-editor blocks anything else.</p>
+window blocks anything else.</p>
 <p><strong>Custom events.</strong> Use <strong>Add event…</strong> — in the <strong>Event logging</strong> panel itself, or in
-this editor — to create your own button events (a label and a code); they appear in
-the Event logging panel alongside the built-ins and can be removed again with the
-editor's <strong>Remove</strong>. Built-in events can be retuned but not removed or renamed.</p>
-<p>The editor stays available throughout a session. If you change a code mid-session, the
-change is written to the log with a timestamp, so the code-to-event mapping for that
-session is always recoverable.</p>
+the Markers window — to create your own button events (a label and a code); they
+appear in the Event logging panel alongside the built-ins and can be removed again
+with the Markers window's <strong>Remove</strong>. Built-in events can be retuned but not removed
+or renamed.</p>
+<p>Edits are staged until you press <strong>Apply</strong> (which validates them first); <strong>Revert</strong>
+re-reads the session's current setup. The window stays available throughout a
+session. If you change a code mid-session, the change is written to the log with a
+timestamp, so the code-to-event mapping for that session is always recoverable.</p>
 <p>Beyond portcodes, SMACC logs the important interactions too — volume, color, device,
 and fade changes — as plain log lines (no portcode), so the session record is complete.</p>
 <h3 id="event-logging-panel">Event logging panel</h3>
