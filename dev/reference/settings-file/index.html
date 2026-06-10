@@ -466,6 +466,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../surveys/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Surveys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../triggers/" class="md-nav__link">
         
   
@@ -503,10 +530,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" checked>
         
           
-          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
             
   
   
@@ -524,8 +551,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_9">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_10">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1262,12 +1289,12 @@ Any key may be omitted — each falls back to its default.</p>
 <tr>
 <td><code>survey_url</code></td>
 <td>string</td>
-<td>The selected survey URL.</td>
+<td>The selected survey: a web URL, or <code>smacc://survey/&lt;key&gt;</code> for an in-app survey.</td>
 </tr>
 <tr>
 <td><code>survey_options</code></td>
 <td>mapping</td>
-<td>Named survey presets: label → URL.</td>
+<td>Named <em>web</em> survey presets: label → URL. In-app surveys (built-in or custom) are not persisted here — they come from survey definition files (see <a href="../../surveys/">Surveys</a>).</td>
 </tr>
 <tr>
 <td><code>chat_font_size</code></td>
