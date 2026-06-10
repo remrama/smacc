@@ -64,13 +64,15 @@ def test_design_logger_does_not_accumulate_handlers(tmp_path):
 
 
 class _FakeOutlet:
-    """Stand-in for the LSL outlet that records pushed marker samples."""
+    """Stand-in for the LSL outlet that records pushed marker samples + timestamps."""
 
     def __init__(self):
         self.samples = []
+        self.timestamps = []
 
-    def push_sample(self, sample):
+    def push_sample(self, sample, timestamp=None):
         self.samples.append(sample)
+        self.timestamps.append(timestamp)
 
 
 class _FakeTrigger:
@@ -154,7 +156,28 @@ def test_emit_event_detail_suffix():
     sess, records = _stub_session()
     sess.emit_event("CueStarted", detail="Cue 1")
     assert sess.outlet.samples == [["60"]]
+    assert sess.outlet.timestamps == [None]  # no offset -> default "now" timestamp
     assert records == [("Cue started: Cue 1 - portcode 60", True)]
+
+
+def test_emit_event_onset_offset_marks_at_estimated_onset():
+    # A stimulus marker with an onset offset (the output buffer latency) is stamped
+    # at the estimated onset, and the raw software-trigger instant is kept separately.
+    sess, records = _stub_session()
+    sess.emit_event("CueStarted", detail="Cue 1", onset_offset=0.02)
+    # The LSL marker carries the code with an explicit timestamp (not the "now"
+    # sentinel), so it lands at the estimated sound onset.
+    assert sess.outlet.samples == [["60"]]
+    assert sess.outlet.timestamps[0] is not None
+    # The canonical portcode line is still logged verbatim (INFO) — it is what the
+    # BIDS parser reads, and it carries the onset timestamp in the log.
+    assert ("Cue started: Cue 1 - portcode 60", True) in records
+    # The raw trigger instant + the correction ride a separate line, deliberately not
+    # a "- portcode N" line, so BIDS counts the event exactly once (at its onset).
+    raw_lines = [m for m, _ in records if "software trigger at" in m]
+    assert len(raw_lines) == 1
+    assert "+20.0 ms" in raw_lines[0]
+    assert "portcode 60" not in raw_lines[0]
 
 
 def test_emit_event_dream_increment_auto_counts():

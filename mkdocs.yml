@@ -49,6 +49,7 @@ nav:
   - Usage: usage.md
   - Audio & routing: audio.md
   - Visual cues: visual.md
+  - Latency: latency.md
   - Devices: devices.md
   - Triggers & port codes: triggers.md
   - Reference:

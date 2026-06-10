@@ -413,7 +413,13 @@ class AudioCueWindow(ModalityWindow):
         self._active_slot = slot
         self._cue_timer.start()
         self._set_now_playing(slot)
-        self.session.emit_event("CueStarted", detail=slot.nameEdit.text())
+        # Mark the cue at its estimated onset: the sound reaches the speaker about one
+        # output buffer after the stream starts, so pass that reported buffer latency.
+        self.session.emit_event(
+            "CueStarted",
+            detail=slot.nameEdit.text(),
+            onset_offset=float(primary.stream.latency),
+        )
 
     def _open_output(
         self, slot: CueSlot, device: str | None, *, optional: bool = False
@@ -437,6 +443,7 @@ class AudioCueWindow(ModalityWindow):
                 channels=1,
                 samplerate=rate,
                 device=device,
+                latency=self.session.output_latency,
                 callback=partial(self._render_output, mixer),
             )
             stream.start()

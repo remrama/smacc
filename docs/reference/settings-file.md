@@ -45,8 +45,9 @@ settings:
     voice_volume: 0.5
     rows:
       - {biocal: eyes_open, sequence: true, voice: true, duration: 30}
-  # --- Output safety cap -----------------------------------------------------
+  # --- Output cap + latency --------------------------------------------------
   volume_cap: 1.0
+  output_latency: high
   # --- Device roles + routing ------------------------------------------------
   devices:
     bindings: {}
@@ -111,6 +112,7 @@ Any key may be omitted — each falls back to its default.
 | `survey_url` | string | The selected survey URL. |
 | `survey_options` | mapping | Named survey presets: label → URL. |
 | `volume_cap` | 0–1 | Master output safety cap multiplied into every stimulus (`1.0` = no cap). |
+| `output_latency` | `high` \| `low` | Output buffer for the cue + noise streams: `high` is robust (default), `low` trims marker-to-sound delay where the device allows it (often unchanged on shared-mode WASAPI). See [Latency](../latency.md). |
 
 ### `biocals`
 
