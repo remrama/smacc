@@ -1118,6 +1118,8 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <span class="w">  </span><span class="c1"># --- Participant text chat ---------------------------------------------------</span>
 <span class="w">  </span><span class="nt">chat_font_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">18</span>
 <span class="w">  </span><span class="nt">chat_red_text</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">  </span><span class="nt">chat_experimenter_presets</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;Are</span><span class="nv"> </span><span class="s">you</span><span class="nv"> </span><span class="s">awake?&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;Going</span><span class="nv"> </span><span class="s">back</span><span class="nv"> </span><span class="s">to</span><span class="nv"> </span><span class="s">sleep</span><span class="nv"> </span><span class="s">now.&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">chat_participant_presets</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;Got</span><span class="nv"> </span><span class="s">it&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;I&#39;m</span><span class="nv"> </span><span class="s">awake&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;Yes&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;No&quot;</span><span class="p p-Indicator">]</span>
 <span class="w">  </span><span class="c1"># --- Biocals ---------------------------------------------------------------</span>
 <span class="w">  </span><span class="nt">biocals</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">voice_volume</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.5</span>
@@ -1276,6 +1278,16 @@ Any key may be omitted — each falls back to its default.</p>
 <td><code>chat_red_text</code></td>
 <td>boolean</td>
 <td>Red-shifted night text in the participant chat window.</td>
+</tr>
+<tr>
+<td><code>chat_experimenter_presets</code></td>
+<td>list</td>
+<td>Intercom quick-reply prompts the experimenter sends with one click (verbatim, like a typed message). Omitted → seeded defaults; an empty list is respected.</td>
+</tr>
+<tr>
+<td><code>chat_participant_presets</code></td>
+<td>list</td>
+<td>Participant quick replies, shown as numbered chips and sent with the number keys 1–9 (max 9). Omitted → seeded defaults; an empty list is respected.</td>
 </tr>
 <tr>
 <td><code>volume_cap</code></td>
