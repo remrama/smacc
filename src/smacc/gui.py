@@ -358,7 +358,7 @@ class SmaccWindow(ToolWindow):
         quitAction.setStatusTip(
             "Close the settings editor and return to the SMACC menu"
             if self.design
-            else "End this session and return to the SMACC menu"
+            else "End this session and quit SMACC"
         )
         quitAction.triggered.connect(self.close)  # close goes to closeEvent
 
@@ -1230,11 +1230,12 @@ class SmaccWindow(ToolWindow):
             panel.close()
 
     def closeEvent(self, event):
-        """End the session (or close the designer) and return control to the launcher.
+        """End the session (or close the designer) and emit ``closed``.
 
         closeEvent is a default method used in pyqt to close, so this overrides it.
-        Closing no longer quits the app — it ends this window and emits ``closed`` so
-        the launcher (the persistent root window) can reappear.
+        The launcher decides what follows: the editor's close brings the launcher
+        back, while ending a live session quits SMACC outright (see
+        ``LauncherWindow._on_tool_closed``).
         """
         if self.design:
             box = QtWidgets.QMessageBox(self)
@@ -1264,7 +1265,7 @@ class SmaccWindow(ToolWindow):
             return
 
         response = QtWidgets.QMessageBox.question(
-            self, "End session", "End this session and return to the SMACC menu?"
+            self, "End session", "End this session and quit SMACC?"
         )
         if response == QtWidgets.QMessageBox.StandardButton.Yes:
             self._save_geometry()  # before teardown closes/moves anything

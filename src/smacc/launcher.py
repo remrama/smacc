@@ -7,9 +7,10 @@ file** (`.smacc`), then chooses to **Start session**, **Create settings**, or
 written to; with none chosen, SMACC uses built-in defaults and the default data
 directory.
 
-The launcher is the app's persistent root window: opening a tool hides it, closing
-the tool brings it back (via the tool's ``closed`` signal), and closing the
-launcher quits SMACC (``main`` sets ``quitOnLastWindowClosed`` False).
+The launcher is the app's persistent root window: opening a tool hides it, and
+closing the tool brings it back (via the tool's ``closed`` signal) — except a live
+session, whose end quits SMACC outright. Closing the launcher quits SMACC
+(``main`` sets ``quitOnLastWindowClosed`` False).
 """
 
 from __future__ import annotations
@@ -349,8 +350,16 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self.hide()
 
     def _on_tool_closed(self) -> None:
-        """Bring the launcher back; adopt a settings file the editor may have saved."""
+        """Bring the launcher back; adopt a settings file the editor may have saved.
+
+        Ending a live session is the exception: a night's run is over, so SMACC
+        quits outright rather than reopening the launcher. The editor and the
+        standalone tools still return here.
+        """
         tool = self._tool
+        if isinstance(tool, SmaccWindow) and not tool.design:
+            self.close()  # persists launcher geometry, then quits the app
+            return
         if isinstance(tool, SmaccWindow) and tool.settings_path:
             self._set_settings(tool.settings_path)
         else:
