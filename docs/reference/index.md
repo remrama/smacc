@@ -10,7 +10,7 @@ from the task-oriented [Usage](../usage.md) guide.
 | [`preferences.yaml`](preferences-file.md) | Per-machine operator preferences | YAML | `schema_version: 1` |
 | [Session `.log`](session-log.md) | The per-run record (events + settings) | Text | — |
 | [BIDS export](bids-export.md) | `events.tsv` + JSON sidecar | TSV / JSON | follows BIDS |
-| [Survey definition](../surveys.md) | An in-app survey (built-in or custom) | YAML | `schema_version: 1` |
+| [Survey definition](../surveys.md) | An in-app survey (built-in or custom) | YAML | `schema_version: 1`–`2` |
 | [Survey response](../surveys.md#response-files) | One administration's answers | JSON | — |
 
 ## Where each file lives

@@ -35,6 +35,18 @@ window):
 | **BLA** | Baseline Lucidity Assessment |
 | **MLA** | Morning Lucidity Assessment |
 
+**Dream traits / intake**
+
+| Survey | Full name |
+|---|---|
+| **MADRE** | Mannheim Dream Questionnaire |
+
+MADRE is a trait/intake questionnaire (dream-recall habits, attitudes, age,
+occupation), administered once at session setup rather than after each awakening —
+open it standalone from **File › Surveys**. It mixes response types (dropdowns,
+number and text entry, and a rating matrix), which is what motivated the typed
+items described under [Building your own](#building-your-own).
+
 **Mindfulness**
 
 | Survey | Full name |
@@ -83,9 +95,11 @@ One JSON file per administration, in the run folder:
 The payload records the survey's key, title, and content version, the optional
 subject/session metadata, opened/submitted timestamps, the time since the
 **Start recording** marker (like the dream-report stamp), the linked report
-number (or `null`), the scale with its anchors, one `{item, response, anchor}`
-entry per item (unanswered items are `null`; submitting warns first), and any
-free-text notes:
+number (or `null`), the shared scale with its anchors, one
+`{item, type, response, label}` entry per responding item, and any free-text
+notes. The `response` is the chosen value (or `null` for unanswered — submitting
+warns first); `label` is its human reading (the Likert anchor or the chosen
+dropdown option). Display-only headings collect nothing and are omitted:
 
 ```json
 {
@@ -94,7 +108,7 @@ free-text notes:
   "report_number": 2,
   "time_since_recording_start": "02:14:09",
   "responses": [
-    {"item": "…", "response": 3, "anchor": "…"}
+    {"item": "…", "type": "likert", "response": 3, "label": "…"}
   ]
 }
 ```
@@ -134,6 +148,50 @@ scale:
 items:
   - I was aware that I was dreaming.
   - ...
+```
+
+### Item types
+
+A bare-string item is a **Likert** item rated against the survey's shared
+`scale` — the original shape, and all the builder produces. Definition files can
+also mix in other item types by writing an item as a mapping with a `type`
+(this requires `schema_version: 2`; an older SMACC then refuses the file cleanly
+rather than mis-reading it):
+
+| `type` | Renders as | Extra fields |
+|---|---|---|
+| `likert` (default) | radio matrix on the shared `scale` | — |
+| `select` | dropdown | `levels` (a `value: label` mapping) |
+| `number` | number entry (blank = unanswered) | `min`, `max`, `unit` (all optional) |
+| `text` | single-line text entry | — |
+| `heading` | a bold section title (collects no response) | — |
+
+Any item may carry a `help:` line, shown under it (used for the definitions in
+MADRE). Consecutive Likert items collapse into one shared matrix; other types
+render as their own rows. The simple **Build survey…** dialog only authors plain
+Likert surveys; a survey with typed items is edited as a file (the dialog says so
+and points at the path). For a full worked example, see the bundled
+[`madre.yaml`](https://github.com/remrama/smacc/blob/main/src/smacc/assets/surveys/madre.yaml).
+
+```yaml
+kind: smacc/survey
+schema_version: 2
+key: intake
+name: Intake
+title: Session intake
+scale: {min: 0, max: 4, anchors: [Not at all, "", "", "", Totally]}
+items:
+  - text: Age
+    type: number
+    min: 0
+    max: 120
+    unit: years
+  - text: How often do you recall your dreams?
+    type: select
+    levels: {0: Never, 1: Sometimes, 2: Often}
+  - text: Attitude towards dreams        # a section title
+    type: heading
+  - I think that dreams are meaningful.  # a Likert item on the shared scale
 ```
 
 Web survey URLs, by contrast, are saved in the `.smacc` study file

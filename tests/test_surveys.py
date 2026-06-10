@@ -100,6 +100,130 @@ def test_parse_rejects_non_mapping():
         surveys.parse_survey_mapping(["not", "a", "mapping"])
 
 
+# ----- typed items (#118) -------------------------------------------------------
+
+
+def _typed_mapping(items, **overrides):
+    """A valid schema_version 2 mapping carrying the given (typed) items."""
+    payload = _mapping(**overrides)
+    payload["schema_version"] = 2
+    payload["items"] = items
+    return payload
+
+
+def test_bare_string_item_is_likert():
+    survey = surveys.parse_survey_mapping(_mapping())
+    assert all(it.type == surveys.LIKERT for it in survey.items)
+    assert survey.items[0].text == "First item"
+    assert survey.is_simple_likert
+
+
+def test_parse_select_number_text_heading_items():
+    survey = surveys.parse_survey_mapping(
+        _typed_mapping(
+            [
+                {"text": "A section", "type": "heading"},
+                "A Likert item",
+                {"text": "Age", "type": "number", "min": 0, "max": 99, "unit": "years"},
+                {"text": "Job", "type": "text"},
+                {
+                    "text": "How often?",
+                    "type": "select",
+                    "help": "see note",
+                    "levels": {2: "often", 0: "never", 1: "sometimes"},
+                },
+            ]
+        )
+    )
+    heading, likert, number, text, select = survey.items
+    assert heading.type == surveys.HEADING and not heading.collects_response
+    assert likert.type == surveys.LIKERT
+    assert number.type == surveys.NUMBER
+    assert (number.number_min, number.number_max, number.unit) == (0, 99, "years")
+    assert text.type == surveys.TEXT
+    # Levels are sorted by value regardless of mapping order, and help is kept.
+    assert select.levels == ((0, "never"), (1, "sometimes"), (2, "often"))
+    assert select.help == "see note"
+    assert not survey.is_simple_likert
+    assert len(survey.response_items) == 4  # the heading collects nothing
+
+
+def test_typed_items_require_schema_version_2():
+    # A mapping (typed) item in a v1 file is rejected with a clear message.
+    payload = _mapping()  # schema_version 1, string items
+    payload["items"] = ["ok", {"text": "Age", "type": "number"}]
+    with pytest.raises(ValueError, match="schema_version 2"):
+        surveys.parse_survey_mapping(payload)
+
+
+def test_scale_optional_when_no_likert_items():
+    survey = surveys.parse_survey_mapping(
+        {
+            "kind": surveys.KIND,
+            "schema_version": 2,
+            "key": "demo",
+            "name": "Demo",
+            "items": [{"text": "Job", "type": "text"}],  # no Likert -> no scale needed
+        }
+    )
+    assert survey.items[0].type == surveys.TEXT
+
+
+@pytest.mark.parametrize(
+    "items",
+    [
+        [{"text": "Q", "type": "bogus"}],  # unknown type
+        [{"text": "Q", "type": "select"}],  # select needs levels
+        [{"text": "Q", "type": "select", "levels": {0: "only"}}],  # <2 levels
+        [{"text": "Q", "type": "select", "levels": {0: "a", 1: ""}}],  # blank label
+        [{"text": "Q", "type": "select", "levels": {"x": "a", "y": "b"}}],  # bad keys
+        [{"text": "Q", "type": "number", "min": 5, "max": 5}],  # max !> min
+        [{"type": "text"}],  # missing item text
+        [{"text": "only a heading", "type": "heading"}],  # nothing collects a response
+    ],
+)
+def test_parse_rejects_malformed_typed_items(items):
+    with pytest.raises(ValueError):
+        surveys.parse_survey_mapping(_typed_mapping(items))
+
+
+def test_madre_is_the_bundled_mixed_survey(tmp_path):
+    from smacc.paths import BUNDLED_SURVEYS_DIR
+
+    loaded, problems = surveys.all_surveys(BUNDLED_SURVEYS_DIR, tmp_path / "none")
+    assert problems == []
+    madre = loaded["madre"]
+    types = {it.type for it in madre.items}
+    assert {"select", "number", "text", "likert", "heading"} <= types
+    # "No"/"Yes" survive YAML's boolean coercion as text labels.
+    recurrence = next(
+        it for it in madre.items if it.text.startswith("Do you experience")
+    )
+    assert recurrence.levels == ((0, "No"), (1, "Yes"))
+
+
+def test_typed_survey_round_trips_through_mapping():
+    survey = surveys.parse_survey_mapping(
+        _typed_mapping(
+            [
+                {"text": "Sec", "type": "heading"},
+                "A Likert item",
+                {"text": "Pick", "type": "select", "levels": {0: "no", 1: "yes"}},
+            ]
+        )
+    )
+    mapping = surveys.survey_to_mapping(survey)
+    assert mapping["schema_version"] == 2  # typed items force v2
+    assert mapping["items"][1] == "A Likert item"  # plain Likert collapses to a string
+    reloaded = surveys.parse_survey_mapping(mapping)
+    assert reloaded.items == survey.items
+
+
+def test_simple_likert_round_trips_as_version_1():
+    survey = surveys.parse_survey_mapping(_mapping())
+    assert surveys.survey_to_mapping(survey)["schema_version"] == 1
+
+
 # ----- save / load round trip ---------------------------------------------------
 
 
@@ -204,8 +328,8 @@ def test_response_payload_carries_linkage_and_version():
     assert payload["submitted"] == "2026-06-10T03:04:05"
     assert payload["time_since_recording_start"] == "01:00:05"
     assert payload["responses"] == [
-        {"item": "First item", "response": 2, "anchor": "Yes"},
-        {"item": "Second item", "response": None, "anchor": ""},
+        {"item": "First item", "type": "likert", "response": 2, "label": "Yes"},
+        {"item": "Second item", "type": "likert", "response": None, "label": ""},
     ]
     assert payload["notes"] == "participant unsure on item 2"
 

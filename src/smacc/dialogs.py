@@ -212,7 +212,9 @@ class BuildSurveyDialog(QtWidgets.QDialog):
             self.minSpin.setValue(survey.scale_min)
             self.maxSpin.setValue(survey.scale_max)
             self.anchorsEdit.setPlainText("\n".join(survey.anchors))
-            self.itemsEdit.setPlainText("\n".join(survey.items))
+            # The builder only ever opens simple-Likert surveys (the caller
+            # guards this), so each item is a plain Likert statement.
+            self.itemsEdit.setPlainText("\n".join(it.text for it in survey.items))
 
         buttonBox = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.StandardButton.Save
@@ -459,6 +461,17 @@ class ManageSurveysDialog(QtWidgets.QDialog):
             return
         survey = cast(surveys.SurveyDef, payload)
         if kind == "custom":
+            # The builder authors only the simple shared-scale Likert shape; a
+            # survey with typed items/help/headings must be edited as a file.
+            if not survey.is_simple_likert:
+                where = f"\n\n{survey.path}" if survey.path else ""
+                QtWidgets.QMessageBox.information(
+                    self,
+                    "Manage surveys",
+                    "This survey uses advanced item types and can't be edited here. "
+                    f"Edit its file directly:{where}",
+                )
+                return
             existing = tuple(k for k in self._survey_keys() if k != survey.key)
             buildDialog = BuildSurveyDialog(survey, existing_keys=existing, parent=self)
             if buildDialog.exec():
