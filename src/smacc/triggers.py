@@ -6,7 +6,7 @@ than a network marker) still see every port code. The byte sent stays inside the
 8-bit port-code contract (:mod:`smacc.events`), so existing EEG marker maps line up.
 
 One transport at a time, selected and configured per study (persisted in the
-``.smacc`` file, edited in the Trigger output dialog):
+``.smacc`` file, edited in the Markers window):
 
 * ``serial`` — write the code as a single byte to a COM port with `pyserial`. The
   modern path: a USB-serial trigger box mirrors the received byte onto 8 TTL lines.

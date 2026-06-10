@@ -2,15 +2,16 @@
 
 The lights toggle stays on the main window (it also drives the dark theme); every
 other manual event button lives here so a study's custom buttons can be added or
-removed (via File ▸ Event codes…) and the grid resized to fit. The grid is rebuilt
-whenever the registry changes.
+removed (via the Markers window) and the grid resized to fit. The grid is rebuilt
+whenever the registry changes, and each button's tooltip carries its event's
+code + routing so what a press sends is visible right where it's pressed.
 """
 
 from __future__ import annotations
 
 from functools import partial
 
-from PyQt6 import QtWidgets
+from PyQt6 import QtCore, QtWidgets
 
 from .. import events
 from ..dialogs import AddEventDialog
@@ -22,6 +23,10 @@ class EventsWindow(ModalityWindow):
     """A rebuildable grid of manual event-marker buttons."""
 
     TITLE = "Event logging"
+
+    # Emitted when this panel changes the live registry (Add event…), so the
+    # Markers window can re-read the session and never show a stale staging.
+    registry_changed = QtCore.pyqtSignal()
 
     # Sleep-stage buttons get a fixed keypad regardless of grid position; the rest
     # take the leftover digits 5-9 in order (only 0-9 exist, so extras get none).
@@ -81,14 +86,14 @@ class EventsWindow(ModalityWindow):
     def _build_add_event_row(self) -> QtWidgets.QHBoxLayout:
         """A row with the Add event… button (the natural place to look for it).
 
-        Removing or retuning an event still lives in File ▸ Event codes…, which
+        Removing or retuning an event still lives in the Markers window, which
         shows the whole registry; adding a button is the common mid-setup act,
         so it's offered right here where the buttons appear.
         """
         addButton = QtWidgets.QPushButton("Add event…", self)
         addButton.setStatusTip(
             "Add a custom event button (label + port code); it appears here and "
-            "can be retuned or removed in File ▸ Event codes…."
+            "can be retuned or removed in the Markers window."
         )
         addButton.clicked.connect(self.add_custom_event)
         row = QtWidgets.QHBoxLayout()
@@ -99,7 +104,7 @@ class EventsWindow(ModalityWindow):
     def add_custom_event(self, _checked: bool = False) -> None:
         """Define a custom event and add it to the live registry (and this grid).
 
-        The same validation as the Event codes editor applies: hard errors
+        The same validation as the Markers window applies: hard errors
         (duplicate triggered code, bad range) block the add, soft warnings (above
         the safe max) ask first. A successful add is logged loudly (WARNING) like
         any registry change, so the session's code map stays traceable.
@@ -135,6 +140,7 @@ class EventsWindow(ModalityWindow):
         self.session.events[event.key] = event
         self.session.logger.warning(f"Event added: {event.label} (code {event.code})")
         self.rebuild()
+        self.registry_changed.emit()
 
     def rebuild(self) -> None:
         """Regenerate the buttons from the session's manual-category events.
@@ -156,7 +162,12 @@ class EventsWindow(ModalityWindow):
             shortcut = self._STAGE_SHORTCUTS.get(event.key) or next(fill, None)
             label = event.label
             button = QtWidgets.QPushButton(label, self)
-            button.setStatusTip(event.tooltip)
+            # The tooltip carries the event's code + routing (from the registry),
+            # so what a press sends is visible without opening the Markers window.
+            summary = events.routing_summary(event)
+            tip = f"{event.tooltip} ({summary})" if event.tooltip else summary
+            button.setStatusTip(tip)
+            button.setToolTip(tip)
             if shortcut is not None:
                 button.setText(f"{label} ({shortcut})")
                 button.setShortcut(shortcut)

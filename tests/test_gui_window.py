@@ -10,6 +10,7 @@ the save/load contract: gather → apply → gather must be a fixed point.
 from __future__ import annotations
 
 import pytest
+from PyQt6 import QtWidgets
 
 from smacc import gui, paths, triggers, winvolume
 from smacc.gui import SmaccWindow
@@ -202,28 +203,63 @@ def test_apply_settings_lands_values(
     assert design_session.missing_devices == []
 
 
-def test_edit_trigger_output_applies_and_persists_config(
+def test_markers_window_applies_and_persists_trigger_config(
     qtbot, design_session, mock_devices, silence_dialogs, monkeypatch
 ):
-    new_cfg = triggers.TriggerConfig(enabled=True, transport="serial", port="COM4")
-
-    class _StubDialog:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        def exec(self):
-            return 1  # accepted
-
-        def get_config(self):
-            return new_cfg
-
-    monkeypatch.setattr(gui, "TriggerOutputDialog", _StubDialog)
+    # The Markers tool window owns the transport config now (no menu dialog).
+    monkeypatch.setattr(
+        triggers, "list_serial_ports", lambda: [("COM4", "Trigger box")]
+    )
     window = SmaccWindow(design_session)
     qtbot.addWidget(window)
-    window.edit_trigger_output()
-    assert window.session.trigger_config == new_cfg
+    markers = window.panels["markers"]
+    markers._load_trigger_config(
+        triggers.TriggerConfig(enabled=True, transport="serial", port="COM4")
+    )
+    markers.apply()
+    assert window.session.trigger_config.enabled is True
+    assert window.session.trigger_config.port == "COM4"
     # The chosen config travels with the rest of the settings.
     assert window.gather_settings()["trigger_output"]["port"] == "COM4"
+
+
+def test_markers_apply_rebuilds_the_event_grid(
+    qtbot, design_session, mock_devices, silence_dialogs
+):
+    # Applying a registry change in the Markers window re-renders the event grid
+    # (its buttons' tooltips carry each event's code + routing).
+    window = SmaccWindow(design_session)
+    qtbot.addWidget(window)
+    markers = window.panels["markers"]
+    i = next(i for i, e in enumerate(markers._events) if e.key == "REMDetected")
+    markers._code_spins[i].setValue(99)
+    markers.apply()
+    grid = window.panels["events"]
+    # findChildren still sees the replaced button (deleteLater is only serviced
+    # by an event loop), so assert the rebuilt one exists rather than indexing.
+    assert any(
+        "code 99" in b.toolTip()
+        for b in grid.findChildren(QtWidgets.QPushButton)
+        if b.text().startswith("REM detected")
+    )
+
+
+def test_grid_add_event_refreshes_the_markers_staging(
+    qtbot, design_session, mock_devices, silence_dialogs, monkeypatch
+):
+    from smacc import dialogs
+
+    window = SmaccWindow(design_session)
+    qtbot.addWidget(window)
+    monkeypatch.setattr(dialogs.AddEventDialog, "exec", lambda self: True)
+    monkeypatch.setattr(
+        dialogs.AddEventDialog,
+        "get_inputs",
+        lambda self: ("Door knock", 150, "", False),
+    )
+    window.panels["events"].add_custom_event()
+    markers = window.panels["markers"]
+    assert any(e.label == "Door knock" for e in markers._events)
 
 
 # ----- theme / lights and owned preferences ----------------------------------
