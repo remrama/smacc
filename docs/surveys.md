@@ -46,16 +46,14 @@ window):
 | **MAAS** | Mindfulness Attention Awareness Scale |
 | **MACE** | Metacognition, Affect, Cognitive Experiences Questionnaire |
 | **PHLMS** | Philadelphia Mindfulness Scale |
-| **SMAAS** | Mindfulness Attention Awareness Scale (state version) |
+| **SMAAS** | State Mindfulness Attention Awareness Scale |
 | **SMS** | State Mindfulness Scale |
 | **TMS** | Toronto Mindfulness Scale |
 
 Built-ins ship with SMACC itself (they are not stored in your `.smacc` study
 file), so updates reach every install. Each survey definition carries a content
 `version` that is recorded in every response file — an analysis can always tell
-which wording a given night used. (For maintainers:
-[`tools/convert_survey.py`](https://github.com/remrama/smacc/blob/main/tools/convert_survey.py)
-converts legacy HTML/JSON questionnaire files into this format.)
+which wording a given night used.
 
 ## Using a survey
 

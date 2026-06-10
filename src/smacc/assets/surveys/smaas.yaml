@@ -3,7 +3,7 @@ kind: smacc/survey
 schema_version: 1
 key: smaas
 name: SMAAS
-title: Mindfulness Attention Awareness Scale
+title: State Mindfulness Attention Awareness Scale
 version: '1.0'
 citation: ''
 instructions: ''
