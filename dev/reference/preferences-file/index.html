@@ -91,19 +91,6 @@
     
       <div data-md-color-scheme="default" data-md-component="outdated" hidden>
         
-          <aside class="md-banner md-banner--warning">
-            <div class="md-banner__inner md-grid md-typeset">
-              
-  You're viewing the development version of SMACC, which is unstable and may
-  change at any time.
-  <a href="../../..">
-    <strong>Go to the latest stable version.</strong>
-  </a>
-
-            </div>
-            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("../.."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
-          </aside>
-        
       </div>
     
     
@@ -358,6 +345,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../smacc-files/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMACC files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../audio/" class="md-nav__link">
         
   
@@ -530,10 +544,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" checked>
         
           
-          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
             
   
   
@@ -551,8 +565,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_10">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_11">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -604,7 +618,7 @@
   <span class="md-ellipsis">
     
   
-    Settings file (.smacc)
+    SMACC file (.smacc)
   
 
     
@@ -931,8 +945,8 @@
 
 <h1 id="preferences-file-preferencesyaml">Preferences file (<code>preferences.yaml</code>)</h1>
 <p><code>preferences.yaml</code> holds <strong>per-machine operator preferences</strong> — where each window was
-last placed and the launcher's recent-files list. It is the machine layer, kept
-separate from a portable <a href="../settings-file/"><code>.smacc</code> study</a> (which a researcher shares
+last placed and the Launcher's recent-files list. It is the machine layer, kept
+separate from a portable <a href="../settings-file/">SMACC file</a> (which a researcher shares
 between rigs) and from a per-run <a href="../session-log/">session log</a>.</p>
 <p>It lives in the SMACC directory (<code>$SMACC_DIRECTORY</code>, else <code>~/SMACC/preferences.yaml</code>),
 is loaded at startup, and is written on quit. It must never break the app: a missing
@@ -990,7 +1004,7 @@ or corrupt file falls back to the built-in defaults, and saving swallows errors.
 <tr>
 <td><code>windows</code></td>
 <td>mapping</td>
-<td>Per-window geometry, keyed by a stable window id → <code>{x, y, w, h}</code>. Ids include <code>launcher</code>, <code>main</code> (the session window), the analyze window, and each tool window. An absent/<code>null</code> <code>x</code>/<code>y</code> means "no saved position — open at a default".</td>
+<td>Per-window geometry, keyed by a stable window id → <code>{x, y, w, h}</code>. Ids include <code>launcher</code>, <code>main</code> (the Session window), the analyze window, and each tool window. An absent/<code>null</code> <code>x</code>/<code>y</code> means "no saved position — open at a default".</td>
 </tr>
 <tr>
 <td><code>association_prompted</code></td>
@@ -1005,7 +1019,7 @@ or corrupt file falls back to the built-in defaults, and saving swallows errors.
 <tr>
 <td><code>last_settings</code></td>
 <td>path or <code>null</code></td>
-<td>The last <code>.smacc</code> opened, so the launcher can preselect it.</td>
+<td>The last <code>.smacc</code> opened, so the Launcher can preselect it.</td>
 </tr>
 </tbody>
 </table>

@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://remrama.github.io/smacc/dev/audio/">
       
       
-        <link rel="prev" href="../usage/">
+        <link rel="prev" href="../smacc-files/">
       
       
         <link rel="next" href="../visual/">
@@ -90,19 +90,6 @@
     </div>
     
       <div data-md-color-scheme="default" data-md-component="outdated" hidden>
-        
-          <aside class="md-banner md-banner--warning">
-            <div class="md-banner__inner md-grid md-typeset">
-              
-  You're viewing the development version of SMACC, which is unstable and may
-  change at any time.
-  <a href="../..">
-    <strong>Go to the latest stable version.</strong>
-  </a>
-
-            </div>
-            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL(".."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
-          </aside>
         
       </div>
     
@@ -339,6 +326,33 @@
     
   
     Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../smacc-files/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMACC files
   
 
     
@@ -647,10 +661,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
         
           
-          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
             
   
   
@@ -668,8 +682,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_10">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -721,7 +735,7 @@
   <span class="md-ellipsis">
     
   
-    Settings file (.smacc)
+    SMACC file (.smacc)
   
 
     
@@ -1002,7 +1016,7 @@ Present audio noise  → Bedroom speakers
 Speak through intercom → Bedroom speakers
 Capture dream report → Bedroom mic
 </code></pre></div>
-<p>The whole assignment is saved in your <code>.smacc</code> settings file, so a rig travels with
+<p>The whole assignment is saved in your SMACC file, so a rig travels with
 its study. If a bound device isn't connected when a study loads, SMACC keeps going
 and reports which one is missing instead of silently falling back.</p>
 <h3 id="monitoring-routes">Monitoring routes</h3>
@@ -1045,7 +1059,7 @@ and sending one cue to two devices at once (the fan-out) is two streams from a s
 source.</p>
 <p><strong>Hot-plug:</strong> plug a device in after SMACC is already open and it's picked up
 automatically, with no restart needed. You can also force a rescan with the
-<strong>Refresh devices</strong> button in the Devices window (or press <code>F5</code>).</p>
+<strong>Refresh devices (F5)</strong> button in the Devices window.</p>
 <h2 id="is-the-cue-reaching-the-bedroom">Is the cue reaching the bedroom?</h2>
 <p>A cue you can hear in the control room isn't proof the <em>participant</em> heard it — the
 bedroom speaker could be muted, unplugged, or turned down at the hardware. The

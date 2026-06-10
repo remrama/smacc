@@ -91,19 +91,6 @@
     
       <div data-md-color-scheme="default" data-md-component="outdated" hidden>
         
-          <aside class="md-banner md-banner--warning">
-            <div class="md-banner__inner md-grid md-typeset">
-              
-  You're viewing the development version of SMACC, which is unstable and may
-  change at any time.
-  <a href="../..">
-    <strong>Go to the latest stable version.</strong>
-  </a>
-
-            </div>
-            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL(".."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
-          </aside>
-        
       </div>
     
     
@@ -339,6 +326,33 @@
     
   
     Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../smacc-files/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMACC files
   
 
     
@@ -680,10 +694,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
         
           
-          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
             
   
   
@@ -701,8 +715,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_10">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -754,7 +768,7 @@
   <span class="md-ellipsis">
     
   
-    Settings file (.smacc)
+    SMACC file (.smacc)
   
 
     
@@ -1468,8 +1482,8 @@ verify with the <strong>Test</strong> button (below); switch to set-and-hold if 
 register cleanly.</p>
 <h2 id="configuring-trigger-output-in-smacc">Configuring trigger output in SMACC</h2>
 <ol>
-<li>Open <strong>File ▸ Trigger output…</strong> (available both in a live session and in the
-   settings editor).</li>
+<li>Open <strong>File ▸ Trigger output…</strong> (available both in a live Session and in the
+   Editor).</li>
 <li>Tick <strong>Enable hardware trigger output</strong>.</li>
 <li>Choose a <strong>Transport</strong>:<ul>
 <li><strong>Serial</strong> — pick your box's <strong>Port</strong> from the dropdown (click <strong>Refresh</strong> if
@@ -1486,8 +1500,8 @@ register cleanly.</p>
    appears next to the button; an error explains what went wrong.</li>
 <li>Click <strong>OK</strong>.</li>
 </ol>
-<p>The whole configuration is saved in your <code>.smacc</code>
-<a href="../usage/#settings-files-smacc">settings file</a>, so it travels with the rest of your
+<p>The whole configuration is saved in your
+<a href="../smacc-files/">SMACC file</a>, so it travels with the rest of your
 setup. Because a COM port name or LPT address is specific to one computer, SMACC
 reports a clear error if the saved port can't be opened on the machine you load it on
 — re-pick it in the dialog and save again.</p>

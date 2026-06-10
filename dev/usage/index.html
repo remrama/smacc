@@ -16,7 +16,7 @@
         <link rel="prev" href="../installation/">
       
       
-        <link rel="next" href="../audio/">
+        <link rel="next" href="../smacc-files/">
       
       
         
@@ -90,19 +90,6 @@
     </div>
     
       <div data-md-color-scheme="default" data-md-component="outdated" hidden>
-        
-          <aside class="md-banner md-banner--warning">
-            <div class="md-banner__inner md-grid md-typeset">
-              
-  You're viewing the development version of SMACC, which is unstable and may
-  change at any time.
-  <a href="../..">
-    <strong>Go to the latest stable version.</strong>
-  </a>
-
-            </div>
-            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL(".."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
-          </aside>
         
       </div>
     
@@ -563,38 +550,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#settings-files-smacc" class="md-nav__link">
+  <a href="#smacc-files-smacc" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Settings files (.smacc)
+        SMACC files (.smacc)
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Settings files (.smacc)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#opening-a-settings-file" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Opening a settings file
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#preferences" class="md-nav__link">
+  <a href="#display-preferences" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Preferences
+        Display preferences
       
     </span>
   </a>
@@ -605,6 +575,33 @@
   
 </nav>
       
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../smacc-files/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMACC files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -786,10 +783,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
         
           
-          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
             
   
   
@@ -807,8 +804,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_10">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -860,7 +857,7 @@
   <span class="md-ellipsis">
     
   
-    Settings file (.smacc)
+    SMACC file (.smacc)
   
 
     
@@ -1191,38 +1188,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#settings-files-smacc" class="md-nav__link">
+  <a href="#smacc-files-smacc" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Settings files (.smacc)
+        SMACC files (.smacc)
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Settings files (.smacc)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#opening-a-settings-file" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Opening a settings file
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#preferences" class="md-nav__link">
+  <a href="#display-preferences" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Preferences
+        Display preferences
       
     </span>
   </a>
@@ -1250,27 +1230,37 @@
 
 
 <h1 id="usage">Usage</h1>
-<p>SMACC opens to a small <strong>launcher</strong> where you pick a <strong>settings file</strong> and choose
-what to do; from there you run a live session for collecting data. This page walks
+<p>SMACC opens to its <strong>Launcher</strong>, where you pick a <strong>SMACC file</strong> and choose what
+to do; from there you run a live <strong>Session</strong> for collecting data. This page walks
 through the main features.</p>
-<!-- Add an annotated screenshot of the launcher + main window here once available,
-e.g.: ![SMACC main window](assets/screenshot-main.png) -->
+<p>SMACC has three main windows, named consistently throughout these docs:</p>
+<ul>
+<li>the <strong>SMACC Launcher</strong> (<em>Launcher</em> for short) — the small hub that opens when
+  you start the app;</li>
+<li>the <strong>SMACC Session</strong> window (<em>Session</em>) — the live interface for running a
+  night and collecting data;</li>
+<li>the <strong>SMACC Editor</strong> window (<em>Editor</em>) — where you create or edit a
+  <a href="../smacc-files/">SMACC file</a> without recording anything.</li>
+</ul>
+<!-- Add an annotated screenshot of the Launcher + Session window here once
+available, e.g.: ![SMACC Session window](assets/screenshot-session.png) -->
 
 <h2 id="opening-smacc">Opening SMACC</h2>
-<p>SMACC opens to a small launcher (its opening menu) rather than dropping straight
-into a session. From here you:</p>
+<p>Open the app itself to get the Launcher — SMACC never drops straight into a
+session (the one exception: double-clicking a <code>.smacc</code> file, which starts a
+Session for it directly). In the Launcher you:</p>
 <ul>
-<li><strong>pick a settings file</strong> — the current <code>.smacc</code> is shown at the top, with
-  <strong>Open…</strong> to choose another, <strong>Edit…</strong> to open it in the settings editor, and a
-  <strong>Recent</strong> dropdown to switch between ones you have used. With none chosen, SMACC
-  uses built-in defaults (and the seeded <code>default.smacc</code>), so it works out of the
-  box. (See <a href="#settings-files-smacc">Settings files</a> for what one holds.)</li>
-<li><strong>Start session</strong> — open the live session interface using the selected settings,
-  writing runs to that file's <strong>data directory</strong>. The run folder and log are created
-  only now, when the session starts.</li>
-<li><strong>Create settings</strong> — build a new <code>.smacc</code> in the <strong>settings editor</strong>: configure
-  the tools (cues, noise, visual, event codes, surveys), choose a data directory,
-  and save it anywhere. Use <strong>Edit…</strong> to reopen an existing one.</li>
+<li><strong>pick a SMACC file</strong> — the dropdown lists the seeded <code>default.smacc</code>, your
+  recent files, and <strong>Browse…</strong> to find any other. With none chosen, SMACC uses
+  built-in defaults, so it works out of the box. (See
+  <a href="../smacc-files/">SMACC files</a> for what one holds.)</li>
+<li><strong>Start</strong> — open a live Session using the selected SMACC file, writing runs to
+  that file's <strong>data directory</strong>. The run folder and log are created only now,
+  when the session starts.</li>
+<li><strong>Create</strong> — build a new SMACC file in the Editor: configure the tools (cues,
+  noise, visual, event codes, surveys), choose a data directory, and save it
+  anywhere.</li>
+<li><strong>Edit</strong> — reopen the selected SMACC file in the Editor.</li>
 <li><strong>Design cues</strong> — open the standalone <strong>Cue designer</strong> to build a simple tone cue
   and export it as a WAV into a study's <code>cues/</code> folder, ready to use from the Audio
   cue board (see <a href="#designing-a-cue">Designing a cue</a>).</li>
@@ -1279,11 +1269,9 @@ into a session. From here you:</p>
   reports), export its events to a BIDS <code>events.tsv</code>, or recover its settings to a
   <code>.smacc</code> — all without starting a new session.</li>
 </ul>
-<p>Interface preferences (theme, log preview, always-on-top) live under <strong>File
-&rsaquo; Preferences</strong> in the launcher. Closing a session (or other tool) returns
-you to the launcher; closing the launcher quits SMACC. On the Windows build you can
-also <strong>double-click a <code>.smacc</code></strong> to jump straight into a session for it — closing it
-returns to the launcher.</p>
+<p>Closing the Editor or a standalone tool returns you to the Launcher. Ending a
+Session quits SMACC entirely — the night is over. Closing the Launcher also
+quits SMACC.</p>
 <h2 id="audio-cues">Audio cues</h2>
 <p>Place sound files where your settings expect them — by default the data directory's
 <code>cues/</code> folder (e.g. <code>~/SMACC/data/cues/</code>; <code>.wav</code>, <code>.mp3</code>, <code>.flac</code>, <code>.ogg</code>, and
@@ -1292,7 +1280,7 @@ returns to the launcher.</p>
 cue — prefilled with a random demo — and use <strong>+ Add cue</strong> and each row's <strong>✕</strong> to
 add or remove cues to match a protocol (one minimum, up to 20).</p>
 <h3 id="designing-a-cue">Designing a cue</h3>
-<p>No sound file ready? Open <strong>Design cues</strong> from the launcher to build a simple cue
+<p>No sound file ready? Open <strong>Design cues</strong> from the Launcher to build a simple cue
 inside SMACC — no external audio editor needed. Lay out a sequence of <strong>tone</strong> and
 <strong>silence</strong> segments (each tone has a frequency, duration, and level, with an
 optional bell-like <strong>decay</strong>), add an optional whole-cue fade in/out, <strong>Preview</strong> it
@@ -1461,41 +1449,31 @@ pressing it fires the marker immediately and logs your selection as the detail, 
 marker's timing tracks the observation. Confidence is recorded as a comment — it never
 changes whether the marker reaches the EEG.</p>
 <h3 id="where-codes-live">Where codes live</h3>
-<p>Your codes are saved in the <code>.smacc</code> settings file (so they travel with it) and
+<p>Your codes are saved in the SMACC file (so they travel with it) and
 written into every session <code>.log</code> (both the initial and final settings blocks), so any
 session is self-documenting: you can decode its markers later even if the codes changed
 mid-session.</p>
 <h2 id="event-log">Event log</h2>
-<p>Every run writes a detailed <code>.log</code> to its own timestamped folder under the settings
+<p>Every run writes a detailed <code>.log</code> to its own timestamped folder under the SMACC
 file's <strong>data directory</strong> (e.g. <code>~/SMACC/data/</code>), capturing the events and settings
-for that session. Open one later from the launcher's <strong>Analyze</strong> to see a
+for that session. Open one later from the Launcher's <strong>Analyze</strong> to see a
 summary, export its events to BIDS, or recover its settings.</p>
-<h2 id="settings-files-smacc">Settings files (<code>.smacc</code>)</h2>
-<p>A <strong>settings file</strong> captures your reusable setup — cue files, volumes, noise,
-visual cues, survey presets, event codes, the display choices that apply to a
-session (always-on-top and log-preview levels), and the <strong>data directory</strong> where runs
-are written — in a single portable <code>.smacc</code> (plain YAML you can read and edit). The easiest way to build one is the <strong>settings editor</strong> (the launcher's
-<strong>Create settings</strong>, or <strong>Edit…</strong> for an existing one): configure the tools, set the
-data directory, and save. SMACC ships a <code>default.smacc</code> in your SMACC directory as a
-working example you can copy. For the exact on-disk format — every field, the
-sub-blocks, and the schema version — see the
-<a href="../reference/settings-file/"><code>.smacc</code> reference</a>.</p>
-<p>You can keep settings files anywhere — for instance one per participant
-(<code>peter.smacc</code>, <code>paul.smacc</code>, …), each pointing at whatever data directory you like
-(they can share one). Configuring settings and running a session are separate steps:
-the editor never records a run, and a session never rewrites your settings file.</p>
-<p>Cue/noise files and the data directory are stored <strong>relative</strong> to the <code>.smacc</code> when
-they sit beside it (so a self-contained folder stays valid if you move, copy, or zip
-it) and <strong>absolute</strong> when they point elsewhere.</p>
-<h3 id="opening-a-settings-file">Opening a settings file</h3>
-<p>On the Windows build you can <strong>double-click a <code>.smacc</code> file</strong> to launch SMACC and go
-straight to a session for it — the first launch offers to set up this association,
-and you can (re)enable it any time from <strong>File &rsaquo; Associate .smacc files
-(Windows)</strong> in a session. From a terminal, <code>SMACC path/to/file.smacc</code> does the same.</p>
-<h2 id="preferences">Preferences</h2>
-<p>Some display choices apply to a session and are stored in the <code>.smacc</code> settings file,
-so they travel with the study: <strong>always-on-top</strong> and which <strong>log levels</strong> show in the
-preview. Edit them from <strong>File &rsaquo; Preferences</strong> in the launcher.</p>
+<h2 id="smacc-files-smacc">SMACC files (<code>.smacc</code>)</h2>
+<p>A <strong>SMACC file</strong> captures your study's whole configuration — cue files, volumes,
+noise, visual cues, survey presets, event codes, display choices, and the <strong>data
+directory</strong> where runs are written — in a single portable <code>.smacc</code>. Create one in
+the Editor (the Launcher's <strong>Create</strong>/<strong>Edit</strong> buttons) or snapshot a running
+Session with <strong>File &rsaquo; Save SMACC file as…</strong>. Opening one starts a new
+session with that configuration. See <a href="../smacc-files/">SMACC files</a> for the full
+story (creating, the data directory, opening by double-click), and the
+<a href="../reference/settings-file/">SMACC file reference</a> for the exact on-disk format.</p>
+<h2 id="display-preferences">Display preferences</h2>
+<p>Some display choices apply to a session and travel with the study in the SMACC
+file: <strong>always-on-top</strong> (toggled per window — the Session window's <strong>File</strong>
+menu, or each tool window's <strong>View</strong> menu) and which <strong>log levels</strong> show in the
+preview (the checkboxes above the log preview). Save them with the rest of the
+configuration from the Editor or with <strong>File &rsaquo; Save SMACC file as…</strong> in a
+Session.</p>
 <p>Separately, the machine remembers window positions and sizes and your recent files in
 <code>~/SMACC/preferences.yaml</code>, restored on the next launch.</p>
 
