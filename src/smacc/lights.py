@@ -42,14 +42,16 @@ class LightEngine:
     :meth:`stop` begins the release fade. :attr:`ended` flips once the envelope
     has reached zero (the duration ran out, or a release finished), so the GUI
     thread can turn the device off and mark the stop. Idle/ended frames are black.
+    ``brightness`` and ``loop`` may be set live (read at the next frame), like
+    ``CueMixer.volume``/``loop``.
     """
 
     def __init__(self) -> None:
         self._color: RGB = (0, 0, 0)
-        self._brightness = 1.0
+        self.brightness = 1.0
         self._pattern = STEADY
         self._rate_hz = 1.0
-        self._loop = False
+        self.loop = False
         self._duration_s = 0.0
         self._attack_s = 0.0
         self._release_s = 0.0
@@ -77,10 +79,10 @@ class LightEngine:
         if pattern not in PATTERNS:
             raise ValueError(f"Unknown light pattern {pattern!r}; one of {PATTERNS}.")
         self._color = color
-        self._brightness = brightness
+        self.brightness = brightness
         self._pattern = pattern
         self._rate_hz = rate_hz
-        self._loop = loop
+        self.loop = loop
         self._duration_s = max(0.0, duration_s)
         self._attack_s = max(0.0, attack_s)
         self._release_s = max(0.0, release_s)
@@ -115,12 +117,12 @@ class LightEngine:
             done = now >= self._stop_t + self._release_s
         else:
             done = (
-                not self._loop and now >= self._t0 + self._duration_s + self._release_s
+                not self.loop and now >= self._t0 + self._duration_s + self._release_s
             )
         if done:
             self._ended = True
             return (0, 0, 0)
-        gain = self._envelope(now) * self._brightness * self._pattern_factor(now)
+        gain = self._envelope(now) * self.brightness * self._pattern_factor(now)
         r, g, b = self._color
         return (_scale(r, gain), _scale(g, gain), _scale(b, gain))
 
@@ -134,7 +136,7 @@ class LightEngine:
         gain = 1.0
         if self._attack_s > 0.0:
             gain = min(1.0, t / self._attack_s)
-        if not self._loop and t > self._duration_s:
+        if not self.loop and t > self._duration_s:
             # Natural release after the ON period (instant when release is 0).
             if self._release_s <= 0.0:
                 return 0.0

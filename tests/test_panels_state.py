@@ -84,10 +84,38 @@ def test_recording_panel_round_trips_surveys(qtbot, design_session):
 def test_visual_panel_round_trips(qtbot, design_session):
     panel = VisualWindow(design_session)
     qtbot.addWidget(panel)
-    panel.apply_state({"blink_color": "#123456", "blink_length": 2.5})
+    panel.apply_state(
+        {
+            "visual_cues": [
+                {
+                    "name": "TLR pulse",
+                    "color": "#123456",
+                    "brightness": 0.7,
+                    "pattern": "pulse",
+                    "rate": 2.0,
+                    "length": 2.5,
+                    "loop": True,
+                },
+                {"name": "Sham", "color": "#ffffff"},
+            ],
+            "visual_attack": 0.5,
+            "visual_release": 1.5,
+        }
+    )
     got = panel.gather_state()
-    assert got["blink_color"].lower() == "#123456"
-    assert got["blink_length"] == pytest.approx(2.5)
+    cue, sham = got["visual_cues"]
+    assert cue["name"] == "TLR pulse"
+    assert cue["color"] == "#123456"
+    assert cue["brightness"] == pytest.approx(0.7)
+    assert cue["pattern"] == "pulse"
+    assert cue["rate"] == pytest.approx(2.0)
+    assert cue["length"] == pytest.approx(2.5)
+    assert cue["loop"] is True
+    assert sham["name"] == "Sham"
+    assert sham["color"] == "#ffffff"
+    assert sham["pattern"] == "steady"  # unspecified fields keep their defaults
+    assert got["visual_attack"] == pytest.approx(0.5)
+    assert got["visual_release"] == pytest.approx(1.5)
 
 
 def test_volume_panel_round_trips_cap(qtbot, design_session, monkeypatch):

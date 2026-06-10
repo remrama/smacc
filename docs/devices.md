@@ -8,8 +8,9 @@ devices — roles, the Devices window, and volume — see
 ## BlinkStick
 
 [BlinkStick](https://www.blinkstick.com/) is a USB-controlled RGB LED device.
-SMACC uses it for **visual cues** — lighting up a chosen color for a set duration
-— which is handy for light-based cueing in sleep and lucid-dreaming experiments.
+SMACC uses it for **visual cues** — lighting up a chosen color, steady or
+pulsing/flashing, for a set duration — which is handy for light-based cueing in
+sleep and lucid-dreaming experiments.
 
 ### What you need
 
@@ -24,13 +25,15 @@ SMACC uses it for **visual cues** — lighting up a chosen color for a set durat
 ### Using it in SMACC
 
 1. Plug the BlinkStick into a USB port, then launch SMACC.
-2. Click **Visual stimulation** in the *Tools* column.
+2. Click **Visual cue** in the *Tools* column.
 3. Bind your BlinkStick to the **Bedroom lights** role in the **Devices** window (in
    the *Tools* column). Plug one in after launch and it's detected automatically,
    or choose **File ▸ Refresh devices** (or press `F5`) to rescan.
-4. Pick a **Color** and a **Length** (how long the light stays on, in seconds).
-5. Click **Play** to fire the cue; **Stop** turns the light off before the length
-   runs out. The rest of SMACC stays responsive while the light is on.
+4. Configure a light cue — color, brightness, pattern (steady, or a pulse/flash at
+   a rate in Hz), and length (or **Loop** until stopped) — and add more cues with
+   **+ Add cue** if the protocol needs several.
+5. Click a cue's **Play** to fire it; **Stop** turns the light off early. The rest
+   of SMACC stays responsive while the light is on.
 
 Your chosen device, color, and length are saved in the `.smacc` settings file (see
 [Usage › Settings files](usage.md#settings-files-smacc)), so the visual-cue setup
@@ -38,7 +41,7 @@ travels with the rest of your configuration; the device is reconnected by name o
 the next launch (and flagged if it isn't plugged in).
 
 !!! note
-    If visual stimulation reports that no BlinkStick is set, open the **Devices**
+    If the visual cue window reports that no BlinkStick is set, open the **Devices**
     window and bind one to the **Bedroom lights** role (plug it in first; use
     **File ▸ Refresh devices** or `F5` if it isn't listed). No restart needed.
 

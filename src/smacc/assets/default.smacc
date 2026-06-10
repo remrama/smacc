@@ -1,14 +1,22 @@
 # SMACC settings — YAML (.smacc). Edit with care.
 kind: smacc/settings
-schema_version: 1
+schema_version: 2
 smacc_version: 0.0.7
 metadata:
   subject: ''
   session: ''
   notes: ''
 settings:
-  blink_color: '#ff0000'
-  blink_length: 1.0
+  visual_cues:
+  - name: Light 1
+    color: '#ff0000'
+    brightness: 1.0
+    pattern: steady
+    rate: 1.0
+    length: 1.0
+    loop: false
+  visual_attack: 0.0
+  visual_release: 0.0
   # cues omitted on purpose: the one required cue autofills a random demo on first
   # launch (#65); saving from the app writes the configured cue list back here.
   cue_attack: 0.0
