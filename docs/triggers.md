@@ -47,8 +47,9 @@ study can retune any code in the **Event codes** editor; the change travels in i
 | 63 | Noise stopped | `NoiseStopped` | |
 | 64 | Intercom started | `IntercomStarted` | |
 | 65 | Intercom stopped | `IntercomStopped` | |
-| 66 | Visual stimulation | `VisualStarted` | |
+| 66 | Visual started | `VisualStarted` | |
 | 67 | Survey opened | `SurveyOpened` | |
+| 68 | Visual stopped | `VisualStopped` | the light is actually off (pairs with 66) |
 | 100 | SMACC initialized | `TriggerInitialization` | startup connection test; not a stimulus marker |
 | 105 | Biocal sequence started | `BiocalSequenceStarted` | brackets a played biocal sequence |
 | 106 | Biocal sequence stopped | `BiocalSequenceStopped` | completed or aborted |

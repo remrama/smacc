@@ -196,7 +196,9 @@ def default_events() -> list[EventDef]:
         EventDef("NoiseStopped", "Noise stopped", 63),
         EventDef("IntercomStarted", "Intercom started", 64),
         EventDef("IntercomStopped", "Intercom stopped", 65),
-        EventDef("VisualStarted", "Visual stimulation", 66),
+        EventDef("VisualStarted", "Visual started", 66),
+        # The stop pairs with 66 at the next free code (67 predates it).
+        EventDef("VisualStopped", "Visual stopped", 68),
         EventDef("SurveyOpened", "Survey opened", 67),
         # --- Biocals: run from the Biocals window (#78) -------------------------
         *_biocal_events(),
