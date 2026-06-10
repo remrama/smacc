@@ -1405,10 +1405,9 @@ message.</p>
 DEBUG line (tick <em>Debug</em> above the log preview to watch the exchange live). By
 default no portcodes fire and nothing reaches the BIDS events export — a typed
 exchange is rapid and conversational, and would flood the marker channel. If a
-study needs marker timestamps, flip the trigger on for <code>Chat to participant</code>
-(code 69) and/or <code>Chat from participant</code> (code 70) in <strong>File &rsaquo; Event
-codes…</strong>; the markers stay bare (no message text) so the trigger channel remains
-legible.</p>
+study needs marker timestamps, route <code>Chat to participant</code> (code 69) and/or
+<code>Chat from participant</code> (code 70) to LSL/TTL in <strong>File &rsaquo; Event codes…</strong>;
+the markers stay bare (no message text) so the trigger channel remains legible.</p>
 <h2 id="eeg-portcodes">EEG portcodes</h2>
 <p>SMACC marks experiment events — a cue played, a dream report, observed REM, the
 lights toggled — by sending a numeric <strong>portcode</strong> to its marker stream and writing a
@@ -1418,7 +1417,10 @@ matching line to the session log, keeping cue delivery and your neural data in s
 can set:</p>
 <ul>
 <li><strong>Code</strong> — the 8-bit portcode (1–255) sent when the event triggers.</li>
-<li><strong>Trigger</strong> — whether the event is sent to the marker stream at all.</li>
+<li><strong>LSL</strong> — whether a firing sends the code over the LSL marker stream.</li>
+<li><strong>TTL</strong> — whether a firing sends the code over the hardware TTL trigger (when one
+  is configured; see <a href="../triggers/">Triggers &amp; port codes</a>). An event with neither
+  LSL nor TTL ticked is log-only.</li>
 <li><strong>Preview</strong> — whether the event shows in the live log preview. The session log
   <em>file</em> always records every event regardless; this only controls the on-screen
   preview.</li>
@@ -1426,9 +1428,10 @@ can set:</p>
   reports</strong>: 201, 202, 203, …) so individual occurrences are findable in the trigger
   channel. Off uses one fixed code each time.</li>
 </ul>
-<p><strong>Safe max code</strong> raises a soft warning for codes above it — handy when your trigger
-hardware only accepts a limited range (some older systems do). Codes must be unique
-among triggered events and within 1–255; the editor blocks anything else.</p>
+<p><strong>Safe max code</strong> raises a soft warning for TTL-routed codes above it — handy when
+your trigger hardware only accepts a limited range (some older systems do; LSL
+carries any code). Codes must be unique among routed events and within 1–255; the
+editor blocks anything else.</p>
 <p><strong>Custom events.</strong> Use <strong>Add event…</strong> — in the <strong>Event logging</strong> panel itself, or in
 this editor — to create your own button events (a label and a code); they appear in
 the Event logging panel alongside the built-ins and can be removed again with the

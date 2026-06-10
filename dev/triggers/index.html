@@ -1466,12 +1466,15 @@ study can retune any code in the <strong>Event codes</strong> editor; the change
 </table>
 <!-- END auto:event-codes -->
 
-<p>Codes are integers in <strong>1–255</strong> and must be unique among triggered events.</p>
+<p>Codes are integers in <strong>1–255</strong> and must be unique among events routed to a
+transport (LSL or TTL).</p>
 <h2 id="how-smacc-sends-triggers">How SMACC sends triggers</h2>
-<p>SMACC always emits markers over <strong>LSL</strong> (Lab Streaming Layer), a network marker
-stream. On top of that, you can <em>optionally</em> enable <strong>one</strong> hardware transport so a
-physical trigger reaches an amplifier that doesn't read LSL. Both fire from the same
-place, so every event you log is sent the same way over every enabled path.</p>
+<p>SMACC emits markers over <strong>LSL</strong> (Lab Streaming Layer), a network marker stream. On
+top of that, you can <em>optionally</em> enable <strong>one</strong> hardware transport so a physical
+trigger reaches an amplifier that doesn't read LSL. Both fire from the same place,
+and each event routes to either path independently: its <strong>LSL</strong> and <strong>TTL</strong> flags in
+the registry decide where its code goes (both by default; an event routed to
+neither is log-only).</p>
 <table>
 <thead>
 <tr>
@@ -1500,8 +1503,17 @@ place, so every event you log is sent the same way over every enabled path.</p>
 </table>
 <div class="admonition note">
 <p class="admonition-title">LSL stays on</p>
-<p>Enabling a hardware transport does <strong>not</strong> turn LSL off — you always get the LSL
-marker stream as well. The hardware path is purely additional.</p>
+<p>Enabling a hardware transport does <strong>not</strong> turn LSL off — events routed to both
+(the default) reach the LSL stream and the hardware line together. The hardware
+path is purely additional.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Why route per event?</p>
+<p>Most studies leave every event on both transports. Per-event routing earns its
+keep when the TTL hardware is restricted — an older amplifier that only accepts
+a limited code range can keep its key events on TTL (inside the
+<a href="../usage/#configuring-codes">safe max</a>) while chattier or higher-coded events
+still reach the LSL stream.</p>
 </div>
 <h3 id="what-is-the-baud-rate">What is the baud rate?</h3>
 <p>For the <strong>serial (USB trigger box)</strong> transport you also set a <strong>baud rate</strong> — the

@@ -1130,7 +1130,7 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <h2 id="on-disk-shape">On-disk shape</h2>
 <div class="highlight"><pre><span></span><code><span class="c1"># SMACC settings — YAML (.smacc). Edit with care.</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">smacc/settings</span>
-<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
 <span class="nt">smacc_version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0.0.7&quot;</span>
 <span class="nt">metadata</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">subject</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;001&quot;</span>
@@ -1179,7 +1179,7 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <span class="w">      </span><span class="nt">visual_out</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">blinkstick</span>
 <span class="w">  </span><span class="c1"># --- Event-marker registry -------------------------------------------------</span>
 <span class="w">  </span><span class="nt">event_codes</span><span class="p">:</span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="nv">REMDetected</span><span class="p p-Indicator">,</span><span class="nt"> code</span><span class="p">:</span><span class="w"> </span><span class="nv">41</span><span class="p p-Indicator">,</span><span class="nt"> trigger</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> preview</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> increment</span><span class="p">:</span><span class="w"> </span><span class="nv">false</span><span class="p p-Indicator">}</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="nv">REMDetected</span><span class="p p-Indicator">,</span><span class="nt"> code</span><span class="p">:</span><span class="w"> </span><span class="nv">41</span><span class="p p-Indicator">,</span><span class="nt"> lsl</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> ttl</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> preview</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> increment</span><span class="p">:</span><span class="w"> </span><span class="nv">false</span><span class="p p-Indicator">}</span>
 <span class="w">  </span><span class="nt">event_code_safe_max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">255</span>
 <span class="w">  </span><span class="c1"># --- Optional hardware trigger output --------------------------------------</span>
 <span class="w">  </span><span class="nt">trigger_output</span><span class="p">:</span>
@@ -1218,7 +1218,7 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <tr>
 <td><code>schema_version</code></td>
 <td>integer</td>
-<td>The settings schema version — currently <strong>2</strong>. Older versions are upgraded on load (see <a href="#version-history">Version history</a>).</td>
+<td>The settings schema version — currently <strong>3</strong>. Older versions are upgraded on load (see <a href="#version-history">Version history</a>).</td>
 </tr>
 <tr>
 <td><code>smacc_version</code></td>
@@ -1435,9 +1435,14 @@ the built-ins; one that overrides a few codes keeps the rest.</p>
 <td>Port code, 1–255.</td>
 </tr>
 <tr>
-<td><code>trigger</code></td>
+<td><code>lsl</code></td>
 <td>boolean</td>
-<td>Whether the event pushes a marker.</td>
+<td>Whether a firing pushes the code over the LSL marker stream.</td>
+</tr>
+<tr>
+<td><code>ttl</code></td>
+<td>boolean</td>
+<td>Whether a firing pushes the code over the hardware TTL trigger (when one is configured).</td>
 </tr>
 <tr>
 <td><code>preview</code></td>
@@ -1453,7 +1458,8 @@ the built-ins; one that overrides a few codes keeps the rest.</p>
 </table>
 <p>A built-in entry persists only those fields. A <strong>custom</strong> event also carries
 <code>label</code>, <code>category</code>, <code>tooltip</code>, and <code>builtin: false</code> so it can be reconstructed on
-load. <code>event_code_safe_max</code> (integer, default 255) sets the soft upper-bound warning.</p>
+load. <code>event_code_safe_max</code> (integer, default 255) sets the soft upper-bound warning
+for TTL-routed codes (LSL carries any code).</p>
 <h3 id="devices"><code>devices</code></h3>
 <p>Role → device bindings plus target → role routing (see <a href="../../audio/">Audio &amp; routing</a>
 and <a href="../../devices/">Devices</a>).</p>
@@ -1575,6 +1581,10 @@ folder stays valid when moved, copied, or zipped.</p>
 <tr>
 <td>2</td>
 <td>The single visual cue (<code>blink_color</code> / <code>blink_length</code>) became the multi-slot <code>visual_cues</code> list with the shared <code>visual_attack</code> / <code>visual_release</code> fades. A v1 file's blink keys load into the first slot.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Each <code>event_codes</code> entry routes per transport: the single <code>trigger</code> flag was replaced by independent <code>lsl</code> + <code>ttl</code> booleans. Deliberately unmigrated (pre-release breaking change): an older file's <code>trigger</code> keys are ignored and the routing defaults apply.</td>
 </tr>
 </tbody>
 </table>
