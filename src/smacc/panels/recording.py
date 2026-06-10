@@ -9,13 +9,13 @@ import sounddevice as sd
 import soundfile as sf
 from PyQt6 import QtCore, QtWidgets
 
-from .. import surveys
+from .. import devices, surveys
 from ..config import SURVEY_OPTIONS
 from ..dialogs import ManageSurveysDialog
 from ..paths import BUNDLED_SURVEYS_DIR, SURVEYS_DIR
 from ..session import SmaccSession
 from ..utils import format_elapsed
-from .base import ModalityWindow, describe_target, make_section_title
+from .base import ModalityWindow, describe_target, make_section_title, resolve_device
 from .meter import InputLevelMeter
 from .survey import SurveyWindow
 
@@ -118,9 +118,11 @@ class RecordingWindow(ModalityWindow):
         self._record_stream: sd.InputStream | None = None
         self._record_file: sf.SoundFile | None = None
 
-    def _selected_input_device(self) -> str | None:
+    def _selected_input_device(self) -> int | str | None:
         """The mic device for the dream-report role (None == system default)."""
-        return self.session.devices.device_for("report_in") or None
+        return resolve_device(
+            self.session.devices.device_for("report_in"), devices.INPUT
+        )
 
     def refresh_device_indicator(self) -> None:
         """Show where the mic resolves and switch a live meter over to it."""

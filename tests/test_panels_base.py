@@ -47,6 +47,108 @@ def test_describe_target_off_route_reads_off(design_session):
     assert base.describe_target(session, "cue_monitor") == "off"
 
 
+# ----- resolve_device --------------------------------------------------------
+
+# A Realtek-style layout: the same short name once per host API (the MME name is
+# only truncated past 31 chars, so short names collide exactly — issue seen live:
+# sounddevice raises "Multiple output devices found" on the bare name).
+_HOST_APIS = [
+    {"name": "MME"},
+    {"name": "Windows DirectSound"},
+    {"name": "Windows WASAPI"},
+]
+_DEVICES = [
+    {
+        "name": "Speakers (Realtek(R) Audio)",
+        "hostapi": 0,
+        "max_output_channels": 2,
+        "max_input_channels": 0,
+    },
+    {
+        "name": "Microphone (Realtek(R) Audio)",
+        "hostapi": 0,
+        "max_output_channels": 0,
+        "max_input_channels": 2,
+    },
+    {
+        "name": "Speakers (Realtek(R) Audio)",
+        "hostapi": 1,
+        "max_output_channels": 2,
+        "max_input_channels": 0,
+    },
+    {
+        "name": "Speakers (Realtek(R) Audio)",
+        "hostapi": 2,
+        "max_output_channels": 2,
+        "max_input_channels": 0,
+    },
+    {
+        "name": "Microphone (Realtek(R) Audio)",
+        "hostapi": 2,
+        "max_output_channels": 0,
+        "max_input_channels": 2,
+    },
+]
+
+
+def _patch_sd(monkeypatch, host_apis=_HOST_APIS, device_list=_DEVICES):
+    monkeypatch.setattr(base.sd, "query_hostapis", lambda: host_apis)
+    monkeypatch.setattr(base.sd, "query_devices", lambda: device_list)
+
+
+def test_resolve_device_picks_the_wasapi_index(monkeypatch):
+    _patch_sd(monkeypatch)
+    assert base.resolve_device("Speakers (Realtek(R) Audio)", devices.OUTPUT) == 3
+    assert base.resolve_device("Microphone (Realtek(R) Audio)", devices.INPUT) == 4
+
+
+def test_resolve_device_respects_the_channel_kind(monkeypatch):
+    # The speaker name only exists as an output; resolving it as an *input*
+    # finds no WASAPI match and falls back to the name (sounddevice then raises
+    # its usual "no matching device" error).
+    _patch_sd(monkeypatch)
+    assert (
+        base.resolve_device("Speakers (Realtek(R) Audio)", devices.INPUT)
+        == "Speakers (Realtek(R) Audio)"
+    )
+
+
+def test_resolve_device_blank_is_system_default(monkeypatch):
+    _patch_sd(monkeypatch)
+    assert base.resolve_device("", devices.OUTPUT) is None
+    assert base.resolve_device(None, devices.OUTPUT) is None
+
+
+def test_resolve_device_strips_legacy_wasapi_suffix(monkeypatch):
+    _patch_sd(monkeypatch)
+    saved = "Speakers (Realtek(R) Audio), Windows WASAPI"  # pre-#-strip settings
+    assert base.resolve_device(saved, devices.OUTPUT) == 3
+
+
+def test_resolve_device_unplugged_name_passes_through(monkeypatch):
+    _patch_sd(monkeypatch)
+    assert base.resolve_device("Speakers (USB)", devices.OUTPUT) == "Speakers (USB)"
+
+
+def test_resolve_device_no_wasapi_host_api_passes_through(monkeypatch):
+    _patch_sd(monkeypatch, host_apis=[{"name": "MME"}])
+    assert (
+        base.resolve_device("Speakers (Realtek(R) Audio)", devices.OUTPUT)
+        == "Speakers (Realtek(R) Audio)"
+    )
+
+
+def test_resolve_device_query_failure_passes_through(monkeypatch):
+    def boom():
+        raise RuntimeError("PortAudio not initialized")
+
+    monkeypatch.setattr(base.sd, "query_hostapis", boom)
+    assert (
+        base.resolve_device("Speakers (Realtek(R) Audio)", devices.OUTPUT)
+        == "Speakers (Realtek(R) Audio)"
+    )
+
+
 # ----- current_device_key ----------------------------------------------------
 
 

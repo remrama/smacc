@@ -2,11 +2,47 @@
 
 from __future__ import annotations
 
+import sounddevice as sd
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import devices, utils
 from ..paths import LOGO_PATH
 from ..session import SmaccSession
+
+
+def resolve_device(device: str | None, kind: str) -> int | str | None:
+    """Resolve a stored device name to its WASAPI device index for sounddevice.
+
+    Role bindings persist the bare device name. Passing that name straight to
+    sounddevice matches it against *every* host API, and on Windows the same
+    hardware appears once per host API (MME, DirectSound, WASAPI, …). A name
+    short enough to escape MME's 31-char truncation is then identical across
+    host APIs and sounddevice raises "Multiple input/output devices found".
+    Resolving here pins the stream to the one host API SMACC enumerates (see
+    :func:`smacc.panels.devices.wasapi_devices`).
+
+    ``kind`` is :data:`smacc.devices.OUTPUT` or :data:`smacc.devices.INPUT`.
+    ``None``/"" (system default) stays ``None``; a name with no current WASAPI
+    match is returned unchanged, so opening it fails with sounddevice's usual
+    "no device matching" error rather than silently using another device.
+    """
+    if not device:
+        return None
+    name = devices.strip_wasapi_suffix(device)
+    chan_key = f"max_{kind}_channels"
+    try:
+        host_api_names = [api["name"] for api in sd.query_hostapis()]
+        hostapi = host_api_names.index(devices.WASAPI_HOST_API)
+        for index, info in enumerate(sd.query_devices()):
+            if (
+                info["hostapi"] == hostapi
+                and info[chan_key] > 0
+                and info["name"] == name
+            ):
+                return index
+    except Exception:
+        pass  # no WASAPI host API (or query failed): fall through to the name
+    return name
 
 
 def describe_target(session: SmaccSession, target_key: str) -> str:
