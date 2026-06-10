@@ -19,7 +19,7 @@ Used for dream engineering by the [Paller Lab](https://sites.northwestern.edu/pa
 
 ## Installation
 
-To install SMACC, go to the [releases page](https://github.com/remrama/smacc/releases), click the _Assets_ dropdown for the latest release, and download the _SMACC.exe_ file. Once downloaded, double-clicking this file will run SMACC.
+To install SMACC, go to the [releases page](https://github.com/remrama/smacc/releases), click the _Assets_ dropdown for the latest release, and download SMACC (a single portable file — no installer). Once downloaded, double-clicking it will run SMACC.
 
 SMACC requires 64-bit Windows 10 or later.
 

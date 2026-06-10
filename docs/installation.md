@@ -1,11 +1,14 @@
 # Installation
 
-[Download SMACC.exe](https://github.com/remrama/smacc/releases/latest/download/SMACC.exe){ .md-button .md-button--primary }
+[Download SMACC](https://github.com/remrama/smacc/releases/latest/download/SMACC.exe){ .md-button .md-button--primary }
 
-The button above always downloads the latest release. (You can also browse every
-release on the [releases page](https://github.com/remrama/smacc/releases) — click the
-_Assets_ dropdown and pick _SMACC.exe_.) SMACC is a single file: once downloaded,
-double-click it to run. There is no installer.
+The button above always downloads the **latest** version. To get an older or
+specific version, browse the
+[releases page](https://github.com/remrama/smacc/releases): pick the release you
+want, open its _Assets_ dropdown, and download SMACC from there. Every version is
+the same kind of single portable file: once downloaded, double-click it to run.
+There is no installer. (The version switcher on this documentation site switches
+the *docs* only — older copies of SMACC itself come from the releases page.)
 
 !!! note "System requirements"
     SMACC runs on 64-bit Windows 10 or later.
