@@ -288,11 +288,17 @@ class SmaccWindow(ToolWindow):
         """Restore a tool window's saved geometry; return True iff a position was set.
 
         Size is applied regardless; a missing/off-screen position returns False so the
-        caller falls back to the cascade placement.
+        caller falls back to the cascade placement. The fallback size is the window's
+        content ``sizeHint`` — not ``width()``/``height()``, which on a not-yet-shown
+        window is Qt's generic 640×480 default. Using that default would force every
+        first-opened tool to the same oversized box (e.g. the slim Volume window),
+        which read as window sizes "bleeding" across tools; the sizeHint opens each at
+        its own natural size instead.
         """
         geometry = preferences.window_geometry(self._prefs, key)
+        hint = window.sizeHint()
         return windowstate.restore_geometry(
-            window, geometry, default_size=(window.width(), window.height())
+            window, geometry, default_size=(hint.width(), hint.height())
         )
 
     def _position_panel(self, window: QtWidgets.QWidget, key: str) -> None:
