@@ -664,10 +664,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#audio-noise-visual-survey-volume" class="md-nav__link">
+  <a href="#audio-noise-visual-survey-chat-volume" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Audio, noise, visual, survey, volume
+        Audio, noise, visual, survey, chat, volume
       
     </span>
   </a>
@@ -955,10 +955,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#audio-noise-visual-survey-volume" class="md-nav__link">
+  <a href="#audio-noise-visual-survey-chat-volume" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Audio, noise, visual, survey, volume
+        Audio, noise, visual, survey, chat, volume
       
     </span>
   </a>
@@ -1115,6 +1115,9 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <span class="w">  </span><span class="c1"># --- Survey ----------------------------------------------------------------</span>
 <span class="w">  </span><span class="nt">survey_url</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
 <span class="w">  </span><span class="nt">survey_options</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<span class="w">  </span><span class="c1"># --- Participant text chat ---------------------------------------------------</span>
+<span class="w">  </span><span class="nt">chat_font_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">18</span>
+<span class="w">  </span><span class="nt">chat_red_text</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 <span class="w">  </span><span class="c1"># --- Biocals ---------------------------------------------------------------</span>
 <span class="w">  </span><span class="nt">biocals</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">voice_volume</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.5</span>
@@ -1194,7 +1197,7 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <h2 id="settings"><code>settings</code></h2>
 <p>Every panel contributes its own keys; a few window-level blocks travel alongside.
 Any key may be omitted — each falls back to its default.</p>
-<h3 id="audio-noise-visual-survey-volume">Audio, noise, visual, survey, volume</h3>
+<h3 id="audio-noise-visual-survey-chat-volume">Audio, noise, visual, survey, chat, volume</h3>
 <table>
 <thead>
 <tr>
@@ -1263,6 +1266,16 @@ Any key may be omitted — each falls back to its default.</p>
 <td><code>survey_options</code></td>
 <td>mapping</td>
 <td>Named survey presets: label → URL.</td>
+</tr>
+<tr>
+<td><code>chat_font_size</code></td>
+<td>integer</td>
+<td>Participant chat window text size, in points (8–72).</td>
+</tr>
+<tr>
+<td><code>chat_red_text</code></td>
+<td>boolean</td>
+<td>Red-shifted night text in the participant chat window.</td>
 </tr>
 <tr>
 <td><code>volume_cap</code></td>

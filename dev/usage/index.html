@@ -474,6 +474,34 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#intercom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Intercom
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Intercom">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#text-chat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text chat
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#eeg-portcodes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1047,6 +1075,34 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#intercom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Intercom
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Intercom">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#text-chat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text chat
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#eeg-portcodes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1288,6 +1344,40 @@ never overwrites existing files, and each session start warns about any that
 are missing (a biocal with a missing voice still runs, just unvoiced). The shared
 <strong>Voice volume</strong> rides the cue route, so the master output cap and the
 control-room monitor fan-out apply to instructions exactly as they do to cues.</p>
+<h2 id="intercom">Intercom</h2>
+<p>The <strong>Intercom</strong> window is the live channel between the control room and the
+bedroom. <strong>Talk</strong> pipes your mic to the participant's output (click to latch, or
+hold the <strong>spacebar</strong> anywhere in SMACC as push-to-talk) and is marked in the EEG
+record; <strong>Listen</strong> brings the bedroom mic to your control-room speakers, unmarked.
+The two directions route through roles set once in the <strong>Devices</strong> window (see
+<a href="../audio/">Audio &amp; routing</a>).</p>
+<h3 id="text-chat">Text chat</h3>
+<p>Below the voice controls is a <strong>typed channel</strong> — for hearing-impaired
+participants, or whenever audio would intrude or you want the exchange in writing.
+You type in the Intercom panel; the participant reads and replies in a separate
+<strong>Participant chat</strong> window made for a dark bedroom: always dark regardless of the
+lights toggle, large text (default 18 pt, resize with <code>Ctrl+=</code> / <code>Ctrl+-</code>), and an
+optional <strong>red night text</strong> mode (<strong>Display</strong> menu), with no flashing and no
+sounds.</p>
+<p><strong>Setup.</strong> The first cut assumes one computer: extend the desktop onto a
+bedroom-facing monitor and plug in a second keyboard for the participant. Click
+<strong>Pass keyboard to participant</strong> to open the participant window, drag it onto the
+bedroom display once, and it reopens there next session.</p>
+<p><strong>One keyboard at a time.</strong> Windows gives the machine a single input focus, so the
+two keyboards type into whichever window is active — text chat is half-duplex,
+like push-to-talk. <strong>Pass keyboard to participant</strong> (or <code>Ctrl+Enter</code>, which sends
+your message first) activates the participant window so their keystrokes land
+there; clicking back into SMACC takes the focus back. The participant window shows
+a banner — <em>"● The keyboard is yours"</em> / <em>"○ Waiting"</em> — so a drowsy participant
+always knows whether typing will land.</p>
+<p><strong>What's recorded.</strong> Every message is written verbatim to the session log as a
+DEBUG line (tick <em>Debug</em> above the log preview to watch the exchange live). By
+default no portcodes fire and nothing reaches the BIDS events export — a typed
+exchange is rapid and conversational, and would flood the marker channel. If a
+study needs marker timestamps, flip the trigger on for <code>Chat to participant</code>
+(code 69) and/or <code>Chat from participant</code> (code 70) in <strong>File &rsaquo; Event
+codes…</strong>; the markers stay bare (no message text) so the trigger channel remains
+legible.</p>
 <h2 id="eeg-portcodes">EEG portcodes</h2>
 <p>SMACC marks experiment events — a cue played, a dream report, observed REM, the
 lights toggled — by sending a numeric <strong>portcode</strong> to its marker stream and writing a
