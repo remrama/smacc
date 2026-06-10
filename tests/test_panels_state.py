@@ -137,6 +137,24 @@ def test_intercom_panel_round_trips_chat_presets(qtbot, design_session):
     assert got["chat_participant_presets"] == ["Yes", "No"]
 
 
+def test_intercom_meters_track_each_live_bridge(qtbot, design_session):
+    # Each direction has a level meter fed from its bridge's input callback; an
+    # idle direction's meter reads empty, a live one shows the stashed level.
+    panel = IntercomWindow(design_session)
+    qtbot.addWidget(panel)
+    panel._render_levels()
+    assert panel.talkMeter.value() == 0  # both idle
+    assert panel.listenMeter.value() == 0
+    # Simulate a live talk bridge whose callback measured a -20 dBFS block.
+    panel._talk._input = object()  # active() keys off an open stream
+    panel._talk.level_db = -20.0
+    panel._render_levels()
+    assert panel.talkMeter.value() > 0
+    assert "-20 dBFS" in panel.talkMeter.format()
+    assert panel.listenMeter.value() == 0  # listen still idle
+    panel._talk._input = None
+
+
 def test_visual_panel_round_trips(qtbot, design_session):
     panel = VisualWindow(design_session)
     qtbot.addWidget(panel)
