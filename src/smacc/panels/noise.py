@@ -234,7 +234,10 @@ class NoiseWindow(ModalityWindow):
         already_playing = self.noise_stream is not None
         self.play_noise()
         if not already_playing and self.noise_stream is not None:
-            self.session.emit_event("NoiseStarted")
+            # Mark at the estimated onset (about one output buffer after start).
+            self.session.emit_event(
+                "NoiseStarted", onset_offset=float(self.noise_stream.latency)
+            )
 
     def on_stop_noise_clicked(self, _checked: bool = False) -> None:
         """User pressed Stop: stop the noise and mark it (NoiseStopped)."""
@@ -264,6 +267,7 @@ class NoiseWindow(ModalityWindow):
                 samplerate=rate,
                 callback=self._noise_callback,
                 device=device,
+                latency=self.session.output_latency,
             )
             stream.start()
         except Exception as err:

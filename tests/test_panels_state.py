@@ -125,10 +125,15 @@ def test_volume_panel_round_trips_cap(qtbot, design_session, monkeypatch):
     monkeypatch.setattr(winvolume, "app_volume", lambda: None)
     panel = VolumeWindow(design_session)
     qtbot.addWidget(panel)
-    panel.apply_state({"volume_cap": 0.50})
-    assert panel.gather_state() == {"volume_cap": pytest.approx(0.50)}
-    # apply_state also drives the live session cap (read by the audio callbacks).
+    panel.apply_state({"volume_cap": 0.50, "output_latency": "low"})
+    assert panel.gather_state() == {
+        "volume_cap": pytest.approx(0.50),
+        "output_latency": "low",
+    }
+    # apply_state also drives the live session state: the cap (read by the audio
+    # callbacks) and the latency mode (read when a stimulus stream opens).
     assert design_session.volume_cap == pytest.approx(0.50)
+    assert design_session.output_latency == "low"
 
 
 def test_biocals_panel_round_trips_stack(qtbot, design_session):

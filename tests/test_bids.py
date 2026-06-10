@@ -16,6 +16,24 @@ def test_log_to_events_extracts_only_portcode_lines():
     assert [e["trial_type"] for e in events] == ["Lights off", "Note [saw a light]"]
 
 
+def test_onset_corrected_cue_counts_once_at_the_info_line():
+    # A cue/noise marker is logged twice: a DEBUG line keeping the raw software-trigger
+    # instant, and the canonical INFO "- portcode N" line stamped at the estimated
+    # onset. Only the INFO line is a portcode line, so BIDS counts the cue once — and
+    # at its onset (the INFO timestamp), not the raw trigger instant.
+    log = (
+        "2026-06-05 22:00:00.000, INFO, Opened SMACC v0.0.7\n"
+        "2026-06-05 22:00:09.978, DEBUG, Cue started: Piano: software trigger at "
+        "22:00:09.978, marker advanced +22.0 ms to estimated onset (output latency)\n"
+        "2026-06-05 22:00:10.000, INFO, Cue started: Piano - portcode 60\n"
+    )
+    events = bids.log_to_events(log)
+    assert len(events) == 1
+    assert events[0]["value"] == 60
+    assert events[0]["trial_type"] == "Cue started: Piano"
+    assert events[0]["onset"] == 10.0  # the corrected INFO time, not the raw 9.978
+
+
 def test_onset_is_relative_to_first_log_entry():
     events = bids.log_to_events(SAMPLE_LOG)
     # First event is 5.5s after the "Opened SMACC" line at 22:00:00.000.

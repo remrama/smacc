@@ -17,7 +17,7 @@ from .base import ModalityWindow, make_section_title
 
 
 class VolumeWindow(ModalityWindow):
-    """Set the master output cap and view the (read-only) Windows volume stages."""
+    """Set the master output cap + latency mode, and view the Windows volume stages."""
 
     TITLE = "Volume"
 
@@ -39,6 +39,19 @@ class VolumeWindow(ModalityWindow):
         capSpinBox.valueChanged.connect(self.set_cap)
         self.capSpinBox = capSpinBox
 
+        latencyCombo = QtWidgets.QComboBox(self)
+        latencyCombo.addItem("High — robust (default)", "high")
+        latencyCombo.addItem("Low — less delay", "low")
+        latencyCombo.setStatusTip(
+            "Output buffer for cue + noise: High is robust (fewer glitches); Low "
+            "trims marker-to-sound delay but risks underruns. Applies to the next "
+            "cue/noise played. Rarely critical for lucidity cueing — see the docs."
+        )
+        index = latencyCombo.findData(self.session.output_latency)
+        latencyCombo.setCurrentIndex(index if index >= 0 else 0)
+        latencyCombo.currentIndexChanged.connect(self.set_output_latency)
+        self.latencyCombo = latencyCombo
+
         self.endpointLabel = QtWidgets.QLabel(self)
         self.appLabel = QtWidgets.QLabel(self)
         refreshButton = QtWidgets.QPushButton("Refresh levels", self)
@@ -48,6 +61,7 @@ class VolumeWindow(ModalityWindow):
         form = QtWidgets.QFormLayout()
         form.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         form.addRow("Output safety cap:", capSpinBox)
+        form.addRow("Output latency:", self.latencyCombo)
         form.addRow("System output volume:", self.endpointLabel)
         form.addRow("SMACC app volume:", self.appLabel)
 
@@ -75,6 +89,12 @@ class VolumeWindow(ModalityWindow):
             f"Output safety cap set to {value:.2f}", debug=True
         )
 
+    def set_output_latency(self, _index: int = 0) -> None:
+        """Apply the output latency mode (used the next time a stimulus stream opens)."""
+        mode = self.latencyCombo.currentData()
+        self.session.output_latency = mode
+        self.session.log_interaction(f"Output latency set to {mode}")
+
     def refresh_levels(self) -> None:
         """Re-read the Windows endpoint + app volumes (best-effort)."""
         endpoint = winvolume.endpoint_volume()
@@ -94,8 +114,15 @@ class VolumeWindow(ModalityWindow):
         return f"{round(scalar * 100)}%" if scalar is not None else "unavailable"
 
     def gather_state(self) -> dict:
-        return {"volume_cap": self.capSpinBox.value()}
+        return {
+            "volume_cap": self.capSpinBox.value(),
+            "output_latency": self.latencyCombo.currentData(),
+        }
 
     def apply_state(self, state: dict) -> None:
         if (v := state.get("volume_cap")) is not None:
             self.capSpinBox.setValue(float(v))  # fires set_cap -> session.volume_cap
+        if (lat := state.get("output_latency")) in ("high", "low"):
+            index = self.latencyCombo.findData(lat)
+            if index >= 0:
+                self.latencyCombo.setCurrentIndex(index)  # fires set_output_latency

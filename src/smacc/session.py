@@ -14,7 +14,7 @@ import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from pylsl import StreamInfo, StreamOutlet
+from pylsl import StreamInfo, StreamOutlet, local_clock
 from PyQt6 import QtWidgets
 
 from . import bids, devices, events, hue, settings, triggers
@@ -107,6 +107,12 @@ class SmaccSession:
         # calibrated rig can't blast a sleeping participant. 1.0 == no cap. Edited in
         # the Volume window; read live by the audio threads.
         self.volume_cap = 1.0
+        # Output stream latency mode for the stimulus streams (cue + noise): "high"
+        # (PortAudio's robust default — larger buffer, fewer glitches) or "low"
+        # (smaller buffer, less marker-to-sound delay, more underrun risk). Edited in
+        # the Volume window, persisted in the study, read when a stimulus stream opens.
+        # Stimulus latency is rarely critical for lucidity cueing (see docs/latency).
+        self.output_latency = "high"
         # Soft interaction logs (volume/color/device/…) are gated off until the
         # main window finishes startup, so construction and study loads don't
         # spam the log; the window flips this on afterwards.
@@ -224,7 +230,9 @@ class SmaccSession:
         self.info = StreamInfo("MyMarkerStream", "Markers", 1, 0, "string", stream_id)
         self.outlet = StreamOutlet(self.info)
 
-    def emit_event(self, key: str, detail: str | None = None) -> None:
+    def emit_event(
+        self, key: str, detail: str | None = None, *, onset_offset: float = 0.0
+    ) -> None:
         """Route a registry event: send its marker (if triggered) and log it.
 
         ``detail`` appends a free-text suffix to the log label (e.g. a cue name).
@@ -232,6 +240,15 @@ class SmaccSession:
         the level filter) controls whether it also shows in the live preview. An
         ``increment`` event advances its code on each firing (by the per-key firing
         count), so each occurrence is individually findable in the trigger channel.
+
+        ``onset_offset`` (seconds) shifts the marker forward to the stimulus's
+        estimated physical onset. An audio cue is heard about one output buffer
+        after SMACC starts the stream, so the cue/noise panels pass that buffer
+        latency: the LSL timestamp and the INFO log line are then stamped at the
+        onset (so the marker — and the BIDS export derived from the log — tracks the
+        sound, not SMACC's buffer), while the raw software-trigger instant is kept on
+        a DEBUG line. Most events fire at ``0.0`` (marker == trigger instant); see
+        docs/latency for why this matters (and why it usually doesn't, for lucidity).
         """
         event = self.events.get(key)
         if event is None:
@@ -249,9 +266,14 @@ class SmaccSession:
         line = f"{label} - portcode {code}" if event.trigger else label
         # In design mode there is no outlet, so triggers are logged but not sent.
         # LSL and the hardware line are written back-to-back (before any pulse-down
-        # sleep) so both edges land as close together as possible.
+        # sleep) so both edges land as close together as possible. LSL is stamped at
+        # the estimated onset (now + onset_offset) so it lines up with the stimulus;
+        # the hardware TTL just fires its edge now (LSL is the timed path SMACC owns).
         if event.trigger and self.outlet is not None:
-            self.outlet.push_sample([str(code)])
+            if onset_offset > 0.0:
+                self.outlet.push_sample([str(code)], local_clock() + onset_offset)
+            else:
+                self.outlet.push_sample([str(code)])
         if event.trigger and self.trigger_out is not None:
             try:
                 self.trigger_out.send(code)
@@ -269,7 +291,50 @@ class SmaccSession:
                 self.trigger_out = None
         # Every event is written to the log file; the preview flag (+ level filter)
         # gates whether it also appears in the live log viewer.
-        self.logger.info(line, extra={"smacc_preview": event.preview})
+        if onset_offset > 0.0:
+            # Stamp the marker at its onset, and keep the raw trigger instant (and the
+            # correction applied) on a DEBUG line for audit. That DEBUG line is
+            # deliberately not a "… - portcode N" line, so the BIDS parser counts the
+            # event exactly once, at its onset.
+            raw = datetime.now()
+            self.logger.debug(
+                f"{label}: software trigger at {raw:%H:%M:%S.%f}, marker advanced "
+                f"+{onset_offset * 1000:.1f} ms to estimated onset (output latency)"
+            )
+            self._log_marker(
+                line,
+                when=raw + timedelta(seconds=onset_offset),
+                level=logging.INFO,
+                preview=event.preview,
+            )
+        else:
+            self.logger.info(line, extra={"smacc_preview": event.preview})
+
+    def _log_marker(
+        self, line: str, *, when: datetime, level: int, preview: bool
+    ) -> None:
+        """Log ``line`` stamped at ``when`` rather than at the call instant.
+
+        Records a stimulus marker at its estimated physical onset so the log — and
+        the BIDS events derived from it — line up with the stimulus, not with the
+        moment SMACC fired. Routes through the same handlers as a normal log call,
+        including the live-preview gate (``smacc_preview``).
+        """
+        record = self.logger.makeRecord(
+            self.logger.name,
+            level,
+            "(smacc)",
+            0,
+            line,
+            (),
+            None,
+            extra={"smacc_preview": preview},
+        )
+        # The formatter reads created (H:M:S) and msecs (.mmm) separately, so set both.
+        ct = when.timestamp()
+        record.created = ct
+        record.msecs = (ct - int(ct)) * 1000
+        self.logger.handle(record)
 
     def mark_recording_start(self) -> None:
         """Stamp the recording-start reference clock and emit its marker (#60).
