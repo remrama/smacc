@@ -72,7 +72,7 @@ class InputLevelMeter(LevelMeter):
         """True while the input stream is open."""
         return self._stream is not None
 
-    def start(self, device: str | None) -> None:
+    def start(self, device: int | str | None) -> None:
         """Open the input stream on ``device`` (raises on a PortAudio error).
 
         The caller surfaces any error (and reverts its toggle); this leaves the meter

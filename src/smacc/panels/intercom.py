@@ -24,7 +24,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from .. import audio, devices
 from ..dialogs import ManageChatPresetsDialog
 from ..session import SmaccSession
-from .base import ModalityWindow, describe_target, make_section_title
+from .base import ModalityWindow, describe_target, make_section_title, resolve_device
 from .chat import EXPERIMENTER, ChatPresets, ChatTranscript, post_chat_message
 
 # Cap an experimenter prompt's button label so a long standardized question doesn't
@@ -55,7 +55,9 @@ class _Bridge:
         """True while either stream is open."""
         return self._input is not None or self._output is not None
 
-    def start(self, input_device: str | None, output_device: str | None) -> None:
+    def start(
+        self, input_device: int | str | None, output_device: int | str | None
+    ) -> None:
         """Open and start the streams; raises (and tears down) on a PortAudio error."""
         try:
             in_rate = int(sd.query_devices(input_device, "input")["default_samplerate"])
@@ -305,7 +307,9 @@ class IntercomWindow(ModalityWindow):
         the participant hears). The mic is the system default input.
         """
         if enabled:
-            output = self.session.devices.device_for("intercom_talk") or None
+            output = resolve_device(
+                self.session.devices.device_for("intercom_talk"), devices.OUTPUT
+            )
             try:
                 self._talk.start(None, output)
             except Exception as exc:  # PortAudio errors, no device, busy, etc.
@@ -325,10 +329,13 @@ class IntercomWindow(ModalityWindow):
         the source, the ``intercom_listen`` route the destination.
         """
         if enabled:
-            mic = (
-                self.session.devices.device_for_role(devices.LISTEN_SOURCE_ROLE) or None
+            mic = resolve_device(
+                self.session.devices.device_for_role(devices.LISTEN_SOURCE_ROLE),
+                devices.INPUT,
             )
-            output = self.session.devices.device_for("intercom_listen") or None
+            output = resolve_device(
+                self.session.devices.device_for("intercom_listen"), devices.OUTPUT
+            )
             try:
                 self._listen.start(mic, output)
             except Exception as exc:  # PortAudio errors, no device, busy, etc.

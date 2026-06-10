@@ -35,8 +35,10 @@ def wasapi_devices(kind: str) -> list[str]:
 
     Only WASAPI devices are listed, so the bare device name is returned (no
     ", Windows WASAPI" suffix — it added nothing and is what gets persisted as a
-    role binding). sounddevice still resolves a bare name to the right device, and
-    older settings that stored the suffixed form are normalized on load (see
+    role binding). A bare name is ambiguous to sounddevice when the same hardware
+    appears under several host APIs, so stream-opening code resolves it back to
+    the WASAPI device via :func:`smacc.panels.base.resolve_device`; older settings
+    that stored the suffixed form are normalized on load (see
     :func:`smacc.devices.strip_wasapi_suffix`).
     """
     chan_key = "max_output_channels" if kind == devices.OUTPUT else "max_input_channels"

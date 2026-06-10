@@ -28,12 +28,12 @@ import sounddevice as sd
 import soundfile as sf
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from .. import audio, biocals, utils
+from .. import audio, biocals, devices, utils
 from ..paths import resolve_biocal_voice
 from ..session import SmaccSession
 from ..utils import format_elapsed
 from .audio import CueOutput
-from .base import ModalityWindow, describe_target, make_section_title
+from .base import ModalityWindow, describe_target, make_section_title, resolve_device
 
 # Rows are instances, not definitions, so a stack can repeat biocals freely; the
 # cap just keeps the window and a played sequence manageable.
@@ -42,7 +42,7 @@ MAX_BIOCAL_ROWS = 40
 _FALLBACK_RATE = 44100
 
 
-def _device_samplerate(device: str | None) -> int:
+def _device_samplerate(device: int | str | None) -> int:
     """Best output sample rate for ``device`` (WASAPI opens only at its own)."""
     try:
         return int(sd.query_devices(device, "output")["default_samplerate"])
@@ -583,13 +583,17 @@ class BiocalsWindow(ModalityWindow):
             return False
         data, rate = loaded
         self._stop_voice()  # safety: never two announcements at once
-        device = self.session.devices.device_for("cue_out") or None
+        device = resolve_device(
+            self.session.devices.device_for("cue_out"), devices.OUTPUT
+        )
         primary = self._open_output(data, rate, device)
         if primary is None:
             return False
         self._outputs = [primary]
-        monitor_device = self.session.devices.device_for("cue_monitor") or None
-        if monitor_device and monitor_device != device:
+        monitor_device = resolve_device(
+            self.session.devices.device_for("cue_monitor"), devices.OUTPUT
+        )
+        if monitor_device is not None and monitor_device != device:
             monitor = self._open_output(data, rate, monitor_device, optional=True)
             if monitor is not None:
                 self._outputs.append(monitor)
@@ -599,7 +603,7 @@ class BiocalsWindow(ModalityWindow):
         self,
         data: np.ndarray,
         file_rate: int,
-        device: str | None,
+        device: int | str | None,
         *,
         optional: bool = False,
     ) -> CueOutput | None:

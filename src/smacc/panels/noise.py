@@ -10,12 +10,13 @@ import sounddevice as sd
 import soundfile as sf
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from .. import utils
+from .. import devices, utils
 from ..session import SmaccSession
 from .base import (
     ModalityWindow,
     describe_target,
     make_section_title,
+    resolve_device,
     restore_spin_value,
 )
 
@@ -196,7 +197,7 @@ class NoiseWindow(ModalityWindow):
 
     # ----- playback ---------------------------------------------------------
 
-    def _device_samplerate(self, device: str | None) -> int:
+    def _device_samplerate(self, device: int | str | None) -> int:
         """Best output sample rate for ``device`` (WASAPI opens only at its own)."""
         try:
             return int(sd.query_devices(device, "output")["default_samplerate"])
@@ -255,7 +256,9 @@ class NoiseWindow(ModalityWindow):
         """Start streaming the selected noise (built-in color or file) on loop."""
         if self.noise_stream is not None:
             return  # already playing
-        device = self.session.devices.device_for("noise_out") or None
+        device = resolve_device(
+            self.session.devices.device_for("noise_out"), devices.OUTPUT
+        )
         rate = self._device_samplerate(device)
         try:
             buf = self._build_noise_buffer(rate)
