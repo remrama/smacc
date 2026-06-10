@@ -400,3 +400,26 @@ def test_tool_window_stays_visible_across_always_on_top_toggle(qtbot, design_ses
     panel.hide()
     panel.set_always_on_top(True)
     assert not panel.isVisible()
+
+
+def test_tool_window_file_menu_close_hides_the_window(qtbot, design_session):
+    # Every tool window carries File → Close window (Ctrl+W); closing only hides
+    # the window (the session keeps running), exactly like the title-bar X.
+    panel = NoiseWindow(design_session)
+    qtbot.addWidget(panel)
+    panel.show()
+    qtbot.waitExposed(panel)
+    close = next(
+        (
+            a
+            for a in panel.menuBar().actions()[0].menu().actions()
+            if a.text().replace("&", "") == "Close window"
+        ),
+        None,
+    )
+    assert close is not None
+    assert close.shortcut().toString() == "Ctrl+W"
+    close.trigger()
+    assert not panel.isVisible()
+    panel.show()  # reopens with its state intact, like the launcher buttons do
+    assert panel.isVisible()
