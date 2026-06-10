@@ -328,7 +328,9 @@ def _capture_session_log(session) -> list[logging.LogRecord]:
 def test_volume_panel_logs_windows_levels_on_refresh(
     qtbot, design_session, monkeypatch
 ):
-    # Each actual read of the Windows volumes is logged at INFO for reproducibility.
+    # Each actual read of the Windows volumes is logged for reproducibility — at
+    # DEBUG, per the level convention (housekeeping detail: in the file, out of the
+    # default preview).
     monkeypatch.setattr(winvolume, "endpoint_volume", lambda: 0.85)
     monkeypatch.setattr(winvolume, "app_volume", lambda: 0.50)
     panel = VolumeWindow(design_session)  # constructor calls refresh_levels() once
@@ -340,7 +342,7 @@ def test_volume_panel_logs_windows_levels_on_refresh(
     ]
     assert windows_lines, "a refresh should log the read Windows volumes"
     record = windows_lines[-1]
-    assert record.levelno == logging.INFO
+    assert record.levelno == logging.DEBUG
     assert "endpoint 85%" in record.getMessage()
     assert "SMACC mixer 50%" in record.getMessage()
 

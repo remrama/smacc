@@ -16,6 +16,15 @@
 
 * Always use [uv](https://docs.astral.sh/uv/) to run Python scripts and install
   dependencies. Never `pip install` or run naked `python`.
+* Use the marker vocabulary consistently in UI text, docs, and docstrings — *event*,
+  *marker*, *port code*, *trigger*, *transport* each mean exactly one thing; see the
+  [terminology table](triggers.md#terminology).
+* Pick log levels by the [session-log convention](reference/session-log.md#log-levels):
+  `DEBUG` for housekeeping/high-frequency detail, `INFO` for markers and meaningful
+  operator actions, `WARNING` for mid-session config changes and recoverable faults,
+  `ERROR` for faults that cost something. The file records every level, so demoting a
+  line to `DEBUG` only moves it out of the default live preview, never out of the
+  record.
 
 ## Commit and pull-request style
 
