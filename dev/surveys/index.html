@@ -567,6 +567,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Building your own">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#item-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Item types
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -893,6 +910,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Building your own">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#item-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Item types
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -972,6 +1006,26 @@ window):</p>
 </tr>
 </tbody>
 </table>
+<p><strong>Dream traits / intake</strong></p>
+<table>
+<thead>
+<tr>
+<th>Survey</th>
+<th>Full name</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MADRE</strong></td>
+<td>Mannheim Dream Questionnaire</td>
+</tr>
+</tbody>
+</table>
+<p>MADRE is a trait/intake questionnaire (dream-recall habits, attitudes, age,
+occupation), administered once at session setup rather than after each awakening —
+open it standalone from <strong>File › Surveys</strong>. It mixes response types (dropdowns,
+number and text entry, and a rating matrix), which is what motivated the typed
+items described under <a href="#building-your-own">Building your own</a>.</p>
 <p><strong>Mindfulness</strong></p>
 <table>
 <thead>
@@ -1050,16 +1104,18 @@ renders but cannot be submitted — there is no run folder to save into.</p>
 <p>The payload records the survey's key, title, and content version, the optional
 subject/session metadata, opened/submitted timestamps, the time since the
 <strong>Start recording</strong> marker (like the dream-report stamp), the linked report
-number (or <code>null</code>), the scale with its anchors, one <code>{item, response, anchor}</code>
-entry per item (unanswered items are <code>null</code>; submitting warns first), and any
-free-text notes:</p>
+number (or <code>null</code>), the shared scale with its anchors, one
+<code>{item, type, response, label}</code> entry per responding item, and any free-text
+notes. The <code>response</code> is the chosen value (or <code>null</code> for unanswered — submitting
+warns first); <code>label</code> is its human reading (the Likert anchor or the chosen
+dropdown option). Display-only headings collect nothing and are omitted:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;smacc/survey-response&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;survey&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;dlq&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;...&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">},</span>
 <span class="w">  </span><span class="nt">&quot;report_number&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;time_since_recording_start&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;02:14:09&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;responses&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="p">{</span><span class="nt">&quot;item&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;…&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;response&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;anchor&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;…&quot;</span><span class="p">}</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;item&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;…&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;likert&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;response&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;…&quot;</span><span class="p">}</span>
 <span class="w">  </span><span class="p">]</span>
 <span class="p">}</span>
 </code></pre></div>
@@ -1092,6 +1148,73 @@ whenever you change the items.</p>
 <span class="nt">items</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">I was aware that I was dreaming.</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+</code></pre></div>
+<h3 id="item-types">Item types</h3>
+<p>A bare-string item is a <strong>Likert</strong> item rated against the survey's shared
+<code>scale</code> — the original shape, and all the builder produces. Definition files can
+also mix in other item types by writing an item as a mapping with a <code>type</code>
+(this requires <code>schema_version: 2</code>; an older SMACC then refuses the file cleanly
+rather than mis-reading it):</p>
+<table>
+<thead>
+<tr>
+<th><code>type</code></th>
+<th>Renders as</th>
+<th>Extra fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>likert</code> (default)</td>
+<td>radio matrix on the shared <code>scale</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>select</code></td>
+<td>dropdown</td>
+<td><code>levels</code> (a <code>value: label</code> mapping)</td>
+</tr>
+<tr>
+<td><code>number</code></td>
+<td>number entry (blank = unanswered)</td>
+<td><code>min</code>, <code>max</code>, <code>unit</code> (all optional)</td>
+</tr>
+<tr>
+<td><code>text</code></td>
+<td>single-line text entry</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>heading</code></td>
+<td>a bold section title (collects no response)</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Any item may carry a <code>help:</code> line, shown under it (used for the definitions in
+MADRE). Consecutive Likert items collapse into one shared matrix; other types
+render as their own rows. The simple <strong>Build survey…</strong> dialog only authors plain
+Likert surveys; a survey with typed items is edited as a file (the dialog says so
+and points at the path). For a full worked example, see the bundled
+<a href="https://github.com/remrama/smacc/blob/main/src/smacc/assets/surveys/madre.yaml"><code>madre.yaml</code></a>.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">smacc/survey</span>
+<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">intake</span>
+<span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Intake</span>
+<span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Session intake</span>
+<span class="nt">scale</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">min</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="nt"> max</span><span class="p">:</span><span class="w"> </span><span class="nv">4</span><span class="p p-Indicator">,</span><span class="nt"> anchors</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">Not at all</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">Totally</span><span class="p p-Indicator">]}</span>
+<span class="nt">items</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">text</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Age</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">number</span>
+<span class="w">    </span><span class="nt">min</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="w">    </span><span class="nt">max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">120</span>
+<span class="w">    </span><span class="nt">unit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">years</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">text</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">How often do you recall your dreams?</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">select</span>
+<span class="w">    </span><span class="nt">levels</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">0</span><span class="p">:</span><span class="w"> </span><span class="nv">Never</span><span class="p p-Indicator">,</span><span class="nt"> 1</span><span class="p">:</span><span class="w"> </span><span class="nv">Sometimes</span><span class="p p-Indicator">,</span><span class="nt"> 2</span><span class="p">:</span><span class="w"> </span><span class="nv">Often</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">text</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Attitude towards dreams</span><span class="w">        </span><span class="c1"># a section title</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">heading</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">I think that dreams are meaningful.</span><span class="w">  </span><span class="c1"># a Likert item on the shared scale</span>
 </code></pre></div>
 <p>Web survey URLs, by contrast, are saved in the <code>.smacc</code> study file
 (<code>survey_options</code>) and travel with the study — see the
