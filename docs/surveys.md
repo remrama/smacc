@@ -20,19 +20,42 @@ open.
 
 ## Built-in surveys
 
-SMACC bundles three standard instruments from the lucid-dreaming literature
-(see each survey's citation, shown at the top of its window):
+SMACC bundles standard instruments from the dream and mindfulness literatures
+(where a survey's definition carries a citation, it is shown at the top of its
+window):
+
+**Dreaming & lucidity**
 
 | Survey | Full name |
 |---|---|
-| **LuCiD** | Lucidity and Consciousness in Dreams scale |
 | **DLQ** | Dream Lucidity Questionnaire |
-| **LUSK** | Lucid dreaming skills questionnaire |
+| **LuCiD** | Lucidity and Consciousness in Dreams scale |
+| **LUSK** | Lucid Dreaming Skills Questionnaire |
+| **MUSK** | Morning Lucid Dreaming Skills Questionnaire |
+| **BLA** | Baseline Lucidity Assessment |
+| **MLA** | Morning Lucidity Assessment |
+
+**Mindfulness**
+
+| Survey | Full name |
+|---|---|
+| **CAMSR** | Cognitive and Affective Mindfulness Scale - Revised |
+| **FFMQ** | Five Facet Mindfulness Questionnaire |
+| **FMI** | Freiburg Mindfulness Inventory |
+| **KIMS** | Kentucky Inventory of Mindfulness Skills |
+| **MAAS** | Mindfulness Attention Awareness Scale |
+| **MACE** | Metacognition, Affect, Cognitive Experiences Questionnaire |
+| **PHLMS** | Philadelphia Mindfulness Scale |
+| **SMAAS** | Mindfulness Attention Awareness Scale (state version) |
+| **SMS** | State Mindfulness Scale |
+| **TMS** | Toronto Mindfulness Scale |
 
 Built-ins ship with SMACC itself (they are not stored in your `.smacc` study
 file), so updates reach every install. Each survey definition carries a content
 `version` that is recorded in every response file — an analysis can always tell
-which wording a given night used.
+which wording a given night used. (For maintainers:
+[`tools/convert_survey.py`](https://github.com/remrama/smacc/blob/main/tools/convert_survey.py)
+converts legacy HTML/JSON questionnaire files into this format.)
 
 ## Using a survey
 

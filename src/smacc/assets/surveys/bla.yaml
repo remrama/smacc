@@ -1,0 +1,24 @@
+# SMACC built-in survey — YAML (see docs/surveys.md).
+kind: smacc/survey
+schema_version: 1
+key: bla
+name: BLA
+title: Baseline Lucidity Assessment
+version: '1.0'
+citation: ''
+instructions: ''
+scale:
+  min: 1
+  max: 5
+  anchors:
+  - Strongly disagree
+  - ''
+  - ''
+  - ''
+  - Strongly agree
+items:
+- I can usually remember my dreams.
+- My dreams have a lot of detail that I can often remember.
+- Sometimes I can tell that I am dreaming during a dream.
+- Sometimes I can control what happens in my dreams.
+- Sometimes I can dream about things that I have decided I want to dream about.

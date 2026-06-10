@@ -1,52 +1,60 @@
-# SMACC built-in survey — YAML. FILLER CONTENT (#114): every item, anchor,
-# instruction, and the citation below is a placeholder to be replaced with the
-# published LuCiD scale before release. Bump `version` when the content changes;
-# it is recorded in every response file.
+# SMACC built-in survey — YAML (see docs/surveys.md).
 kind: smacc/survey
 schema_version: 1
 key: lucid
 name: LuCiD
-title: Lucidity and Consciousness in Dreams scale (LuCiD)
-version: 0.0-filler
-citation: 'FILLER: add the LuCiD scale citation.'
-instructions: 'FILLER: add the LuCiD response instructions (rate each statement
-  about the dream you just reported).'
+title: Lucidity and Consciousness in Dreams scale
+version: '1.0'
+citation: doi:10.1016/j.concog.2012.11.001
+instructions: ''
 scale:
   min: 0
   max: 5
   anchors:
-  - 'FILLER anchor 0'
-  - 'FILLER anchor 1'
-  - 'FILLER anchor 2'
-  - 'FILLER anchor 3'
-  - 'FILLER anchor 4'
-  - 'FILLER anchor 5'
+  - Strongly disagree
+  - ''
+  - ''
+  - ''
+  - ''
+  - Strongly agree
 items:
-- 'FILLER: LuCiD item 1'
-- 'FILLER: LuCiD item 2'
-- 'FILLER: LuCiD item 3'
-- 'FILLER: LuCiD item 4'
-- 'FILLER: LuCiD item 5'
-- 'FILLER: LuCiD item 6'
-- 'FILLER: LuCiD item 7'
-- 'FILLER: LuCiD item 8'
-- 'FILLER: LuCiD item 9'
-- 'FILLER: LuCiD item 10'
-- 'FILLER: LuCiD item 11'
-- 'FILLER: LuCiD item 12'
-- 'FILLER: LuCiD item 13'
-- 'FILLER: LuCiD item 14'
-- 'FILLER: LuCiD item 15'
-- 'FILLER: LuCiD item 16'
-- 'FILLER: LuCiD item 17'
-- 'FILLER: LuCiD item 18'
-- 'FILLER: LuCiD item 19'
-- 'FILLER: LuCiD item 20'
-- 'FILLER: LuCiD item 21'
-- 'FILLER: LuCiD item 22'
-- 'FILLER: LuCiD item 23'
-- 'FILLER: LuCiD item 24'
-- 'FILLER: LuCiD item 25'
-- 'FILLER: LuCiD item 26'
-- 'FILLER: LuCiD item 27'
-- 'FILLER: LuCiD item 28'
+- While dreaming, I was aware of the fact that the things I was experiencing in the
+  dream were not real.
+- While dreaming, I was able to remember my intention to do certain things in the
+  dream.
+- While dreaming, I was aware that the self I experienced in my dream wasn't the same
+  as my waking self.
+- In my dream, I was able to manipulate or control other dream characters in a way
+  that would be impossible in waking.
+- While dreaming, I thought about other dream characters.
+- While dreaming I was able to successfully perform supernatural actions (like flying
+  or passing through walls).
+- The emotions I experienced in my dream were exactly the same as those I would experience
+  in such a situation during wakefulness.
+- While dreaming, I was aware of the fact that the body I experienced in the dream
+  did not correspond to my real sleeping body.
+- I was very certain that the things I was experiencing in my dream wouldn't have
+  any consequences on the real world.
+- While dreaming I was able to successfully control or change the dream environment
+  in a way that would be impossible during wakefulness.
+- While dreaming, I was myself from the outside.
+- While dreaming, I thought about my own actions.
+- While dreaming, I had the feeling that I had forgotten something important.
+- While dreaming, I was able to change or move objects (not persons) in a way that
+  would be impossible in waking.
+- While dreaming I was not myself but a completely different person.
+- While dreaming, I often asked myself whether I was dreaming.
+- The thoughts I had in my dream were exactly the same as I would have in a similar
+  situation during wakefulness.
+- While dreaming, I had the feeling that I could remember my waking life.
+- While dreaming, I was aware of the fact that other dream characters in my dream
+  were not real.
+- Most things that happened in my dream could have also happened during wakefulness.
+- I watched the dream from the outside, as if on a screen.
+- While dreaming, I often thought about the things I was experiencing.
+- I was able to influence the story line of my dreams at will/at libitum.
+- While dreaming, I was able to remember certain plans for the future.
+- While dreaming, I felt euphoric/upbeat.
+- While dreaming, I had strong negative feelings.
+- While dreaming, I had strong positive feelings.
+- While dreaming, I felt very anxious.

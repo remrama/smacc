@@ -1,0 +1,34 @@
+# SMACC built-in survey — YAML (see docs/surveys.md).
+kind: smacc/survey
+schema_version: 1
+key: mace
+name: MACE
+title: Metacognition, Affect, Cognitive Experiences Questionnaire
+version: '1.0'
+citation: ''
+instructions: ''
+scale:
+  min: 0
+  max: 4
+  anchors:
+  - none
+  - ''
+  - some
+  - ''
+  - all
+items:
+- During how much of your time did you make a choice between two or more options?
+  (e.g., I chose to finish my homework instead of going to the movies)
+- During how much of your time did you find your attention suddenly captured by something?
+  (e.g., I heard a scream behind me and I turned around to see what was happened)
+- During how much of your time did you focus for a period of time on accomplishing
+  a particular task? (e.g., I looked all over for my keys)
+- During how much of your time did you feel concerned about the impression you made,
+  how you looked, or how you appeared to others? (e.g., I was afraid I'd seem foolish
+  if I asked a question)
+- During how much of your time did you think about your own thoughts or feelings?
+  (e.g., I thought about how irrationally jealous I was feeling)
+- During how much of your time did you think about what you were doing? (e.g., I was
+  thinking I need to be careful not to spill the boiling pot)
+- During how much of your time did you think about what was happening around you?
+  (e.g., I wondered why everyone seemed to be in such a hurry)

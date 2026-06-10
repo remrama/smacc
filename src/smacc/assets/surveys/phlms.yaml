@@ -1,0 +1,41 @@
+# SMACC built-in survey — YAML (see docs/surveys.md).
+kind: smacc/survey
+schema_version: 1
+key: phlms
+name: PHLMS
+title: Philadelphia Mindfulness Scale
+version: '1.0'
+citation: ''
+instructions: ''
+scale:
+  min: 1
+  max: 5
+  anchors:
+  - Never
+  - Rarely
+  - Sometimes
+  - Often
+  - Very often
+items:
+- I am aware of what thoughts are passing through my mind.
+- I try to distract myself when I feel unpleasant emotions.
+- When talking with other people, I am aware of their facial and body expressions.
+- There are aspects of myself I don't want to think about.
+- When I shower, I am aware of how the water is running over my body.
+- I try to stay busy to keep thoughts or feelings from coming to mind.
+- When I am startled, I notice what is going on inside my body.
+- I wish I could control my emotions more easily.
+- When I walk outside, I am aware of smells or how the air feels against my face.
+- I tell myself that I shoudn't have certain thoughts.
+- When someone asks how I am feeling, I can identify my emotions easily.
+- There are things I try not to think about.
+- I am aware of thoughts I'm having when my mood changes.
+- I tell myself that I shouldn't feel sad.
+- I notice changes inside my body, like my heart beating faster or my muscles getting
+  tense.
+- If there is something I don't want to think about, I'll try many things to get it
+  out of my mind.
+- Whenever my emotions change, I am conscious of them immediately.
+- I try to put my problems out of mind.
+- When talking with other peple, I am aware of the emotions I am experiencing.
+- When I have a bad memory, I try to distract myself to make it go away.

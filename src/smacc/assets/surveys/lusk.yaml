@@ -1,32 +1,32 @@
-# SMACC built-in survey — YAML. FILLER CONTENT (#114): every item, anchor,
-# instruction, and the citation below is a placeholder to be replaced with the
-# published LUSK before release. Bump `version` when the content changes; it is
-# recorded in every response file.
+# SMACC built-in survey — YAML (see docs/surveys.md).
 kind: smacc/survey
 schema_version: 1
 key: lusk
 name: LUSK
-title: Lucid dreaming skills questionnaire (LUSK)
-version: 0.0-filler
-citation: 'FILLER: add the LUSK citation.'
-instructions: 'FILLER: add the LUSK response instructions.'
+title: Lucid Dreaming Skills Questionnaire
+version: '1.0'
+citation: ''
+instructions: In how many of your lucid dreams were you...
 scale:
   min: 0
   max: 4
   anchors:
-  - 'FILLER anchor 0'
-  - 'FILLER anchor 1'
-  - 'FILLER anchor 2'
-  - 'FILLER anchor 3'
-  - 'FILLER anchor 4'
+  - In none
+  - In a quarter
+  - In half
+  - In three quarters
+  - In all
 items:
-- 'FILLER: LUSK item 1'
-- 'FILLER: LUSK item 2'
-- 'FILLER: LUSK item 3'
-- 'FILLER: LUSK item 4'
-- 'FILLER: LUSK item 5'
-- 'FILLER: LUSK item 6'
-- 'FILLER: LUSK item 7'
-- 'FILLER: LUSK item 8'
-- 'FILLER: LUSK item 9'
-- 'FILLER: LUSK item 10'
+- '...were you aware of differences to the waking state (e.g., bizarre incidents or
+  settings)?'
+- '...were you aware that your physical body was asleep?'
+- '...were you aware that all dream objects were not real?'
+- '...did you think about different options of what you can do in a dream?'
+- '...were you able to keep your awareness for a satisfying period of time?'
+- '...did you decide deliberately to observe the dream as a dream?'
+- '...were you able to deliberately shape your environment (e.g., change landscapes/surroundings,
+  let persons/characters appear or disappear)?'
+- '...did you have full control of your dream body (movements, actions)?'
+- '...did you choose deliberately a specific action?'
+- '...were you able to perform specific actions (e.g., flying, floating, talking with
+  dream characters, perform magic, engaging in sex)?'

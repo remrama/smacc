@@ -1,0 +1,24 @@
+# SMACC built-in survey — YAML (see docs/surveys.md).
+kind: smacc/survey
+schema_version: 1
+key: mla
+name: MLA
+title: Morning Lucidity Assessment
+version: '1.0'
+citation: ''
+instructions: ''
+scale:
+  min: 1
+  max: 5
+  anchors:
+  - Strongly disagree
+  - ''
+  - ''
+  - ''
+  - Strongly agree
+items:
+- It was easy to remember my dreams.
+- I could recall most or all of the detail in my dreams.
+- I thought or knew that I was dreaming during my dreams.
+- I was able to control some or all of what happened in my dreams.
+- I dreamed about things I had decided I wanted to dream about.

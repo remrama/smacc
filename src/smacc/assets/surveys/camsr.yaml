@@ -1,0 +1,30 @@
+# SMACC built-in survey — YAML (see docs/surveys.md).
+kind: smacc/survey
+schema_version: 1
+key: camsr
+name: CAMSR
+title: Cognitive and Affective Mindfulness Scale - Revised
+version: '1.0'
+citation: ''
+instructions: ''
+scale:
+  min: 1
+  max: 4
+  anchors:
+  - Rarely/Not at all
+  - Sometimes
+  - Often
+  - Always
+items:
+- It is easy for me to concentrate on what I am doing.
+- I am preoccupied by the future.
+- I can tolerate emotional pain.
+- I can accept things I cannot change.
+- I can usually describe how I feel at the moment in considerable detail.
+- I am easily distracted.
+- I am preoccupied by the past.
+- It's easy for me to keep track of my thoughts and feelings.
+- I try to notice my thoughts without judging them.
+- I am able to accept the thoughts and feelings I have.
+- I am able to focus on the present moment.
+- I am able to pay close attention to one things for a long period of time.

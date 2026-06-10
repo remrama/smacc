@@ -1,0 +1,33 @@
+# SMACC built-in survey — YAML (see docs/surveys.md).
+kind: smacc/survey
+schema_version: 1
+key: fmi
+name: FMI
+title: Freiburg Mindfulness Inventory
+version: '1.0'
+citation: ''
+instructions: ''
+scale:
+  min: 1
+  max: 4
+  anchors:
+  - Rarely
+  - Occasionally
+  - Fairly often
+  - Almost always
+items:
+- I am open to the experience of the present moment.
+- I sense my body, whether eating, cooking, cleaning or talking.
+- When I notice an absence of mind, I gently return to the experience of the here
+  and now.
+- I am able to appreciate myself.
+- I pay attention to what's behind my actions.
+- I see my mistakes and difficulties without judging them.
+- I feel connected to my experience in the here-and-now.
+- I accept unpleasant experiences.
+- I am friendly to myself when things go wrong.
+- I watch my feelings without getting lost in them.
+- In difficult situations, I can pause without immediately reacting.
+- I experience moments of inner peace and ease, even when things get hectic and stressful.
+- I am impatient with myself and others.
+- I am able to smile when I notice how I sometimes make life difficult.
