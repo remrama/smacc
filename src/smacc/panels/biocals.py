@@ -29,7 +29,7 @@ import soundfile as sf
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import audio, biocals, utils
-from ..paths import BIOCALS_DIR
+from ..paths import resolve_biocal_voice
 from ..session import SmaccSession
 from ..utils import format_elapsed
 from .audio import CueOutput
@@ -562,7 +562,7 @@ class BiocalsWindow(ModalityWindow):
         """
         if key in self._voice_cache:
             return self._voice_cache[key]
-        path = BIOCALS_DIR / biocals.BIOCALS_BY_KEY[key].filename
+        path = resolve_biocal_voice(biocals.BIOCALS_BY_KEY[key].filename)
         try:
             data, rate = sf.read(path, dtype="float32")
         except Exception as exc:

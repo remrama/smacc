@@ -37,14 +37,27 @@ preferences_path = smacc_directory / "preferences.yaml"
 DEFAULT_SETTINGS_PATH = smacc_directory / "default.smacc"
 # Where runs go when a settings file doesn't name its own data directory.
 DEFAULT_DATA_DIR = smacc_directory / "data"
-# Biocal voice recordings, seeded from the bundled set on first run (#78). A lab
-# can replace any file with its own recording (same name) — seeding never
-# overwrites — and their presence is verified at each session start.
+# Biocal voice recordings (#78). The standard set is read straight from the
+# bundle (so it tracks the app on upgrade, #122); this folder is an optional
+# *override* — a lab drops a same-named WAV here to replace one — and is not
+# seeded, so it may not exist until a lab adds one.
 BIOCALS_DIR = smacc_directory / "biocals"
 # User-built survey definitions (#114), written by the in-app builder (or by
 # hand, same YAML format); loaded alongside the bundled built-ins. Created lazily
 # on the first build.
 SURVEYS_DIR = smacc_directory / "surveys"
+
+
+def resolve_biocal_voice(filename: str) -> Path:
+    """The biocal voice WAV to play: a lab override if present, else the bundle.
+
+    A same-named file in :data:`BIOCALS_DIR` wins (a lab's own recording);
+    otherwise the bundled copy is used directly, so the standard set needs no
+    seeding and stays current across upgrades (#122). The returned path may not
+    exist if a (custom) biocal has no recording in either place.
+    """
+    override = BIOCALS_DIR / filename
+    return override if override.is_file() else BUNDLED_BIOCALS_DIR / filename
 
 
 def is_default_settings(path: str | Path) -> bool:

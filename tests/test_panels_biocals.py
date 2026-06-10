@@ -77,9 +77,12 @@ def test_press_runs_and_press_again_cancels(qtbot, design_session):
 def test_missing_voice_skips_straight_to_the_window(
     qtbot, design_session, monkeypatch, tmp_path
 ):
-    # Voice enabled but no recording on disk: warn, then open the task window
-    # immediately — a lost WAV must never block a calibration.
-    monkeypatch.setattr("smacc.panels.biocals.BIOCALS_DIR", tmp_path)
+    # Voice enabled but no recording anywhere (override nor bundle): warn, then
+    # open the task window immediately — a lost WAV must never block a calibration.
+    monkeypatch.setattr(
+        "smacc.panels.biocals.resolve_biocal_voice",
+        lambda filename: tmp_path / filename,  # an empty dir == no recording
+    )
     panel = _make_panel(qtbot, design_session)
     records = _capture(design_session)
     row = panel.rows[0]

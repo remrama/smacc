@@ -59,9 +59,10 @@ run a session with it**; you can also (re)enable this from
 ### Audio cues
 
 SMACC seeds a few `demo-*` cue files into the default data directory's `cues/`
-folder (restored if you delete them), so there is always something to test with. You
-can also place your own sound files there — `.wav`, `.mp3`, `.flac`, `.ogg`, and
-`.aiff` are all supported.
+folder (restored if you delete them, and refreshed when you upgrade SMACC), so
+there is always something to test with. You can also place your own sound files
+there — `.wav`, `.mp3`, `.flac`, `.ogg`, and `.aiff` are all supported; only the
+`demo-` files are managed by SMACC, so your own are never touched.
 
 ### Dream report survey
 

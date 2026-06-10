@@ -84,12 +84,39 @@ def test_missing_voice_files(tmp_path):
     assert biocals.missing_voice_files(tmp_path) == []
 
 
+def test_missing_voice_files_counts_fallback_as_present(tmp_path):
+    # A recording in the fallback (bundle) dir counts as present (#122), so the
+    # override dir being empty no longer means "missing".
+    override = tmp_path / "override"
+    override.mkdir()
+    from smacc.paths import BUNDLED_BIOCALS_DIR
+
+    assert biocals.missing_voice_files(override, fallback=BUNDLED_BIOCALS_DIR) == []
+
+
 def test_bundled_voice_assets_ship_complete():
-    # The repo carries a recording for every biocal in the table (seeded to the
-    # SMACC directory on first launch); a phrase change must re-render them.
+    # The repo carries a recording for every biocal in the table (read straight
+    # from the bundle at play time); a phrase change must re-render them.
     from smacc.paths import BUNDLED_BIOCALS_DIR
 
     assert biocals.missing_voice_files(BUNDLED_BIOCALS_DIR) == []
+
+
+def test_resolve_biocal_voice_prefers_override(tmp_path, monkeypatch):
+    from smacc import paths
+
+    name = biocals.default_biocals()[0].filename
+    # With no override dir, it resolves into the bundle (a real, existing file).
+    monkeypatch.setattr(paths, "BIOCALS_DIR", tmp_path / "absent")
+    bundled = paths.resolve_biocal_voice(name)
+    assert bundled == paths.BUNDLED_BIOCALS_DIR / name
+    assert bundled.is_file()
+    # A same-named file in the override dir wins.
+    override_dir = tmp_path / "override"
+    override_dir.mkdir()
+    (override_dir / name).write_bytes(b"lab recording")
+    monkeypatch.setattr(paths, "BIOCALS_DIR", override_dir)
+    assert paths.resolve_biocal_voice(name) == override_dir / name
 
 
 # ----- the run engine ------------------------------------------------------------
