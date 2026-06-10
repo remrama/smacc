@@ -1187,8 +1187,10 @@ class SmaccWindow(ToolWindow):
             changes = []
             if old.code != event.code:
                 changes.append(f"code {old.code}->{event.code}")
-            if old.trigger != event.trigger:
-                changes.append(f"trigger {'on' if event.trigger else 'off'}")
+            if old.lsl != event.lsl:
+                changes.append(f"LSL {'on' if event.lsl else 'off'}")
+            if old.ttl != event.ttl:
+                changes.append(f"TTL {'on' if event.ttl else 'off'}")
             if old.preview != event.preview:
                 changes.append(f"preview {'on' if event.preview else 'off'}")
             if old.increment != event.increment:

@@ -233,8 +233,10 @@ class SmaccSession:
     def emit_event(
         self, key: str, detail: str | None = None, *, onset_offset: float = 0.0
     ) -> None:
-        """Route a registry event: send its marker (if triggered) and log it.
+        """Route a registry event: send its code over each routed transport, and log it.
 
+        The event's ``lsl`` and ``ttl`` flags route its code independently to the
+        LSL marker stream and the hardware TTL trigger (when one is configured).
         ``detail`` appends a free-text suffix to the log label (e.g. a cue name).
         Every event is written to the log file; the event's ``preview`` flag (with
         the level filter) controls whether it also shows in the live preview. An
@@ -263,18 +265,18 @@ class SmaccSession:
                 f"reusing {code}."
             )
         label = f"{event.label}: {detail}" if detail else event.label
-        line = f"{label} - portcode {code}" if event.trigger else label
+        line = f"{label} - portcode {code}" if event.triggered else label
         # In design mode there is no outlet, so triggers are logged but not sent.
         # LSL and the hardware line are written back-to-back (before any pulse-down
         # sleep) so both edges land as close together as possible. LSL is stamped at
         # the estimated onset (now + onset_offset) so it lines up with the stimulus;
         # the hardware TTL just fires its edge now (LSL is the timed path SMACC owns).
-        if event.trigger and self.outlet is not None:
+        if event.lsl and self.outlet is not None:
             if onset_offset > 0.0:
                 self.outlet.push_sample([str(code)], local_clock() + onset_offset)
             else:
                 self.outlet.push_sample([str(code)])
-        if event.trigger and self.trigger_out is not None:
+        if event.ttl and self.trigger_out is not None:
             try:
                 self.trigger_out.send(code)
             except Exception as exc:

@@ -19,5 +19,5 @@ def test_config_version_is_single_sourced():
 def test_default_event_codes_are_unique_ints():
     codes = [e.code for e in events.default_events()]
     assert all(isinstance(code, int) for code in codes)
-    triggered = [e.code for e in events.default_events() if e.trigger]
+    triggered = [e.code for e in events.default_events() if e.triggered]
     assert len(triggered) == len(set(triggered))  # no triggered-code collisions

@@ -130,23 +130,35 @@ def _stub_session():
 
 def test_emit_event_triggers_and_logs_with_code():
     sess, records = _stub_session()
-    sess.emit_event("REMDetected")  # default trigger=True, preview=True
+    sess.emit_event("REMDetected")  # default lsl=True, ttl=True, preview=True
     assert sess.outlet.samples == [["41"]]
     assert records == [("REM detected - portcode 41", True)]
 
 
-def test_emit_event_not_triggered_still_logs_to_file():
+def test_emit_event_not_routed_still_logs_to_file():
     sess, records = _stub_session()
-    sess.events["REMDetected"] = replace(sess.events["REMDetected"], trigger=False)
+    sess.events["REMDetected"] = replace(
+        sess.events["REMDetected"], lsl=False, ttl=False
+    )
     sess.emit_event("REMDetected")
     assert sess.outlet.samples == []  # not sent to the marker stream
     assert records == [("REM detected", True)]  # logged to file, without a portcode
 
 
+def test_emit_event_lsl_off_skips_the_stream_but_keeps_the_code():
+    # A TTL-only event never reaches the LSL outlet, but it is still a routed
+    # marker, so its log line keeps the "- portcode N" suffix for the BIDS parser.
+    sess, records = _stub_session()
+    sess.events["REMDetected"] = replace(sess.events["REMDetected"], lsl=False)
+    sess.emit_event("REMDetected")
+    assert sess.outlet.samples == []
+    assert records == [("REM detected - portcode 41", True)]
+
+
 def test_emit_event_files_but_hides_from_preview():
     sess, records = _stub_session()
-    # TriggerInitialization defaults to trigger=False, preview=False: it's written
-    # to the log file but kept out of the live preview.
+    # TriggerInitialization defaults to unrouted (lsl=False, ttl=False) and
+    # preview=False: it's written to the log file but kept out of the live preview.
     sess.emit_event("TriggerInitialization")
     assert sess.outlet.samples == []
     assert records == [("SMACC initialized", False)]
@@ -213,12 +225,29 @@ def test_emit_event_sends_code_to_hardware_transport():
     assert sess.trigger_out.sent == [41]  # and the same code goes to hardware
 
 
-def test_emit_event_not_triggered_skips_hardware():
+def test_emit_event_not_routed_skips_hardware():
     sess, _ = _stub_session()
     sess.trigger_out = _FakeTrigger()
-    sess.events["REMDetected"] = replace(sess.events["REMDetected"], trigger=False)
+    sess.events["REMDetected"] = replace(
+        sess.events["REMDetected"], lsl=False, ttl=False
+    )
     sess.emit_event("REMDetected")
-    assert sess.trigger_out.sent == []  # a non-triggered event drives neither path
+    assert sess.trigger_out.sent == []  # an unrouted event drives neither path
+
+
+def test_emit_event_routes_each_transport_independently():
+    sess, _ = _stub_session()
+    sess.trigger_out = _FakeTrigger()
+    # LSL-only: the stream fires, the hardware line stays quiet.
+    sess.events["REMDetected"] = replace(sess.events["REMDetected"], ttl=False)
+    sess.emit_event("REMDetected")
+    assert sess.outlet.samples == [["41"]]
+    assert sess.trigger_out.sent == []
+    # TTL-only: the hardware line fires, the stream stays quiet.
+    sess.events["Clapper"] = replace(sess.events["Clapper"], lsl=False)
+    sess.emit_event("Clapper")
+    assert sess.outlet.samples == [["41"]]  # unchanged
+    assert sess.trigger_out.sent == [49]
 
 
 def test_emit_event_hardware_failure_disables_transport_and_keeps_lsl():

@@ -9,7 +9,7 @@ reject YAML that wasn't written by it.
 The on-disk shape (a ``.smacc`` file is YAML text with a leading comment header)::
 
     kind: smacc/settings
-    schema_version: 2
+    schema_version: 3
     smacc_version: "0.0.7"
     metadata: {subject: "", session: "", notes: "", created: "..."}
     settings: { ...the panel state from SmaccWindow.gather_settings()... }
@@ -49,14 +49,17 @@ KIND = "smacc/settings"
 _FILE_HEADER = "# SMACC settings — YAML (.smacc). Edit with care.\n"
 
 # v1 was the first stable on-disk schema; v2 reshaped the single visual cue
-# (``blink_color``/``blink_length``) into the multi-slot ``visual_cues`` list.
+# (``blink_color``/``blink_length``) into the multi-slot ``visual_cues`` list;
+# v3 (pre-release, deliberately unmigrated) replaced each event_codes entry's
+# ``trigger`` flag with per-transport ``lsl`` + ``ttl`` routing — an older file's
+# ``trigger`` keys are ignored and the routing defaults apply.
 # Bump this when the layout changes incompatibly — and when you do, extend
 # :func:`_migrate_settings` plus the version-history table in
 # docs/reference/settings-file.md. A file carrying a higher or otherwise-unknown
 # version is rejected on load. Missing *optional* keys are not a version concern:
 # each panel/sub-block fills its own default, so a partial or hand-edited file
 # still loads.
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def build_payload(settings: dict[str, Any], metadata: dict) -> dict[str, Any]:
