@@ -2,7 +2,7 @@
 
 An overnight cueing study can run several audio streams at once: a cue in the
 bedroom, white noise in the bedroom, your voice over an intercom, the participant's
-voice coming back, a dream-report mic, and sometimes a light cue. These often span
+voice coming back, a dream-report mic, and sometimes a [light cue](visual.md). These often span
 more than one physical device and two rooms. On Windows, the same speaker can also
 appear under several names, and the level that reaches the participant is the product
 of several controls spread across the OS.

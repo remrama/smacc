@@ -6,6 +6,7 @@ which you control dream content during sleep and collect dream reports. It provi
 a simple, clickable interface and is commonly used in dream engineering research.
 
 * Trigger audio cues
+* Trigger visual cues (BlinkStick or Philips Hue)
 * Collect dream reports
 * Trigger EEG portcodes
 * Save a detailed event log
@@ -19,7 +20,8 @@ a simple, clickable interface and is commonly used in dream engineering research
 * [Installation](installation.md) — download and run SMACC.
 * [Usage](usage.md) — trigger cues, record dream reports, send portcodes, and more.
 * [Audio & routing](audio.md) — assign devices to roles, route cues/noise/intercom, and set volume.
-* [Devices](devices.md) — connect compatible hardware such as a BlinkStick.
+* [Visual cues](visual.md) — light cues on a BlinkStick or Philips Hue: patterns, timing, and safety.
+* [Devices](devices.md) — connect compatible hardware such as a BlinkStick or a Hue bridge.
 * [Contributing](contributing.md) — develop SMACC and build these docs locally.
 
 ## Used by
