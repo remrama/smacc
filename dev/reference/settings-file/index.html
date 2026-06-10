@@ -1013,7 +1013,7 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <h2 id="on-disk-shape">On-disk shape</h2>
 <div class="highlight"><pre><span></span><code><span class="c1"># SMACC settings — YAML (.smacc). Edit with care.</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">smacc/settings</span>
-<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
 <span class="nt">smacc_version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0.0.7&quot;</span>
 <span class="nt">metadata</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">subject</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;001&quot;</span>
@@ -1031,9 +1031,11 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <span class="w">  </span><span class="nt">noise_color</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">white</span>
 <span class="w">  </span><span class="nt">noise_source</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">builtin</span>
 <span class="w">  </span><span class="nt">noise_file</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
-<span class="w">  </span><span class="c1"># --- Visual cue (BlinkStick) -----------------------------------------------</span>
-<span class="w">  </span><span class="nt">blink_color</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;#ff0000&quot;</span>
-<span class="w">  </span><span class="nt">blink_length</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<span class="w">  </span><span class="c1"># --- Visual cues (BlinkStick) ------------------------------------------------</span>
+<span class="w">  </span><span class="nt">visual_cues</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Light</span><span class="nv"> </span><span class="s">1&quot;</span><span class="p p-Indicator">,</span><span class="nt"> color</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;#ff0000&quot;</span><span class="p p-Indicator">,</span><span class="nt"> brightness</span><span class="p">:</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="nt"> pattern</span><span class="p">:</span><span class="w"> </span><span class="nv">steady</span><span class="p p-Indicator">,</span><span class="nt"> rate</span><span class="p">:</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="nt"> length</span><span class="p">:</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="nt"> loop</span><span class="p">:</span><span class="w"> </span><span class="nv">false</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">visual_attack</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+<span class="w">  </span><span class="nt">visual_release</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
 <span class="w">  </span><span class="c1"># --- Survey ----------------------------------------------------------------</span>
 <span class="w">  </span><span class="nt">survey_url</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
 <span class="w">  </span><span class="nt">survey_options</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
@@ -1089,7 +1091,7 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <tr>
 <td><code>schema_version</code></td>
 <td>integer</td>
-<td>The settings schema version — currently <strong>1</strong>. Only the current version loads.</td>
+<td>The settings schema version — currently <strong>2</strong>. Older versions are upgraded on load (see <a href="#version-history">Version history</a>).</td>
 </tr>
 <tr>
 <td><code>smacc_version</code></td>
@@ -1157,14 +1159,19 @@ Any key may be omitted — each falls back to its default.</p>
 <td>The noise WAV when <code>noise_source: file</code>.</td>
 </tr>
 <tr>
-<td><code>blink_color</code></td>
-<td><code>#rrggbb</code></td>
-<td>BlinkStick colour for the visual cue.</td>
+<td><code>visual_cues</code></td>
+<td>list</td>
+<td>One entry per light slot: <code>name</code> (string), <code>color</code> (<code>#rrggbb</code>), <code>brightness</code> (0–1), <code>pattern</code> (<code>steady</code> | <code>pulse</code> | <code>flash</code>), <code>rate</code> (Hz, the pulse/flash speed), <code>length</code> (seconds; ignored while <code>loop</code>), <code>loop</code> (bool).</td>
 </tr>
 <tr>
-<td><code>blink_length</code></td>
+<td><code>visual_attack</code></td>
 <td>seconds</td>
-<td>Visual-cue blink length.</td>
+<td>Brightness fade-in applied to a starting visual cue.</td>
+</tr>
+<tr>
+<td><code>visual_release</code></td>
+<td>seconds</td>
+<td>Brightness fade-out applied to a stopping visual cue.</td>
 </tr>
 <tr>
 <td><code>survey_url</code></td>
@@ -1386,6 +1393,10 @@ folder stays valid when moved, copied, or zipped.</p>
 <tr>
 <td>1</td>
 <td>First stable schema. Envelope (<code>kind</code> / <code>schema_version</code> / <code>smacc_version</code> / <code>metadata</code> / <code>settings</code>); panel state; the <code>biocals</code>, <code>devices</code>, <code>event_codes</code> + <code>event_code_safe_max</code>, <code>trigger_output</code>, <code>data_directory</code>, <code>preview_levels</code>, <code>always_on_top</code>, and <code>tool_always_on_top</code> blocks.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>The single visual cue (<code>blink_color</code> / <code>blink_length</code>) became the multi-slot <code>visual_cues</code> list with the shared <code>visual_attack</code> / <code>visual_release</code> fades. A v1 file's blink keys load into the first slot.</td>
 </tr>
 </tbody>
 </table>

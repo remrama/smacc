@@ -853,8 +853,9 @@ devices — roles, the Devices window, and volume — see
 <a href="../audio/">Audio &amp; device routing</a>.</p>
 <h2 id="blinkstick">BlinkStick</h2>
 <p><a href="https://www.blinkstick.com/">BlinkStick</a> is a USB-controlled RGB LED device.
-SMACC uses it for <strong>visual cues</strong> — lighting up a chosen color for a set duration
-— which is handy for light-based cueing in sleep and lucid-dreaming experiments.</p>
+SMACC uses it for <strong>visual cues</strong> — lighting up a chosen color, steady or
+pulsing/flashing, for a set duration — which is handy for light-based cueing in
+sleep and lucid-dreaming experiments.</p>
 <h3 id="what-you-need">What you need</h3>
 <ul>
 <li><strong>A BlinkStick device.</strong> They are sold directly from
@@ -868,13 +869,15 @@ SMACC uses it for <strong>visual cues</strong> — lighting up a chosen color fo
 <h3 id="using-it-in-smacc">Using it in SMACC</h3>
 <ol>
 <li>Plug the BlinkStick into a USB port, then launch SMACC.</li>
-<li>Click <strong>Visual stimulation</strong> in the <em>Tools</em> column.</li>
+<li>Click <strong>Visual cue</strong> in the <em>Tools</em> column.</li>
 <li>Bind your BlinkStick to the <strong>Bedroom lights</strong> role in the <strong>Devices</strong> window (in
    the <em>Tools</em> column). Plug one in after launch and it's detected automatically,
    or choose <strong>File ▸ Refresh devices</strong> (or press <code>F5</code>) to rescan.</li>
-<li>Pick a <strong>Color</strong> and a <strong>Length</strong> (how long the light stays on, in seconds).</li>
-<li>Click <strong>Play</strong> to fire the cue; <strong>Stop</strong> turns the light off before the length
-   runs out. The rest of SMACC stays responsive while the light is on.</li>
+<li>Configure a light cue — color, brightness, pattern (steady, or a pulse/flash at
+   a rate in Hz), and length (or <strong>Loop</strong> until stopped) — and add more cues with
+   <strong>+ Add cue</strong> if the protocol needs several.</li>
+<li>Click a cue's <strong>Play</strong> to fire it; <strong>Stop</strong> turns the light off early. The rest
+   of SMACC stays responsive while the light is on.</li>
 </ol>
 <p>Your chosen device, color, and length are saved in the <code>.smacc</code> settings file (see
 <a href="../usage/#settings-files-smacc">Usage › Settings files</a>), so the visual-cue setup
@@ -882,7 +885,7 @@ travels with the rest of your configuration; the device is reconnected by name o
 the next launch (and flagged if it isn't plugged in).</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>If visual stimulation reports that no BlinkStick is set, open the <strong>Devices</strong>
+<p>If the visual cue window reports that no BlinkStick is set, open the <strong>Devices</strong>
 window and bind one to the <strong>Bedroom lights</strong> role (plug it in first; use
 <strong>File ▸ Refresh devices</strong> or <code>F5</code> if it isn't listed). No restart needed.</p>
 </div>
