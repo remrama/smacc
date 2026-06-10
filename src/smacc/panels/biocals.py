@@ -149,7 +149,8 @@ class BiocalsWindow(ModalityWindow):
         )
         self._seqHeader.clicked.connect(self._on_seq_header_clicked)
         self._voiceHeader = self._make_header_checkbox(
-            "Voice", "Announce every biocal with its voice instruction (click to toggle all)."
+            "Voice",
+            "Announce every biocal with its voice instruction (click to toggle all).",
         )
         self._voiceHeader.clicked.connect(self._on_voice_header_clicked)
         self._header_widgets: list[QtWidgets.QWidget] = [
