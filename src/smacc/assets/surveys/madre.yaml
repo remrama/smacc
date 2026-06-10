@@ -1,0 +1,153 @@
+# SMACC built-in survey — YAML (see docs/surveys.md). Mixed item types (#118):
+# demographics (number/text), per-item dropdowns (select), and the shared-scale
+# "Attitude towards dreams" matrix (likert). The 0–7 yearly-frequency scale is
+# defined once (&freq) and reused (*freq).
+kind: smacc/survey
+schema_version: 2
+key: madre
+name: MADRE
+title: Mannheim Dream Questionnaire (MADRE)
+version: '1.0'
+citation: doi:10.11588/ijodr.2014.2.16675
+instructions: ''
+scale:
+  min: 0
+  max: 4
+  anchors:
+  - Not at all
+  - Not that much
+  - Partly
+  - Somewhat
+  - Totally
+items:
+- text: Age
+  type: number
+  min: 0
+  max: 99
+  unit: years
+- text: Gender
+  type: select
+  levels:
+    0: Unspecified
+    1: Female
+    2: Male
+- text: Occupation
+  type: text
+- text: How often have you recalled your dreams recently (in the past several months)?
+  type: select
+  levels:
+    0: Never
+    1: Less than once a month
+    2: About once a month
+    3: Two or three times a month
+    4: About once a week
+    5: Several times a week
+    6: Almost every morning
+- text: How intense are your dreams emotionally?
+  type: select
+  levels:
+    0: Not at all intense
+    1: Not that intense
+    2: Somewhat intense
+    3: Quite intense
+    4: Very intense
+- text: What is the emotional tone of your dreams on average?
+  type: select
+  levels:
+    1: Very negative
+    2: Somewhat negative
+    3: Neutral
+    4: Somewhat positive
+    5: Very positive
+- text: How often have you experienced nightmares recently (in the past several months)?
+  type: select
+  help: Nightmares are dreams with strong negative emotions that result in awakening
+    from the dreams. The dream plot can be recalled very vividly upon awakening.
+  levels: &freq
+    0: Never
+    1: Less than once a year
+    2: About once a year
+    3: About two to four times a year
+    4: About once a month
+    5: Two to three times a month
+    6: About once a week
+    7: Several times a week
+- text: If you currently experience nightmares, how distressing are they to you?
+  type: select
+  levels:
+    0: Not at all distressing
+    1: Not that distressing
+    2: Somewhat distressing
+    3: Quite distressing
+    4: Very distressing
+    999: n/a
+- text: Do you experience recurring nightmares that relate to a situation that you
+    have experienced in your waking life?
+  type: select
+  levels:
+    0: 'No'
+    1: 'Yes'
+- text: How many of your nightmares are recurrent ones (in percent)?
+  type: number
+  min: 0
+  max: 100
+  unit: '%'
+- text: How often did you experience nightmares during your childhood (from 6 to 12
+    year of age)?
+  type: select
+  levels: *freq
+- text: How often do you experience so-called lucid dreams (see definition)?
+  type: select
+  help: In a lucid dream, one is aware that one is dreaming during the dream. Thus
+    it is possible to wake up deliberately, or to influence the action of the dream
+    actively, or to observe the course of the dream passively.
+  levels: *freq
+- text: If you have experienced lucid dreams, how old were you when they occurred the
+    first time?
+  type: number
+  min: 0
+  max: 100
+  unit: years
+- text: Attitude towards dreams
+  type: heading
+- How much meaning do you attribute to your dreams?
+- How strong is your interest in dreams?
+- I think that dreams are meaningful.
+- I want to know more about dreams.
+- If somebody can recall and interpret his/her dreams, his/her life will be enriched.
+- I think that dreaming is in general a very interesting phenomenon.
+- A person who reflects on her/his dreams is certainly able to learn more about her/himself.
+- Do you have the impression that dreams provide impulses or pointers for your waking
+  life?
+- text: How often do you tell your dreams to others?
+  type: select
+  levels: *freq
+- text: How often do you record your dreams?
+  type: select
+  levels: *freq
+- text: How often do your dreams affect your mood during the day?
+  type: select
+  levels: *freq
+- text: How often do your dreams give you creative ideas?
+  type: select
+  levels: *freq
+- text: How often do you experience Deja vus (see definition)?
+  type: select
+  help: During a deja vu experience one is convinced one is reliving a real-life situation
+    that was already experienced in a dream.
+  levels: *freq
+- text: Have you ever read something on the topic of dreams?
+  type: select
+  levels:
+    0: 'No'
+    1: One to two times
+    2: Several times
+- text: Did the literature about dreaming / dream interpretation help you to better
+    understand your dreams?
+  type: select
+  levels:
+    0: Not at all
+    1: Not that much
+    2: Somewhat
+    3: Quite
+    4: Very much

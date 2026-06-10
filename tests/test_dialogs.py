@@ -147,6 +147,35 @@ def test_manage_surveys_save_custom_writes_and_reloads(qtbot, tmp_path):
     assert dialog.listWidget.count() == 1
 
 
+def test_manage_surveys_guards_editing_typed_survey(qtbot, tmp_path, monkeypatch):
+    # A custom survey with typed items (#118) can't round-trip through the simple
+    # builder, so View/Edit explains that instead of opening (and mangling) it.
+    user_dir = tmp_path / "user"
+    typed = surveys.parse_survey_mapping(
+        {
+            "kind": surveys.KIND,
+            "schema_version": 2,
+            "key": "mine",
+            "name": "Mine",
+            "title": "Mine",
+            "items": [{"text": "Occupation", "type": "text"}],
+        }
+    )
+    surveys.save_survey(typed, user_dir)
+    informed = []
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox, "information", lambda *a, **k: informed.append(a)
+    )
+    monkeypatch.setattr(
+        dialogs.BuildSurveyDialog, "exec", lambda self: pytest.fail("builder opened")
+    )
+    dialog = dialogs.ManageSurveysDialog({}, tmp_path / "builtin", user_dir)
+    qtbot.addWidget(dialog)
+    dialog.listWidget.setCurrentRow(0)
+    dialog._view_or_edit_selected()  # would fail if it opened the builder
+    assert informed and dialog.files_changed is False
+
+
 # ----- BuildSurveyDialog -------------------------------------------------------
 
 
@@ -164,7 +193,9 @@ def test_build_survey_dialog_returns_validated_survey(qtbot):
     assert survey.title == "My Scale"  # defaults to the name
     assert survey.scale_min == 1 and survey.scale_max == 3
     assert survey.anchors == ("Low", "Mid", "High")
-    assert survey.items == ("First item", "Second item")
+    assert [it.text for it in survey.items] == ["First item", "Second item"]
+    assert all(it.type == surveys.LIKERT for it in survey.items)
+    assert survey.is_simple_likert  # the builder only makes shared-scale Likert
     assert survey.builtin is False
 
 
