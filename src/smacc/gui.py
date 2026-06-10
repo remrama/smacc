@@ -32,6 +32,7 @@ from .dialogs import (
 from .panels.audio import AudioCueWindow
 from .panels.base import ModalityWindow
 from .panels.biocals import BiocalsWindow
+from .panels.chat import ChatTranscript, ParticipantChatWindow
 from .panels.devices import DevicesWindow
 from .panels.events import EventsWindow
 from .panels.intercom import IntercomWindow
@@ -84,6 +85,9 @@ class SmaccWindow(ToolWindow):
         # others show a read-only indicator and resolve their device from
         # session.devices, refreshed whenever the Devices window emits ``changed``.
         self.devices_window = DevicesWindow(self.session)
+        # The text chat's conversation, shared by its two views: the experimenter's
+        # section in the Intercom panel and the participant-facing window (#92).
+        chat_transcript = ChatTranscript(self)
         self.panels: dict[str, ModalityWindow] = {
             "events": EventsWindow(self.session),
             "biocals": BiocalsWindow(self.session),
@@ -91,10 +95,16 @@ class SmaccWindow(ToolWindow):
             "audio": AudioCueWindow(self.session),
             "noise": NoiseWindow(self.session),
             "recording": RecordingWindow(self.session),
-            "intercom": IntercomWindow(self.session),
+            "intercom": IntercomWindow(self.session, chat_transcript),
+            # No launcher button (absent from PANEL_LABELS): opened via the Intercom
+            # panel's "Pass keyboard" button, which also hands it keyboard focus.
+            "chat": ParticipantChatWindow(self.session, chat_transcript),
             "devices": self.devices_window,
             "volume": VolumeWindow(self.session),
         }
+        cast(IntercomWindow, self.panels["intercom"]).open_participant_chat.connect(
+            partial(self._open_panel, "chat")
+        )
         self.devices_window.changed.connect(self._refresh_device_indicators)
         # The Devices window's Refresh button (and its F5 shortcut) runs this rescan
         # (PortAudio re-init + BlinkStick scan); it's the only entry point now.
@@ -192,7 +202,9 @@ class SmaccWindow(ToolWindow):
         label.setFont(font)
         return label
 
-    # Modality windows openable from the launcher (key -> button label).
+    # Modality windows openable from the launcher (key -> button label). Panels
+    # absent from this map get no button ("chat" opens from the Intercom panel)
+    # but keep the rest of the machinery: state, geometry, always-on-top, cleanup.
     PANEL_LABELS = {
         "events": "Event logging",
         "biocals": "Biocals",
@@ -214,7 +226,7 @@ class SmaccWindow(ToolWindow):
         "audio": "Play audio cues from a multi-slot cue board.",
         "noise": "Stream continuous background noise (colored noise or a file).",
         "recording": "Record a spoken dream report, monitor input level, open surveys.",
-        "intercom": "Talk to and listen to the participant over the intercom.",
+        "intercom": "Talk, listen, or text-chat with the participant over the intercom.",
         "devices": "Bind devices to roles and route each modality to a role.",
         "volume": "Set a master output volume safety cap.",
     }

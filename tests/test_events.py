@@ -31,6 +31,20 @@ def test_recording_started_is_a_default_manual_marker():
     assert rec.increment is False
 
 
+def test_chat_events_are_log_only_by_default():
+    # #92: a typed exchange is rapid and conversational, so neither chat direction
+    # triggers (or previews) unless a study flips it on; the codes extend the
+    # control band right after the intercom pair.
+    defs = {e.key: e for e in events.default_events()}
+    sent, received = defs["ChatMessageSent"], defs["ChatMessageReceived"]
+    assert (sent.code, received.code) == (69, 70)
+    for event in (sent, received):
+        assert event.category == "control"  # no event-grid button
+        assert event.trigger is False
+        assert event.preview is False
+        assert event.increment is False
+
+
 def test_dream_start_increments_and_others_dont():
     defs = {e.key: e for e in events.default_events()}
     start = defs["DreamReportStarted"]

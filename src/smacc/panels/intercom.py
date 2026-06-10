@@ -5,6 +5,12 @@ participant's output (``intercom_talk``), and **Listen** pipes the participant's
 (``bedroom_mic``) to the control-room output (``intercom_listen``). Each is a pair of
 single-direction streams bridged by a queue + resampler, so mismatched device rates
 are fine, and the two can run together (full duplex).
+
+Below the voice controls sits the **text chat** (#92): the experimenter's view of
+the typed channel for hearing-impaired participants, sharing a transcript with the
+participant-facing window (:mod:`smacc.panels.chat`). A section rather than a
+Voice/Text mode toggle, on purpose — voice and text run together (a participant may
+read text but reply by voice), and nothing live should hide behind an inactive tab.
 """
 
 from __future__ import annotations
@@ -12,11 +18,12 @@ from __future__ import annotations
 import queue
 
 import sounddevice as sd
-from PyQt6 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import audio, devices
 from ..session import SmaccSession
 from .base import ModalityWindow, describe_target, make_section_title
+from .chat import EXPERIMENTER, ChatTranscript, post_chat_message
 
 
 class _Bridge:
@@ -102,12 +109,26 @@ class IntercomWindow(ModalityWindow):
 
     TITLE = "Intercom"
 
-    def __init__(self, session: SmaccSession, parent: QtWidgets.QWidget | None = None):
+    # Asks the main window to show + activate the participant chat window. Routed
+    # there because activating it is also how the machine's single keyboard focus
+    # is handed to the participant (see panels/chat.py).
+    open_participant_chat = QtCore.pyqtSignal()
+
+    def __init__(
+        self,
+        session: SmaccSession,
+        transcript: ChatTranscript | None = None,
+        parent: QtWidgets.QWidget | None = None,
+    ):
         super().__init__(session, parent)
         self._talk = _Bridge()  # experimenter mic -> participant output
         self._listen = _Bridge()  # participant mic -> control-room output
         self._talk_push = False  # True while talk is held via the spacebar
+        self._transcript = (
+            transcript if transcript is not None else ChatTranscript(self)
+        )
         self.setCentralWidget(self._build())
+        self._transcript.message_posted.connect(self._append_chat_message)
         # App-wide spacebar push-to-talk works regardless of the focused window.
         app = QtWidgets.QApplication.instance()
         if app is not None:
@@ -137,6 +158,41 @@ class IntercomWindow(ModalityWindow):
         listenButton.toggled.connect(self.toggle_listen)
         self.listenButton = listenButton
 
+        # --- Text chat (#92): the experimenter's view of the typed channel -----
+        chatView = QtWidgets.QPlainTextEdit(self)
+        chatView.setReadOnly(True)
+        chatView.setMinimumHeight(120)
+        chatView.setStatusTip(
+            "The typed conversation (always recorded in the session log)."
+        )
+        self.chatView = chatView
+
+        chatEntry = QtWidgets.QLineEdit(self)
+        chatEntry.setPlaceholderText("Type to the participant…")
+        chatEntry.setStatusTip(
+            "Enter sends; Ctrl+Enter sends and passes the keyboard to the participant."
+        )
+        chatEntry.returnPressed.connect(self.send_chat_message)
+        self.chatEntry = chatEntry
+        # Ctrl+Enter = send-and-pass, only while the entry itself has focus.
+        sendAndPass = QtGui.QShortcut(QtGui.QKeySequence("Ctrl+Return"), chatEntry)
+        sendAndPass.setContext(QtCore.Qt.ShortcutContext.WidgetShortcut)
+        sendAndPass.activated.connect(self.send_and_pass_keyboard)
+
+        sendButton = QtWidgets.QPushButton("Send", self)
+        sendButton.setStatusTip("Show the typed message to the participant.")
+        sendButton.clicked.connect(self.send_chat_message)
+        entryRow = QtWidgets.QHBoxLayout()
+        entryRow.addWidget(chatEntry, 1)
+        entryRow.addWidget(sendButton)
+
+        passButton = QtWidgets.QPushButton("Pass keyboard to participant", self)
+        passButton.setStatusTip(
+            "Show the participant chat window and give it keyboard focus — the "
+            "machine has one focus, so only one side can type at a time."
+        )
+        passButton.clicked.connect(self.open_participant_chat.emit)
+
         layout = QtWidgets.QFormLayout()
         layout.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         layout.addRow(make_section_title("Intercom"))
@@ -144,9 +200,33 @@ class IntercomWindow(ModalityWindow):
         layout.addRow(talkButton)
         layout.addRow("From participant:", self.listenDeviceLabel)
         layout.addRow(listenButton)
+        layout.addRow(make_section_title("Text chat"))
+        layout.addRow(chatView)
+        layout.addRow(entryRow)
+        layout.addRow(passButton)
         central = QtWidgets.QWidget()
         central.setLayout(layout)
         return central
+
+    def send_chat_message(self) -> None:
+        """Post the typed entry to the shared transcript (logged; marker if enabled)."""
+        posted = post_chat_message(
+            self.session, self._transcript, EXPERIMENTER, self.chatEntry.text()
+        )
+        if posted is not None:
+            self.chatEntry.clear()
+
+    def send_and_pass_keyboard(self) -> None:
+        """Send the entry (if any), then hand the keyboard to the participant."""
+        self.send_chat_message()
+        self.open_participant_chat.emit()
+
+    def _append_chat_message(self, sender: str, text: str) -> None:
+        name = "You" if sender == EXPERIMENTER else "Participant"
+        self.chatView.appendPlainText(f"{name}:  {text}")
+        scrollbar = self.chatView.verticalScrollBar()
+        if scrollbar is not None:
+            scrollbar.setValue(scrollbar.maximum())
 
     def refresh_device_indicator(self) -> None:
         """Show where each direction routes (devices set in the Devices window)."""

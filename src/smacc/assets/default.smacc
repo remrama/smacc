@@ -27,6 +27,8 @@ settings:
   noise_file: ''
   survey_url: ''
   survey_options: {}
+  chat_font_size: 18
+  chat_red_text: false
   # biocal rows omitted on purpose: the stack starts with every standard biocal
   # (plus the unchecked lucid-dreaming signals); saving from the app writes the
   # configured stack back here (#78).
@@ -132,6 +134,16 @@ settings:
     code: 67
     trigger: true
     preview: true
+    increment: false
+  - key: ChatMessageSent
+    code: 69
+    trigger: false
+    preview: false
+    increment: false
+  - key: ChatMessageReceived
+    code: 70
+    trigger: false
+    preview: false
     increment: false
   - key: BiocalSequenceStarted
     code: 105
