@@ -1,15 +1,27 @@
 # Installation
 
-To install SMACC, go to the [releases page](https://github.com/remrama/smacc/releases),
-click the _Assets_ dropdown for the latest release, and download the _SMACC.exe_
-file. Once downloaded, double-clicking this file will run SMACC.
+[Download SMACC.exe](https://github.com/remrama/smacc/releases/latest/download/SMACC.exe){ .md-button .md-button--primary }
+
+The button above always downloads the latest release. (You can also browse every
+release on the [releases page](https://github.com/remrama/smacc/releases) — click the
+_Assets_ dropdown and pick _SMACC.exe_.) SMACC is a single file: once downloaded,
+double-click it to run. There is no installer.
 
 !!! note "System requirements"
     SMACC runs on 64-bit Windows 10 or later.
 
-!!! note "Administrator privileges"
+!!! warning "Windows SmartScreen — “Windows protected your PC”"
+    SMACC isn't code-signed, so the first time you run it Windows SmartScreen may show
+    a blue **“Windows protected your PC”** box. This is expected for any new,
+    unsigned program. To run SMACC anyway, click **More info**, then **Run anyway**.
+    Windows usually stops warning after the first launch.
+
+!!! note "Administrator privileges and the UAC prompt"
     For some features you will need to open SMACC with Administrator privileges
-    (right-click the file and select **Run as administrator**).
+    (right-click the file and select **Run as administrator**). Windows then shows a
+    **User Account Control (UAC)** prompt asking whether to allow the app to make
+    changes — click **Yes** to continue. For everyday use (audio cues, dream reports,
+    LSL markers) you can run SMACC normally, without administrator rights.
 
 ## Optional setup
 

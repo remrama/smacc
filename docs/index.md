@@ -15,6 +15,13 @@ a simple, clickable interface and is commonly used in dream engineering research
 <!-- Add a screenshot of the main window here once available, e.g.:
 ![SMACC main window](assets/screenshot-main.png) -->
 
+[Download SMACC.exe](https://github.com/remrama/smacc/releases/latest/download/SMACC.exe){ .md-button .md-button--primary }
+[Installation guide](installation.md){ .md-button }
+
+SMACC runs on 64-bit Windows 10 or later. The download is a single file — no
+installer. See [Installation](installation.md) if Windows SmartScreen warns about
+the unsigned download.
+
 ## Get started
 
 * [Installation](installation.md) — download and run SMACC.
