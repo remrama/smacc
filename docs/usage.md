@@ -134,14 +134,15 @@ use **+ Add** to add another instance), be reordered with **▲/▼**, and remov
 with **✕**; the stack is locked while something is running. Need a biocal SMACC
 doesn't ship? Use a custom event button in the Event logging panel instead.
 
-**Voice recordings** live in your SMACC directory's `biocals/` folder (e.g.
-`~/SMACC/biocals/`), seeded from a bundled set on first launch (generated with
-[ElevenLabs](https://elevenlabs.io) text-to-speech). Prefer another voice or
-language? Replace any file with your own recording under the same name — SMACC
-never overwrites existing files, and each session start warns about any that
-are missing (a biocal with a missing voice still runs, just unvoiced). The shared
-**Voice volume** rides the cue route, so the master output cap and the
-control-room monitor fan-out apply to instructions exactly as they do to cues.
+**Voice recordings** ship inside SMACC (generated with
+[ElevenLabs](https://elevenlabs.io) text-to-speech) and are read straight from
+the bundle, so they stay current when you upgrade. Prefer another voice or
+language? Drop your own recording under the same name in your SMACC directory's
+`biocals/` folder (e.g. `~/SMACC/biocals/`) — a file there overrides the bundled
+one. (A biocal with no recording in either place still runs, just unvoiced;
+session start warns if that happens.) The shared **Voice volume** rides the cue
+route, so the master output cap and the control-room monitor fan-out apply to
+instructions exactly as they do to cues.
 
 ## Intercom
 

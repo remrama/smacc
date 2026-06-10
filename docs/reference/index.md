@@ -24,6 +24,11 @@ from the task-oriented [Usage](../usage.md) guide.
   responses, and exports.
 - **Custom survey definitions** live in the SMACC directory's `surveys/` folder;
   built-in ones ship inside SMACC itself.
+- **Bundled assets refresh on upgrade.** `default.smacc` (a read-only template) and
+  the `demo-` cues are re-seeded from the bundle when they change, so a newer
+  SMACC's improvements reach an existing directory; your own files are untouched.
+  Biocal voice recordings are read straight from the bundle, with the SMACC
+  directory's `biocals/` folder as an optional per-recording override.
 
 ## Stability promise
 

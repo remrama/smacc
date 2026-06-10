@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from datetime import timedelta
 from pathlib import Path
 
@@ -215,6 +216,61 @@ def test_seed_demo_cues_coexists_with_user_files_and_restores(tmp_path):
     assert (cues / "mysong.wav").read_bytes() == user_bytes  # user file untouched
     assert (cues / "demo-chime.wav").exists()  # deleted demo restored
     assert kept.read_bytes() == kept_bytes  # existing demo not overwritten
+
+
+def test_seed_demo_cues_refreshes_only_demo_files(tmp_path):
+    # On upgrade (#122), a changed demo is refreshed from the bundle, but a
+    # user's same-named non-demo clip is theirs and is left alone.
+    bundled = tmp_path / "bundled"
+    bundled.mkdir()
+    rate = 8000
+    write(bundled / "demo-chord.wav", rate, utils.note(440, 1, 1e4, rate))
+    write(bundled / "ambient.wav", rate, utils.note(330, 1, 1e4, rate))
+    cues = tmp_path / "cues"
+    cues.mkdir()
+    (cues / "demo-chord.wav").write_bytes(b"stale demo")  # ours -> refreshed
+    (cues / "ambient.wav").write_bytes(b"user ambient")  # not demo- -> kept
+    utils.seed_demo_cues(cues, bundled)
+    assert (cues / "demo-chord.wav").read_bytes() == (
+        bundled / "demo-chord.wav"
+    ).read_bytes()
+    assert (cues / "ambient.wav").read_bytes() == b"user ambient"
+
+
+def test_seed_demo_cues_leaves_identical_demo_untouched(tmp_path):
+    # An unchanged demo is not rewritten, so its mtime (the ensure_wav cache key)
+    # is stable across launches.
+    bundled = tmp_path / "bundled"
+    bundled.mkdir()
+    write(bundled / "demo-chord.wav", 8000, utils.note(440, 1, 1e4, 8000))
+    cues = tmp_path / "cues"
+    cues.mkdir()
+    shutil.copy2(bundled / "demo-chord.wav", cues / "demo-chord.wav")
+    mtime = (cues / "demo-chord.wav").stat().st_mtime_ns
+    utils.seed_demo_cues(cues, bundled)
+    assert (cues / "demo-chord.wav").stat().st_mtime_ns == mtime
+
+
+def test_seed_default_settings_mirrors_bundle(tmp_path):
+    bundled = tmp_path / "default.smacc"
+    bundled.write_text("kind: smacc/settings\nschema_version: 2\n", encoding="utf-8")
+    dest = tmp_path / "out" / "default.smacc"
+    utils.seed_default_settings(dest, bundled)  # seeded when absent
+    assert dest.read_text(encoding="utf-8") == bundled.read_text(encoding="utf-8")
+    # An upgraded bundle is mirrored over the stale on-disk copy.
+    bundled.write_text("kind: smacc/settings\nschema_version: 3\n", encoding="utf-8")
+    utils.seed_default_settings(dest, bundled)
+    assert "schema_version: 3" in dest.read_text(encoding="utf-8")
+
+
+def test_seed_default_settings_no_op_when_identical(tmp_path):
+    bundled = tmp_path / "default.smacc"
+    bundled.write_text("same", encoding="utf-8")
+    dest = tmp_path / "dest.smacc"
+    utils.seed_default_settings(dest, bundled)
+    mtime = dest.stat().st_mtime_ns
+    utils.seed_default_settings(dest, bundled)  # identical: not rewritten
+    assert dest.stat().st_mtime_ns == mtime
 
 
 def test_committed_demo_assets_match_generator():

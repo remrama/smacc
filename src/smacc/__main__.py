@@ -15,8 +15,6 @@ from PyQt6.QtWidgets import QApplication, QMessageBox
 from . import preferences
 from .launcher import LauncherWindow, resolve_initial_settings
 from .paths import (
-    BIOCALS_DIR,
-    BUNDLED_BIOCALS_DIR,
     BUNDLED_CUES_DIR,
     BUNDLED_DEFAULT_SETTINGS,
     DEFAULT_DATA_DIR,
@@ -24,7 +22,7 @@ from .paths import (
     LOGO_PATH,
     preferences_path,
 )
-from .utils import seed_biocal_voices, seed_default_settings, seed_demo_cues
+from .utils import seed_default_settings, seed_demo_cues
 
 # Study-file extensions SMACC will open when launched with a file (or double-click).
 _STUDY_SUFFIXES = {".smacc"}
@@ -143,12 +141,13 @@ def main() -> None:
     # Application-wide icon (taskbar + windows).
     if LOGO_PATH.is_file():
         app.setWindowIcon(QIcon(str(LOGO_PATH)))
-    # First-run seeding (best-effort): a readable default.smacc, demo cues, and
-    # the biocal voice recordings, so there's always a working setup to open,
-    # something to play, and voiced biocals out of the box.
+    # Seed/refresh on every launch (best-effort): a readable default.smacc and
+    # the demo cues, so there's always a working setup to open and something to
+    # play — and so upgrade improvements reach existing installs (#122). Biocal
+    # voices are read straight from the bundle (with an optional per-lab override
+    # dir), so they need no seeding.
     seed_default_settings(DEFAULT_SETTINGS_PATH, BUNDLED_DEFAULT_SETTINGS)
     seed_demo_cues(DEFAULT_DATA_DIR / "cues", BUNDLED_CUES_DIR)
-    seed_biocal_voices(BIOCALS_DIR, BUNDLED_BIOCALS_DIR)
     file_arg = pick_settings_path(app.arguments())
     if file_arg:
         # A double-clicked / CLI .smacc opens straight into a session for it; the

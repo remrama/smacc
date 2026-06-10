@@ -40,7 +40,13 @@ from .panels.noise import NoiseWindow
 from .panels.recording import RecordingWindow
 from .panels.visual import VisualWindow
 from .panels.volume import VolumeWindow
-from .paths import BIOCALS_DIR, LOGO_PATH, is_default_settings, preferences_path
+from .paths import (
+    BIOCALS_DIR,
+    BUNDLED_BIOCALS_DIR,
+    LOGO_PATH,
+    is_default_settings,
+    preferences_path,
+)
 from .qtlog import QtLogHandler
 from .session import SmaccSession
 from .toolwindow import ToolWindow
@@ -844,16 +850,14 @@ class SmaccWindow(ToolWindow):
         would warn spuriously. A biocal with a missing voice still runs, just
         unvoiced, so this is a heads-up rather than a blocker.
         """
-        missing = biocals.missing_voice_files(BIOCALS_DIR)
+        missing = biocals.missing_voice_files(BIOCALS_DIR, fallback=BUNDLED_BIOCALS_DIR)
         if not missing:
             return
         items = "\n".join(f"  • {name}" for name in missing)
         self.session.show_info_popup(
             "Some biocal voice recordings are missing.",
-            f"Not found in {BIOCALS_DIR}:\n{items}\n\n"
-            "These biocals will run without their spoken instruction. Restore "
-            "the files (or relaunch SMACC to re-seed the bundled set) to "
-            "re-enable them.",
+            f"No recording (bundled or in {BIOCALS_DIR}) for:\n{items}\n\n"
+            "These biocals will run without their spoken instruction.",
             parent=self,
         )
 

@@ -302,52 +302,49 @@ def generate_demo_cues(dest_dir: Path) -> list[Path]:
 
 
 def seed_default_settings(dest_path: Path, bundled_path: Path) -> None:
-    """Copy the shipped ``default.smacc`` to ``dest_path`` if absent (best-effort).
+    """Mirror the shipped ``default.smacc`` to ``dest_path`` (best-effort).
 
     Keeps the out-of-the-box settings in a readable ``.smacc`` that doubles as an
-    example for technical users; restored if deleted. Never fatal.
+    example for technical users; restored if deleted. It is SMACC's read-only
+    template (the editor refuses to save over it), so it is refreshed from the
+    bundle whenever the on-disk copy differs — i.e. on upgrade improvements (new
+    event codes, defaults) reach existing installs (#122). Never fatal.
     """
     try:
-        if not dest_path.exists() and bundled_path.is_file():
-            dest_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(bundled_path, dest_path)
+        if not bundled_path.is_file():
+            return
+        if dest_path.exists() and dest_path.read_bytes() == bundled_path.read_bytes():
+            return
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(bundled_path, dest_path)
     except Exception:
         logging.getLogger("smacc").exception("Could not seed default settings")
 
 
-def seed_biocal_voices(biocals_dir: Path, bundled_dir: Path) -> None:
-    """Ensure the bundled biocal voice WAVs exist in ``biocals_dir`` (best-effort).
-
-    Copies any shipped recording missing from the folder; existing files are
-    never overwritten, so a lab's replacement recordings survive upgrades.
-    Unlike the demo cues there is no synthesis fallback — a file still missing
-    is surfaced at session start instead (see the Biocals window, #78).
-    """
-    try:
-        biocals_dir.mkdir(parents=True, exist_ok=True)
-        if bundled_dir.is_dir():
-            for src in sorted(bundled_dir.iterdir()):
-                dest = biocals_dir / src.name
-                if src.suffix.lower() in _WAV_SUFFIXES and not dest.exists():
-                    shutil.copy2(src, dest)
-    except Exception:
-        logging.getLogger("smacc").exception("Could not seed biocal voices")
-
-
 def seed_demo_cues(cues_dir: Path, bundled_dir: Path) -> None:
-    """Ensure the demo cues exist in ``cues_dir`` (best-effort; never fatal).
+    """Ensure the demo cues exist and are current in ``cues_dir`` (best-effort).
 
     Copies any shipped demo file missing from ``cues_dir`` (restoring a deleted
-    demo and adding bundled clips), then synthesizes any built-in demo still
-    absent. Existing files are never overwritten, so a user's own cues -- and any
-    demos they choose to keep -- are left untouched.
+    demo and adding bundled clips), and refreshes a ``demo-`` file whose content
+    has changed in a newer bundle so upgrade improvements reach existing installs
+    (#122). The ``demo-`` prefix marks SMACC's own clips, so a user's cues — and
+    any non-demo file — are never touched. Synthesizes any built-in demo that is
+    still absent (no bundle). Never fatal.
     """
     try:
         cues_dir.mkdir(parents=True, exist_ok=True)
         if bundled_dir.is_dir():
             for src in sorted(bundled_dir.iterdir()):
+                if src.suffix.lower() not in AUDIO_SUFFIXES:
+                    continue
                 dest = cues_dir / src.name
-                if src.suffix.lower() in AUDIO_SUFFIXES and not dest.exists():
+                # Refresh only our own demos; a user's same-named file is theirs.
+                refresh = (
+                    dest.exists()
+                    and src.name.startswith("demo-")
+                    and dest.read_bytes() != src.read_bytes()
+                )
+                if not dest.exists() or refresh:
                     shutil.copy2(src, dest)
         for name, synth in DEMO_CUES.items():
             dest = cues_dir / name

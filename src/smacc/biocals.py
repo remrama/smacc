@@ -360,16 +360,26 @@ def rows_from_list(loaded: Any) -> list[BiocalRow] | None:
 
 
 def missing_voice_files(
-    directory: Path, defs: Sequence[BiocalDef] | None = None
+    directory: Path,
+    defs: Sequence[BiocalDef] | None = None,
+    fallback: Path | None = None,
 ) -> list[str]:
-    """Return the (sorted) voice filenames absent from ``directory``.
+    """Return the (sorted) voice filenames absent from both dirs.
 
-    Checked once at session start so the operator learns about a failed seed or
-    a deleted file before the night begins; a biocal with a missing voice still
-    runs, just unvoiced.
+    A recording counts as present if it is in ``directory`` (a lab override) or
+    in ``fallback`` (the bundled set, #122). Checked once at session start so the
+    operator learns about a genuinely missing recording before the night begins;
+    a biocal with a missing voice still runs, just unvoiced.
     """
     table = list(defs) if defs is not None else default_biocals()
-    return sorted(b.filename for b in table if not (directory / b.filename).is_file())
+    missing = []
+    for b in table:
+        if (directory / b.filename).is_file():
+            continue
+        if fallback is not None and (fallback / b.filename).is_file():
+            continue
+        missing.append(b.filename)
+    return sorted(missing)
 
 
 # ---------------------------------------------------------------------------
