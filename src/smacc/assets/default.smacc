@@ -135,6 +135,11 @@ settings:
     trigger: true
     preview: true
     increment: false
+  - key: SurveySubmitted
+    code: 71
+    trigger: false
+    preview: true
+    increment: false
   - key: ChatMessageSent
     code: 69
     trigger: false

@@ -45,6 +45,16 @@ def test_chat_events_are_log_only_by_default():
         assert event.increment is False
 
 
+def test_survey_submitted_is_log_only_by_default():
+    """Submission (#114) is recorded but not triggered unless a study opts in."""
+    by_key = {e.key: e for e in events.default_events()}
+    submitted = by_key["SurveySubmitted"]
+    assert submitted.code == 71
+    assert submitted.trigger is False
+    assert submitted.preview is True
+    assert by_key["SurveyOpened"].trigger is True  # the open still marks the EEG
+
+
 def test_dream_start_increments_and_others_dont():
     defs = {e.key: e for e in events.default_events()}
     start = defs["DreamReportStarted"]

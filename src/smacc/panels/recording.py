@@ -3,17 +3,21 @@
 from __future__ import annotations
 
 import webbrowser
+from functools import partial
 
 import sounddevice as sd
 import soundfile as sf
 from PyQt6 import QtCore, QtWidgets
 
+from .. import surveys
 from ..config import SURVEY_OPTIONS
 from ..dialogs import ManageSurveysDialog
+from ..paths import BUNDLED_SURVEYS_DIR, SURVEYS_DIR
 from ..session import SmaccSession
 from ..utils import format_elapsed
 from .base import ModalityWindow, describe_target, make_section_title
 from .meter import InputLevelMeter
+from .survey import SurveyWindow
 
 
 class RecordingWindow(ModalityWindow):
@@ -30,6 +34,10 @@ class RecordingWindow(ModalityWindow):
     def __init__(self, session: SmaccSession, parent: QtWidgets.QWidget | None = None):
         super().__init__(session, parent)
         self.n_report_counter = 0  # cumulative counter for determining filenames
+        # In-app surveys (#114): built-ins bundled with SMACC plus the user's own,
+        # keyed by survey key; refreshed when the Manage dialog changes files.
+        self._survey_registry = self._load_survey_registry()
+        self._survey_windows: list[SurveyWindow] = []  # keep open windows alive
         self.init_recorder()
         # Built before _build(): refresh_device_indicator() (called inside _build)
         # restarts the meter, so the widget must already exist.
@@ -76,17 +84,16 @@ class RecordingWindow(ModalityWindow):
         surveyComboBox.setEditable(True)
         surveyComboBox.setInsertPolicy(QtWidgets.QComboBox.InsertPolicy.NoInsert)
         surveyComboBox.setStatusTip(
-            "Survey opened in the browser when a dream report starts. "
-            "Pick a preset or type a URL (leave blank for none)."
+            "Survey opened when a dream report starts — built-ins open in a "
+            "SMACC window, URLs in the browser (leave blank for none)."
         )
-        surveyComboBox.addItem("", "")  # Blank default == no survey.
-        for label, url in SURVEY_OPTIONS.items():
-            surveyComboBox.addItem(label, url)
         self.surveyComboBox = surveyComboBox
+        self._populate_survey_combo(SURVEY_OPTIONS)
 
-        # "Manage…" opens the add/edit/remove dialog; saved surveys persist in YAML.
+        # "Manage…" handles built-ins (view), custom surveys (build/edit), and
+        # web URLs (saved with the study).
         manageSurveysButton = QtWidgets.QPushButton("Manage…", self)
-        manageSurveysButton.setStatusTip("Add, edit, or remove saved survey URLs.")
+        manageSurveysButton.setStatusTip("View, build, or remove surveys and URLs.")
         manageSurveysButton.clicked.connect(self.manage_surveys)
         surveyRow = QtWidgets.QHBoxLayout()
         surveyRow.addWidget(surveyComboBox, 1)
@@ -131,7 +138,13 @@ class RecordingWindow(ModalityWindow):
                 self.micrecordButton.setChecked(False)  # start failed; revert
                 return
             if survey_url := self.current_survey_url():
-                self.open_survey_url(survey_url, self.surveyComboBox.currentText())
+                # Attach the survey to this report's number, so its response file
+                # is named after (and sorts beside) the report's WAV.
+                self.open_survey_url(
+                    survey_url,
+                    self.surveyComboBox.currentText(),
+                    report_number=self.n_report_counter,
+                )
             # Stamp the report with the time since the "Start recording" marker so
             # it can be found in the EEG file later (#60). With no marker yet, still
             # log the report right away, then tell the user it's untimed. When the
@@ -246,6 +259,25 @@ class RecordingWindow(ModalityWindow):
 
     # ----- survey + settings state ------------------------------------------
 
+    def _load_survey_registry(self) -> dict[str, surveys.SurveyDef]:
+        """Load the in-app surveys (bundled built-ins + the user's own)."""
+        loaded, problems = surveys.all_surveys(BUNDLED_SURVEYS_DIR, SURVEYS_DIR)
+        for problem in problems:
+            self.session.logger.warning(f"Survey file skipped: {problem}")
+        return loaded
+
+    def _populate_survey_combo(self, options: dict[str, str]) -> None:
+        """Fill the dropdown: blank, in-app surveys, then web URL presets.
+
+        In-app surveys always show (they come from definition files, not the
+        study); only the URL presets in ``options`` travel with the ``.smacc``.
+        """
+        self.surveyComboBox.addItem("", "")  # Blank default == no survey.
+        for survey in self._survey_registry.values():
+            self.surveyComboBox.addItem(survey.name, survey.url)
+        for label, url in options.items():
+            self.surveyComboBox.addItem(label, url)
+
     def current_survey_url(self) -> str:
         """Resolve the survey URL from the dropdown (preset data or typed text)."""
         data = self.surveyComboBox.currentData()
@@ -253,34 +285,85 @@ class RecordingWindow(ModalityWindow):
             return str(data)
         return self.surveyComboBox.currentText().strip()
 
-    def open_survey_url(self, url: str, name: str | None = None) -> None:
-        """Open ``url`` in the browser and log a SurveyOpened event marker.
+    def open_survey_url(
+        self, url: str, name: str | None = None, *, report_number: int | None = None
+    ) -> None:
+        """Open a survey and log a SurveyOpened event marker.
 
-        Shared by the record-start auto-open and the File → Surveys standalone
-        open, so every survey launch surfaces a marker (``name`` labels the line).
+        A ``smacc://survey/<key>`` URL opens the in-app survey window —
+        ``report_number`` links a record-start auto-open to its dream report —
+        and anything else opens in the browser. Shared by the record-start
+        auto-open and the File → Surveys standalone open, so every survey launch
+        surfaces a marker (``name`` labels the line).
         """
+        key = surveys.survey_key_from_url(url)
+        if key is not None:
+            survey = self._survey_registry.get(key)
+            if survey is None:
+                self.session.show_error_popup(
+                    "Survey not found.",
+                    f"No survey is registered for {url!r}; its file may have "
+                    "been removed. Check Manage… in the Dream-recording panel.",
+                    parent=self,
+                )
+                return
+            window = SurveyWindow(survey, self.session, report_number=report_number)
+            self._survey_windows.append(window)
+            window.finished.connect(partial(self._forget_survey_window, window))
+            window.show()
+            window.raise_()
+            self.session.emit_event("SurveyOpened", detail=name or survey.name)
+            return
         webbrowser.open(url, new=1, autoraise=False)
         self.session.emit_event("SurveyOpened", detail=name or url)
 
+    def _forget_survey_window(self, window: SurveyWindow, _result: int = 0) -> None:
+        """Drop a closed survey window from the keep-alive list."""
+        if window in self._survey_windows:
+            self._survey_windows.remove(window)
+
     def _current_survey_options(self) -> dict[str, str]:
-        """The dropdown's saved presets as a ``{name: url}`` mapping."""
+        """The dropdown's saved *web* presets as a ``{name: url}`` mapping.
+
+        In-app (``smacc://``) entries are excluded: they come from survey
+        definition files, so persisting them in the study would only go stale.
+        """
         return {
-            self.surveyComboBox.itemText(i): self.surveyComboBox.itemData(i)
+            self.surveyComboBox.itemText(i): data
             for i in range(self.surveyComboBox.count())
-            if self.surveyComboBox.itemData(i)
+            if (data := self.surveyComboBox.itemData(i))
+            and surveys.survey_key_from_url(data) is None
         }
 
-    def saved_surveys(self) -> dict[str, str]:
-        """Public view of the saved survey presets (for the File → Surveys menu)."""
-        return self._current_survey_options()
+    def available_surveys(self) -> dict[str, str]:
+        """Every offered survey as ``{name: url}`` (for the File → Surveys menu)."""
+        out = {s.name: s.url for s in self._survey_registry.values()}
+        out.update(self._current_survey_options())
+        return out
 
     def manage_surveys(self) -> None:
-        """Add/edit/remove saved surveys, then rebuild the dropdown in place."""
-        dialog = ManageSurveysDialog(self._current_survey_options(), parent=self)
-        if dialog.exec():
+        """View/build/remove surveys and URLs, then rebuild the dropdown in place.
+
+        Custom-survey file changes apply even when the dialog is cancelled (the
+        files are already written/deleted); the URL mapping applies on accept.
+        """
+        dialog = ManageSurveysDialog(
+            self._current_survey_options(),
+            builtin_dir=BUNDLED_SURVEYS_DIR,
+            user_dir=SURVEYS_DIR,
+            parent=self,
+        )
+        accepted = dialog.exec()
+        if dialog.files_changed:
+            self._survey_registry = self._load_survey_registry()
+        if accepted or dialog.files_changed:
             self._apply_survey_state(
                 {
-                    "survey_options": dialog.get_options(),
+                    "survey_options": (
+                        dialog.get_options()
+                        if accepted
+                        else self._current_survey_options()
+                    ),
                     "survey_url": self.current_survey_url(),
                 }
             )
@@ -290,9 +373,7 @@ class RecordingWindow(ModalityWindow):
         options = state.get("survey_options") or {}
         self.surveyComboBox.blockSignals(True)
         self.surveyComboBox.clear()
-        self.surveyComboBox.addItem("", "")  # Blank default == no survey.
-        for label, url in options.items():
-            self.surveyComboBox.addItem(label, url)
+        self._populate_survey_combo(options)
         self.surveyComboBox.blockSignals(False)
         survey_url = state.get("survey_url", "")
         for i in range(self.surveyComboBox.count()):
@@ -313,3 +394,5 @@ class RecordingWindow(ModalityWindow):
     def cleanup(self) -> None:
         self.levelMeter.stop()
         self._teardown_recording()
+        for window in list(self._survey_windows):
+            window.close()

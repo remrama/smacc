@@ -21,7 +21,7 @@ jobs:
           enable-cache: true
       - run: uv sync --extra dev
       - name: Build SMACC.exe
-        run: uv run pyinstaller entry.py --name SMACC --onefile --noconsole --icon src/smacc/assets/icon.ico --add-data "src/smacc/assets/icon.png;smacc/assets" --add-data "src/smacc/assets/default.smacc;smacc/assets" --add-data "src/smacc/assets/cues;smacc/assets/cues" --add-data "src/smacc/assets/biocals;smacc/assets/biocals"
+        run: uv run pyinstaller entry.py --name SMACC --onefile --noconsole --icon src/smacc/assets/icon.ico --add-data "src/smacc/assets/icon.png;smacc/assets" --add-data "src/smacc/assets/default.smacc;smacc/assets" --add-data "src/smacc/assets/cues;smacc/assets/cues" --add-data "src/smacc/assets/biocals;smacc/assets/biocals" --add-data "src/smacc/assets/surveys;smacc/assets/surveys"
       - name: Attach exe to release
         uses: softprops/action-gh-release@v2
         with:

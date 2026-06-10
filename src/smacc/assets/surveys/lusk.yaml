@@ -1,0 +1,32 @@
+# SMACC built-in survey — YAML. FILLER CONTENT (#114): every item, anchor,
+# instruction, and the citation below is a placeholder to be replaced with the
+# published LUSK before release. Bump `version` when the content changes; it is
+# recorded in every response file.
+kind: smacc/survey
+schema_version: 1
+key: lusk
+name: LUSK
+title: Lucid dreaming skills questionnaire (LUSK)
+version: 0.0-filler
+citation: 'FILLER: add the LUSK citation.'
+instructions: 'FILLER: add the LUSK response instructions.'
+scale:
+  min: 0
+  max: 4
+  anchors:
+  - 'FILLER anchor 0'
+  - 'FILLER anchor 1'
+  - 'FILLER anchor 2'
+  - 'FILLER anchor 3'
+  - 'FILLER anchor 4'
+items:
+- 'FILLER: LUSK item 1'
+- 'FILLER: LUSK item 2'
+- 'FILLER: LUSK item 3'
+- 'FILLER: LUSK item 4'
+- 'FILLER: LUSK item 5'
+- 'FILLER: LUSK item 6'
+- 'FILLER: LUSK item 7'
+- 'FILLER: LUSK item 8'
+- 'FILLER: LUSK item 9'
+- 'FILLER: LUSK item 10'

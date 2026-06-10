@@ -10,6 +10,8 @@ from the task-oriented [Usage](../usage.md) guide.
 | [`preferences.yaml`](preferences-file.md) | Per-machine operator preferences | YAML | `schema_version: 1` |
 | [Session `.log`](session-log.md) | The per-run record (events + settings) | Text | — |
 | [BIDS export](bids-export.md) | `events.tsv` + JSON sidecar | TSV / JSON | follows BIDS |
+| [Survey definition](../surveys.md) | An in-app survey (built-in or custom) | YAML | `schema_version: 1` |
+| [Survey response](../surveys.md#response-files) | One administration's answers | JSON | — |
 
 ## Where each file lives
 
@@ -18,7 +20,10 @@ from the task-oriented [Usage](../usage.md) guide.
 - A **`.smacc`** can live anywhere; it names the **data directory** its runs are
   written to.
 - Each **run** gets its own timestamped folder (`smacc-YYYYmmdd-HHMMSS/`) under that
-  data directory, holding the session `.log`, any dream-report audio, and exports.
+  data directory, holding the session `.log`, any dream-report audio, survey
+  responses, and exports.
+- **Custom survey definitions** live in the SMACC directory's `surveys/` folder;
+  built-in ones ship inside SMACC itself.
 
 ## Stability promise
 

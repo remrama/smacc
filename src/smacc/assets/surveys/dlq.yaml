@@ -1,0 +1,35 @@
+# SMACC built-in survey — YAML. FILLER CONTENT (#114): every item, anchor,
+# instruction, and the citation below is a placeholder to be replaced with the
+# published DLQ before release. Bump `version` when the content changes; it is
+# recorded in every response file.
+kind: smacc/survey
+schema_version: 1
+key: dlq
+name: DLQ
+title: Dream Lucidity Questionnaire (DLQ)
+version: 0.0-filler
+citation: 'FILLER: add the DLQ citation.'
+instructions: 'FILLER: add the DLQ response instructions (rate each statement
+  about the dream you just reported).'
+scale:
+  min: 0
+  max: 4
+  anchors:
+  - 'FILLER anchor 0'
+  - 'FILLER anchor 1'
+  - 'FILLER anchor 2'
+  - 'FILLER anchor 3'
+  - 'FILLER anchor 4'
+items:
+- 'FILLER: DLQ item 1'
+- 'FILLER: DLQ item 2'
+- 'FILLER: DLQ item 3'
+- 'FILLER: DLQ item 4'
+- 'FILLER: DLQ item 5'
+- 'FILLER: DLQ item 6'
+- 'FILLER: DLQ item 7'
+- 'FILLER: DLQ item 8'
+- 'FILLER: DLQ item 9'
+- 'FILLER: DLQ item 10'
+- 'FILLER: DLQ item 11'
+- 'FILLER: DLQ item 12'

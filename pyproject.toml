@@ -83,7 +83,7 @@ version = { attr = "smacc.__version__" }
 where = ["src"]
 
 [tool.setuptools.package-data]
-smacc = ["assets/*", "assets/biocals/*", "assets/cues/*"]
+smacc = ["assets/*", "assets/biocals/*", "assets/cues/*", "assets/surveys/*"]
 
 [tool.ruff]
 target-version = "py312"

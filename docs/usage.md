@@ -85,12 +85,15 @@ with the time elapsed since you pressed **Start recording** (in the Event loggin
 panel), so it is easy to locate in the EEG file; if recording has not been marked
 yet, the report is still logged and SMACC reminds you to mark it.
 
-Surveys (e.g. a dream-report questionnaire on Qualtrics or REDCap) open in your
-browser. Manage your saved surveys with the **Manage…** button next to the survey
-dropdown — each has a name and URL and is stored in your settings YAML. Select one
-in the dropdown to open it automatically when recording starts, or open any saved
-survey on its own from **File &rsaquo; Surveys** (each open is logged as a
-`SurveyOpened` event).
+Surveys can follow a report two ways: **in-app surveys** (the bundled LuCiD, DLQ,
+and LUSK instruments, plus any you build) open in a SMACC window and save their
+responses into the run folder next to the report; **web surveys** (e.g. a
+questionnaire on Qualtrics or REDCap, added by URL) open in your browser. Manage
+both with the **Manage…** button next to the survey dropdown. Select a survey in
+the dropdown to open it automatically when recording starts, or open any survey
+on its own from **File &rsaquo; Surveys** (each open is logged as a
+`SurveyOpened` event). See [Surveys](surveys.md) for the bundled instruments,
+the response-file format, and building your own.
 
 ## Biocals
 
