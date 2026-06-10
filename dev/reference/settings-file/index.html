@@ -412,6 +412,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../latency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Latency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../devices/" class="md-nav__link">
         
   
@@ -476,10 +503,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
         
           
-          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
             
   
   
@@ -497,8 +524,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_8">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1093,8 +1120,9 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <span class="w">    </span><span class="nt">voice_volume</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.5</span>
 <span class="w">    </span><span class="nt">rows</span><span class="p">:</span>
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">biocal</span><span class="p">:</span><span class="w"> </span><span class="nv">eyes_open</span><span class="p p-Indicator">,</span><span class="nt"> sequence</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> voice</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> duration</span><span class="p">:</span><span class="w"> </span><span class="nv">30</span><span class="p p-Indicator">}</span>
-<span class="w">  </span><span class="c1"># --- Output safety cap -----------------------------------------------------</span>
+<span class="w">  </span><span class="c1"># --- Output cap + latency --------------------------------------------------</span>
 <span class="w">  </span><span class="nt">volume_cap</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<span class="w">  </span><span class="nt">output_latency</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high</span>
 <span class="w">  </span><span class="c1"># --- Device roles + routing ------------------------------------------------</span>
 <span class="w">  </span><span class="nt">devices</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">bindings</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
@@ -1240,6 +1268,11 @@ Any key may be omitted — each falls back to its default.</p>
 <td><code>volume_cap</code></td>
 <td>0–1</td>
 <td>Master output safety cap multiplied into every stimulus (<code>1.0</code> = no cap).</td>
+</tr>
+<tr>
+<td><code>output_latency</code></td>
+<td><code>high</code> | <code>low</code></td>
+<td>Output buffer for the cue + noise streams: <code>high</code> is robust (default), <code>low</code> trims marker-to-sound delay where the device allows it (often unchanged on shared-mode WASAPI). See <a href="../../latency/">Latency</a>.</td>
 </tr>
 </tbody>
 </table>

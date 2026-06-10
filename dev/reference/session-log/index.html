@@ -412,6 +412,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../latency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Latency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../devices/" class="md-nav__link">
         
   
@@ -476,10 +503,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
         
           
-          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
             
   
   
@@ -497,8 +524,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_8">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -667,6 +694,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Line format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stimulus-marker-timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stimulus marker timing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -786,6 +830,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Line format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stimulus-marker-timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stimulus marker timing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -845,6 +906,18 @@ and two embedded snapshots of the full settings the run used. The study <em>desi
 just <code>"{label}"</code> when it does not. The code-to-event map is the study's
 <a href="../settings-file/#event_codes"><code>event_codes</code></a> registry; see the
 <a href="../../triggers/#default-event-codes">default code catalog</a>.</p>
+<h3 id="stimulus-marker-timing">Stimulus marker timing</h3>
+<p>Most markers are stamped when SMACC fires them. <strong>Audio cue and noise</strong> markers are
+the exception: their timestamp — in the log line <em>and</em> the LSL stream — is the
+<em>estimated onset</em> (the fire time plus the output stream's reported latency), so the
+marker lines up with the sound rather than SMACC's buffer (see
+<a href="../../latency/">Latency</a>). The raw software-trigger instant rides alongside on a
+<code>DEBUG</code> line:</p>
+<div class="highlight"><pre><span></span><code>2026-06-09 22:18:30.858, DEBUG, Cue started: Piano cue: software trigger at 22:18:30.858, marker advanced +22.0 ms to estimated onset (output latency)
+2026-06-09 22:18:30.880, INFO, Cue started: Piano cue - portcode 60
+</code></pre></div>
+<p>That <code>DEBUG</code> line is deliberately <strong>not</strong> a <code>" - portcode N"</code> line, so the
+<a href="../bids-export/">BIDS export</a> counts the event once, at its onset.</p>
 <h2 id="embedded-settings-blocks">Embedded settings blocks</h2>
 <p>The log carries the <strong>complete settings the run used</strong>, so a session stays
 self-documenting even if the study file later changes. The block is the same payload
