@@ -95,6 +95,30 @@ place, so every event you log is sent the same way over every enabled path.
     Enabling a hardware transport does **not** turn LSL off — you always get the LSL
     marker stream as well. The hardware path is purely additional.
 
+### What is the baud rate?
+
+For the **serial (USB trigger box)** transport you also set a **baud rate** — the
+speed, in bits per second, at which SMACC talks to the box over its COM port. It is a
+property of the *serial link*, not of the trigger codes: the same 8-bit code (1–255)
+is sent either way; baud only controls how fast that byte goes out.
+
+The one rule that matters is that **both ends must use the same baud rate.** Your box
+is configured (by a switch, firmware, or its manual) to expect a specific rate, and
+SMACC has to match it — a mismatch produces garbled or missed triggers, not an error.
+
+* **Where to find it:** check your trigger box's manual or its configuration utility.
+  Common rates are 9600, 19200, 38400, 57600, **115200**, and 230400.
+* **SMACC's default is 115200**, which many modern USB trigger boxes (e.g. typical
+  BrainProducts/Neurospec-style adapters) use out of the box. If yours specifies a
+  different rate, pick it from the dropdown (or type any other value).
+* **Higher isn't "better."** A faster rate shaves only microseconds off a one-byte
+  write, which is negligible next to audio/event timing — so choose the rate your box
+  expects rather than the largest one.
+
+If triggers don't register, a wrong baud rate is one of the first things to check
+(alongside the COM port and the [pulsed vs. set-and-hold](#pulsed-vs-set-and-hold)
+mode).
+
 ## Pulsed vs. set-and-hold
 
 Amplifiers and trigger boxes differ in how they expect the code to appear on the
@@ -120,8 +144,10 @@ register cleanly.
 2. Tick **Enable hardware trigger output**.
 3. Choose a **Transport**:
     * **Serial** — pick your box's **Port** from the dropdown (click **Refresh** if
-      you plugged it in after opening the dialog) and set the **Baud** rate. If the
-      rig isn't attached right now, you can type the port name (e.g. `COM3`) directly.
+      you plugged it in after opening the dialog) and set the **Baud** rate to match
+      your box (see [What is the baud rate?](#what-is-the-baud-rate); SMACC defaults to
+      115200). If the rig isn't attached right now, you can type the port name (e.g.
+      `COM3`) directly.
     * **Parallel port** — enter the **Address** as hex (see
       [Finding your parallel-port address](#finding-your-parallel-port-address)).
 4. Choose a **Mode** (pulsed or set-and-hold) and, for pulsed, a **Pulse width**.
