@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 from PyQt6 import QtWidgets
 
-from smacc import config, dialogs, events, triggers
+from smacc import config, dialogs, events, surveys, triggers
 
 # ----- ask_initial_or_final --------------------------------------------------
 
@@ -78,6 +78,124 @@ def test_manage_surveys_remove_selected(qtbot):
     dialog.listWidget.setCurrentRow(0)
     dialog._remove_selected()
     assert dialog.get_options() == {"Pre survey": "https://b.example"}
+
+
+def _demo_survey(name="Demo", key="demo"):
+    return surveys.parse_survey_mapping(
+        {
+            "kind": surveys.KIND,
+            "schema_version": 1,
+            "key": key,
+            "name": name,
+            "title": f"{name} survey",
+            "scale": {"min": 0, "max": 2, "anchors": []},
+            "items": ["First item", "Second item"],
+        }
+    )
+
+
+def test_manage_surveys_lists_files_and_persists_urls_only(qtbot, tmp_path):
+    builtin_dir = tmp_path / "builtin"
+    user_dir = tmp_path / "user"
+    surveys.save_survey(_demo_survey(), builtin_dir)
+    options = {"Post survey": "https://a.example"}
+    dialog = dialogs.ManageSurveysDialog(options, builtin_dir, user_dir)
+    qtbot.addWidget(dialog)
+    assert dialog.listWidget.count() == 2  # the built-in row + the URL row
+    assert dialog.get_options() == options  # file-backed rows never persist
+    assert dialog.files_changed is False
+
+
+def test_manage_surveys_builtin_cannot_be_removed(qtbot, tmp_path, monkeypatch):
+    builtin_dir = tmp_path / "builtin"
+    path = surveys.save_survey(_demo_survey(), builtin_dir)
+    informed = []
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox, "information", lambda *a, **k: informed.append(a)
+    )
+    dialog = dialogs.ManageSurveysDialog({}, builtin_dir, tmp_path / "user")
+    qtbot.addWidget(dialog)
+    dialog.listWidget.setCurrentRow(0)
+    dialog._remove_selected()
+    assert informed and path.is_file() and dialog.files_changed is False
+
+
+def test_manage_surveys_remove_custom_deletes_file(qtbot, tmp_path, monkeypatch):
+    user_dir = tmp_path / "user"
+    path = surveys.save_survey(_demo_survey(), user_dir)
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox,
+        "question",
+        lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes,
+    )
+    dialog = dialogs.ManageSurveysDialog({}, tmp_path / "builtin", user_dir)
+    qtbot.addWidget(dialog)
+    dialog.listWidget.setCurrentRow(0)
+    dialog._remove_selected()
+    assert not path.exists()
+    assert dialog.files_changed is True
+    assert dialog.listWidget.count() == 0
+
+
+def test_manage_surveys_save_custom_writes_and_reloads(qtbot, tmp_path):
+    user_dir = tmp_path / "user"
+    dialog = dialogs.ManageSurveysDialog({}, tmp_path / "builtin", user_dir)
+    qtbot.addWidget(dialog)
+    dialog._save_custom(_demo_survey(name="Mine", key="mine"))
+    assert (user_dir / "mine.yaml").is_file()
+    assert dialog.files_changed is True
+    assert dialog.listWidget.count() == 1
+
+
+# ----- BuildSurveyDialog -------------------------------------------------------
+
+
+def test_build_survey_dialog_returns_validated_survey(qtbot):
+    dialog = dialogs.BuildSurveyDialog(existing_keys=("demo",))
+    qtbot.addWidget(dialog)
+    dialog.nameEdit.setText("My Scale")
+    dialog.minSpin.setValue(1)
+    dialog.maxSpin.setValue(3)
+    dialog.anchorsEdit.setPlainText("Low\nMid\nHigh")
+    dialog.itemsEdit.setPlainText("First item\n\nSecond item\n")
+    dialog._on_accept()
+    survey = dialog.get_survey()
+    assert survey.key == "my-scale"
+    assert survey.title == "My Scale"  # defaults to the name
+    assert survey.scale_min == 1 and survey.scale_max == 3
+    assert survey.anchors == ("Low", "Mid", "High")
+    assert survey.items == ("First item", "Second item")
+    assert survey.builtin is False
+
+
+def test_build_survey_dialog_rejects_anchor_mismatch(qtbot, monkeypatch):
+    warned = []
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox, "warning", lambda *a, **k: warned.append(a)
+    )
+    dialog = dialogs.BuildSurveyDialog()
+    qtbot.addWidget(dialog)
+    dialog.nameEdit.setText("Broken")
+    dialog.anchorsEdit.setPlainText("only\ntwo")  # 0..4 needs five
+    dialog.itemsEdit.setPlainText("An item")
+    dialog._on_accept()
+    assert warned
+    assert dialog.result() != QtWidgets.QDialog.DialogCode.Accepted
+
+
+def test_build_survey_dialog_edit_keeps_key_and_dodges_taken_keys(qtbot):
+    edited = dialogs.BuildSurveyDialog(_demo_survey(name="Demo", key="demo"))
+    qtbot.addWidget(edited)
+    edited.nameEdit.setText("Renamed Demo")
+    edited._on_accept()
+    assert edited.get_survey().key == "demo"  # key is stable across renames
+
+    fresh = dialogs.BuildSurveyDialog(existing_keys=("fresh",))
+    qtbot.addWidget(fresh)
+    fresh.nameEdit.setText("Fresh")
+    fresh.itemsEdit.setPlainText("An item")
+    fresh._on_accept()
+    assert fresh.get_survey().key == "fresh-2"
 
 
 # ----- ManageChatPresetsDialog (#112) ----------------------------------------

@@ -65,12 +65,13 @@ can also place your own sound files there — `.wav`, `.mp3`, `.flac`, `.ogg`, a
 
 ### Dream report survey
 
-The **Record Dream Report** button can optionally pop open a survey URL — for
-example a dream-report survey hosted on Qualtrics or REDCap. Add surveys from the
-Dream-recording panel's **Manage…** button (each has a name and a URL); they are
-saved to your settings YAML and restored next session. Pick one from the survey
-dropdown to open it automatically when recording starts, or open any saved survey
-on its own from **File &rsaquo; Surveys**.
+The **Record Dream Report** button can optionally pop open a survey — one of the
+built-in dream questionnaires (opened in a SMACC window, responses saved into the
+run folder) or a survey URL hosted on e.g. Qualtrics or REDCap (opened in the
+browser). Manage them from the Dream-recording panel's **Manage…** button; saved
+URLs persist in your settings YAML. Pick one from the survey dropdown to open it
+automatically when recording starts, or open any survey on its own from
+**File &rsaquo; Surveys**. See [Surveys](surveys.md).
 
 ### Recording device
 

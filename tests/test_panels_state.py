@@ -106,6 +106,22 @@ def test_recording_panel_round_trips_surveys(qtbot, design_session):
     assert got["survey_options"] == {"Post survey": "https://survey.example/post"}
 
 
+def test_recording_panel_offers_builtin_surveys_without_persisting_them(
+    qtbot, design_session
+):
+    """Built-ins (#114) show in the dropdown and menu but never enter the study."""
+    panel = RecordingWindow(design_session)
+    qtbot.addWidget(panel)
+    available = panel.available_surveys()
+    assert available.get("DLQ") == "smacc://survey/dlq"
+    # Selecting a built-in persists as the chosen survey_url…
+    panel.apply_state({"survey_url": "smacc://survey/dlq", "survey_options": {}})
+    got = panel.gather_state()
+    assert got["survey_url"] == "smacc://survey/dlq"
+    # …but built-ins stay out of the persisted preset mapping.
+    assert got["survey_options"] == {}
+
+
 def test_intercom_panel_round_trips_chat_presets(qtbot, design_session):
     # The Intercom panel persists the shared chat quick-reply presets (#112).
     panel = IntercomWindow(design_session)

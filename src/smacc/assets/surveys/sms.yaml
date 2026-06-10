@@ -1,0 +1,43 @@
+# SMACC built-in survey — YAML (see docs/surveys.md).
+kind: smacc/survey
+schema_version: 1
+key: sms
+name: SMS
+title: State Mindfulness Scale
+version: '1.0'
+citation: ''
+instructions: ''
+scale:
+  min: 1
+  max: 5
+  anchors:
+  - Not at all
+  - ''
+  - ''
+  - ''
+  - Very well
+items:
+- I was aware of different emotions that arose in me.
+- I tried to pay attention to pleasant and unpleasant sensations.
+- I found some of my experiences interesting.
+- I noticed many small details of my experience.
+- I felt aware of what was happening inside of me.
+- I noticed various sounds (e.g., sounds in the room, sound of my own breathing).
+- I noticed pleasant and unpleasant emotions.
+- I actively explored my experience in the moment.
+- I clearly physically felt what was going on in my body.
+- I changed my body posture and paid attention to the physical process of moving.
+- I noticed a thought that came into my mind and then that it passed.
+- I felt that I was experiencing the present moment fully.
+- I noticed pleasant and unpleasant thoughts.
+- I noticed emotions come and go.
+- I noticed various sensations caused by my surroundings (e.g., heat, coolness, the
+  wind on my face).
+- I noticed physical sensations come and go.
+- I had moments when I felt alert and aware.
+- I felt closely connected to the present moment.
+- I noticed thoughts come and go.
+- I felt in contact with my body.
+- I was aware of what was going on in my mind.
+- It was interesting to see the patterns of my thinking.
+- I noticed some pleasant and unpleasant physical sensations.

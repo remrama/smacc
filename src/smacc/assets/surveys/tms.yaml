@@ -1,0 +1,39 @@
+# SMACC built-in survey — YAML (see docs/surveys.md).
+kind: smacc/survey
+schema_version: 1
+key: tms
+name: TMS
+title: Toronto Mindfulness Scale
+version: '1.0'
+citation: ''
+instructions: ''
+scale:
+  min: 0
+  max: 4
+  anchors:
+  - Not at all
+  - A little
+  - Moderately
+  - Quite a bit
+  - Very much
+items:
+- I experienced myself as separate from my changing thoughts and feelings.
+- I was more concerned with being open to my experiences than controlling or changing
+  them.
+- I was curious about what I might learn about myself by taking notice of how I react
+  to certain thoughts, feelings or sensations.
+- I experienced my thoughts more as events in my mind than as a necessarily accurate
+  reflection of the way things 'really' are.
+- I was curious to see what my mind was up to from moment to moment.
+- I was curious about each of the thoughts and feelings that I was having.
+- I was receptive to observing unpleasant thoughts and feelings without interfering
+  with them.
+- I was more invested in just watching my experiences as they arose, than in figuring
+  out what they could mean.
+- I approached each experience by trying to accept it, no matter whether it was pleasant
+  or unpleasant.
+- I remained curious about the nature of each experience as it arose.
+- I was aware of my thoughts and feelings without overidentifying with them.
+- I was curious about my reactions to things.
+- I was curious about what I might learn about myself by just taking notice of what
+  my attention gets drawn to.

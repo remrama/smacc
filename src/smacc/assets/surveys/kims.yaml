@@ -1,0 +1,66 @@
+# SMACC built-in survey — YAML (see docs/surveys.md).
+kind: smacc/survey
+schema_version: 1
+key: kims
+name: KIMS
+title: Kentucky Inventory of Mindfulness Skills
+version: '1.0'
+citation: ''
+instructions: ''
+scale:
+  min: 1
+  max: 5
+  anchors:
+  - Never or very rarely true
+  - Rarely true
+  - Sometimes true
+  - Often true
+  - Very often or always true
+items:
+- I notice changes in my body, such as whether my breathing slows down or speeds up.
+- I'm good at findings the words to describe my feelings.
+- When I do things, my mind wanders off and I'm easily distracted.
+- I criticize myself for having irrational or inappropriate emotions.
+- I pay attention to whether my muscles are tense or relaxed.
+- I can easily put my beliefs, opinions, and expectations into words.
+- When I'm doing something, I'm only focused on what I'm doing, and nothing else.
+- I tend to evaluate whether my perceptions are right or wrong.
+- When I'm walking, I deliberately notice the sensations of my body moving.
+- I'm good at thinking of words to express my perceptions, such as how thing taste,
+  smell, or sound.
+- I drive on "automatic pilot" without paying attention to what I'm doing.
+- I tell myself that I shouldn't be feeling the way I'm feeling.
+- When I take a shower or bath, I stay alert to the sensations of water on my body.
+- It's hard for me to find the words to describe what I'm thinking.
+- When I'm reading, I focus all my attention on what I'm reading.
+- I believe some of my thoughts are abnormal or bad and I shouldn't think that way.
+- I notice how foods and drinks affect my thoughts, bodily sensations, and emotions.
+- I have trouble thinking of the right words to express how I feel about things.
+- When I do things, I get totally wrapped up in them and don't think about anything
+  else.
+- I make judgements about whether my thoughts are good or bad.
+- I pay attention to sensations, such as the wind in my hair or sun on my face.
+- When I have a sensation in my body, it's difficult for me to describe it because
+  I can't find the right words.
+- I don't pay attention to what I'm doing because I'm daydreaming, worrying, or otherwise
+  distracted.
+- I tend to make judgements about how worthwhile or worthless my experiences are.
+- I pay attention to sounds, such as clocks ticking, birds chirping, or cars passing.
+- Even when I'm feeling terribly upset, I can find a way to put it into words.
+- When I'm doing chores, such as cleaning or laundry, I tend to daydream or think
+  of other things.
+- I tell myself that I shouldn't be thinking the way I'm thinking.
+- I notice the smells and aromas of things.
+- I intentionally stay aware of my feelings.
+- I tend to do several things at once rather than focusing on one thing at a time.
+- I think some of my emotions are bad or inappropriate and I shouldn't feel them.
+- I notice visual elements in art or nature, such as colors, shapes, textures, or
+  patterns of light and shadow.
+- My natural tendency is to put my experiences into words.
+- When I'm working on something, part of my mind is occupied with other topics, such
+  as what I'll be doing later, or things I'd rather be doing.
+- I disapprove of myself when I have irrational ideas.
+- I pay attention to how my emotions affect my thoughts and behavior.
+- I get completely absorbed in what I'm doing, so that all my attention is focused
+  on it.
+- I notice when my moods begin to change.

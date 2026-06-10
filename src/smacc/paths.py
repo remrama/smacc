@@ -23,6 +23,9 @@ BUNDLED_BIOCALS_DIR = _asset_dir / "biocals"
 # Shipped example/default settings, copied to the SMACC root on first run so the
 # defaults live in a readable .smacc file (not in Python) — see smacc.settings.
 BUNDLED_DEFAULT_SETTINGS = _asset_dir / "default.smacc"
+# Built-in survey definitions shipped with SMACC (#114); loaded straight from the
+# bundle (never copied out), so updates reach every install.
+BUNDLED_SURVEYS_DIR = _asset_dir / "surveys"
 
 # The SMACC root directory ($SMACC_DIRECTORY, else ~/SMACC). It holds the global
 # interface preferences, the seeded default.smacc, and the default data directory.
@@ -38,6 +41,10 @@ DEFAULT_DATA_DIR = smacc_directory / "data"
 # can replace any file with its own recording (same name) — seeding never
 # overwrites — and their presence is verified at each session start.
 BIOCALS_DIR = smacc_directory / "biocals"
+# User-built survey definitions (#114), written by the in-app builder (or by
+# hand, same YAML format); loaded alongside the bundled built-ins. Created lazily
+# on the first build.
+SURVEYS_DIR = smacc_directory / "surveys"
 
 
 def is_default_settings(path: str | Path) -> bool:

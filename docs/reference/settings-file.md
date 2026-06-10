@@ -114,8 +114,8 @@ Any key may be omitted — each falls back to its default.
 | `visual_cues` | list | One entry per light slot: `name` (string), `color` (`#rrggbb`), `brightness` (0–1), `pattern` (`steady` \| `pulse` \| `flash`), `rate` (Hz, the pulse/flash speed), `length` (seconds; ignored while `loop`), `loop` (bool). |
 | `visual_attack` | seconds | Brightness fade-in applied to a starting visual cue. |
 | `visual_release` | seconds | Brightness fade-out applied to a stopping visual cue. |
-| `survey_url` | string | The selected survey URL. |
-| `survey_options` | mapping | Named survey presets: label → URL. |
+| `survey_url` | string | The selected survey: a web URL, or `smacc://survey/<key>` for an in-app survey. |
+| `survey_options` | mapping | Named *web* survey presets: label → URL. In-app surveys (built-in or custom) are not persisted here — they come from survey definition files (see [Surveys](../surveys.md)). |
 | `chat_font_size` | integer | Participant chat window text size, in points (8–72). |
 | `chat_red_text` | boolean | Red-shifted night text in the participant chat window. |
 | `chat_experimenter_presets` | list | Intercom quick-reply prompts the experimenter sends with one click (verbatim, like a typed message). Omitted → seeded defaults; an empty list is respected. |

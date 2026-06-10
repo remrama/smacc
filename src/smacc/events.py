@@ -200,6 +200,16 @@ def default_events() -> list[EventDef]:
         # The stop pairs with 66 at the next free code (67 predates it).
         EventDef("VisualStopped", "Visual stopped", 68),
         EventDef("SurveyOpened", "Survey opened", 67),
+        # Submission is logged but not triggered by default (#114): the survey
+        # happens after the awakening, so its timing rarely belongs in the EEG
+        # trigger channel. A study can flip Trigger on in the Event codes dialog.
+        EventDef(
+            "SurveySubmitted",
+            "Survey submitted",
+            71,
+            trigger=False,
+            tooltip="Mark an in-app survey's responses being saved",
+        ),
         # --- Text chat (#92): log-only by default. A typed exchange is rapid and
         # conversational, so neither direction triggers (or previews) unless a
         # study flips it on; the verbatim text always lands on a DEBUG log line.

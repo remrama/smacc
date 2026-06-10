@@ -1,0 +1,31 @@
+# SMACC built-in survey — YAML (see docs/surveys.md).
+kind: smacc/survey
+schema_version: 1
+key: musk
+name: MUSK
+title: Morning Lucid Dreaming Skills Questionnaire
+version: '1.0'
+citation: ''
+instructions: In your lucid dream...
+scale:
+  min: 0
+  max: 4
+  anchors:
+  - Not at all
+  - Just a little
+  - Moderately
+  - Pretty much
+  - Very much
+items:
+- I was aware of differences to the waking state (e.g., bizarre incidents or settings).
+- I was aware that my physical body was asleep.
+- I was aware that all dream objects were not real.
+- I thought about different options of what I could do in a dream.
+- I was able to keep my awareness for a satisfying period of time.
+- I deliberately decided to observe the dream as a dream.
+- I was able to deliberately shape my environment (e.g., change landscapes/surroundings,
+  let persons/characters appear or disappear).
+- I had full control of my dream body (movements, actions).
+- I deliberately choose a specific action.
+- I was able to perform specific actions (e.g., flying, floating, talking with dream
+  characters, performing magic, engaging in sex).

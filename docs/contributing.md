@@ -92,7 +92,8 @@ uv run pyinstaller entry.py --name SMACC --onefile --noconsole \
   --add-data "src/smacc/assets/icon.png:smacc/assets" \
   --add-data "src/smacc/assets/default.smacc:smacc/assets" \
   --add-data "src/smacc/assets/cues:smacc/assets/cues" \
-  --add-data "src/smacc/assets/biocals:smacc/assets/biocals"
+  --add-data "src/smacc/assets/biocals:smacc/assets/biocals" \
+  --add-data "src/smacc/assets/surveys:smacc/assets/surveys"
 ```
 
 `--icon` sets the executable's file icon; `--add-data` bundles the runtime

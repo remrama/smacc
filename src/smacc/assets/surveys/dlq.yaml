@@ -1,0 +1,32 @@
+# SMACC built-in survey — YAML (see docs/surveys.md).
+kind: smacc/survey
+schema_version: 1
+key: dlq
+name: DLQ
+title: Dream Lucidity Questionnaire
+version: '1.3'
+citation: doi:10.1016/j.concog.2013.08.005
+instructions: ''
+scale:
+  min: 0
+  max: 4
+  anchors:
+  - Not at all
+  - Just a little
+  - Moderately
+  - Pretty much
+  - Very much
+items:
+- I was aware that I was dreaming.
+- I was aware that my physical body was asleep.
+- I was aware that all my dream characters were not real people.
+- I deliberately chose one action instead of the other.
+- I was aware that all dream objects were not real.
+- I changed dream events in the way I wanted.
+- I recalled some facts or episodes from my waking life.
+- I changed dream characters in the way I wanted.
+- I broke the physical laws of the waking reality (e.g., flew, went through a wall).
+- I changed the dream scene in the way I wanted.
+- I thought about different possibilities of what can I do in a dream.
+- I clearly remembered my intentions of what I wanted to do in a lucid dream.
+- I was sure that events in my dream would not affect reality.

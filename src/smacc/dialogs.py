@@ -2,10 +2,11 @@
 
 from collections.abc import Callable
 from dataclasses import replace
+from typing import cast
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from . import config, events, hue, triggers
+from . import config, events, hue, surveys, triggers
 from .utils import normalize_survey_url
 
 
@@ -90,11 +91,12 @@ class SessionInfoDialog(QtWidgets.QDialog):
 
 
 class SurveyDialog(QtWidgets.QDialog):
-    """Add or edit a single named survey: a display name and its URL.
+    """Add or edit a single named *web* survey: a display name and its URL.
 
-    Used by :class:`ManageSurveysDialog` for its Add/Edit actions. The URL is
-    normalized on accept (whitespace trimmed, ``https://`` added when no scheme),
-    and both fields are required.
+    Used by :class:`ManageSurveysDialog` for its URL rows (in-app surveys are
+    built/edited with :class:`BuildSurveyDialog` instead). The URL is normalized
+    on accept (whitespace trimmed, ``https://`` added when no scheme), and both
+    fields are required.
     """
 
     def __init__(self, name: str = "", url: str = "", parent=None) -> None:
@@ -139,36 +141,209 @@ class SurveyDialog(QtWidgets.QDialog):
         return self.nameEdit.text().strip(), normalize_survey_url(self.urlEdit.text())
 
 
-class ManageSurveysDialog(QtWidgets.QDialog):
-    """Add, edit, and remove the named survey URLs saved with the session.
+class BuildSurveyDialog(QtWidgets.QDialog):
+    """Create or edit a custom in-app survey (#114).
 
-    Opened from the Dream-recording panel (Manage…) and File → Surveys. Edits a
-    copy of the mapping; the caller reads the result with :meth:`get_options`
-    only when the dialog is accepted.
+    Deliberately constrained to the shape of the bundled instruments — one
+    shared Likert scale plus a list of item texts — which keeps the builder a
+    simple form (anchors and items are typed one per line). Validation is
+    delegated to :func:`smacc.surveys.parse_survey_mapping`, the same gate a
+    hand-written survey file passes through. The caller reads
+    :meth:`get_survey` only when the dialog is accepted.
     """
 
-    def __init__(self, options: dict[str, str], parent=None) -> None:
+    def __init__(
+        self,
+        survey: surveys.SurveyDef | None = None,
+        existing_keys: tuple[str, ...] = (),
+        parent=None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Build survey" if survey is None else "Edit survey")
+        self.setWindowFlags(
+            self.windowFlags() ^ QtCore.Qt.WindowType.WindowContextHelpButtonHint
+        )
+        # An edited survey keeps its key (it names response files); only a new
+        # survey derives one from the name on accept.
+        self._key = survey.key if survey is not None else None
+        self._existing_keys = set(existing_keys)
+        self._survey: surveys.SurveyDef | None = None
+
+        self.nameEdit = QtWidgets.QLineEdit(self)
+        self.nameEdit.setPlaceholderText("Short label, e.g. DLQ")
+        self.titleEdit = QtWidgets.QLineEdit(self)
+        self.titleEdit.setPlaceholderText("Full title (optional; defaults to the name)")
+        self.versionEdit = QtWidgets.QLineEdit("1.0", self)
+        self.versionEdit.setStatusTip(
+            "Content version recorded in every response file; bump it when the "
+            "items change."
+        )
+        self.citationEdit = QtWidgets.QLineEdit(self)
+        self.citationEdit.setPlaceholderText("Optional citation")
+        self.instructionsEdit = QtWidgets.QPlainTextEdit(self)
+        self.instructionsEdit.setPlaceholderText("Optional instructions shown on top")
+        self.instructionsEdit.setFixedHeight(64)
+        self.minSpin = QtWidgets.QSpinBox(self)
+        self.minSpin.setRange(-100, 100)
+        self.minSpin.setValue(0)
+        self.maxSpin = QtWidgets.QSpinBox(self)
+        self.maxSpin.setRange(-100, 100)
+        self.maxSpin.setValue(4)
+        scaleRow = QtWidgets.QHBoxLayout()
+        scaleRow.addWidget(QtWidgets.QLabel("from"))
+        scaleRow.addWidget(self.minSpin)
+        scaleRow.addWidget(QtWidgets.QLabel("to"))
+        scaleRow.addWidget(self.maxSpin)
+        scaleRow.addStretch(1)
+        self.anchorsEdit = QtWidgets.QPlainTextEdit(self)
+        self.anchorsEdit.setPlaceholderText(
+            "One label per scale point, in order (optional)"
+        )
+        self.anchorsEdit.setFixedHeight(96)
+        self.itemsEdit = QtWidgets.QPlainTextEdit(self)
+        self.itemsEdit.setPlaceholderText("One item per line")
+
+        if survey is not None:
+            self.nameEdit.setText(survey.name)
+            self.titleEdit.setText(survey.title)
+            self.versionEdit.setText(survey.version)
+            self.citationEdit.setText(survey.citation)
+            self.instructionsEdit.setPlainText(survey.instructions)
+            self.minSpin.setValue(survey.scale_min)
+            self.maxSpin.setValue(survey.scale_max)
+            self.anchorsEdit.setPlainText("\n".join(survey.anchors))
+            self.itemsEdit.setPlainText("\n".join(survey.items))
+
+        buttonBox = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Save
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            self,
+        )
+        buttonBox.accepted.connect(self._on_accept)
+        buttonBox.rejected.connect(self.reject)
+
+        form = QtWidgets.QFormLayout(self)
+        form.addRow("Name", self.nameEdit)
+        form.addRow("Title", self.titleEdit)
+        form.addRow("Version", self.versionEdit)
+        form.addRow("Citation", self.citationEdit)
+        form.addRow("Instructions", self.instructionsEdit)
+        form.addRow("Scale", scaleRow)
+        form.addRow("Anchors", self.anchorsEdit)
+        form.addRow("Items", self.itemsEdit)
+        form.addWidget(buttonBox)
+        self.resize(520, 620)
+
+    @staticmethod
+    def _lines(edit: QtWidgets.QPlainTextEdit) -> list[str]:
+        """Non-blank lines of a one-per-line text box, stripped, in order."""
+        return [
+            line.strip() for line in edit.toPlainText().splitlines() if line.strip()
+        ]
+
+    def _unique_key(self, name: str) -> str:
+        """Derive a new survey's key from its name, dodging taken keys."""
+        base = surveys.slugify_key(name)
+        key = base
+        suffix = 2
+        while key in self._existing_keys:
+            key = f"{base}-{suffix}"
+            suffix += 1
+        return key
+
+    def _on_accept(self) -> None:
+        """Assemble the mapping and run it through the shared survey validator."""
+        name = self.nameEdit.text().strip()
+        mapping = {
+            "kind": surveys.KIND,
+            "schema_version": surveys.SCHEMA_VERSION,
+            "key": self._key or self._unique_key(name or "survey"),
+            "name": name,
+            "title": self.titleEdit.text().strip(),
+            "version": self.versionEdit.text().strip(),
+            "citation": self.citationEdit.text().strip(),
+            "instructions": self.instructionsEdit.toPlainText().strip(),
+            "scale": {
+                "min": self.minSpin.value(),
+                "max": self.maxSpin.value(),
+                "anchors": self._lines(self.anchorsEdit),
+            },
+            "items": self._lines(self.itemsEdit),
+        }
+        try:
+            self._survey = surveys.parse_survey_mapping(mapping, builtin=False)
+        except ValueError as exc:
+            QtWidgets.QMessageBox.warning(self, "Build survey", str(exc))
+            return
+        self.accept()
+
+    def get_survey(self) -> surveys.SurveyDef:
+        """Return the validated survey (read only when the dialog is accepted)."""
+        assert self._survey is not None  # _on_accept validated before accept()
+        return self._survey
+
+
+class ManageSurveysDialog(QtWidgets.QDialog):
+    """Manage every survey the dropdown offers (#114).
+
+    Three kinds of rows: *built-in* surveys (shipped with SMACC; viewable, not
+    editable or removable), *custom* surveys (built here; stored as YAML files in
+    the SMACC root's surveys folder, so building/editing/removing them applies
+    immediately, even if the dialog is later cancelled — ``files_changed`` tells
+    the caller to refresh), and *web* survey URLs (saved with the study; the
+    caller reads the edited mapping with :meth:`get_options` only on accept).
+
+    Opened from the Dream-recording panel's Manage… button. Constructed without
+    survey directories it degrades to the URL-only manager (used in tests).
+    """
+
+    def __init__(
+        self,
+        options: dict[str, str],
+        builtin_dir=None,
+        user_dir=None,
+        parent=None,
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Manage surveys")
         self.setWindowFlags(
             self.windowFlags() ^ QtCore.Qt.WindowType.WindowContextHelpButtonHint
         )
-        self.resize(440, 260)
+        self.resize(520, 320)
+        self._builtin_dir = builtin_dir
+        self._user_dir = user_dir
+        self.files_changed = False  # any custom-survey file built/edited/removed
+        self._previews: list[QtWidgets.QDialog] = []  # keep built-in views alive
+
+        hint = QtWidgets.QLabel(
+            "Built-in surveys ship with SMACC and open in a SMACC window; build "
+            "your own in the same style, or add a web survey by URL.",
+            self,
+        )
+        hint.setWordWrap(True)
 
         self.listWidget = QtWidgets.QListWidget(self)
-        for name, url in options.items():
-            self._add_row(name, url)
-        self.listWidget.itemDoubleClicked.connect(self._edit_selected)
+        self.listWidget.itemDoubleClicked.connect(self._view_or_edit_selected)
+        self._populate(options)
 
-        addButton = QtWidgets.QPushButton("Add…", self)
-        editButton = QtWidgets.QPushButton("Edit…", self)
+        addUrlButton = QtWidgets.QPushButton("Add URL…", self)
+        addUrlButton.setStatusTip("Add a web survey opened in the browser.")
+        addUrlButton.clicked.connect(self._add_url)
+        buildButton = QtWidgets.QPushButton("Build survey…", self)
+        buildButton.setStatusTip(
+            "Create a custom in-app survey (a Likert scale and items)."
+        )
+        buildButton.clicked.connect(self._build_new)
+        buildButton.setEnabled(user_dir is not None)
+        editButton = QtWidgets.QPushButton("View/Edit…", self)
+        editButton.setStatusTip("View a built-in survey, or edit your own entry.")
+        editButton.clicked.connect(self._view_or_edit_selected)
         removeButton = QtWidgets.QPushButton("Remove", self)
-        addButton.clicked.connect(self._add_new)
-        editButton.clicked.connect(self._edit_selected)
+        removeButton.setStatusTip("Remove the selected custom survey or URL.")
         removeButton.clicked.connect(self._remove_selected)
 
         buttonCol = QtWidgets.QVBoxLayout()
-        for button in (addButton, editButton, removeButton):
+        for button in (addUrlButton, buildButton, editButton, removeButton):
             buttonCol.addWidget(button)
         buttonCol.addStretch(1)
 
@@ -184,46 +359,161 @@ class ManageSurveysDialog(QtWidgets.QDialog):
         topRow.addWidget(self.listWidget, 1)
         topRow.addLayout(buttonCol)
         layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(hint)
         layout.addLayout(topRow)
         layout.addWidget(buttonBox)
 
-    def _add_row(self, name: str, url: str) -> None:
-        """Append a list row labeled ``name — url`` carrying ``(name, url)`` as data."""
+    # ----- list build ---------------------------------------------------------
+
+    def _populate(self, url_options: dict[str, str]) -> None:
+        """Rebuild the list: built-ins, then custom surveys, then URL rows."""
+        self.listWidget.clear()
+        if self._builtin_dir is not None and self._user_dir is not None:
+            loaded, problems = surveys.all_surveys(self._builtin_dir, self._user_dir)
+            for survey in loaded.values():
+                kind = "builtin" if survey.builtin else "custom"
+                item = QtWidgets.QListWidgetItem(
+                    f"{survey.name} — {'built-in' if survey.builtin else 'custom'} survey"
+                )
+                item.setToolTip(survey.title)
+                item.setData(QtCore.Qt.ItemDataRole.UserRole, (kind, survey))
+                self.listWidget.addItem(item)
+            for problem in problems:
+                broken = QtWidgets.QListWidgetItem(f"⚠ {problem}")
+                broken.setFlags(QtCore.Qt.ItemFlag.NoItemFlags)
+                self.listWidget.addItem(broken)
+        for name, url in url_options.items():
+            self._add_url_row(name, url)
+
+    def _reload_surveys(self) -> None:
+        """Re-read the survey files, preserving the current URL rows."""
+        self._populate(self.get_options())
+
+    def _add_url_row(self, name: str, url: str) -> None:
+        """Append a web-survey row labeled ``name — url``."""
         item = QtWidgets.QListWidgetItem(f"{name} — {url}")
-        item.setData(QtCore.Qt.ItemDataRole.UserRole, (name, url))
+        item.setData(QtCore.Qt.ItemDataRole.UserRole, ("url", (name, url)))
         self.listWidget.addItem(item)
 
-    def _add_new(self) -> None:
+    def _selected(self) -> tuple[str, object] | None:
+        item = self.listWidget.currentItem()
+        if item is None:
+            return None
+        data = item.data(QtCore.Qt.ItemDataRole.UserRole)
+        return data if data else None
+
+    def _survey_keys(self) -> tuple[str, ...]:
+        """Every key currently taken (for deriving a fresh builder key)."""
+        keys = []
+        for i in range(self.listWidget.count()):
+            item = self.listWidget.item(i)
+            data = item.data(QtCore.Qt.ItemDataRole.UserRole) if item else None
+            if data and data[0] in ("builtin", "custom"):
+                keys.append(data[1].key)
+        return tuple(keys)
+
+    # ----- actions ------------------------------------------------------------
+
+    def _add_url(self) -> None:
         dialog = SurveyDialog(parent=self)
         if dialog.exec():
             name, url = dialog.get_inputs()
-            self._add_row(name, url)
+            self._add_url_row(name, url)
 
-    def _edit_selected(self) -> None:
-        item = self.listWidget.currentItem()
-        if item is None:
+    def _build_new(self) -> None:
+        if self._user_dir is None:
             return
-        name, url = item.data(QtCore.Qt.ItemDataRole.UserRole)
-        dialog = SurveyDialog(name, url, parent=self)
-        if dialog.exec():
-            new_name, new_url = dialog.get_inputs()
-            item.setText(f"{new_name} — {new_url}")
-            item.setData(QtCore.Qt.ItemDataRole.UserRole, (new_name, new_url))
+        dialog = BuildSurveyDialog(existing_keys=self._survey_keys(), parent=self)
+        if not dialog.exec():
+            return
+        self._save_custom(dialog.get_survey())
+
+    def _save_custom(self, survey: surveys.SurveyDef) -> None:
+        """Write a built/edited custom survey to its YAML and refresh the list."""
+        try:
+            surveys.save_survey(survey, self._user_dir)
+        except OSError as exc:
+            QtWidgets.QMessageBox.warning(
+                self, "Build survey", f"Could not save the survey file:\n{exc}"
+            )
+            return
+        self.files_changed = True
+        self._reload_surveys()
+
+    def _view_or_edit_selected(self) -> None:
+        selected = self._selected()
+        if selected is None:
+            return
+        kind, payload = selected
+        if kind == "url":
+            name, url = cast(tuple[str, str], payload)
+            urlDialog = SurveyDialog(name, url, parent=self)
+            if urlDialog.exec():
+                item = self.listWidget.currentItem()
+                assert item is not None
+                new_name, new_url = urlDialog.get_inputs()
+                item.setText(f"{new_name} — {new_url}")
+                item.setData(
+                    QtCore.Qt.ItemDataRole.UserRole, ("url", (new_name, new_url))
+                )
+            return
+        survey = cast(surveys.SurveyDef, payload)
+        if kind == "custom":
+            existing = tuple(k for k in self._survey_keys() if k != survey.key)
+            buildDialog = BuildSurveyDialog(survey, existing_keys=existing, parent=self)
+            if buildDialog.exec():
+                self._save_custom(buildDialog.get_survey())
+        else:  # builtin: read-only preview of the real window, no session attached
+            from .panels.survey import SurveyWindow  # deferred: dialogs stay Qt-light
+
+            preview = SurveyWindow(survey, None, parent=self)
+            self._previews.append(preview)
+            preview.show()
 
     def _remove_selected(self) -> None:
-        row = self.listWidget.currentRow()
-        if row >= 0:
-            self.listWidget.takeItem(row)
+        selected = self._selected()
+        if selected is None:
+            return
+        kind, payload = selected
+        if kind == "url":
+            self.listWidget.takeItem(self.listWidget.currentRow())
+        elif kind == "custom":
+            survey = cast(surveys.SurveyDef, payload)
+            reply = QtWidgets.QMessageBox.question(
+                self,
+                "Manage surveys",
+                f"Delete the custom survey “{survey.name}” and its file?",
+            )
+            if reply != QtWidgets.QMessageBox.StandardButton.Yes:
+                return
+            try:
+                if survey.path is not None:
+                    survey.path.unlink(missing_ok=True)
+            except OSError as exc:
+                QtWidgets.QMessageBox.warning(
+                    self, "Manage surveys", f"Could not delete the file:\n{exc}"
+                )
+                return
+            self.files_changed = True
+            self._reload_surveys()
+        else:
+            QtWidgets.QMessageBox.information(
+                self, "Manage surveys", "Built-in surveys ship with SMACC and stay."
+            )
+
+    # ----- result ---------------------------------------------------------------
 
     def get_options(self) -> dict[str, str]:
-        """Return the edited mapping of survey name → URL (last wins on dupes)."""
+        """Return the edited web-survey mapping name → URL (last wins on dupes)."""
         options: dict[str, str] = {}
         for i in range(self.listWidget.count()):
             item = self.listWidget.item(i)
             if item is None:
                 continue
-            name, url = item.data(QtCore.Qt.ItemDataRole.UserRole)
-            options[name] = url
+            data = item.data(QtCore.Qt.ItemDataRole.UserRole)
+            if data and data[0] == "url":
+                name, url = data[1]
+                options[name] = url
         return options
 
 

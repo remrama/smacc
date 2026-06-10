@@ -468,10 +468,14 @@ class SmaccWindow(ToolWindow):
         fileMenu.addAction(alwaysOnTopAction)
 
     def _rebuild_surveys_menu(self, menu: QtWidgets.QMenu) -> None:
-        """Fill File → Surveys with each saved survey (open standalone) + Manage."""
+        """Fill File → Surveys with each available survey (open standalone).
+
+        Lists the in-app surveys (built-in + custom) and the study's saved URLs;
+        managing them lives on the Dream-recording panel's Manage… button only.
+        """
         menu.clear()
         recording = cast(RecordingWindow, self.panels["recording"])
-        surveys = recording.saved_surveys()
+        surveys = recording.available_surveys()
         if surveys:
             for name, url in surveys.items():
                 action = menu.addAction(name)
@@ -479,13 +483,9 @@ class SmaccWindow(ToolWindow):
                 action.setStatusTip(url)
                 action.triggered.connect(partial(recording.open_survey_url, url, name))
         else:
-            empty = menu.addAction("(no surveys saved)")
+            empty = menu.addAction("(no surveys available)")
             assert empty is not None
             empty.setEnabled(False)
-        menu.addSeparator()
-        manageAction = menu.addAction("Manage surveys…")
-        assert manageAction is not None
-        manageAction.triggered.connect(recording.manage_surveys)
 
     def _build_log_viewer_section(self) -> QtWidgets.QLayout:
         """Build the log-preview panel: header, level toggles, and the live list."""

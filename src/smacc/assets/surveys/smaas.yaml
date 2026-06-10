@@ -1,0 +1,26 @@
+# SMACC built-in survey — YAML (see docs/surveys.md).
+kind: smacc/survey
+schema_version: 1
+key: smaas
+name: SMAAS
+title: State Mindfulness Attention Awareness Scale
+version: '1.0'
+citation: ''
+instructions: ''
+scale:
+  min: 0
+  max: 6
+  anchors:
+  - Not at all
+  - ''
+  - ''
+  - Somewhat
+  - ''
+  - ''
+  - Very much
+items:
+- I was finding it difficult to stay focused on what was happening.
+- I was doing something without paying attention.
+- I was preoccupied with the future or the past.
+- I was doing something automatically, without being aware of what I was doing.
+- I was rushing through something without being really attentive to it.
