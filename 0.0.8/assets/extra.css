@@ -1,0 +1,34 @@
+/* Match the header (primary) color to the SMACC icon's background exactly.
+   Material's default scheme uses indigo (#3f51b5), which is very close to the
+   icon background but slightly off, so the logo looked like it floated on a
+   not-quite-matching bar. #3c48aa is the icon's actual background color. */
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #3c48aa;
+  --md-primary-fg-color--light: #5561c4;
+  --md-primary-fg-color--dark: #2e3884;
+}
+
+/* Keep the repository (GitHub) link in the top-right header on small screens.
+   By default Material hides .md-header__source below the desktop breakpoint
+   (76.25em) and shows the source inside the navigation drawer (.md-nav__source)
+   instead. Here we flip that — show it in the header, hide it in the drawer.
+
+   On mobile the header also holds the search icon, so we render only the compact
+   GitHub icon (not the "remrama/smacc" text + repo facts) to leave room for it. */
+@media screen and (max-width: 76.234375em) {
+  .md-header__source {
+    display: block;
+    width: auto;
+    margin-left: 0.2rem;
+  }
+
+  /* Show just the GitHub icon; hide the repository name/facts text. */
+  .md-header__source .md-source__repository {
+    display: none;
+  }
+
+  /* Remove the duplicate link from the navigation drawer (now in the header). */
+  .md-nav--primary .md-nav__source {
+    display: none;
+  }
+}
