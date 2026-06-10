@@ -675,6 +675,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#hue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hue
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -955,6 +966,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#hue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hue
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1067,6 +1089,10 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <span class="w">    </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0x378&quot;</span>
 <span class="w">    </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pulsed</span>
 <span class="w">    </span><span class="nt">pulse_ms</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+<span class="w">  </span><span class="c1"># --- Philips Hue bridge (visual cues) ---------------------------------------</span>
+<span class="w">  </span><span class="nt">hue</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">bridge_ip</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
+<span class="w">    </span><span class="nt">app_key</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
 <span class="w">  </span><span class="c1"># --- Data directory + interface --------------------------------------------</span>
 <span class="w">  </span><span class="nt">data_directory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">data</span>
 <span class="w">  </span><span class="nt">preview_levels</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">INFO</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">WARNING</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">ERROR</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">CRITICAL</span><span class="p p-Indicator">]</span>
@@ -1317,7 +1343,7 @@ and <a href="../../devices/">Devices</a>).</p>
 <tr>
 <td><code>bindings</code></td>
 <td>mapping</td>
-<td>Role key → device name. Roles: <code>bedroom_out</code>, <code>control_out</code>, <code>bedroom_mic</code>, <code>monitor_mic</code>, <code>blinkstick</code>.</td>
+<td>Role key → device key. Roles: <code>bedroom_out</code>, <code>control_out</code>, <code>bedroom_mic</code>, <code>monitor_mic</code>, <code>blinkstick</code> (a stick's serial), <code>hue</code> (a bridge target like <code>light:3</code> or <code>group:1</code>).</td>
 </tr>
 <tr>
 <td><code>routing</code></td>
@@ -1374,6 +1400,32 @@ no devices bound).</p>
 <td><code>pulse_ms</code></td>
 <td>integer</td>
 <td>Pulse width in ms when <code>mode: pulsed</code> (default 10).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="hue"><code>hue</code></h3>
+<p>The Philips Hue bridge used for visual cues (see <a href="../../devices/#philips-hue">Devices › Philips Hue</a>),
+paired once in the Devices window. Like the device bindings, this is rig state
+that travels with the study — note that <code>app_key</code> is the bridge credential minted
+by pairing, stored in plain text.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bridge_ip</code></td>
+<td>string</td>
+<td>The bridge's IP on the rig's network.</td>
+</tr>
+<tr>
+<td><code>app_key</code></td>
+<td>string</td>
+<td>The app key minted by press-button pairing (blank = not set up).</td>
 </tr>
 </tbody>
 </table>
