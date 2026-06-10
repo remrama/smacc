@@ -146,8 +146,8 @@ point.
 
 ## Troubleshooting
 
-* **The BlinkStick isn't listed** — replug it and press `F5` (**File ▸ Refresh
-  devices**). The driver ships inside SMACC; nothing to install.
+* **The BlinkStick isn't listed** — replug it and press `F5` (or click **Refresh
+  devices** in the Devices window). The driver ships inside SMACC; nothing to install.
 * **"No light is set."** — bind the device in the **Devices** window *and* check
   that *Present visual cue* is routed to that role.
 * **The Hue bridge stopped responding** — its IP probably changed; re-enter it in

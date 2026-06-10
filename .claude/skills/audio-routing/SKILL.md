@@ -43,7 +43,7 @@ physical devices and routing **modalities** to roles:
   (`gui.py`) purely as a **change signal** — when Windows reports an audio device
   added/removed, `QMediaDevices` fires and SMACC rescans via `sounddevice`.
   QMediaDevices is the doorbell, not the audio path.
-- Manual rescan: **File ▸ Refresh devices** / **F5**.
+- Manual rescan: the Devices window's **Refresh devices** button / **F5**.
 - **Gotcha:** re-initializing PortAudio invalidates any open stream, so a rescan
   must run only while **nothing is streaming**. Panels report this via
   `ModalityWindow.is_streaming()`; the refresh coordinator checks it first. Respect

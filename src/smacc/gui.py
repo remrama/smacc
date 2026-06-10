@@ -96,8 +96,8 @@ class SmaccWindow(ToolWindow):
             "volume": VolumeWindow(self.session),
         }
         self.devices_window.changed.connect(self._refresh_device_indicators)
-        # The Devices window's Refresh button runs the same rescan as File ▸ Refresh
-        # devices / F5 (PortAudio re-init + BlinkStick scan), not a duplicate.
+        # The Devices window's Refresh button (and its F5 shortcut) runs this rescan
+        # (PortAudio re-init + BlinkStick scan); it's the only entry point now.
         self.devices_window.refresh_requested.connect(self.refresh_all_devices)
         # Hot-plug doorbell: Qt6's QMediaDevices fires when an audio device is added
         # or removed; that triggers an automatic rescan. Audio I/O stays on
@@ -374,14 +374,9 @@ class SmaccWindow(ToolWindow):
         alwaysOnTopAction.toggled.connect(self.toggle_always_on_top)
         self._always_on_top_action = alwaysOnTopAction
 
-        # Available in both modes (devices are configured in the editor and a session).
-        refreshDevicesAction = QtGui.QAction("&Refresh devices", self)
-        refreshDevicesAction.setShortcut("F5")
-        refreshDevicesAction.setStatusTip(
-            "Rescan for audio devices and BlinkSticks (e.g. after plugging one in)."
-        )
-        refreshDevicesAction.triggered.connect(self.refresh_all_devices)
-
+        # Device rescanning lives on the Devices window's Refresh button (which also
+        # carries the F5 shortcut), not in this menu — hot-plugging is detected
+        # automatically, so a menu entry here was redundant.
         menu_bar = self.menuBar()
         assert menu_bar is not None
         fileMenu = menu_bar.addMenu("&File")
@@ -402,8 +397,6 @@ class SmaccWindow(ToolWindow):
                 triggerOutputAction,
                 alwaysOnTopAction,
             )
-        fileMenu.addSeparator()
-        fileMenu.addAction(refreshDevicesAction)
         fileMenu.addSeparator()
         fileMenu.addAction(quitAction)
 
@@ -792,7 +785,7 @@ class SmaccWindow(ToolWindow):
         """A device was added/removed: quietly rescan when nothing is streaming.
 
         Skipped while audio is live (a PortAudio re-init would cut it); the operator
-        can use File ▸ Refresh devices once idle.
+        can use the Devices window's Refresh button once idle.
         """
         if any(panel.is_streaming() for panel in self.panels.values()):
             return
@@ -823,7 +816,8 @@ class SmaccWindow(ToolWindow):
             "Some saved devices aren’t connected.",
             "These devices from the settings file weren’t found:\n"
             f"{items}\n\n"
-            "Plug them in and choose File ▸ Refresh devices, or pick another device.",
+            "Plug them in and click Refresh devices in the Devices window, or pick "
+            "another device.",
             parent=self,
         )
 
@@ -849,7 +843,7 @@ class SmaccWindow(ToolWindow):
         )
 
     def refresh_all_devices(self) -> None:
-        """Rescan for devices plugged in after launch (File ▸ Refresh devices, F5).
+        """Rescan for devices plugged in after launch (the Devices window's Refresh, F5).
 
         BlinkSticks are a live USB scan and Hue lights a live bridge query, so both
         are always rescanned. PortAudio caches its device list at initialization,
@@ -877,7 +871,7 @@ class SmaccWindow(ToolWindow):
                 "Audio devices not fully rescanned.",
                 "BlinkSticks and Hue lights were rescanned. To rescan audio "
                 "devices too, stop playback, recording, and the level meter, "
-                "then choose Refresh devices again.",
+                "then click Refresh devices again.",
                 parent=self,
             )
         else:
