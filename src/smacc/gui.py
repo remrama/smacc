@@ -32,7 +32,7 @@ from .dialogs import (
 from .panels.audio import AudioCueWindow
 from .panels.base import ModalityWindow
 from .panels.biocals import BiocalsWindow
-from .panels.chat import ChatTranscript, ParticipantChatWindow
+from .panels.chat import ChatPresets, ChatTranscript, ParticipantChatWindow
 from .panels.devices import DevicesWindow
 from .panels.events import EventsWindow
 from .panels.intercom import IntercomWindow
@@ -86,8 +86,11 @@ class SmaccWindow(ToolWindow):
         # session.devices, refreshed whenever the Devices window emits ``changed``.
         self.devices_window = DevicesWindow(self.session)
         # The text chat's conversation, shared by its two views: the experimenter's
-        # section in the Intercom panel and the participant-facing window (#92).
+        # section in the Intercom panel and the participant-facing window (#92). The
+        # quick-reply presets (#112) are shared the same way; the Intercom panel
+        # persists them with the study.
         chat_transcript = ChatTranscript(self)
+        chat_presets = ChatPresets(self)
         self.panels: dict[str, ModalityWindow] = {
             "events": EventsWindow(self.session),
             "biocals": BiocalsWindow(self.session),
@@ -95,10 +98,10 @@ class SmaccWindow(ToolWindow):
             "audio": AudioCueWindow(self.session),
             "noise": NoiseWindow(self.session),
             "recording": RecordingWindow(self.session),
-            "intercom": IntercomWindow(self.session, chat_transcript),
+            "intercom": IntercomWindow(self.session, chat_transcript, chat_presets),
             # No launcher button (absent from PANEL_LABELS): opened via the Intercom
             # panel's "Pass keyboard" button, which also hands it keyboard focus.
-            "chat": ParticipantChatWindow(self.session, chat_transcript),
+            "chat": ParticipantChatWindow(self.session, chat_transcript, chat_presets),
             "devices": self.devices_window,
             "volume": VolumeWindow(self.session),
         }

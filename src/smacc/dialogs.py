@@ -5,7 +5,7 @@ from dataclasses import replace
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from . import events, hue, triggers
+from . import config, events, hue, triggers
 from .utils import normalize_survey_url
 
 
@@ -225,6 +225,160 @@ class ManageSurveysDialog(QtWidgets.QDialog):
             name, url = item.data(QtCore.Qt.ItemDataRole.UserRole)
             options[name] = url
         return options
+
+
+class _PresetListEditor(QtWidgets.QWidget):
+    """A titled, reorderable list of preset messages with add/edit/remove controls.
+
+    Used twice by :class:`ManageChatPresetsDialog`, once per chat direction. Order
+    matters for the participant replies (it maps to the number keys), so rows move
+    up and down; ``max_items`` caps the list (``None`` is unlimited).
+    """
+
+    def __init__(
+        self,
+        title: str,
+        items: list[str],
+        *,
+        max_items: int | None = None,
+        parent=None,
+    ) -> None:
+        super().__init__(parent)
+        self._max_items = max_items
+
+        self.listWidget = QtWidgets.QListWidget(self)
+        self.listWidget.addItems(items)
+        self.listWidget.itemDoubleClicked.connect(self._edit_selected)
+
+        addButton = QtWidgets.QPushButton("Add…", self)
+        editButton = QtWidgets.QPushButton("Edit…", self)
+        removeButton = QtWidgets.QPushButton("Remove", self)
+        upButton = QtWidgets.QPushButton("Move up", self)
+        downButton = QtWidgets.QPushButton("Move down", self)
+        addButton.clicked.connect(self._add)
+        editButton.clicked.connect(self._edit_selected)
+        removeButton.clicked.connect(self._remove_selected)
+        upButton.clicked.connect(lambda: self._move(-1))
+        downButton.clicked.connect(lambda: self._move(1))
+
+        buttonCol = QtWidgets.QVBoxLayout()
+        for button in (addButton, editButton, removeButton, upButton, downButton):
+            buttonCol.addWidget(button)
+        buttonCol.addStretch(1)
+
+        row = QtWidgets.QHBoxLayout()
+        row.addWidget(self.listWidget, 1)
+        row.addLayout(buttonCol)
+
+        label = QtWidgets.QLabel(title, self)
+        label.setWordWrap(True)
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(label)
+        layout.addLayout(row)
+
+    def items(self) -> list[str]:
+        """Return the current rows, in display order."""
+        rows: list[str] = []
+        for i in range(self.listWidget.count()):
+            item = self.listWidget.item(i)
+            if item is not None:
+                rows.append(item.text())
+        return rows
+
+    def _prompt(self, text: str = "") -> str | None:
+        """Ask for one message; return the trimmed text (None if cancelled/blank)."""
+        value, ok = QtWidgets.QInputDialog.getText(
+            self, "Quick message", "Message:", text=text
+        )
+        if not ok:
+            return None
+        return value.strip() or None
+
+    def _add(self) -> None:
+        if self._max_items is not None and self.listWidget.count() >= self._max_items:
+            QtWidgets.QMessageBox.information(
+                self,
+                "Quick messages",
+                f"Up to {self._max_items} replies — one per number key "
+                f"(1–{self._max_items}).",
+            )
+            return
+        text = self._prompt()
+        if text is not None:
+            self.listWidget.addItem(text)
+
+    def _edit_selected(self) -> None:
+        item = self.listWidget.currentItem()
+        if item is None:
+            return
+        text = self._prompt(item.text())
+        if text is not None:
+            item.setText(text)
+
+    def _remove_selected(self) -> None:
+        row = self.listWidget.currentRow()
+        if row >= 0:
+            self.listWidget.takeItem(row)
+
+    def _move(self, delta: int) -> None:
+        """Shift the selected row by ``delta`` (-1 up, +1 down), keeping it selected."""
+        row = self.listWidget.currentRow()
+        target = row + delta
+        if row < 0 or not (0 <= target < self.listWidget.count()):
+            return
+        item = self.listWidget.takeItem(row)
+        self.listWidget.insertItem(target, item)
+        self.listWidget.setCurrentRow(target)
+
+
+class ManageChatPresetsDialog(QtWidgets.QDialog):
+    """Add, edit, reorder, and remove the intercom's quick-reply presets (#112).
+
+    Opened from the Intercom panel. Two ordered lists — the experimenter's one-click
+    prompts and the participant's number-key replies (capped at the digit keys 1–9).
+    Edits copies; the caller reads :meth:`get_presets` only when accepted.
+    """
+
+    def __init__(
+        self, experimenter: list[str], participant: list[str], parent=None
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Quick-reply presets")
+        self.setWindowFlags(
+            self.windowFlags() ^ QtCore.Qt.WindowType.WindowContextHelpButtonHint
+        )
+        self.resize(520, 460)
+
+        self._experimenter = _PresetListEditor(
+            "Experimenter prompts — one click sends to the participant:",
+            experimenter,
+            parent=self,
+        )
+        self._participant = _PresetListEditor(
+            "Participant replies — sent with the number keys "
+            f"1–{config.MAX_PARTICIPANT_PRESETS}:",
+            participant,
+            max_items=config.MAX_PARTICIPANT_PRESETS,
+            parent=self,
+        )
+
+        buttonBox = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            self,
+        )
+        buttonBox.accepted.connect(self.accept)
+        buttonBox.rejected.connect(self.reject)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(self._experimenter)
+        layout.addWidget(self._participant)
+        layout.addWidget(buttonBox)
+
+    def get_presets(self) -> tuple[list[str], list[str]]:
+        """Return the edited ``(experimenter, participant)`` lists, in order."""
+        return self._experimenter.items(), self._participant.items()
 
 
 class AddEventDialog(QtWidgets.QDialog):

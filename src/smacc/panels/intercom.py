@@ -16,14 +16,25 @@ read text but reply by voice), and nothing live should hide behind an inactive t
 from __future__ import annotations
 
 import queue
+from functools import partial
 
 import sounddevice as sd
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import audio, devices
+from ..dialogs import ManageChatPresetsDialog
 from ..session import SmaccSession
 from .base import ModalityWindow, describe_target, make_section_title
-from .chat import EXPERIMENTER, ChatTranscript, post_chat_message
+from .chat import EXPERIMENTER, ChatPresets, ChatTranscript, post_chat_message
+
+# Cap an experimenter prompt's button label so a long standardized question doesn't
+# stretch the panel; the full text rides along in the tooltip/status tip.
+_PRESET_LABEL_LIMIT = 48
+
+
+def _elide(text: str, limit: int = _PRESET_LABEL_LIMIT) -> str:
+    """Shorten ``text`` to ``limit`` chars with an ellipsis (full text in a tooltip)."""
+    return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
 
 
 class _Bridge:
@@ -118,6 +129,7 @@ class IntercomWindow(ModalityWindow):
         self,
         session: SmaccSession,
         transcript: ChatTranscript | None = None,
+        presets: ChatPresets | None = None,
         parent: QtWidgets.QWidget | None = None,
     ):
         super().__init__(session, parent)
@@ -127,8 +139,11 @@ class IntercomWindow(ModalityWindow):
         self._transcript = (
             transcript if transcript is not None else ChatTranscript(self)
         )
+        self._presets = presets if presets is not None else ChatPresets(self)
         self.setCentralWidget(self._build())
         self._transcript.message_posted.connect(self._append_chat_message)
+        self._presets.changed.connect(self._rebuild_preset_buttons)
+        self._rebuild_preset_buttons()
         # App-wide spacebar push-to-talk works regardless of the focused window.
         app = QtWidgets.QApplication.instance()
         if app is not None:
@@ -193,6 +208,20 @@ class IntercomWindow(ModalityWindow):
         )
         passButton.clicked.connect(self.open_participant_chat.emit)
 
+        # Quick messages (#112): one-click standardized prompts, sent verbatim through
+        # the same path as a typed message. Rebuilt from the shared presets.
+        self._presetContainer = QtWidgets.QWidget(self)
+        self._presetLayout = QtWidgets.QVBoxLayout(self._presetContainer)
+        self._presetLayout.setContentsMargins(0, 0, 0, 0)
+        self._preset_buttons: list[QtWidgets.QPushButton] = []
+
+        manageButton = QtWidgets.QPushButton("Manage quick messages…", self)
+        manageButton.setStatusTip(
+            "Add, edit, or reorder the experimenter prompts and the participant's "
+            "number-key replies (saved with the study)."
+        )
+        manageButton.clicked.connect(self.manage_presets)
+
         layout = QtWidgets.QFormLayout()
         layout.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         layout.addRow(make_section_title("Intercom"))
@@ -202,8 +231,10 @@ class IntercomWindow(ModalityWindow):
         layout.addRow(listenButton)
         layout.addRow(make_section_title("Text chat"))
         layout.addRow(chatView)
+        layout.addRow(self._presetContainer)
         layout.addRow(entryRow)
         layout.addRow(passButton)
+        layout.addRow(manageButton)
         central = QtWidgets.QWidget()
         central.setLayout(layout)
         return central
@@ -227,6 +258,36 @@ class IntercomWindow(ModalityWindow):
         scrollbar = self.chatView.verticalScrollBar()
         if scrollbar is not None:
             scrollbar.setValue(scrollbar.maximum())
+
+    # ----- quick messages (#112) ----------------------------------------------
+
+    def _rebuild_preset_buttons(self) -> None:
+        """Rebuild the one-click prompt buttons from the shared presets."""
+        for button in self._preset_buttons:
+            button.deleteLater()
+        self._preset_buttons = []
+        for text in self._presets.experimenter:
+            button = QtWidgets.QPushButton(_elide(text), self._presetContainer)
+            button.setToolTip(text)
+            button.setStatusTip(f"Send to the participant: {text}")
+            button.clicked.connect(partial(self._send_preset, text))
+            self._presetLayout.addWidget(button)
+            self._preset_buttons.append(button)
+        self._presetContainer.setVisible(bool(self._preset_buttons))
+
+    def _send_preset(self, text: str) -> None:
+        """Send a standardized prompt through the same path as a typed message."""
+        post_chat_message(self.session, self._transcript, EXPERIMENTER, text)
+
+    def manage_presets(self) -> None:
+        """Edit both preset lists; on accept, update the shared presets in place."""
+        dialog = ManageChatPresetsDialog(
+            self._presets.experimenter, self._presets.participant, parent=self
+        )
+        if dialog.exec():
+            experimenter, participant = dialog.get_presets()
+            self._presets.set(experimenter, participant)  # -> both views rebuild
+            self.session.log_interaction("Edited chat quick-reply presets")
 
     def refresh_device_indicator(self) -> None:
         """Show where each direction routes (devices set in the Devices window)."""
@@ -318,6 +379,16 @@ class IntercomWindow(ModalityWindow):
                 self.talkButton.setChecked(False)  # -> toggle_talk(False)
             return True  # consume so the focused widget doesn't also see space
         return super().eventFilter(obj, event)
+
+    # ----- persisted state ----------------------------------------------------
+
+    def gather_state(self) -> dict:
+        """Persist the quick-reply presets (the shared object's view)."""
+        return self._presets.gather_state()
+
+    def apply_state(self, state: dict) -> None:
+        """Load the quick-reply presets; both chat views rebuild via the signal."""
+        self._presets.apply_state(state)
 
     def cleanup(self) -> None:
         app = QtWidgets.QApplication.instance()
