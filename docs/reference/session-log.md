@@ -32,6 +32,20 @@ just `"{label}"` when it does not. The code-to-event map is the study's
 [`event_codes`](settings-file.md#event_codes) registry; see the
 [default code catalog](../triggers.md#default-event-codes).
 
+## Log levels
+
+The file records **every** level — a level never decides whether something is
+written, only whether it shows in the live preview (whose default gate starts at
+`INFO`). SMACC assigns levels by one convention:
+
+| Level | What it carries |
+|---|---|
+| `DEBUG` | Housekeeping and high-frequency detail: settings loads/saves, device rescans, live volume edits, raw trigger instants, chat text. In the file for the record; out of the preview by default. |
+| `INFO` | **Event markers** and meaningful operator actions — the session's scientific narrative. |
+| `WARNING` | Mid-session configuration changes (a port code or trigger transport edited during a run — loud so the code map stays traceable) and recoverable faults (a saved device not connected). |
+| `ERROR` | Faults that cost something: a hardware trigger write failing, a stream that couldn't open. |
+| `CRITICAL` | Uncaught exceptions — the app is in an unknown state. |
+
 ### Stimulus marker timing
 
 Most markers are stamped when SMACC fires them. **Audio cue and noise** markers are

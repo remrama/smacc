@@ -109,8 +109,9 @@ class VolumeWindow(ModalityWindow):
         self.endpointLabel.setText(self._format_level(endpoint))
         self.appLabel.setText(self._format_level(app))
         # Record the OS-side volumes on each actual read (not on slider drags), so a
-        # run's cue levels stay reproducible from the log alone.
-        self.session.log_info_msg(
+        # run's cue levels stay reproducible from the log alone (the file records
+        # DEBUG; only the live preview hides it).
+        self.session.log_debug_msg(
             "Windows output volume: "
             f"endpoint {self._format_level(endpoint)}, "
             f"SMACC mixer {self._format_level(app)}"

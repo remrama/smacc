@@ -923,7 +923,7 @@ class SmaccWindow(ToolWindow):
                 parent=self,
             )
         else:
-            self.session.log_info_msg("Refreshed devices")
+            self.session.log_debug_msg("Refreshed devices")
 
     # ----- preferences / launch-file / file association ----------------------
 
@@ -988,7 +988,7 @@ class SmaccWindow(ToolWindow):
             self.show_error_popup("Could not open settings file.", str(exc))
             return
         self._apply_loaded_settings(state, metadata)
-        self.session.log_info_msg(f"Loaded settings from {settings_path}")
+        self.session.log_debug_msg(f"Loaded settings from {settings_path}")
 
     def _maybe_prompt_association(self) -> None:
         """Once, on the first packaged-build launch, offer to associate .smacc files."""
@@ -1069,7 +1069,7 @@ class SmaccWindow(ToolWindow):
             self.show_error_popup("Could not save settings.", str(exc))
             return False
         self.settings_path = path  # subsequent saves update this file
-        self.session.log_info_msg(f"Saved settings to {path}")
+        self.session.log_debug_msg(f"Saved settings to {path}")
         # Status-bar confirmation: the editor has no log viewer to show the line.
         status_bar = self.statusBar()
         assert status_bar is not None
@@ -1093,7 +1093,7 @@ class SmaccWindow(ToolWindow):
             self.show_error_popup("Could not open settings.", str(exc))
             return
         self._apply_loaded_settings(state, metadata)
-        self.session.log_info_msg(f"Loaded settings from {path}")
+        self.session.log_debug_msg(f"Loaded settings from {path}")
 
     def load_settings_from_log(self) -> None:
         """Load the initial or final settings recorded in a SMACC .log file."""
@@ -1127,7 +1127,7 @@ class SmaccWindow(ToolWindow):
             self.show_error_popup("Could not load settings from log.", str(exc))
             return
         self._apply_loaded_settings(state, metadata)
-        self.session.log_info_msg(f"Loaded {which} settings from {path}")
+        self.session.log_debug_msg(f"Loaded {which} settings from {path}")
 
     def _ask_initial_or_final(self) -> str | None:
         """Ask whether to load the initial or final settings block (None on cancel)."""
