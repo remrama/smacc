@@ -1,10 +1,10 @@
-"""The SMACC launcher: pick a settings file and choose what to do.
+"""The SMACC Launcher: pick a SMACC file and choose what to do.
 
 This is the FSL-style opening menu. Instead of dropping straight into a session,
-SMACC opens this small window so the operator first picks (or creates) a **settings
-file** (`.smacc`), then chooses to **Start session**, **Create settings**, or
-**Analyze session**. Each settings file names the **data directory** its runs are
-written to; with none chosen, SMACC uses built-in defaults and the default data
+SMACC opens this small window so the operator first picks (or creates) a **SMACC
+file** (`.smacc`), then chooses to **Start**, **Create**, or **Edit** (or analyze
+a past run). Each SMACC file names the **data directory** its runs are written
+to; with none chosen, SMACC uses built-in defaults and the default data
 directory.
 
 The launcher is the app's persistent root window: opening a tool hides it, and
@@ -50,13 +50,13 @@ def resolve_initial_settings(prefs: dict) -> str | None:
 
 
 class LauncherWindow(QtWidgets.QMainWindow):
-    """Small hub: pick a settings file, then start / create / analyze."""
+    """Small hub: pick a SMACC file, then start / create / edit / analyze."""
 
     def __init__(self, settings_path: str | None) -> None:
         super().__init__()
         self._settings_path = settings_path  # current .smacc, or None for defaults
         self._tool: ToolWindow | None = None
-        self.setWindowTitle("SMACC")
+        self.setWindowTitle("SMACC Launcher")
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
         self._build()
@@ -184,28 +184,28 @@ class LauncherWindow(QtWidgets.QMainWindow):
         quitAction.triggered.connect(self.close)
 
     def _build_settings_row(self) -> QtWidgets.QLayout:
-        """One row: 'Settings:' + a dropdown of default / recents / Browse…."""
+        """One row: 'SMACC file:' + a dropdown of default / recents / Browse…."""
         row = QtWidgets.QHBoxLayout()
-        row.addWidget(QtWidgets.QLabel("Settings:", self))
+        row.addWidget(QtWidgets.QLabel("SMACC file:", self))
         self.settingsCombo = QtWidgets.QComboBox(self)
         self.settingsCombo.setStatusTip(
-            "Choose the settings to start, edit, or analyze."
+            "Choose the SMACC file to start, edit, or analyze."
         )
         self.settingsCombo.activated.connect(self._on_settings_selected)
         row.addWidget(self.settingsCombo, 1)
         return row
 
     def _build_action_row(self) -> QtWidgets.QLayout:
-        """Three buttons acting on the selected settings: Start / Edit / New."""
+        """Three buttons acting on the selected SMACC file: Start / Create / Edit."""
         row = QtWidgets.QHBoxLayout()
         for label, slot, tip in (
             (
                 "Start",
                 self.start_session,
-                "Start a session with the selected settings.",
+                "Start a session with the selected SMACC file.",
             ),
-            ("Edit", self.edit_settings, "Edit the selected settings."),
-            ("New", self.create_settings, "Create a new settings file."),
+            ("Create", self.create_settings, "Create a new SMACC file."),
+            ("Edit", self.edit_settings, "Edit the selected SMACC file."),
         ):
             button = QtWidgets.QPushButton(label, self)
             button.setMinimumHeight(44)
@@ -280,9 +280,9 @@ class LauncherWindow(QtWidgets.QMainWindow):
         """Browse for a .smacc not already in the dropdown and make it current."""
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
-            "Open settings (.smacc)",
+            "Open SMACC file",
             str(self._data_dir()),
-            "SMACC settings (*.smacc)",
+            "SMACC file (*.smacc)",
         )
         if path:
             self._set_settings(path)
@@ -329,7 +329,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
         QtWidgets.QMessageBox.information(
             self,
             "File association",
-            "SMACC now handles .smacc files — double-click a settings file to open it.",
+            "SMACC now handles .smacc files — double-click a SMACC file to open it.",
         )
 
     def show_about_popup(self) -> None:
