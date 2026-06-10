@@ -164,9 +164,7 @@ def test_visual_panel_ignores_malformed_numeric_settings(qtbot, design_session):
     got = panel.gather_state()
     assert got["visual_attack"] == before["visual_attack"]
     assert got["visual_release"] == before["visual_release"]
-    assert got["visual_cues"][0]["brightness"] == before["visual_cues"][0][
-        "brightness"
-    ]
+    assert got["visual_cues"][0]["brightness"] == before["visual_cues"][0]["brightness"]
     assert got["visual_cues"][0]["rate"] == before["visual_cues"][0]["rate"]
     assert got["visual_cues"][0]["length"] == before["visual_cues"][0]["length"]
 
