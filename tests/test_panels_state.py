@@ -3,9 +3,9 @@
 Panels construct headlessly from a design session (no run folder, no hardware);
 streams open only on play/record, not at construction. The Devices panel
 enumerates hardware at build time, so it takes the ``mock_devices`` fixture. The
-five stateful panels round-trip their persisted keys; the three that keep no
-per-panel state (their config lives at the window/session level) just confirm an
-empty contribution.
+stateful panels round-trip their persisted keys; the panels that keep no per-panel
+state (their config lives at the window/session level) just confirm an empty
+contribution.
 """
 
 from __future__ import annotations
@@ -120,6 +120,21 @@ def test_recording_panel_offers_builtin_surveys_without_persisting_them(
     assert got["survey_url"] == "smacc://survey/dlq"
     # …but built-ins stay out of the persisted preset mapping.
     assert got["survey_options"] == {}
+
+
+def test_intercom_panel_round_trips_chat_presets(qtbot, design_session):
+    # The Intercom panel persists the shared chat quick-reply presets (#112).
+    panel = IntercomWindow(design_session)
+    qtbot.addWidget(panel)
+    panel.apply_state(
+        {
+            "chat_experimenter_presets": ["Are you awake?"],
+            "chat_participant_presets": ["Yes", "No"],
+        }
+    )
+    got = panel.gather_state()
+    assert got["chat_experimenter_presets"] == ["Are you awake?"]
+    assert got["chat_participant_presets"] == ["Yes", "No"]
 
 
 def test_visual_panel_round_trips(qtbot, design_session):
@@ -335,12 +350,6 @@ def test_volume_panel_refresh_reports_unavailable_levels(
 
 def test_events_panel_has_no_persisted_state(qtbot, design_session):
     panel = EventsWindow(design_session)
-    qtbot.addWidget(panel)
-    assert panel.gather_state() == {}
-
-
-def test_intercom_panel_has_no_persisted_state(qtbot, design_session):
-    panel = IntercomWindow(design_session)
     qtbot.addWidget(panel)
     assert panel.gather_state() == {}
 

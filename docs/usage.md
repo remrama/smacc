@@ -175,6 +175,16 @@ there; clicking back into SMACC takes the focus back. The participant window sho
 a banner — *"● The keyboard is yours"* / *"○ Waiting"* — so a drowsy participant
 always knows whether typing will land.
 
+**Quick replies.** Canned messages save both sides from typing a full sentence at
+3 a.m.; they travel with the study. Click **Manage quick messages…** on the Intercom
+panel to edit two lists — *experimenter prompts* (one click sends a standardized
+prompt, e.g. the lab's dream-report question or *"Are you awake?"*) and *participant
+replies* mapped to the number keys **1–9** (e.g. *"Got it"*, *"I'm awake"*, *"Yes"*,
+*"No"*). The participant's replies appear as large numbered chips; pressing a number
+sends that reply, but only while their entry box is empty, so a typed reply that
+contains digits still works. A sent preset is logged and marked exactly like a typed
+message.
+
 **What's recorded.** Every message is written verbatim to the session log as a
 DEBUG line (tick *Debug* above the log preview to watch the exchange live). By
 default no portcodes fire and nothing reaches the BIDS events export — a typed

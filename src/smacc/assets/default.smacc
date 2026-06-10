@@ -29,6 +29,9 @@ settings:
   survey_options: {}
   chat_font_size: 18
   chat_red_text: false
+  # chat quick-reply presets omitted on purpose: the defaults seed the experimenter's
+  # standard prompts and the participant's number-key replies; saving from the app
+  # writes the configured lists back here (#112).
   # biocal rows omitted on purpose: the stack starts with every standard biocal
   # (plus the unchecked lucid-dreaming signals); saving from the app writes the
   # configured stack back here (#78).

@@ -43,6 +43,8 @@ settings:
   # --- Participant text chat ---------------------------------------------------
   chat_font_size: 18
   chat_red_text: false
+  chat_experimenter_presets: ["Are you awake?", "Going back to sleep now."]
+  chat_participant_presets: ["Got it", "I'm awake", "Yes", "No"]
   # --- Biocals ---------------------------------------------------------------
   biocals:
     voice_volume: 0.5
@@ -116,6 +118,8 @@ Any key may be omitted — each falls back to its default.
 | `survey_options` | mapping | Named *web* survey presets: label → URL. In-app surveys (built-in or custom) are not persisted here — they come from survey definition files (see [Surveys](../surveys.md)). |
 | `chat_font_size` | integer | Participant chat window text size, in points (8–72). |
 | `chat_red_text` | boolean | Red-shifted night text in the participant chat window. |
+| `chat_experimenter_presets` | list | Intercom quick-reply prompts the experimenter sends with one click (verbatim, like a typed message). Omitted → seeded defaults; an empty list is respected. |
+| `chat_participant_presets` | list | Participant quick replies, shown as numbered chips and sent with the number keys 1–9 (max 9). Omitted → seeded defaults; an empty list is respected. |
 | `volume_cap` | 0–1 | Master output safety cap multiplied into every stimulus (`1.0` = no cap). |
 | `output_latency` | `high` \| `low` | Output buffer for the cue + noise streams: `high` is robust (default), `low` trims marker-to-sound delay where the device allows it (often unchanged on shared-mode WASAPI). See [Latency](../latency.md). |
 

@@ -29,9 +29,11 @@ trigger channel and the exported ``trial_type`` aren't flooded with conversation
 from __future__ import annotations
 
 import re
+from functools import partial
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
+from .. import config
 from ..session import SmaccSession
 from .base import ModalityWindow
 
@@ -84,6 +86,19 @@ def sanitize_message(text: str) -> str:
     return text
 
 
+def _clean_presets(items: object) -> list[str]:
+    """Coerce a saved/edited preset list to clean, non-empty, log-safe lines.
+
+    Hand-edited studies must not crash a load, so a non-list (or non-string entry)
+    is dropped rather than raised on; presets are sanitized like any message so a
+    one-click send and a typed send produce identical log lines.
+    """
+    if not isinstance(items, list):
+        return []
+    cleaned = (sanitize_message(item) for item in items if isinstance(item, str))
+    return [text for text in cleaned if text]
+
+
 class ChatTranscript(QtCore.QObject):
     """The shared conversation: an ordered list of ``(sender, text)`` messages.
 
@@ -102,6 +117,62 @@ class ChatTranscript(QtCore.QObject):
         """Append a message and notify both views."""
         self.messages.append((sender, text))
         self.message_posted.emit(sender, text)
+
+
+class ChatPresets(QtCore.QObject):
+    """Quick-reply presets (#112) shared by the two chat views.
+
+    Two ordered lists: the experimenter's one-click prompts (Intercom panel) and the
+    participant's number-key replies (their window). Study-level *config* — edited
+    from the Intercom panel and persisted in the ``.smacc`` (unlike
+    :class:`ChatTranscript`, which is run data) — so one instance is shared, like the
+    transcript, and both views rebuild from :attr:`changed`. The defaults seed a
+    study that hasn't customized them; an explicitly empty list is respected on load.
+    """
+
+    changed = QtCore.pyqtSignal()
+
+    def __init__(self, parent: QtCore.QObject | None = None) -> None:
+        super().__init__(parent)
+        self.experimenter: list[str] = _clean_presets(config.CHAT_EXPERIMENTER_PRESETS)
+        self.participant: list[str] = self._cap(
+            _clean_presets(config.CHAT_PARTICIPANT_PRESETS)
+        )
+
+    @staticmethod
+    def _cap(items: list[str]) -> list[str]:
+        """Participant replies past the ninth have no number key, so drop them."""
+        return items[: config.MAX_PARTICIPANT_PRESETS]
+
+    def set(self, experimenter: list[str], participant: list[str]) -> None:
+        """Replace both lists (e.g. from the manage dialog) and notify both views."""
+        self.experimenter = _clean_presets(experimenter)
+        self.participant = self._cap(_clean_presets(participant))
+        self.changed.emit()
+
+    def gather_state(self) -> dict:
+        return {
+            "chat_experimenter_presets": list(self.experimenter),
+            "chat_participant_presets": list(self.participant),
+        }
+
+    def apply_state(self, state: dict) -> None:
+        """Load saved presets; an absent key keeps the seeded defaults.
+
+        Mirrors the biocals stack: a missing key falls back to the shipped defaults,
+        while a present list (even empty) is honoured as a deliberate choice.
+        """
+        present = False
+        if "chat_experimenter_presets" in state:
+            self.experimenter = _clean_presets(state["chat_experimenter_presets"])
+            present = True
+        if "chat_participant_presets" in state:
+            self.participant = self._cap(
+                _clean_presets(state["chat_participant_presets"])
+            )
+            present = True
+        if present:
+            self.changed.emit()
 
 
 def post_chat_message(
@@ -134,6 +205,10 @@ def _stylesheet(pal: dict[str, str]) -> str:
         f" border: none; }}"
         f"QLineEdit {{ background-color: {pal['field']}; color: {pal['fg']};"
         f" border: 1px solid {pal['dim']}; border-radius: 4px; padding: 6px; }}"
+        # Reply chips: dim, padded, left-aligned — readable from bed, never glaring.
+        f"QPushButton {{ background-color: {pal['field']}; color: {pal['fg']};"
+        f" border: 1px solid {pal['dim']}; border-radius: 6px; padding: 10px;"
+        f" text-align: left; }}"
         f"QMenuBar {{ background-color: {pal['bg']}; color: {pal['dim']}; }}"
         f"QMenuBar::item:selected {{ background-color: {pal['field']}; }}"
         f"QMenu {{ background-color: {pal['field']}; color: {pal['fg']}; }}"
@@ -155,16 +230,20 @@ class ParticipantChatWindow(ModalityWindow):
         self,
         session: SmaccSession,
         transcript: ChatTranscript | None = None,
+        presets: ChatPresets | None = None,
         parent: QtWidgets.QWidget | None = None,
     ):
         super().__init__(session, parent)
         self._transcript = (
             transcript if transcript is not None else ChatTranscript(self)
         )
+        self._presets = presets if presets is not None else ChatPresets(self)
         self._font_size = FONT_DEFAULT
         self.setCentralWidget(self._build())
         self._build_display_menu()
         self._transcript.message_posted.connect(self._append_message)
+        self._presets.changed.connect(self._on_presets_changed)
+        self._rebuild_presets()
         self._apply_font()
         self._apply_theme()
         self.resize(560, 420)
@@ -183,14 +262,26 @@ class ParticipantChatWindow(ModalityWindow):
         view.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self.view = view
 
+        # Quick-reply chips (#112): numbered replies sent with the number keys 1-9.
+        # Non-focusable for the same reason as the view — the entry keeps focus.
+        self._preset_buttons: list[QtWidgets.QPushButton] = []
+        self.presetContainer = QtWidgets.QWidget(self)
+        self.presetLayout = QtWidgets.QVBoxLayout(self.presetContainer)
+        self.presetLayout.setContentsMargins(0, 0, 0, 0)
+
         entry = QtWidgets.QLineEdit(self)
         entry.setPlaceholderText("Type here, then press Enter to send")
         entry.returnPressed.connect(self._send)
+        # A bare number key (1-9) sends the matching quick reply, but only while the
+        # entry is empty, so a typed reply containing digits still works (see
+        # eventFilter).
+        entry.installEventFilter(self)
         self.entry = entry
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.keyboardBanner)
         layout.addWidget(view, 1)
+        layout.addWidget(self.presetContainer)
         layout.addWidget(entry)
         central = QtWidgets.QWidget()
         central.setLayout(layout)
@@ -236,7 +327,12 @@ class ParticipantChatWindow(ModalityWindow):
     def _apply_font(self) -> None:
         font = QtGui.QFont()
         font.setPointSize(self._font_size)
-        for widget in (self.view, self.entry, self.keyboardBanner):
+        for widget in (
+            self.view,
+            self.entry,
+            self.keyboardBanner,
+            *self._preset_buttons,
+        ):
             widget.setFont(font)
 
     def _step_font(self, delta: int) -> None:
@@ -271,11 +367,35 @@ class ParticipantChatWindow(ModalityWindow):
             scrollbar.setValue(scrollbar.maximum())
 
     def _send(self) -> None:
-        posted = post_chat_message(
-            self.session, self._transcript, PARTICIPANT, self.entry.text()
-        )
+        self._send_text(self.entry.text())
+
+    def _send_text(self, text: str) -> None:
+        """Post ``text`` as the participant — a typed entry or a quick reply."""
+        posted = post_chat_message(self.session, self._transcript, PARTICIPANT, text)
         if posted is not None:
             self.entry.clear()
+
+    # ----- quick replies ------------------------------------------------------
+
+    def _rebuild_presets(self) -> None:
+        """Rebuild the numbered reply chips from the shared presets."""
+        for button in self._preset_buttons:
+            button.deleteLater()
+        self._preset_buttons = []
+        for number, text in enumerate(self._presets.participant, start=1):
+            button = QtWidgets.QPushButton(f"{number}.  {text}", self.presetContainer)
+            # No mouse in the bedroom, so the number key is the real trigger; the chip
+            # stays clickable (harmless, ready for a future touch display) but never
+            # takes focus away from the entry.
+            button.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
+            button.clicked.connect(partial(self._send_text, text))
+            self.presetLayout.addWidget(button)
+            self._preset_buttons.append(button)
+        self.presetContainer.setVisible(bool(self._preset_buttons))
+
+    def _on_presets_changed(self) -> None:
+        self._rebuild_presets()
+        self._apply_font()
 
     # ----- window behaviour ---------------------------------------------------
 
@@ -288,6 +408,26 @@ class ParticipantChatWindow(ModalityWindow):
         super().showEvent(event)
         self.entry.setFocus()
         self._refresh_keyboard_banner()
+
+    def eventFilter(self, obj, event) -> bool:
+        """Send a quick reply when a number key is pressed on an empty entry.
+
+        The participant types into ``self.entry``; a bare ``1``-``9`` there fires the
+        matching chip, but only while nothing is typed, so a free-text reply that
+        contains digits is left alone. The keystroke is consumed so the digit isn't
+        also inserted.
+        """
+        if (
+            obj is self.entry
+            and event is not None
+            and event.type() == QtCore.QEvent.Type.KeyPress
+            and not self.entry.text()
+        ):
+            index = event.key() - QtCore.Qt.Key.Key_1
+            if 0 <= index < len(self._presets.participant):
+                self._send_text(self._presets.participant[index])
+                return True
+        return super().eventFilter(obj, event)
 
     # ----- persisted state ----------------------------------------------------
 
