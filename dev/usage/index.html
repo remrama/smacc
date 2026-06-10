@@ -1447,10 +1447,19 @@ session is always recoverable.</p>
 <p>Beyond portcodes, SMACC logs the important interactions too — volume, color, device,
 and fade changes — as plain log lines (no portcode), so the session record is complete.</p>
 <h3 id="event-logging-panel">Event logging panel</h3>
-<p>The manual event buttons (Start recording, REM detected, Sleep onset, your custom events, …) live in the
-<strong>Event logging</strong> panel — open it from the session window's <strong>Tools</strong> column; the
-first nine buttons take the 1–9 keyboard shortcuts while it's focused. The <strong>Lights</strong>
-toggle stays on the main window (it also flips the dark theme).</p>
+<p>The manual event buttons (the sleep-stage family, Signal observed, Sleep onset, Note,
+your custom events, …) live in the <strong>Event logging</strong> panel — open it from the session
+window's <strong>Tools</strong> column. The sleep-stage buttons take a fixed keypad — <strong>0</strong> Wake,
+<strong>1</strong> N1, <strong>2</strong> N2, <strong>3</strong> N3, <strong>4</strong> REM — and the remaining buttons take <strong>5</strong>–<strong>9</strong> in
+order; the shortcuts are active while the panel is focused. The <strong>Lights</strong> toggle stays
+on the main window (it also flips the dark theme).</p>
+<p><strong>Signal observed.</strong> One button covers every lucidity/communication signal a study uses
+(LRLR, sniff, facial, …), so you don't need a separate button per signal. Pick the
+<strong>signal</strong> type (the box is editable — type your own and it's remembered for the rest of
+the session) and a <strong>confidence</strong> (certain / probable / possible) beside the button;
+pressing it fires the marker immediately and logs your selection as the detail, so the
+marker's timing tracks the observation. Confidence is recorded as a comment — it never
+changes whether the marker reaches the EEG.</p>
 <h3 id="where-codes-live">Where codes live</h3>
 <p>Your codes are saved in the <code>.smacc</code> settings file (so they travel with it) and
 written into every session <code>.log</code> (both the initial and final settings blocks), so any

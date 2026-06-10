@@ -1084,21 +1084,21 @@ study can retune any code in the <strong>Event codes</strong> editor; the change
 </tr>
 <tr>
 <td>43</td>
-<td>TLR training start</td>
-<td><code>TLRTrainingStart</code></td>
-<td></td>
+<td>Training start</td>
+<td><code>TrainingStart</code></td>
+<td>start of a training/learning phase (TMR cue learning, TLR practice)</td>
 </tr>
 <tr>
 <td>44</td>
-<td>TLR training end</td>
-<td><code>TLRTrainingEnd</code></td>
+<td>Training end</td>
+<td><code>TrainingEnd</code></td>
 <td></td>
 </tr>
 <tr>
 <td>45</td>
-<td>LRLR detected</td>
-<td><code>LRLRDetected</code></td>
-<td>lucid left-right-left-right signal</td>
+<td>Signal observed</td>
+<td><code>SignalObserved</code></td>
+<td>a lucidity/communication signal; the signal type + confidence are logged as the detail</td>
 </tr>
 <tr>
 <td>46</td>
@@ -1135,6 +1135,42 @@ study can retune any code in the <strong>Event codes</strong> editor; the change
 <td>Start recording</td>
 <td><code>RecordingStarted</code></td>
 <td>sets the reference clock for dream-report timestamps</td>
+</tr>
+<tr>
+<td>52</td>
+<td>Wake detected</td>
+<td><code>WakeDetected</code></td>
+<td>sleep-stage observation (keypad 0 in the Event logging window)</td>
+</tr>
+<tr>
+<td>53</td>
+<td>N1 detected</td>
+<td><code>N1Detected</code></td>
+<td>sleep-stage observation (keypad 1)</td>
+</tr>
+<tr>
+<td>54</td>
+<td>N2 detected</td>
+<td><code>N2Detected</code></td>
+<td>sleep-stage observation (keypad 2)</td>
+</tr>
+<tr>
+<td>55</td>
+<td>N3 detected</td>
+<td><code>N3Detected</code></td>
+<td>sleep-stage observation (keypad 3)</td>
+</tr>
+<tr>
+<td>56</td>
+<td>Arousal detected</td>
+<td><code>ArousalDetected</code></td>
+<td>a brief transient arousal (distinct from a sustained Wake)</td>
+</tr>
+<tr>
+<td>57</td>
+<td>Artifact detected</td>
+<td><code>ArtifactDetected</code></td>
+<td>EEG artifact (movement, electrode noise, etc.)</td>
 </tr>
 <tr>
 <td>60</td>
