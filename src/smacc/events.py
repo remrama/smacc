@@ -9,7 +9,9 @@ file, and recover from any session log.
 Each :class:`EventDef` carries:
 
 * ``code`` — the 8-bit portcode (``1..255``) sent on a trigger.
-* ``trigger`` — whether to push the code to the marker stream.
+* ``lsl`` / ``ttl`` — per-transport routing: whether a firing pushes the code over
+  the LSL marker stream and/or the hardware TTL trigger (when one is configured).
+  An event routed to neither transport is log-only.
 * ``preview`` — whether the event shows in the live log preview. Everything is
   written to the session log file regardless; this flag only gates the on-screen
   viewer.
@@ -46,17 +48,23 @@ class EventDef:
     key: str
     label: str
     code: int
-    trigger: bool = True
+    lsl: bool = True
+    ttl: bool = True
     preview: bool = True
     category: str = "control"
     tooltip: str = ""
     increment: bool = False
     builtin: bool = True  # False for user-added custom events
 
+    @property
+    def triggered(self) -> bool:
+        """Whether a firing sends the code anywhere (routed to any transport)."""
+        return self.lsl or self.ttl
+
 
 # The fields a study may override (keyed by ``key``); labels/tooltips/categories
 # stay app-defined so improvements to them reach old studies on load.
-_PERSIST_FIELDS = ("key", "code", "trigger", "preview", "increment")
+_PERSIST_FIELDS = ("key", "code", "lsl", "ttl", "preview", "increment")
 _FIELD_NAMES = {f.name for f in fields(EventDef)}
 
 
@@ -259,24 +267,26 @@ def default_events() -> list[EventDef]:
         # The stop pairs with 66 at the next free code (67 predates it).
         EventDef("VisualStopped", "Visual stopped", 68),
         EventDef("SurveyOpened", "Survey opened", 67),
-        # Submission is logged but not triggered by default (#114): the survey
+        # Submission is logged but routed nowhere by default (#114): the survey
         # happens after the awakening, so its timing rarely belongs in the EEG
-        # trigger channel. A study can flip Trigger on in the Event codes dialog.
+        # trigger channel. A study can route it to LSL/TTL in the registry editor.
         EventDef(
             "SurveySubmitted",
             "Survey submitted",
             71,
-            trigger=False,
+            lsl=False,
+            ttl=False,
             tooltip="Mark an in-app survey's responses being saved",
         ),
         # --- Text chat (#92): log-only by default. A typed exchange is rapid and
-        # conversational, so neither direction triggers (or previews) unless a
+        # conversational, so neither direction is routed (or previewed) unless a
         # study flips it on; the verbatim text always lands on a DEBUG log line.
         EventDef(
             "ChatMessageSent",
             "Chat to participant",
             69,
-            trigger=False,
+            lsl=False,
+            ttl=False,
             preview=False,
             tooltip="Mark a typed intercom message shown to the participant",
         ),
@@ -284,7 +294,8 @@ def default_events() -> list[EventDef]:
             "ChatMessageReceived",
             "Chat from participant",
             70,
-            trigger=False,
+            lsl=False,
+            ttl=False,
             preview=False,
             tooltip="Mark a typed reply from the participant",
         ),
@@ -295,7 +306,8 @@ def default_events() -> list[EventDef]:
             "TriggerInitialization",
             "SMACC initialized",
             100,
-            trigger=False,
+            lsl=False,
+            ttl=False,
             preview=False,
             category="system",
             tooltip="Optional connection-test marker sent once at startup",
@@ -324,7 +336,8 @@ def events_to_list(events: Iterable[EventDef]) -> list[dict[str, Any]]:
                     "key": e.key,
                     "label": e.label,
                     "code": e.code,
-                    "trigger": e.trigger,
+                    "lsl": e.lsl,
+                    "ttl": e.ttl,
                     "preview": e.preview,
                     "category": e.category,
                     "tooltip": e.tooltip,
@@ -337,7 +350,7 @@ def events_to_list(events: Iterable[EventDef]) -> list[dict[str, Any]]:
 
 # A built-in entry only ever overrides these (its label/category/tooltip stay
 # app-defined); a hand-edited file can't rewrite them onto a built-in.
-_BUILTIN_OVERRIDE_FIELDS = ("code", "trigger", "preview", "increment")
+_BUILTIN_OVERRIDE_FIELDS = ("code", "lsl", "ttl", "preview", "increment")
 
 
 def _builtin_overrides(item: dict) -> dict[str, Any]:
@@ -368,7 +381,8 @@ def _custom_from_dict(key: str, item: dict) -> EventDef | None:
         key=key,
         label=str(item.get("label") or key),
         code=code,
-        trigger=bool(item.get("trigger", True)),
+        lsl=bool(item.get("lsl", True)),
+        ttl=bool(item.get("ttl", True)),
         preview=bool(item.get("preview", True)),
         category=str(item.get("category") or "manual"),
         tooltip=str(item.get("tooltip") or ""),
@@ -412,7 +426,8 @@ def make_custom_event(
     *,
     tooltip: str = "",
     increment: bool = False,
-    trigger: bool = True,
+    lsl: bool = True,
+    ttl: bool = True,
     preview: bool = True,
 ) -> EventDef:
     """Build a custom (button) event with a unique key derived from ``label``."""
@@ -427,7 +442,8 @@ def make_custom_event(
         key=key,
         label=label,
         code=code,
-        trigger=trigger,
+        lsl=lsl,
+        ttl=ttl,
         preview=preview,
         category="manual",
         tooltip=tooltip,
@@ -442,16 +458,18 @@ def validate_events(
     """Return ``(errors, warnings)`` for a registry.
 
     Hard errors (block saving): a code outside ``1..255``, a duplicate code among
-    *triggerable* events (they would collide on the marker channel), or a
-    duplicate key. Soft warnings (allowed, but surfaced): a code above
-    ``safe_max`` (older hardware), or an incrementing event whose band
-    (``code..255``) overlaps another triggerable code.
+    *routed* events (they would collide on the marker channel — uniqueness is
+    enforced across transports, since per-transport reuse would be technically
+    safe but humanly confusing), or a duplicate key. Soft warnings (allowed, but
+    surfaced): a TTL-routed code above ``safe_max`` (older trigger hardware; LSL
+    carries any code), or an incrementing event whose band (``code..255``)
+    overlaps another routed code.
     """
     events = list(events)
     errors: list[str] = []
     warnings: list[str] = []
     seen_keys: set[str] = set()
-    trig_codes: dict[int, str] = {}  # code -> label, for triggerable events only
+    trig_codes: dict[int, str] = {}  # code -> label, for routed events only
     for e in events:
         if e.key in seen_keys:
             errors.append(f"Duplicate event key {e.key!r}.")
@@ -464,11 +482,11 @@ def validate_events(
         if not (CODE_MIN <= e.code <= CODE_MAX):
             errors.append(f"{e.label}: code {e.code} is outside {CODE_MIN}–{CODE_MAX}.")
             continue
-        if e.code > safe_max:
+        if e.ttl and e.code > safe_max:
             warnings.append(
-                f"{e.label}: code {e.code} is above the safe max {safe_max}."
+                f"{e.label}: code {e.code} is above the TTL safe max {safe_max}."
             )
-        if e.trigger:
+        if e.triggered:
             if e.code in trig_codes:
                 errors.append(
                     f"{e.label}: code {e.code} duplicates {trig_codes[e.code]!r}."
@@ -478,7 +496,7 @@ def validate_events(
     for e in events:
         if (
             e.increment
-            and e.trigger
+            and e.triggered
             and isinstance(e.code, int)
             and not isinstance(e.code, bool)
         ):

@@ -100,14 +100,17 @@ study can retune any code in the **Event codes** editor; the change travels in i
 | 201 | Dream report started | `DreamReportStarted` | increments per report (201, 202, …) |
 <!-- END auto:event-codes -->
 
-Codes are integers in **1–255** and must be unique among triggered events.
+Codes are integers in **1–255** and must be unique among events routed to a
+transport (LSL or TTL).
 
 ## How SMACC sends triggers
 
-SMACC always emits markers over **LSL** (Lab Streaming Layer), a network marker
-stream. On top of that, you can *optionally* enable **one** hardware transport so a
-physical trigger reaches an amplifier that doesn't read LSL. Both fire from the same
-place, so every event you log is sent the same way over every enabled path.
+SMACC emits markers over **LSL** (Lab Streaming Layer), a network marker stream. On
+top of that, you can *optionally* enable **one** hardware transport so a physical
+trigger reaches an amplifier that doesn't read LSL. Both fire from the same place,
+and each event routes to either path independently: its **LSL** and **TTL** flags in
+the registry decide where its code goes (both by default; an event routed to
+neither is log-only).
 
 | Transport | What it is | What you need |
 |---|---|---|
@@ -116,8 +119,16 @@ place, so every event you log is sent the same way over every enabled path.
 | **Parallel port (LPT)** | The classic 25-pin port. Eight data pins carry the code byte, sampled by the amplifier. | An LPT port (often an add-in card) and the **InpOut32** driver (see below). |
 
 !!! note "LSL stays on"
-    Enabling a hardware transport does **not** turn LSL off — you always get the LSL
-    marker stream as well. The hardware path is purely additional.
+    Enabling a hardware transport does **not** turn LSL off — events routed to both
+    (the default) reach the LSL stream and the hardware line together. The hardware
+    path is purely additional.
+
+!!! tip "Why route per event?"
+    Most studies leave every event on both transports. Per-event routing earns its
+    keep when the TTL hardware is restricted — an older amplifier that only accepts
+    a limited code range can keep its key events on TTL (inside the
+    [safe max](usage.md#configuring-codes)) while chattier or higher-coded events
+    still reach the LSL stream.
 
 ### What is the baud rate?
 

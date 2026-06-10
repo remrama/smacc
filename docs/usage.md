@@ -201,10 +201,9 @@ message.
 DEBUG line (tick *Debug* above the log preview to watch the exchange live). By
 default no portcodes fire and nothing reaches the BIDS events export — a typed
 exchange is rapid and conversational, and would flood the marker channel. If a
-study needs marker timestamps, flip the trigger on for `Chat to participant`
-(code 69) and/or `Chat from participant` (code 70) in **File &rsaquo; Event
-codes…**; the markers stay bare (no message text) so the trigger channel remains
-legible.
+study needs marker timestamps, route `Chat to participant` (code 69) and/or
+`Chat from participant` (code 70) to LSL/TTL in **File &rsaquo; Event codes…**;
+the markers stay bare (no message text) so the trigger channel remains legible.
 
 ## EEG portcodes
 
@@ -218,7 +217,10 @@ Open **File &rsaquo; Event codes…** to see every event in one table. For each 
 can set:
 
 - **Code** — the 8-bit portcode (1–255) sent when the event triggers.
-- **Trigger** — whether the event is sent to the marker stream at all.
+- **LSL** — whether a firing sends the code over the LSL marker stream.
+- **TTL** — whether a firing sends the code over the hardware TTL trigger (when one
+  is configured; see [Triggers & port codes](triggers.md)). An event with neither
+  LSL nor TTL ticked is log-only.
 - **Preview** — whether the event shows in the live log preview. The session log
   *file* always records every event regardless; this only controls the on-screen
   preview.
@@ -226,9 +228,10 @@ can set:
   reports**: 201, 202, 203, …) so individual occurrences are findable in the trigger
   channel. Off uses one fixed code each time.
 
-**Safe max code** raises a soft warning for codes above it — handy when your trigger
-hardware only accepts a limited range (some older systems do). Codes must be unique
-among triggered events and within 1–255; the editor blocks anything else.
+**Safe max code** raises a soft warning for TTL-routed codes above it — handy when
+your trigger hardware only accepts a limited range (some older systems do; LSL
+carries any code). Codes must be unique among routed events and within 1–255; the
+editor blocks anything else.
 
 **Custom events.** Use **Add event…** — in the **Event logging** panel itself, or in
 this editor — to create your own button events (a label and a code); they appear in

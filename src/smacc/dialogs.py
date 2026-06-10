@@ -736,13 +736,15 @@ class AddEventDialog(QtWidgets.QDialog):
 class EventCodesDialog(QtWidgets.QDialog):
     """View and edit the event-marker registry: codes, routing, and custom events.
 
-    One row per event shows its port code plus independent Trigger (send to the
-    marker stream) and Preview (show in the live log viewer) checkboxes, and an
-    Increment toggle (advance the code on each firing). The log *file* always
-    records every event regardless of Preview. Built-in events can be retuned but
-    not removed or renamed; custom events (added here) have an editable label, can
-    be removed, and appear as buttons in the Event logging panel. Codes are unique
-    8-bit values (1-255); a soft "safe max" flags values older hardware may reject.
+    One row per event shows its port code plus independent LSL and TTL routing
+    checkboxes (send the code over the LSL marker stream / the hardware TTL
+    trigger), a Preview checkbox (show in the live log viewer), and an Increment
+    toggle (advance the code on each firing). The log *file* always records every
+    event regardless of Preview. Built-in events can be retuned but not removed or
+    renamed; custom events (added here) have an editable label, can be removed,
+    and appear as buttons in the Event logging panel. Codes are unique 8-bit
+    values (1-255) among routed events; a soft "safe max" flags TTL-routed values
+    older hardware may reject.
 
     The dialog edits copies; the caller reads :meth:`get_events` /
     :meth:`get_safe_max` only when the dialog is accepted.
@@ -754,20 +756,25 @@ class EventCodesDialog(QtWidgets.QDialog):
         self.setWindowFlags(
             self.windowFlags() ^ QtCore.Qt.WindowType.WindowContextHelpButtonHint
         )
-        self.resize(600, 560)
+        self.resize(640, 560)
         self._events = [replace(e) for e in event_list]  # working copies
 
-        self.table = QtWidgets.QTableWidget(0, 5, self)
+        self.table = QtWidgets.QTableWidget(0, 6, self)
         self.table.setHorizontalHeaderLabels(
-            ["Event", "Code", "Trigger", "Preview", "Increment"]
+            ["Event", "Code", "LSL", "TTL", "Preview", "Increment"]
         )
         for col, tip in (
-            (2, "Send this event's code to the marker stream (EEG)."),
+            (2, "Send this event's code over the LSL marker stream."),
             (
                 3,
+                "Send this event's code over the hardware TTL trigger "
+                "(when one is configured).",
+            ),
+            (
+                4,
                 "Show this event in the live log viewer (the log file always records it).",
             ),
-            (4, "Advance the code on each firing (e.g. dream reports: 201, 202, …)."),
+            (5, "Advance the code on each firing (e.g. dream reports: 201, 202, …)."),
         ):
             header_item = self.table.horizontalHeaderItem(col)
             if header_item is not None:
@@ -787,7 +794,7 @@ class EventCodesDialog(QtWidgets.QDialog):
         header = self.table.horizontalHeader()
         assert header is not None
         header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Stretch)
-        for col in range(1, 5):
+        for col in range(1, 6):
             header.setSectionResizeMode(
                 col, QtWidgets.QHeaderView.ResizeMode.ResizeToContents
             )
@@ -807,8 +814,8 @@ class EventCodesDialog(QtWidgets.QDialog):
         self.safeMaxSpin.setRange(events.CODE_MIN, events.CODE_MAX)
         self.safeMaxSpin.setValue(int(safe_max))
         self.safeMaxSpin.setStatusTip(
-            "Codes above this raise a soft warning (some older trigger hardware "
-            "accepts only a limited range)."
+            "TTL-routed codes above this raise a soft warning (some older trigger "
+            "hardware accepts only a limited range; LSL carries any code)."
         )
         safeRow = QtWidgets.QHBoxLayout()
         safeRow.addWidget(QtWidgets.QLabel("Safe max code:"))
@@ -824,8 +831,9 @@ class EventCodesDialog(QtWidgets.QDialog):
         buttonBox.rejected.connect(self.reject)
 
         hint = QtWidgets.QLabel(
-            "Codes are 8-bit (1-255) and must be unique among triggered events. "
-            "The log file records every event; Preview only controls the live viewer."
+            "Codes are 8-bit (1-255) and must be unique among events routed to a "
+            "transport (LSL or TTL). The log file records every event; Preview "
+            "only controls the live viewer."
         )
         hint.setWordWrap(True)
         layout = QtWidgets.QVBoxLayout(self)
@@ -842,7 +850,8 @@ class EventCodesDialog(QtWidgets.QDialog):
     def _populate(self) -> None:
         """(Re)build the table rows from ``self._events`` (called after add/remove)."""
         self._code_spins: list[QtWidgets.QSpinBox] = []
-        self._trigger_boxes: list[QtWidgets.QCheckBox] = []
+        self._lsl_boxes: list[QtWidgets.QCheckBox] = []
+        self._ttl_boxes: list[QtWidgets.QCheckBox] = []
         self._preview_boxes: list[QtWidgets.QCheckBox] = []
         self._increment_boxes: list[QtWidgets.QCheckBox] = []
         self._label_edits: list[QtWidgets.QLineEdit | None] = []
@@ -869,13 +878,16 @@ class EventCodesDialog(QtWidgets.QDialog):
             self.table.setCellWidget(row, 1, code_spin)
             self._code_spins.append(code_spin)
 
-            trig_cell, trig_box = self._checkbox_cell(event.trigger)
+            lsl_cell, lsl_box = self._checkbox_cell(event.lsl)
+            ttl_cell, ttl_box = self._checkbox_cell(event.ttl)
             preview_cell, preview_box = self._checkbox_cell(event.preview)
             inc_cell, inc_box = self._checkbox_cell(event.increment)
-            self.table.setCellWidget(row, 2, trig_cell)
-            self.table.setCellWidget(row, 3, preview_cell)
-            self.table.setCellWidget(row, 4, inc_cell)
-            self._trigger_boxes.append(trig_box)
+            self.table.setCellWidget(row, 2, lsl_cell)
+            self.table.setCellWidget(row, 3, ttl_cell)
+            self.table.setCellWidget(row, 4, preview_cell)
+            self.table.setCellWidget(row, 5, inc_cell)
+            self._lsl_boxes.append(lsl_box)
+            self._ttl_boxes.append(ttl_box)
             self._preview_boxes.append(preview_box)
             self._increment_boxes.append(inc_box)
 
@@ -890,7 +902,8 @@ class EventCodesDialog(QtWidgets.QDialog):
                 event,
                 label=label,
                 code=self._code_spins[i].value(),
-                trigger=self._trigger_boxes[i].isChecked(),
+                lsl=self._lsl_boxes[i].isChecked(),
+                ttl=self._ttl_boxes[i].isChecked(),
                 preview=self._preview_boxes[i].isChecked(),
                 increment=self._increment_boxes[i].isChecked(),
             )

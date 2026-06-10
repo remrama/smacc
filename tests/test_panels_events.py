@@ -77,7 +77,7 @@ def test_add_event_button_adds_to_registry_and_grid(tmp_path, qtbot, monkeypatch
         c
         for c in range(1, 256)
         if c not in taken
-        and all(not (e.increment and e.trigger and c >= e.code) for e in evs)
+        and all(not (e.increment and e.triggered and c >= e.code) for e in evs)
     )
     monkeypatch.setattr(
         dialogs.AddEventDialog,
@@ -105,7 +105,7 @@ def test_add_event_with_duplicate_code_is_blocked(tmp_path, qtbot, monkeypatch):
     from smacc import dialogs
 
     win, session = _events_window(tmp_path, qtbot)
-    taken = next(e.code for e in session.events.values() if e.trigger)
+    taken = next(e.code for e in session.events.values() if e.triggered)
     before = len(session.events)
     monkeypatch.setattr(dialogs.AddEventDialog, "exec", lambda self: True)
     monkeypatch.setattr(

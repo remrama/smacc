@@ -10,8 +10,8 @@ def test_default_events_codes_unique_and_8bit():
         assert events.CODE_MIN <= e.code <= events.CODE_MAX
     keys = [e.key for e in defs]
     assert len(keys) == len(set(keys))  # unique keys
-    triggered = [e.code for e in defs if e.trigger]
-    assert len(triggered) == len(set(triggered))  # no triggered-code collisions
+    triggered = [e.code for e in defs if e.triggered]
+    assert len(triggered) == len(set(triggered))  # no routed-code collisions
 
 
 def test_default_events_validate_clean():
@@ -27,7 +27,7 @@ def test_recording_started_is_a_default_manual_marker():
     assert rec.label == "Start recording"
     assert rec.code == 51
     assert rec.category == "manual"
-    assert rec.trigger is True
+    assert rec.lsl is True and rec.ttl is True
     assert rec.increment is False
 
 
@@ -50,7 +50,7 @@ def test_signal_and_stage_markers_are_default_manual_triggers():
         marker = by_key[key]
         assert marker.code == code
         assert marker.category == "manual"
-        assert marker.trigger is True
+        assert marker.lsl is True and marker.ttl is True
         assert marker.increment is False
     # The TLR-specific pair was generalized and the LRLR button folded into the
     # generic signal marker — the old keys are gone.
@@ -60,26 +60,27 @@ def test_signal_and_stage_markers_are_default_manual_triggers():
 
 def test_chat_events_are_log_only_by_default():
     # #92: a typed exchange is rapid and conversational, so neither chat direction
-    # triggers (or previews) unless a study flips it on; the codes extend the
+    # is routed (or previewed) unless a study flips it on; the codes extend the
     # control band right after the intercom pair.
     defs = {e.key: e for e in events.default_events()}
     sent, received = defs["ChatMessageSent"], defs["ChatMessageReceived"]
     assert (sent.code, received.code) == (69, 70)
     for event in (sent, received):
         assert event.category == "control"  # no event-grid button
-        assert event.trigger is False
+        assert event.lsl is False and event.ttl is False
+        assert event.triggered is False
         assert event.preview is False
         assert event.increment is False
 
 
 def test_survey_submitted_is_log_only_by_default():
-    """Submission (#114) is recorded but not triggered unless a study opts in."""
+    """Submission (#114) is recorded but routed nowhere unless a study opts in."""
     by_key = {e.key: e for e in events.default_events()}
     submitted = by_key["SurveySubmitted"]
     assert submitted.code == 71
-    assert submitted.trigger is False
+    assert submitted.triggered is False
     assert submitted.preview is True
-    assert by_key["SurveyOpened"].trigger is True  # the open still marks the EEG
+    assert by_key["SurveyOpened"].triggered is True  # the open still marks the EEG
 
 
 def test_dream_start_increments_and_others_dont():
@@ -111,12 +112,27 @@ def test_merge_event_codes_overlays_overrides():
     merged = {
         e.key: e
         for e in events.merge_event_codes(
-            [{"key": "REMDetected", "code": 99, "trigger": False}]
+            [{"key": "REMDetected", "code": 99, "lsl": False}]
         )
     }
     assert merged["REMDetected"].code == 99
-    assert merged["REMDetected"].trigger is False
+    assert merged["REMDetected"].lsl is False
+    assert merged["REMDetected"].ttl is True  # transports override independently
     assert merged["Clapper"].code == 49  # untouched events keep their defaults
+
+
+def test_merge_event_codes_ignores_legacy_trigger_key():
+    # The pre-v3 single ``trigger`` flag is gone — deliberately unmigrated
+    # (pre-release breaking change), so an old entry's flag can't sneak back in
+    # as a phantom routing override.
+    merged = {
+        e.key: e
+        for e in events.merge_event_codes(
+            [{"key": "REMDetected", "code": 41, "trigger": False}]
+        )
+    }
+    assert merged["REMDetected"].lsl is True
+    assert merged["REMDetected"].ttl is True
 
 
 def test_merge_event_codes_ignores_unknown_keys():
@@ -132,23 +148,22 @@ def test_merge_event_codes_coerces_types():
     # YAML / hand edits may yield stringy/inty values; merge should coerce them.
     merged = {
         e.key: e
-        for e in events.merge_event_codes(
-            [{"key": "Clapper", "code": "49", "trigger": 1}]
-        )
+        for e in events.merge_event_codes([{"key": "Clapper", "code": "49", "lsl": 1}])
     }
     assert merged["Clapper"].code == 49
-    assert merged["Clapper"].trigger is True
+    assert merged["Clapper"].lsl is True
 
 
 def test_events_to_list_is_compact_and_round_trips():
     compact = events.events_to_list(events.default_events())
     assert all(
-        set(d) == {"key", "code", "trigger", "preview", "increment"} for d in compact
+        set(d) == {"key", "code", "lsl", "ttl", "preview", "increment"} for d in compact
     )
     merged = {e.key: e for e in events.merge_event_codes(compact)}
     for e in events.default_events():
         assert merged[e.key].code == e.code
-        assert merged[e.key].trigger == e.trigger
+        assert merged[e.key].lsl == e.lsl
+        assert merged[e.key].ttl == e.ttl
 
 
 def test_validate_events_rejects_out_of_range_and_dupes():
@@ -156,34 +171,52 @@ def test_validate_events_rejects_out_of_range_and_dupes():
     assert errors  # 0 is below CODE_MIN
 
     dupes = [
-        events.EventDef("A", "A", 50, trigger=True),
-        events.EventDef("B", "B", 50, trigger=True),
+        events.EventDef("A", "A", 50),
+        events.EventDef("B", "B", 50),
     ]
     errors, _ = events.validate_events(dupes)
-    assert errors  # two triggered events share code 50
+    assert errors  # two routed events share code 50
 
 
-def test_validate_events_allows_dupe_when_not_triggered():
+def test_validate_events_allows_dupe_when_not_routed():
     pair = [
-        events.EventDef("A", "A", 50, trigger=True),
-        events.EventDef("B", "B", 50, trigger=False),
+        events.EventDef("A", "A", 50),
+        events.EventDef("B", "B", 50, lsl=False, ttl=False),
     ]
     errors, _ = events.validate_events(pair)
     assert errors == []  # only one can ever be sent, so no real collision
 
 
-def test_validate_events_warns_above_safe_max():
+def test_validate_events_rejects_dupe_across_transports():
+    # Uniqueness is enforced across transports: an LSL-only and a TTL-only event
+    # sharing a code would be technically safe but humanly confusing.
+    pair = [
+        events.EventDef("A", "A", 50, lsl=True, ttl=False),
+        events.EventDef("B", "B", 50, lsl=False, ttl=True),
+    ]
+    errors, _ = events.validate_events(pair)
+    assert errors
+
+
+def test_validate_events_warns_above_safe_max_for_ttl_only():
     errors, warnings = events.validate_events(
-        [events.EventDef("A", "A", 200, trigger=True)], safe_max=127
+        [events.EventDef("A", "A", 200)], safe_max=127
     )
     assert errors == []
-    assert warnings  # 200 > safe_max 127 is a soft warning, not an error
+    assert warnings  # a TTL-routed 200 > safe_max 127 is a soft warning
+
+    # The safe max guards restricted TTL hardware; LSL carries any code silently.
+    errors, warnings = events.validate_events(
+        [events.EventDef("A", "A", 200, ttl=False)], safe_max=127
+    )
+    assert errors == []
+    assert warnings == []
 
 
 def test_validate_events_warns_on_increment_band_overlap():
     defs = [
-        events.EventDef("Start", "Start", 60, trigger=True, increment=True),
-        events.EventDef("Other", "Other", 62, trigger=True),
+        events.EventDef("Start", "Start", 60, increment=True),
+        events.EventDef("Other", "Other", 62),
     ]
     _, warnings = events.validate_events(defs)
     assert warnings  # the 60..255 band overlaps Other's code 62
@@ -253,7 +286,7 @@ def test_biocal_events_registered_with_table_codes():
         assert event.code == b.code
         assert event.category == "biocal"
         assert event.builtin
-        assert event.trigger and event.preview and not event.increment
+        assert event.lsl and event.ttl and event.preview and not event.increment
     for key, code in [
         (biocals.SEQUENCE_STARTED_EVENT, 105),
         (biocals.SEQUENCE_STOPPED_EVENT, 106),
@@ -290,7 +323,7 @@ def test_visual_pair_brackets_the_stimulus():
     stop = registry["VisualStopped"]
     assert stop.code == 68
     assert stop.category == "control"
-    assert stop.trigger and stop.preview and not stop.increment
+    assert stop.lsl and stop.ttl and stop.preview and not stop.increment
 
 
 def test_visual_stopped_merges_into_older_studies():

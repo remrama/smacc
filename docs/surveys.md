@@ -77,7 +77,7 @@ response file is named after it. Any survey can also be opened standalone from
 
 Every open logs a `SurveyOpened` event. Submitting an in-app survey writes the
 response file and logs a `SurveySubmitted` event (code 71) — log-only by default,
-since the survey happens after the awakening; flip its **Trigger** checkbox in
+since the survey happens after the awakening; tick its **LSL**/**TTL** boxes in
 the Event codes dialog if your protocol wants it in the trigger channel.
 
 In the study designer (and the read-only previews in the Manage dialog) a survey

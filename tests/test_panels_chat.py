@@ -90,10 +90,11 @@ def test_empty_message_posts_nothing(design_session):
 
 
 def test_flipped_on_trigger_fires_a_bare_marker(live_session):
-    # A study that wants marker timestamps flips the trigger in the Event codes
-    # dialog; the marker line stays bare so trial_type/trigger channel stay legible.
+    # A study that wants marker timestamps routes the event to a transport in the
+    # Event codes dialog; the marker line stays bare so trial_type/trigger channel
+    # stay legible.
     live_session.events["ChatMessageSent"] = replace(
-        live_session.events["ChatMessageSent"], trigger=True
+        live_session.events["ChatMessageSent"], lsl=True
     )
     transcript = ChatTranscript()
     post_chat_message(live_session, transcript, EXPERIMENTER, "Are you comfortable?")

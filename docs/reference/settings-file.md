@@ -14,7 +14,7 @@ guide (creating, editing, sharing). This page is the field reference.
 ```yaml
 # SMACC settings — YAML (.smacc). Edit with care.
 kind: smacc/settings
-schema_version: 2
+schema_version: 3
 smacc_version: "0.0.7"
 metadata:
   subject: "001"
@@ -63,7 +63,7 @@ settings:
       visual_out: blinkstick
   # --- Event-marker registry -------------------------------------------------
   event_codes:
-    - {key: REMDetected, code: 41, trigger: true, preview: true, increment: false}
+    - {key: REMDetected, code: 41, lsl: true, ttl: true, preview: true, increment: false}
   event_code_safe_max: 255
   # --- Optional hardware trigger output --------------------------------------
   trigger_output:
@@ -90,7 +90,7 @@ settings:
 | Key | Type | Meaning |
 |---|---|---|
 | `kind` | string | Always `smacc/settings`; a file with a different `kind` is rejected. |
-| `schema_version` | integer | The settings schema version — currently **2**. Older versions are upgraded on load (see [Version history](#version-history)). |
+| `schema_version` | integer | The settings schema version — currently **3**. Older versions are upgraded on load (see [Version history](#version-history)). |
 | `smacc_version` | string | The SMACC version that wrote the file (informational). |
 | `metadata` | mapping | Optional run metadata: `subject`, `session`, `notes`, and `created` (ISO timestamp). Blank by default; recorded in the log, not baked into filenames. |
 | `settings` | mapping | The configuration itself (below). |
@@ -157,13 +157,15 @@ the built-ins; one that overrides a few codes keeps the rest.
 |---|---|---|
 | `key` | string | Stable event id (e.g. `REMDetected`). |
 | `code` | integer | Port code, 1–255. |
-| `trigger` | boolean | Whether the event pushes a marker. |
+| `lsl` | boolean | Whether a firing pushes the code over the LSL marker stream. |
+| `ttl` | boolean | Whether a firing pushes the code over the hardware TTL trigger (when one is configured). |
 | `preview` | boolean | Whether it shows in the live preview (the file always records it). |
 | `increment` | boolean | Whether successive firings advance the code (e.g. dream reports). |
 
 A built-in entry persists only those fields. A **custom** event also carries
 `label`, `category`, `tooltip`, and `builtin: false` so it can be reconstructed on
-load. `event_code_safe_max` (integer, default 255) sets the soft upper-bound warning.
+load. `event_code_safe_max` (integer, default 255) sets the soft upper-bound warning
+for TTL-routed codes (LSL carries any code).
 
 ### `devices`
 
@@ -217,3 +219,4 @@ folder stays valid when moved, copied, or zipped.
 |---|---|
 | 1 | First stable schema. Envelope (`kind` / `schema_version` / `smacc_version` / `metadata` / `settings`); panel state; the `biocals`, `devices`, `event_codes` + `event_code_safe_max`, `trigger_output`, `data_directory`, `preview_levels`, `always_on_top`, and `tool_always_on_top` blocks. |
 | 2 | The single visual cue (`blink_color` / `blink_length`) became the multi-slot `visual_cues` list with the shared `visual_attack` / `visual_release` fades. A v1 file's blink keys load into the first slot. |
+| 3 | Each `event_codes` entry routes per transport: the single `trigger` flag was replaced by independent `lsl` + `ttl` booleans. Deliberately unmigrated (pre-release breaking change): an older file's `trigger` keys are ignored and the routing defaults apply. |

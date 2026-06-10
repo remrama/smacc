@@ -182,15 +182,16 @@ def post_chat_message(
 
     The verbatim text always goes to a DEBUG log line — in the session file for the
     record, out of the live preview and the BIDS export by default. The registry
-    event fires only when a study has flipped its trigger on, and then *bare* (no
-    message text), so the marker channel stays legible however chatty the exchange.
+    event fires only when a study has routed it to a transport (LSL/TTL), and then
+    *bare* (no message text), so the marker channel stays legible however chatty
+    the exchange.
     """
     clean = sanitize_message(text)
     if not clean:
         return None
     transcript.post(sender, clean)
     event = session.events.get(_EVENT_KEYS[sender])
-    if event is not None and event.trigger:
+    if event is not None and event.triggered:
         session.emit_event(event.key)
     label = event.label if event is not None else _LOG_LABELS[sender]
     session.log_debug_msg(f"{label}: {clean}")
