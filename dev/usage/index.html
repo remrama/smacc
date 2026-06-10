@@ -1369,7 +1369,10 @@ bedroom. <strong>Talk</strong> pipes your mic to the participant's output (click
 hold the <strong>spacebar</strong> anywhere in SMACC as push-to-talk) and is marked in the EEG
 record; <strong>Listen</strong> brings the bedroom mic to your control-room speakers, unmarked.
 The two directions route through roles set once in the <strong>Devices</strong> window (see
-<a href="../audio/">Audio &amp; routing</a>).</p>
+<a href="../audio/">Audio &amp; routing</a>). A <strong>level meter</strong> beside each button shows the
+live input level while that direction is on — signal on the bar means audio is
+actually flowing (your mic for Talk, the participant's mic for Listen), not just
+a latched button.</p>
 <h3 id="text-chat">Text chat</h3>
 <p>Below the voice controls is a <strong>typed channel</strong> — for hearing-impaired
 participants, or whenever audio would intrude or you want the exchange in writing.
@@ -1426,9 +1429,10 @@ can set:</p>
 <p><strong>Safe max code</strong> raises a soft warning for codes above it — handy when your trigger
 hardware only accepts a limited range (some older systems do). Codes must be unique
 among triggered events and within 1–255; the editor blocks anything else.</p>
-<p><strong>Custom events.</strong> Use <strong>Add event…</strong> to create your own button events (a label and a
-code); they appear in the <strong>Event logging</strong> panel alongside the built-ins and can be
-removed again with <strong>Remove</strong>. Built-in events can be retuned but not removed or renamed.</p>
+<p><strong>Custom events.</strong> Use <strong>Add event…</strong> — in the <strong>Event logging</strong> panel itself, or in
+this editor — to create your own button events (a label and a code); they appear in
+the Event logging panel alongside the built-ins and can be removed again with the
+editor's <strong>Remove</strong>. Built-in events can be retuned but not removed or renamed.</p>
 <p>The editor stays available throughout a session. If you change a code mid-session, the
 change is written to the log with a timestamp, so the code-to-event mapping for that
 session is always recoverable.</p>
@@ -1470,10 +1474,13 @@ story (creating, the data directory, opening by double-click), and the
 <h2 id="display-preferences">Display preferences</h2>
 <p>Some display choices apply to a session and travel with the study in the SMACC
 file: <strong>always-on-top</strong> (toggled per window — the Session window's <strong>File</strong>
-menu, or each tool window's <strong>View</strong> menu) and which <strong>log levels</strong> show in the
-preview (the checkboxes above the log preview). Save them with the rest of the
-configuration from the Editor or with <strong>File &rsaquo; Save SMACC file as…</strong> in a
-Session.</p>
+menu, or each tool window's <strong>View</strong> menu, or <strong>Ctrl+T</strong> in whichever window is
+active) and which <strong>log levels</strong> show in the preview (the checkboxes above the
+log preview). Save them with the rest of the configuration from the Editor or
+with <strong>File &rsaquo; Save SMACC file as…</strong> in a Session.</p>
+<p>Tool windows close with <strong>Ctrl+W</strong> (or <strong>File &rsaquo; Close window</strong>) — that
+only hides the window, with its state intact; the session keeps running and the
+Session window's Tools column reopens it.</p>
 <p>Separately, the machine remembers window positions and sizes and your recent files in
 <code>~/SMACC/preferences.yaml</code>, restored on the next launch.</p>
 
