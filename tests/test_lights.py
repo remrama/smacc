@@ -183,3 +183,13 @@ def test_resolve_blinkstick_swallows_enumeration_errors(monkeypatch):
     assert lights.resolve_blinkstick("BS123") is None
     monkeypatch.setattr(blinkstick, "find_by_serial", lambda serial: None)
     assert lights.resolve_blinkstick("BS123") is None
+
+
+def test_brightness_and_loop_apply_live():
+    # The board edits these mid-cue (like CueMixer.volume/loop): read per frame.
+    engine = started(duration_s=1.0, loop=True)
+    engine.brightness = 0.5
+    assert engine.frame(50.0) == (100, 50, 25)
+    engine.loop = False  # past duration with loop now off -> done at next frame
+    assert engine.frame(50.1) == (0, 0, 0)
+    assert engine.ended

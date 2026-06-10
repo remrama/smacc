@@ -195,7 +195,7 @@ class SmaccWindow(ToolWindow):
     PANEL_LABELS = {
         "events": "Event logging",
         "biocals": "Biocals",
-        "visual": "Visual stimulation",
+        "visual": "Visual cue",
         "audio": "Audio cue",
         "noise": "Noise machine",
         "recording": "Dream recording",
@@ -209,7 +209,7 @@ class SmaccWindow(ToolWindow):
         "events": "Log experiment events and send their EEG trigger codes.",
         "biocals": "Run timed biocalibrations, with optional voice instructions "
         "and a full sequence.",
-        "visual": "Flash a BlinkStick LED as a visual cue.",
+        "visual": "Light cues on a BlinkStick: steady, pulse, or flash.",
         "audio": "Play audio cues from a multi-slot cue board.",
         "noise": "Stream continuous background noise (colored noise or a file).",
         "recording": "Record a spoken dream report, monitor input level, open surveys.",

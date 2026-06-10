@@ -188,7 +188,7 @@ summary, export its events to BIDS, or recover its settings.
 ## Settings files (`.smacc`)
 
 A **settings file** captures your reusable setup — cue files, volumes, noise,
-BlinkStick color, survey presets, event codes, the display choices that apply to a
+visual cues, survey presets, event codes, the display choices that apply to a
 session (always-on-top and log-preview levels), and the **data directory** where runs
 are written — in a single portable `.smacc` (plain YAML you can read and edit). The easiest way to build one is the **settings editor** (the launcher's
 **Create settings**, or **Edit…** for an existing one): configure the tools, set the

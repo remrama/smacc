@@ -14,7 +14,7 @@ guide (creating, editing, sharing). This page is the field reference.
 ```yaml
 # SMACC settings — YAML (.smacc). Edit with care.
 kind: smacc/settings
-schema_version: 1
+schema_version: 2
 smacc_version: "0.0.7"
 metadata:
   subject: "001"
@@ -32,9 +32,11 @@ settings:
   noise_color: white
   noise_source: builtin
   noise_file: ""
-  # --- Visual cue (BlinkStick) -----------------------------------------------
-  blink_color: "#ff0000"
-  blink_length: 1.0
+  # --- Visual cues (BlinkStick) ------------------------------------------------
+  visual_cues:
+    - {name: "Light 1", color: "#ff0000", brightness: 1.0, pattern: steady, rate: 1.0, length: 1.0, loop: false}
+  visual_attack: 0.0
+  visual_release: 0.0
   # --- Survey ----------------------------------------------------------------
   survey_url: ""
   survey_options: {}
@@ -78,7 +80,7 @@ settings:
 | Key | Type | Meaning |
 |---|---|---|
 | `kind` | string | Always `smacc/settings`; a file with a different `kind` is rejected. |
-| `schema_version` | integer | The settings schema version — currently **1**. Only the current version loads. |
+| `schema_version` | integer | The settings schema version — currently **2**. Older versions are upgraded on load (see [Version history](#version-history)). |
 | `smacc_version` | string | The SMACC version that wrote the file (informational). |
 | `metadata` | mapping | Optional run metadata: `subject`, `session`, `notes`, and `created` (ISO timestamp). Blank by default; recorded in the log, not baked into filenames. |
 | `settings` | mapping | The configuration itself (below). |
@@ -99,8 +101,9 @@ Any key may be omitted — each falls back to its default.
 | `noise_color` | string | Selected noise colour (as offered in the Noise panel, e.g. `white`). |
 | `noise_source` | `builtin` \| `file` | Generated noise, or a WAV file. |
 | `noise_file` | path | The noise WAV when `noise_source: file`. |
-| `blink_color` | `#rrggbb` | BlinkStick colour for the visual cue. |
-| `blink_length` | seconds | Visual-cue blink length. |
+| `visual_cues` | list | One entry per light slot: `name` (string), `color` (`#rrggbb`), `brightness` (0–1), `pattern` (`steady` \| `pulse` \| `flash`), `rate` (Hz, the pulse/flash speed), `length` (seconds; ignored while `loop`), `loop` (bool). |
+| `visual_attack` | seconds | Brightness fade-in applied to a starting visual cue. |
+| `visual_release` | seconds | Brightness fade-out applied to a stopping visual cue. |
 | `survey_url` | string | The selected survey URL. |
 | `survey_options` | mapping | Named survey presets: label → URL. |
 | `volume_cap` | 0–1 | Master output safety cap multiplied into every stimulus (`1.0` = no cap). |
@@ -186,3 +189,4 @@ folder stays valid when moved, copied, or zipped.
 | Version | Changes |
 |---|---|
 | 1 | First stable schema. Envelope (`kind` / `schema_version` / `smacc_version` / `metadata` / `settings`); panel state; the `biocals`, `devices`, `event_codes` + `event_code_safe_max`, `trigger_output`, `data_directory`, `preview_levels`, `always_on_top`, and `tool_always_on_top` blocks. |
+| 2 | The single visual cue (`blink_color` / `blink_length`) became the multi-slot `visual_cues` list with the shared `visual_attack` / `visual_release` fades. A v1 file's blink keys load into the first slot. |

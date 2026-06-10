@@ -20,8 +20,19 @@ SAMPLE_SETTINGS = {
     "noise_color": "pink",
     "noise_source": "builtin",
     "noise_file": "",
-    "blink_color": "#ff8800",
-    "blink_length": 2.5,
+    "visual_cues": [
+        {
+            "name": "Light 1",
+            "color": "#ff8800",
+            "brightness": 1.0,
+            "pattern": "steady",
+            "rate": 1.0,
+            "length": 2.5,
+            "loop": False,
+        }
+    ],
+    "visual_attack": 0.0,
+    "visual_release": 0.5,
     "volume_cap": 0.8,
     "devices": {
         "bindings": {
@@ -55,7 +66,7 @@ def test_saved_file_is_tagged_yaml(tmp_path):
     assert text.splitlines()[0].startswith("#")  # self-identifying header comment
     payload = yaml.safe_load(text)  # comment is ignored, so it still parses
     assert payload["kind"] == settings.KIND
-    assert payload["schema_version"] == settings.SCHEMA_VERSION == 1
+    assert payload["schema_version"] == settings.SCHEMA_VERSION == 2
     assert payload["smacc_version"] == smacc.__version__
     assert payload["settings"] == {"cue_attack": 0.2}
 
@@ -181,8 +192,8 @@ def test_load_rejects_unsupported_schema(tmp_path):
 
 
 def test_load_rejects_higher_schema_version(tmp_path):
-    # The v1 reset accepts only the current schema; there is no forward/backward
-    # migration, so any higher version (e.g. a file from a future SMACC) is rejected.
+    # Older versions migrate forward, but there is no *backward* migration, so a
+    # higher version (e.g. a file from a future SMACC) is rejected.
     path = tmp_path / "future.smacc"
     path.write_text(
         yaml.safe_dump(
@@ -285,3 +296,40 @@ def test_resolve_keeps_absolute_and_skips_empty(tmp_path):
     out = settings.resolve_paths(state, tmp_path / "elsewhere")
     assert out["cues"][0]["file"] == str(wav)  # absolute unchanged
     assert out["noise_file"] == ""  # empty untouched
+
+
+def test_v1_blink_keys_migrate_into_the_first_visual_slot():
+    payload = {
+        "kind": settings.KIND,
+        "schema_version": 1,
+        "settings": {
+            "blink_color": "#123456",
+            "blink_length": 2.5,
+            "noise_volume": 0.1,
+        },
+    }
+    state, _ = settings.parse_settings_mapping(payload)
+    assert "blink_color" not in state and "blink_length" not in state
+    assert state["visual_cues"] == [
+        {"name": "Light 1", "color": "#123456", "length": 2.5}
+    ]
+    assert state["noise_volume"] == 0.1  # everything else is untouched
+
+
+def test_v1_without_blink_keys_gains_no_visual_block():
+    payload = {"kind": settings.KIND, "schema_version": 1, "settings": {}}
+    state, _ = settings.parse_settings_mapping(payload)
+    assert "visual_cues" not in state
+
+
+def test_current_version_settings_are_not_migrated():
+    # A stray hand-edited blink key in a v2 file is left alone (panels ignore it)
+    # and never overwrites the real visual_cues block.
+    original = {"blink_color": "#123456", "visual_cues": [{"name": "A"}]}
+    payload = {
+        "kind": settings.KIND,
+        "schema_version": settings.SCHEMA_VERSION,
+        "settings": dict(original),
+    }
+    state, _ = settings.parse_settings_mapping(payload)
+    assert state == original

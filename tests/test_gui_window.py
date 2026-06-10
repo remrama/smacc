@@ -39,7 +39,7 @@ def test_window_builds_in_design_mode(
         "data_directory",
         "volume_cap",
         "noise_color",
-        "blink_color",
+        "visual_cues",
         "cues",
     ):
         assert key in state
@@ -93,7 +93,7 @@ def test_apply_settings_lands_values(
     settings = window.gather_settings()
     settings["volume_cap"] = 0.5
     settings["noise_color"] = "brown"
-    settings["blink_color"] = "#abcdef"
+    settings["visual_cues"] = [{"name": "Glow", "color": "#abcdef"}]
     settings["cues"] = [{"name": "Buzz", "file": "", "volume": 0.3, "loop": True}]
     settings["devices"] = {
         "bindings": {
@@ -108,7 +108,8 @@ def test_apply_settings_lands_values(
     got = window.gather_settings()
     assert got["volume_cap"] == pytest.approx(0.5)
     assert got["noise_color"] == "brown"
-    assert got["blink_color"].lower() == "#abcdef"
+    assert got["visual_cues"][0]["name"] == "Glow"
+    assert got["visual_cues"][0]["color"] == "#abcdef"
     assert got["cues"][0]["name"] == "Buzz"
     assert got["devices"]["bindings"]["bedroom_out"] == mock_devices["outputs"][0]
     # The bound devices all match advertised hardware, so none are flagged missing.
