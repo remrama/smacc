@@ -51,6 +51,23 @@ def test_audio_panel_round_trips_cues_and_envelope(qtbot, design_session):
     assert got["cues"][1]["loop"] is False
 
 
+def test_audio_panel_ignores_malformed_numeric_settings(qtbot, design_session):
+    panel = AudioCueWindow(design_session)
+    qtbot.addWidget(panel)
+    before = panel.gather_state()
+    panel.apply_state(
+        {
+            "cues": [{"name": "Bad numbers", "file": "", "volume": "loud"}],
+            "cue_attack": "fast",
+            "cue_release": object(),
+        }
+    )
+    got = panel.gather_state()
+    assert got["cue_attack"] == before["cue_attack"]
+    assert got["cue_release"] == before["cue_release"]
+    assert got["cues"][0]["volume"] == before["cues"][0]["volume"]
+
+
 def test_noise_panel_round_trips(qtbot, design_session):
     panel = NoiseWindow(design_session)
     qtbot.addWidget(panel)
@@ -66,6 +83,14 @@ def test_noise_panel_round_trips(qtbot, design_session):
     assert got["noise_color"] == "pink"
     assert got["noise_source"] == "file"
     assert got["noise_file"] == "loop.wav"
+
+
+def test_noise_panel_ignores_malformed_numeric_settings(qtbot, design_session):
+    panel = NoiseWindow(design_session)
+    qtbot.addWidget(panel)
+    before = panel.gather_state()["noise_volume"]
+    panel.apply_state({"noise_volume": "loud"})
+    assert panel.gather_state()["noise_volume"] == before
 
 
 def test_recording_panel_round_trips_surveys(qtbot, design_session):
@@ -118,6 +143,34 @@ def test_visual_panel_round_trips(qtbot, design_session):
     assert got["visual_release"] == pytest.approx(1.5)
 
 
+def test_visual_panel_ignores_malformed_numeric_settings(qtbot, design_session):
+    panel = VisualWindow(design_session)
+    qtbot.addWidget(panel)
+    before = panel.gather_state()
+    panel.apply_state(
+        {
+            "visual_cues": [
+                {
+                    "name": "Bad numbers",
+                    "brightness": "bright",
+                    "rate": object(),
+                    "length": "long",
+                }
+            ],
+            "visual_attack": "fast",
+            "visual_release": "slow",
+        }
+    )
+    got = panel.gather_state()
+    assert got["visual_attack"] == before["visual_attack"]
+    assert got["visual_release"] == before["visual_release"]
+    assert got["visual_cues"][0]["brightness"] == before["visual_cues"][0][
+        "brightness"
+    ]
+    assert got["visual_cues"][0]["rate"] == before["visual_cues"][0]["rate"]
+    assert got["visual_cues"][0]["length"] == before["visual_cues"][0]["length"]
+
+
 def test_volume_panel_round_trips_cap(qtbot, design_session, monkeypatch):
     # The read-only Windows volume read-out uses COM; stub it so the panel builds
     # deterministically off any audio endpoint.
@@ -134,6 +187,19 @@ def test_volume_panel_round_trips_cap(qtbot, design_session, monkeypatch):
     # callbacks) and the latency mode (read when a stimulus stream opens).
     assert design_session.volume_cap == pytest.approx(0.50)
     assert design_session.output_latency == "low"
+
+
+def test_volume_panel_ignores_malformed_numeric_settings(
+    qtbot, design_session, monkeypatch
+):
+    monkeypatch.setattr(winvolume, "endpoint_volume", lambda: None)
+    monkeypatch.setattr(winvolume, "app_volume", lambda: None)
+    panel = VolumeWindow(design_session)
+    qtbot.addWidget(panel)
+    before = panel.gather_state()["volume_cap"]
+    panel.apply_state({"volume_cap": "full"})
+    assert panel.gather_state()["volume_cap"] == before
+    assert design_session.volume_cap == before
 
 
 def test_biocals_panel_round_trips_stack(qtbot, design_session):

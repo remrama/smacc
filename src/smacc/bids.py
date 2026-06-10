@@ -8,6 +8,7 @@ no GUI — directly unit-testable.
 
 from __future__ import annotations
 
+import csv
 import json
 import re
 from datetime import datetime
@@ -74,9 +75,10 @@ def log_to_events(log_text: str) -> list[dict[str, Any]]:
 
 def write_events_tsv(events: list[dict[str, Any]], path: str | Path) -> None:
     """Write event rows to ``path`` as a BIDS tab-separated values file."""
-    lines = ["\t".join(EVENT_COLUMNS)]
-    lines += ["\t".join(str(ev[col]) for col in EVENT_COLUMNS) for ev in events]
-    Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")
+    with Path(path).open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.writer(stream, delimiter="\t", lineterminator="\n")
+        writer.writerow(EVENT_COLUMNS)
+        writer.writerows([str(ev[col]) for col in EVENT_COLUMNS] for ev in events)
 
 
 def events_sidecar() -> dict[str, Any]:

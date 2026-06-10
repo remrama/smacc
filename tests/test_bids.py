@@ -1,5 +1,7 @@
 """Tests for the BIDS events exporter (no GUI required)."""
 
+import csv
+
 from smacc import bids, settings
 
 SAMPLE_LOG = """2026-06-05 22:00:00.000, INFO, Opened SMACC v0.0.7
@@ -125,6 +127,25 @@ def test_write_events_tsv_round_trip(tmp_path):
     assert lines[0] == "onset\tduration\ttrial_type\tvalue"
     assert lines[1].split("\t") == ["5.5", "n/a", "Lights off", "47"]
     assert len(lines) == 3  # header + 2 events
+
+
+def test_write_events_tsv_quotes_user_text(tmp_path):
+    path = tmp_path / "events.tsv"
+    events = [
+        {
+            "onset": 1.25,
+            "duration": "n/a",
+            "trial_type": "Note: tab\tand newline\ninside",
+            "value": 50,
+        }
+    ]
+    bids.write_events_tsv(events, path)
+    with path.open(encoding="utf-8", newline="") as stream:
+        rows = list(csv.reader(stream, delimiter="\t"))
+    assert rows == [
+        bids.EVENT_COLUMNS,
+        ["1.25", "n/a", "Note: tab\tand newline\ninside", "50"],
+    ]
 
 
 def test_write_events_json_sidecar(tmp_path):

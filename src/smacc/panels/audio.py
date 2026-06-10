@@ -23,7 +23,12 @@ from PyQt6 import QtCore, QtWidgets
 from .. import audio, utils
 from ..session import SmaccSession
 from ..utils import pick_random_demo_cue
-from .base import ModalityWindow, describe_target, make_section_title
+from .base import (
+    ModalityWindow,
+    describe_target,
+    make_section_title,
+    restore_spin_value,
+)
 from .meter import InputLevelMeter, LevelMeter
 
 # One cue is always required; the upper bound is generous (a session typically
@@ -600,9 +605,9 @@ class AudioCueWindow(ModalityWindow):
             for slot, cue in zip(self.slots, cues, strict=False):
                 self._apply_cue(slot, cue)
         if (v := state.get("cue_attack")) is not None:
-            self.attackSpinBox.setValue(float(v))
+            restore_spin_value(self.attackSpinBox, v)
         if (v := state.get("cue_release")) is not None:
-            self.releaseSpinBox.setValue(float(v))
+            restore_spin_value(self.releaseSpinBox, v)
 
     @staticmethod
     def _apply_cue(slot: CueSlot, cue: dict) -> None:
@@ -611,7 +616,7 @@ class AudioCueWindow(ModalityWindow):
         if (f := cue.get("file")) is not None:
             slot.fileEdit.setText(str(f))  # textChanged -> update_slot_source decodes
         if (v := cue.get("volume")) is not None:
-            slot.volumeSpinBox.setValue(float(v))
+            restore_spin_value(slot.volumeSpinBox, v)
         slot.loopCheckBox.setChecked(bool(cue.get("loop", False)))
 
     def cleanup(self) -> None:
