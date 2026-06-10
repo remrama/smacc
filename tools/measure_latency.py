@@ -75,9 +75,7 @@ def report(device: int | None) -> None:
             print(f"Negotiated [{mode:>4}]: could not open a stream: {exc}")
 
 
-def loopback(
-    device: int | None, repeats: int, mode: str, gap_s: float = 0.4
-) -> None:
+def loopback(device: int | None, repeats: int, mode: str, gap_s: float = 0.4) -> None:
     """Estimate round-trip latency by playing tone bursts and hearing them back."""
     out_dev = device if device is not None else wasapi_default_output()
     if out_dev is None:
