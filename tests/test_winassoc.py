@@ -29,3 +29,9 @@ def test_command_quotes_exe_and_percent_one():
 def test_is_associatable_false_under_pytest():
     # Not a frozen build, so this must be False — guards against CI registry writes.
     assert winassoc.is_associatable() is False
+
+
+def test_is_registered_false_for_unknown_exe():
+    # Nothing associates .smacc with this throwaway path (and on non-Windows the
+    # check is always False), so it must read as not registered. No registry writes.
+    assert winassoc.is_registered(r"C:\Nope\DoesNotExist\SMACC.exe") is False

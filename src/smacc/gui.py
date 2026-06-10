@@ -952,10 +952,13 @@ class SmaccWindow(ToolWindow):
         """Once, on the first packaged-build launch, offer to associate .smacc files."""
         if not winassoc.is_associatable() or self._prefs.get("association_prompted"):
             return
-        self._prefs["association_prompted"] = True  # one-time, whatever they choose
-        # Persist the one-time flag immediately so it survives even if multiple
-        # windows write preferences this run (the launcher also writes recents).
-        preferences.update_preferences(preferences_path, {"association_prompted": True})
+        # If .smacc is already associated with this build (e.g. from a prior install,
+        # or a launch whose preferences didn't persist), there is nothing to ask —
+        # just record that the prompt is done so we don't keep re-asking.
+        if winassoc.is_registered():
+            self._remember_association_prompted()
+            return
+        self._remember_association_prompted()  # one-time, whatever they choose
         reply = QtWidgets.QMessageBox.question(
             self,
             "Associate .smacc files?",
@@ -965,9 +968,18 @@ class SmaccWindow(ToolWindow):
         if reply == QtWidgets.QMessageBox.StandardButton.Yes:
             try:
                 winassoc.register_smacc()
-                self.session.log_info_msg("Associated .smacc files with SMACC")
             except OSError as exc:
                 self.show_error_popup("Could not associate .smacc files.", str(exc))
+
+    def _remember_association_prompted(self) -> None:
+        """Record (in memory and on disk) that the one-time association prompt is done.
+
+        Persisted immediately so it survives even if several windows write preferences
+        this run (the launcher also writes recents). The association itself is a
+        machine/registry action, not session data, so it is deliberately not logged.
+        """
+        self._prefs["association_prompted"] = True
+        preferences.update_preferences(preferences_path, {"association_prompted": True})
 
     def save_settings_in_place(self) -> bool:
         """Save to the current .smacc without prompting; fall back to Save-As if new.

@@ -43,6 +43,38 @@ def is_associatable() -> bool:
     return sys.platform == "win32" and getattr(sys, "frozen", False)
 
 
+def is_registered(exe_path: str | None = None) -> bool:
+    """True if ``.smacc`` is already associated with this SMACC executable.
+
+    Reads the per-user keys :func:`register_smacc` writes and confirms the extension
+    maps to our ProgID whose open command invokes ``exe_path`` (this build's exe by
+    default). Lets the first-run prompt skip itself when the association is already in
+    place, so a re-launch — even one whose preferences didn't persist — doesn't ask
+    again. A non-Windows platform, a missing key, or any read error reads as "not
+    registered" (so the worst case is offering an association that's already set).
+    """
+    if sys.platform != "win32":
+        return False
+    import winreg
+
+    if exe_path is None:
+        exe_path = os.fspath(Path(sys.executable).resolve())
+    try:
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, rf"Software\Classes\{EXT}"
+        ) as key:
+            progid, _ = winreg.QueryValueEx(key, "")
+        if progid != PROGID:
+            return False
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, rf"Software\Classes\{PROGID}\shell\open\command"
+        ) as key:
+            command, _ = winreg.QueryValueEx(key, "")
+    except OSError:
+        return False
+    return command == f'"{exe_path}" "%1"'
+
+
 def register_smacc(exe_path: str | None = None) -> None:
     """Register the per-user ``.smacc`` association and refresh the shell.
 
