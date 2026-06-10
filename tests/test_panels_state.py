@@ -377,3 +377,24 @@ def test_tool_window_always_on_top_toggle(qtbot, design_session):
     panel.set_always_on_top(False)
     assert panel.is_always_on_top() is False
     assert not bool(panel.windowFlags() & QtCore.Qt.WindowType.WindowStaysOnTopHint)
+
+
+def test_tool_window_stays_visible_across_always_on_top_toggle(qtbot, design_session):
+    """Toggling always-on-top must not hide a visible window (regression).
+
+    setWindowFlag natively hides the window, so the re-show guard has to read
+    visibility before applying the flag — checking after always saw False and the
+    window vanished on every toggle.
+    """
+    panel = NoiseWindow(design_session)
+    qtbot.addWidget(panel)
+    panel.show()
+    qtbot.waitExposed(panel)
+    panel.toggle_always_on_top(True)
+    assert panel.isVisible()
+    panel.toggle_always_on_top(False)
+    assert panel.isVisible()
+    # A hidden window must stay hidden when settings application toggles the flag.
+    panel.hide()
+    panel.set_always_on_top(True)
+    assert not panel.isVisible()
