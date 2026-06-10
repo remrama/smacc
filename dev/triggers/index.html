@@ -578,6 +578,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#terminology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminology
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#default-event-codes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -938,6 +949,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#terminology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminology
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#default-event-codes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1068,6 +1090,44 @@ range follows from the hardware: a trigger is physically <strong>eight on/off li
 bits), and the amplifier reads them as one byte. SMACC keeps every code inside 1–255
 for this reason. See <a href="../usage/#configuring-codes">Configuring codes</a> for how to view
 and edit which event sends which code.</p>
+<h2 id="terminology">Terminology</h2>
+<p>The words <em>event</em>, <em>marker</em>, <em>trigger</em>, and <em>port code</em> get used loosely in the
+field; SMACC uses each one for exactly one thing, in the UI, the docs, and the
+session log:</p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning in SMACC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Event</strong></td>
+<td>A named thing that can happen during a session — a cue started, REM observed, lights off. Each is an entry in the study's event registry, with a label and a port code.</td>
+</tr>
+<tr>
+<td><strong>Marker</strong></td>
+<td>The durable record produced when an event fires. A marker is always a <a href="../reference/session-log/">log line</a>; if the event is routed to a transport, it also carries the port code there.</td>
+</tr>
+<tr>
+<td><strong>Port code</strong></td>
+<td>The 8-bit number (<strong>1–255</strong>) identifying an event on the amplifier's trigger channel. Also called a <em>trigger code</em>.</td>
+</tr>
+<tr>
+<td><strong>Trigger</strong></td>
+<td>The act of <em>sending</em> a port code over a transport. An event can be logged without being triggered.</td>
+</tr>
+<tr>
+<td><strong>Transport</strong></td>
+<td>A path that carries the code to the recording: the <strong>LSL</strong> marker stream, or a hardware <strong>TTL</strong> line (serial trigger box / parallel port).</td>
+</tr>
+<tr>
+<td><strong>Log level</strong></td>
+<td>The severity tag on a log line (<code>DEBUG</code>…<code>CRITICAL</code>). The log <em>file</em> records every level; levels only filter the live preview. See <a href="../reference/session-log/#log-levels">log levels</a>.</td>
+</tr>
+</tbody>
+</table>
 <h2 id="default-event-codes">Default event codes</h2>
 <p>These are SMACC's built-in event markers and their default port codes — the
 out-of-the-box <a href="../reference/settings-file/#event_codes"><code>event_codes</code></a> registry. A

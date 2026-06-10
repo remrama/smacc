@@ -1024,6 +1024,15 @@ first.</p>
 <ul>
 <li>Always use <a href="https://docs.astral.sh/uv/">uv</a> to run Python scripts and install
   dependencies. Never <code>pip install</code> or run naked <code>python</code>.</li>
+<li>Use the marker vocabulary consistently in UI text, docs, and docstrings — <em>event</em>,
+  <em>marker</em>, <em>port code</em>, <em>trigger</em>, <em>transport</em> each mean exactly one thing; see the
+  <a href="../triggers/#terminology">terminology table</a>.</li>
+<li>Pick log levels by the <a href="../reference/session-log/#log-levels">session-log convention</a>:
+  <code>DEBUG</code> for housekeeping/high-frequency detail, <code>INFO</code> for markers and meaningful
+  operator actions, <code>WARNING</code> for mid-session config changes and recoverable faults,
+  <code>ERROR</code> for faults that cost something. The file records every level, so demoting a
+  line to <code>DEBUG</code> only moves it out of the default live preview, never out of the
+  record.</li>
 </ul>
 <h2 id="commit-and-pull-request-style">Commit and pull-request style</h2>
 <p>Keep the history skimmable and merge commits clean.</p>

@@ -735,7 +735,18 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Line format">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#log-levels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Log levels
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Log levels">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -882,7 +893,18 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Line format">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#log-levels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Log levels
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Log levels">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -969,6 +991,40 @@ and two embedded snapshots of the full settings the run used. The study <em>desi
 just <code>"{label}"</code> when it does not. The code-to-event map is the study's
 <a href="../settings-file/#event_codes"><code>event_codes</code></a> registry; see the
 <a href="../../triggers/#default-event-codes">default code catalog</a>.</p>
+<h2 id="log-levels">Log levels</h2>
+<p>The file records <strong>every</strong> level — a level never decides whether something is
+written, only whether it shows in the live preview (whose default gate starts at
+<code>INFO</code>). SMACC assigns levels by one convention:</p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>What it carries</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DEBUG</code></td>
+<td>Housekeeping and high-frequency detail: settings loads/saves, device rescans, live volume edits, raw trigger instants, chat text. In the file for the record; out of the preview by default.</td>
+</tr>
+<tr>
+<td><code>INFO</code></td>
+<td><strong>Event markers</strong> and meaningful operator actions — the session's scientific narrative.</td>
+</tr>
+<tr>
+<td><code>WARNING</code></td>
+<td>Mid-session configuration changes (a port code or trigger transport edited during a run — loud so the code map stays traceable) and recoverable faults (a saved device not connected).</td>
+</tr>
+<tr>
+<td><code>ERROR</code></td>
+<td>Faults that cost something: a hardware trigger write failing, a stream that couldn't open.</td>
+</tr>
+<tr>
+<td><code>CRITICAL</code></td>
+<td>Uncaught exceptions — the app is in an unknown state.</td>
+</tr>
+</tbody>
+</table>
 <h3 id="stimulus-marker-timing">Stimulus marker timing</h3>
 <p>Most markers are stamped when SMACC fires them. <strong>Audio cue and noise</strong> markers are
 the exception: their timestamp — in the log line <em>and</em> the LSL stream — is the
