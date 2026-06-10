@@ -97,6 +97,34 @@ def test_devices_refresh_button_runs_window_rescan(
     assert calls == [True]
 
 
+def test_hotplug_rescan_is_debounced_through_a_single_shot_timer(
+    qtbot, live_session, mock_devices, silence_dialogs, monkeypatch
+):
+    # Windows fires device-change signals in bursts; each rescan re-inits
+    # PortAudio, and doing that dozens of times back-to-back has crashed the app.
+    # The signals must therefore only restart a single-shot timer, with the
+    # rescan running once when the timer fires.
+    calls: list[bool] = []
+    monkeypatch.setattr(
+        SmaccWindow, "_on_devices_hotplug", lambda self: calls.append(True)
+    )
+    window = SmaccWindow(live_session)
+    qtbot.addWidget(window)
+    timer = window._hotplug_timer
+    assert timer.isSingleShot()
+    assert timer.interval() >= 500  # long enough to outlast a signal burst
+    # A burst of change signals leaves the timer pending without rescanning…
+    timer.start()
+    timer.start()
+    timer.start()
+    assert timer.isActive()
+    assert calls == []
+    # …and the rescan runs exactly once when the quiet-period timer fires.
+    timer.stop()
+    timer.timeout.emit()
+    assert calls == [True]
+
+
 # ----- default settings are protected from overwrite -------------------------
 
 
