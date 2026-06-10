@@ -22,7 +22,8 @@ for that room at 3 a.m.
   strengthen that specific memory. The cue must land in the right sleep stage.
 - **TLR (targeted lucidity reactivation)** — a TMR-style protocol that re-presents
   cues associated with "notice you're dreaming" training during REM, to prompt
-  **lucid dreaming**. SMACC's registry has explicit `TLRTrainingStart`/`End` markers.
+  **lucid dreaming**. SMACC's registry has generic `TrainingStart`/`End` markers for
+  the learning phase (TMR cue learning, TLR practice).
 - **Cueing** — playing the audio (or light) cue at the moment that matters. Timing
   relative to sleep stage is the whole game; a cue at the wrong time is wasted or
   wakes the participant.
@@ -38,7 +39,9 @@ and observations sit at the right point in that record.
 
 - A trained lucid dreamer can signal awareness from inside REM with a deliberate
   **left-right-left-right (LRLR) eye-movement** pattern, visible on EOG/EEG (the
-  classic lucid-signaling paradigm). SMACC has an `LRLRDetected` marker.
+  classic lucid-signaling paradigm). SMACC marks any such signal (LRLR, sniff,
+  facial, …) with one generic `SignalObserved` marker, tagged with the signal type
+  and a confidence.
 - The **intercom** lets the experimenter **Talk** to the participant (marked in the
   EEG) and **Listen** back — two-way communication with a sleeping or lucid person.
 - After an awakening, the participant gives a **dream report** (recorded audio + an
@@ -53,7 +56,7 @@ and observations sit at the right point in that record.
    observations (`REMDetected`, `TechInRoom`, notes).
 4. At the target stage, fire a **cue** (audio, sometimes a **BlinkStick** light),
    optionally with masking **noise**; each fires its marker.
-5. Watch for a lucidity signal (`LRLRDetected`); use the intercom as needed.
+5. Watch for a lucidity signal (`SignalObserved`); use the intercom as needed.
 6. **Wake** the participant and **record a dream report** (`DreamReportStarted`,
    which increments so each report is unique); maybe open a survey.
 7. Repeat across the night, then review the event log.

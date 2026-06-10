@@ -32,15 +32,21 @@ study can retune any code in the **Event codes** editor; the change travels in i
 |------|-------|-----|-------|
 | 41 | REM detected | `REMDetected` | |
 | 42 | Tech in room | `TechInRoom` | |
-| 43 | TLR training start | `TLRTrainingStart` | |
-| 44 | TLR training end | `TLRTrainingEnd` | |
-| 45 | LRLR detected | `LRLRDetected` | lucid left-right-left-right signal |
+| 43 | Training start | `TrainingStart` | start of a training/learning phase (TMR cue learning, TLR practice) |
+| 44 | Training end | `TrainingEnd` | |
+| 45 | Signal observed | `SignalObserved` | a lucidity/communication signal; the signal type + confidence are logged as the detail |
 | 46 | Sleep onset | `SleepOnset` | |
 | 47 | Lights off | `LightsOff` | |
 | 48 | Lights on | `LightsOn` | |
 | 49 | Clapper | `Clapper` | sync marker |
 | 50 | Note | `Note` | |
 | 51 | Start recording | `RecordingStarted` | sets the reference clock for dream-report timestamps |
+| 52 | Wake detected | `WakeDetected` | sleep-stage observation (keypad 0 in the Event logging window) |
+| 53 | N1 detected | `N1Detected` | sleep-stage observation (keypad 1) |
+| 54 | N2 detected | `N2Detected` | sleep-stage observation (keypad 2) |
+| 55 | N3 detected | `N3Detected` | sleep-stage observation (keypad 3) |
+| 56 | Arousal detected | `ArousalDetected` | a brief transient arousal (distinct from a sustained Wake) |
+| 57 | Artifact detected | `ArtifactDetected` | EEG artifact (movement, electrode noise, etc.) |
 | 60 | Cue started | `CueStarted` | |
 | 61 | Cue stopped | `CueStopped` | |
 | 62 | Noise started | `NoiseStarted` | |
