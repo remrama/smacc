@@ -187,14 +187,17 @@ class ModalityWindow(QtWidgets.QMainWindow):
         )
 
     def _apply_always_on_top(self, enabled: bool) -> None:
-        """Apply the always-on-top window flag, re-showing if the window is visible.
+        """Apply the always-on-top window flag, re-showing if the window was visible.
 
-        Re-applying ``WindowStaysOnTopHint`` hides the window on some platforms, so
-        re-show it — but only when it was already visible, so toggling the flag on a
-        hidden tool window (e.g. while applying loaded settings) doesn't pop it open.
+        Re-applying ``WindowStaysOnTopHint`` hides the window, so visibility must be
+        read *before* the flag is set (afterwards it is always False — the window
+        would silently vanish on every toggle). Only a previously-visible window is
+        re-shown, so toggling the flag on a hidden tool window (e.g. while applying
+        loaded settings) doesn't pop it open.
         """
+        was_visible = self.isVisible()
         self.setWindowFlag(QtCore.Qt.WindowType.WindowStaysOnTopHint, enabled)
-        if self.isVisible():
+        if was_visible:
             self.show()
 
     def gather_state(self) -> dict:

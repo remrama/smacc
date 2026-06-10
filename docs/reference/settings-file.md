@@ -1,12 +1,12 @@
-# Settings file (`.smacc`)
+# SMACC file (`.smacc`)
 
-A `.smacc` file is a **portable study configuration**: it lets a researcher set
+A **SMACC file** is a **portable study configuration**: it lets a researcher set
 SMACC up once — cue sounds and volumes, noise, the visual cue, surveys, event codes,
 device routing, optional hardware triggers — and reload it each session so the setup
 stays consistent across nights and researchers. It is plain YAML you can read and
 edit. The user-facing extension is `.smacc`, but the `kind` stays `smacc/settings`.
 
-See [Usage › Settings files](../usage.md#settings-files-smacc) for the task-level
+See [SMACC files](../smacc-files.md) for the task-level
 guide (creating, editing, sharing). This page is the field reference.
 
 ## On-disk shape

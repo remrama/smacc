@@ -185,7 +185,7 @@ class SmaccWindow(ToolWindow):
         central_widget.setLayout(central_layout)
         self.setCentralWidget(central_widget)
 
-        self.setWindowTitle("SMACC — Settings editor" if self.design else "SMACC")
+        self.setWindowTitle("SMACC Editor" if self.design else "SMACC Session")
         if LOGO_PATH.is_file():
             windowIcon = QtGui.QIcon(str(LOGO_PATH))
         else:
@@ -356,9 +356,9 @@ class SmaccWindow(ToolWindow):
         )
         quitAction.setShortcut("Ctrl+Q")
         quitAction.setStatusTip(
-            "Close the settings editor and return to the SMACC menu"
+            "Close the editor and return to the SMACC Launcher"
             if self.design
-            else "End this session and return to the SMACC menu"
+            else "End this session and quit SMACC"
         )
         quitAction.triggered.connect(self.close)  # close goes to closeEvent
 
@@ -431,16 +431,18 @@ class SmaccWindow(ToolWindow):
         self, fileMenu, sessionInfoAction, eventCodesAction, triggerOutputAction
     ):
         """Editor File menu: save/import settings + the config editors (no live run)."""
-        saveAction = QtGui.QAction("&Save settings", self)
+        saveAction = QtGui.QAction("&Save SMACC file", self)
         saveAction.setShortcut("Ctrl+S")
-        saveAction.setStatusTip("Save to the current .smacc (or choose a name if new).")
+        saveAction.setStatusTip(
+            "Save to the current SMACC file (or choose a name if new)."
+        )
         saveAction.triggered.connect(self.save_settings_in_place)
-        saveAsAction = QtGui.QAction("Save &as…", self)
-        saveAsAction.setStatusTip("Save these settings to a new .smacc file.")
+        saveAsAction = QtGui.QAction("Save SMACC file &as…", self)
+        saveAsAction.setStatusTip("Save these settings to a new SMACC file.")
         saveAsAction.triggered.connect(self.export_settings)
-        importAction = QtGui.QAction("&Import settings (.smacc)…", self)
+        importAction = QtGui.QAction("&Import SMACC file…", self)
         importAction.setStatusTip(
-            "Load another .smacc's settings into the editor as a starting point."
+            "Load another SMACC file's settings into the editor as a starting point."
         )
         importAction.triggered.connect(self.load_settings)
         importLogAction = QtGui.QAction("Import settings from &log…", self)
@@ -466,6 +468,17 @@ class SmaccWindow(ToolWindow):
     ):
         """Session File menu: run-only. Author settings in the editor; analyze past
         runs (including event export) from the launcher. Here you record events."""
+        # Snapshot the live session's current configuration to a SMACC file —
+        # the in-session counterpart of the editor's Save-As (a session never
+        # silently rewrites the file it was started from).
+        saveAsAction = QtGui.QAction("Save SMACC file &as…", self)
+        saveAsAction.setShortcut("Ctrl+Shift+S")
+        saveAsAction.setStatusTip(
+            "Save a snapshot of the current session's settings to a .smacc file."
+        )
+        saveAsAction.triggered.connect(self.export_settings)
+        fileMenu.addAction(saveAsAction)
+        fileMenu.addSeparator()
         fileMenu.addAction(sessionInfoAction)
         fileMenu.addAction(eventCodesAction)
         fileMenu.addAction(triggerOutputAction)
@@ -543,7 +556,7 @@ class SmaccWindow(ToolWindow):
     def _build_editor_banner(self) -> QtWidgets.QLabel:
         """A prominent bar making clear the editor is configuring, not recording."""
         banner = QtWidgets.QLabel(
-            "✎  Editing settings — no session is being recorded.", self
+            "✎  Editing a SMACC file — no session is being recorded.", self
         )
         banner.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         banner.setStyleSheet(
@@ -560,11 +573,11 @@ class SmaccWindow(ToolWindow):
         directory (where runs go) and save it all to a ``.smacc`` file.
         """
         layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(self._make_section_title("Settings editor"))
+        layout.addWidget(self._make_section_title("Editor"))
         info = QtWidgets.QLabel(
             "Configure each tool on the left (cues, noise, visual, events, …), set "
-            "the data directory, then save to a <b>.smacc</b> settings file. Open it "
-            "from the launcher to run a session with it."
+            "the data directory, then save to a <b>SMACC file</b> (.smacc). Open it "
+            "from the Launcher to run a session with it."
         )
         info.setWordWrap(True)
         layout.addWidget(info)
@@ -582,11 +595,13 @@ class SmaccWindow(ToolWindow):
         layout.addWidget(changeDirButton)
         layout.addSpacing(8)
 
-        saveButton = QtWidgets.QPushButton("Save settings", self)
-        saveButton.setStatusTip("Save to the current .smacc (or choose a name if new).")
+        saveButton = QtWidgets.QPushButton("Save SMACC file", self)
+        saveButton.setStatusTip(
+            "Save to the current SMACC file (or choose a name if new)."
+        )
         saveButton.clicked.connect(self.save_settings_in_place)
-        saveAsButton = QtWidgets.QPushButton("Save as…", self)
-        saveAsButton.setStatusTip("Save these settings to a new .smacc file.")
+        saveAsButton = QtWidgets.QPushButton("Save SMACC file as…", self)
+        saveAsButton.setStatusTip("Save these settings to a new SMACC file.")
         saveAsButton.clicked.connect(self.export_settings)
         layout.addWidget(saveButton)
         layout.addWidget(saveAsButton)
@@ -975,7 +990,7 @@ class SmaccWindow(ToolWindow):
         reply = QtWidgets.QMessageBox.question(
             self,
             "Associate .smacc files?",
-            "Associate .smacc settings files with SMACC so double-clicking one opens "
+            "Associate .smacc files with SMACC so double-clicking one opens "
             "the app already configured?",
         )
         if reply == QtWidgets.QMessageBox.StandardButton.Yes:
@@ -1014,7 +1029,7 @@ class SmaccWindow(ToolWindow):
         else:
             default = str(self.data_dir / "settings.smacc")
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "Save settings (.smacc)", str(default), "SMACC settings (*.smacc)"
+            self, "Save SMACC file", str(default), "SMACC file (*.smacc)"
         )
         if not path:
             return False
@@ -1051,9 +1066,9 @@ class SmaccWindow(ToolWindow):
         """Prompt for a .smacc settings file and apply it."""
         path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
-            "Open settings (.smacc)",
+            "Open SMACC file",
             str(self.session.data_dir),
-            "SMACC settings (*.smacc)",
+            "SMACC file (*.smacc)",
         )
         if not path:
             return
@@ -1219,16 +1234,17 @@ class SmaccWindow(ToolWindow):
             panel.close()
 
     def closeEvent(self, event):
-        """End the session (or close the designer) and return control to the launcher.
+        """End the session (or close the designer) and emit ``closed``.
 
         closeEvent is a default method used in pyqt to close, so this overrides it.
-        Closing no longer quits the app — it ends this window and emits ``closed`` so
-        the launcher (the persistent root window) can reappear.
+        The launcher decides what follows: the editor's close brings the launcher
+        back, while ending a live session quits SMACC outright (see
+        ``LauncherWindow._on_tool_closed``).
         """
         if self.design:
             box = QtWidgets.QMessageBox(self)
             box.setWindowTitle("Close editor")
-            box.setText("Save changes to the settings before closing?")
+            box.setText("Save changes to the SMACC file before closing?")
             box.setStandardButtons(
                 QtWidgets.QMessageBox.StandardButton.Save
                 | QtWidgets.QMessageBox.StandardButton.Discard
@@ -1253,7 +1269,7 @@ class SmaccWindow(ToolWindow):
             return
 
         response = QtWidgets.QMessageBox.question(
-            self, "End session", "End this session and return to the SMACC menu?"
+            self, "End session", "End this session and quit SMACC?"
         )
         if response == QtWidgets.QMessageBox.StandardButton.Yes:
             self._save_geometry()  # before teardown closes/moves anything

@@ -116,12 +116,12 @@ def _install_excepthook() -> None:
 def main() -> None:
     """Open SMACC at its launcher (the FSL-style opening menu).
 
-    The launcher is the persistent root window: it lets the operator pick a settings
-    (.smacc) file and then start a session, create settings, or analyze a past run. A
-    ``.smacc`` passed on the command line (or a double-clicked file) skips the menu
-    and goes straight to a session for it; closing it returns to the launcher. Run
-    folders and logs are created only when a session starts, not the instant the app
-    launches.
+    The launcher is the persistent root window: it lets the operator pick a SMACC
+    (.smacc) file and then start a session, create a SMACC file, or analyze a past
+    run. A ``.smacc`` passed on the command line (or a double-clicked file) skips
+    the menu and goes straight to a session for it. Ending a session quits SMACC
+    (the other tools return to the launcher). Run folders and logs are created only
+    when a session starts, not the instant the app launches.
     """
     _quiet_qt_multimedia_logging()  # before QApplication: Qt reads the rule at startup
     app = QApplication(sys.argv)
@@ -150,8 +150,8 @@ def main() -> None:
     seed_demo_cues(DEFAULT_DATA_DIR / "cues", BUNDLED_CUES_DIR)
     file_arg = pick_settings_path(app.arguments())
     if file_arg:
-        # A double-clicked / CLI .smacc opens straight into a session for it; the
-        # launcher reappears when that session ends.
+        # A double-clicked / CLI .smacc opens straight into a session for it;
+        # ending that session quits SMACC (see LauncherWindow._on_tool_closed).
         launcher = LauncherWindow(file_arg)
         launcher.start_session()
     else:

@@ -36,7 +36,7 @@ Speak through intercom → Bedroom speakers
 Capture dream report → Bedroom mic
 ```
 
-The whole assignment is saved in your `.smacc` settings file, so a rig travels with
+The whole assignment is saved in your SMACC file, so a rig travels with
 its study. If a bound device isn't connected when a study loads, SMACC keeps going
 and reports which one is missing instead of silently falling back.
 
@@ -82,7 +82,7 @@ source.
 
 **Hot-plug:** plug a device in after SMACC is already open and it's picked up
 automatically, with no restart needed. You can also force a rescan with the
-**Refresh devices** button in the Devices window (or press `F5`).
+**Refresh devices (F5)** button in the Devices window.
 
 ## Is the cue reaching the bedroom?
 

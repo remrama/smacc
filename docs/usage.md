@@ -1,28 +1,38 @@
 # Usage
 
-SMACC opens to a small **launcher** where you pick a **settings file** and choose
-what to do; from there you run a live session for collecting data. This page walks
+SMACC opens to its **Launcher**, where you pick a **SMACC file** and choose what
+to do; from there you run a live **Session** for collecting data. This page walks
 through the main features.
 
-<!-- Add an annotated screenshot of the launcher + main window here once available,
-e.g.: ![SMACC main window](assets/screenshot-main.png) -->
+SMACC has three main windows, named consistently throughout these docs:
+
+- the **SMACC Launcher** (*Launcher* for short) — the small hub that opens when
+  you start the app;
+- the **SMACC Session** window (*Session*) — the live interface for running a
+  night and collecting data;
+- the **SMACC Editor** window (*Editor*) — where you create or edit a
+  [SMACC file](smacc-files.md) without recording anything.
+
+<!-- Add an annotated screenshot of the Launcher + Session window here once
+available, e.g.: ![SMACC Session window](assets/screenshot-session.png) -->
 
 ## Opening SMACC
 
-SMACC opens to a small launcher (its opening menu) rather than dropping straight
-into a session. From here you:
+Open the app itself to get the Launcher — SMACC never drops straight into a
+session (the one exception: double-clicking a `.smacc` file, which starts a
+Session for it directly). In the Launcher you:
 
-- **pick a settings file** — the current `.smacc` is shown at the top, with
-  **Open…** to choose another, **Edit…** to open it in the settings editor, and a
-  **Recent** dropdown to switch between ones you have used. With none chosen, SMACC
-  uses built-in defaults (and the seeded `default.smacc`), so it works out of the
-  box. (See [Settings files](#settings-files-smacc) for what one holds.)
-- **Start session** — open the live session interface using the selected settings,
-  writing runs to that file's **data directory**. The run folder and log are created
-  only now, when the session starts.
-- **Create settings** — build a new `.smacc` in the **settings editor**: configure
-  the tools (cues, noise, visual, event codes, surveys), choose a data directory,
-  and save it anywhere. Use **Edit…** to reopen an existing one.
+- **pick a SMACC file** — the dropdown lists the seeded `default.smacc`, your
+  recent files, and **Browse…** to find any other. With none chosen, SMACC uses
+  built-in defaults, so it works out of the box. (See
+  [SMACC files](smacc-files.md) for what one holds.)
+- **Start** — open a live Session using the selected SMACC file, writing runs to
+  that file's **data directory**. The run folder and log are created only now,
+  when the session starts.
+- **Create** — build a new SMACC file in the Editor: configure the tools (cues,
+  noise, visual, event codes, surveys), choose a data directory, and save it
+  anywhere.
+- **Edit** — reopen the selected SMACC file in the Editor.
 - **Design cues** — open the standalone **Cue designer** to build a simple tone cue
   and export it as a WAV into a study's `cues/` folder, ready to use from the Audio
   cue board (see [Designing a cue](#designing-a-cue)).
@@ -31,11 +41,9 @@ into a session. From here you:
   reports), export its events to a BIDS `events.tsv`, or recover its settings to a
   `.smacc` — all without starting a new session.
 
-Interface preferences (theme, log preview, always-on-top) live under **File
-&rsaquo; Preferences** in the launcher. Closing a session (or other tool) returns
-you to the launcher; closing the launcher quits SMACC. On the Windows build you can
-also **double-click a `.smacc`** to jump straight into a session for it — closing it
-returns to the launcher.
+Closing the Editor or a standalone tool returns you to the Launcher. Ending a
+Session quits SMACC entirely — the night is over. Closing the Launcher also
+quits SMACC.
 
 ## Audio cues
 
@@ -48,7 +56,7 @@ add or remove cues to match a protocol (one minimum, up to 20).
 
 ### Designing a cue
 
-No sound file ready? Open **Design cues** from the launcher to build a simple cue
+No sound file ready? Open **Design cues** from the Launcher to build a simple cue
 inside SMACC — no external audio editor needed. Lay out a sequence of **tone** and
 **silence** segments (each tone has a frequency, duration, and level, with an
 optional bell-like **decay**), add an optional whole-cue fade in/out, **Preview** it
@@ -249,51 +257,37 @@ changes whether the marker reaches the EEG.
 
 ### Where codes live
 
-Your codes are saved in the `.smacc` settings file (so they travel with it) and
+Your codes are saved in the SMACC file (so they travel with it) and
 written into every session `.log` (both the initial and final settings blocks), so any
 session is self-documenting: you can decode its markers later even if the codes changed
 mid-session.
 
 ## Event log
 
-Every run writes a detailed `.log` to its own timestamped folder under the settings
+Every run writes a detailed `.log` to its own timestamped folder under the SMACC
 file's **data directory** (e.g. `~/SMACC/data/`), capturing the events and settings
-for that session. Open one later from the launcher's **Analyze** to see a
+for that session. Open one later from the Launcher's **Analyze** to see a
 summary, export its events to BIDS, or recover its settings.
 
-## Settings files (`.smacc`)
+## SMACC files (`.smacc`)
 
-A **settings file** captures your reusable setup — cue files, volumes, noise,
-visual cues, survey presets, event codes, the display choices that apply to a
-session (always-on-top and log-preview levels), and the **data directory** where runs
-are written — in a single portable `.smacc` (plain YAML you can read and edit). The easiest way to build one is the **settings editor** (the launcher's
-**Create settings**, or **Edit…** for an existing one): configure the tools, set the
-data directory, and save. SMACC ships a `default.smacc` in your SMACC directory as a
-working example you can copy. For the exact on-disk format — every field, the
-sub-blocks, and the schema version — see the
-[`.smacc` reference](reference/settings-file.md).
+A **SMACC file** captures your study's whole configuration — cue files, volumes,
+noise, visual cues, survey presets, event codes, display choices, and the **data
+directory** where runs are written — in a single portable `.smacc`. Create one in
+the Editor (the Launcher's **Create**/**Edit** buttons) or snapshot a running
+Session with **File &rsaquo; Save SMACC file as…**. Opening one starts a new
+session with that configuration. See [SMACC files](smacc-files.md) for the full
+story (creating, the data directory, opening by double-click), and the
+[SMACC file reference](reference/settings-file.md) for the exact on-disk format.
 
-You can keep settings files anywhere — for instance one per participant
-(`peter.smacc`, `paul.smacc`, …), each pointing at whatever data directory you like
-(they can share one). Configuring settings and running a session are separate steps:
-the editor never records a run, and a session never rewrites your settings file.
+## Display preferences
 
-Cue/noise files and the data directory are stored **relative** to the `.smacc` when
-they sit beside it (so a self-contained folder stays valid if you move, copy, or zip
-it) and **absolute** when they point elsewhere.
-
-### Opening a settings file
-
-On the Windows build you can **double-click a `.smacc` file** to launch SMACC and go
-straight to a session for it — the first launch offers to set up this association,
-and you can (re)enable it any time from **File &rsaquo; Associate .smacc files
-(Windows)** in a session. From a terminal, `SMACC path/to/file.smacc` does the same.
-
-## Preferences
-
-Some display choices apply to a session and are stored in the `.smacc` settings file,
-so they travel with the study: **always-on-top** and which **log levels** show in the
-preview. Edit them from **File &rsaquo; Preferences** in the launcher.
+Some display choices apply to a session and travel with the study in the SMACC
+file: **always-on-top** (toggled per window — the Session window's **File**
+menu, or each tool window's **View** menu) and which **log levels** show in the
+preview (the checkboxes above the log preview). Save them with the rest of the
+configuration from the Editor or with **File &rsaquo; Save SMACC file as…** in a
+Session.
 
 Separately, the machine remembers window positions and sizes and your recent files in
 `~/SMACC/preferences.yaml`, restored on the next launch.

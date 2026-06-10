@@ -6,7 +6,7 @@ from the task-oriented [Usage](../usage.md) guide.
 
 | File | What it is | Format | Version |
 |---|---|---|---|
-| [`.smacc` settings](settings-file.md) | A portable study configuration | YAML | `schema_version: 1` |
+| [SMACC file (`.smacc`)](settings-file.md) | A portable study configuration | YAML | `schema_version: 1` |
 | [`preferences.yaml`](preferences-file.md) | Per-machine operator preferences | YAML | `schema_version: 1` |
 | [Session `.log`](session-log.md) | The per-run record (events + settings) | Text | — |
 | [BIDS export](bids-export.md) | `events.tsv` + JSON sidecar | TSV / JSON | follows BIDS |

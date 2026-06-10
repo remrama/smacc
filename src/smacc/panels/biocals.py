@@ -188,17 +188,38 @@ class BiocalsWindow(ModalityWindow):
         sequenceButton.clicked.connect(self._on_sequence_button)
         self.sequenceButton = sequenceButton
 
+        # The stack lives in a scroll area: the full default stack made the window
+        # taller than many screens (burying the sequence button), so the rows
+        # scroll instead of growing the window. Top-aligned via a trailing stretch
+        # so a short stack doesn't spread its rows over the viewport.
+        stackLayout = QtWidgets.QVBoxLayout()
+        stackLayout.setContentsMargins(0, 0, 0, 0)
+        stackLayout.addLayout(self._grid)
+        stackLayout.addStretch(1)
+        stackWidget = QtWidgets.QWidget()
+        stackWidget.setLayout(stackLayout)
+        scroll = QtWidgets.QScrollArea(self)
+        scroll.setWidget(stackWidget)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(
+            QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        scroll.setMinimumHeight(240)  # roughly eight rows visible by default
+        self._stackScroll = scroll
+
+        # Sequence button above the stack, so it's visible regardless of how long
+        # the stack is; the add-row controls stay below it, also outside the scroll.
         layout = QtWidgets.QVBoxLayout()
         layout.setSpacing(6)  # tighter than the default so the stack stays compact
         layout.addWidget(make_section_title("Biocals"))
         layout.addLayout(header)
         layout.addWidget(countdownLabel)
         layout.addWidget(self.statusLabel)
-        layout.addLayout(self._grid)
-        layout.addLayout(addRow)
-        layout.addSpacing(4)
         layout.addWidget(sequenceButton)
-        layout.addStretch(1)
+        layout.addSpacing(4)
+        layout.addWidget(scroll, 1)  # the scroll area absorbs extra height
+        layout.addLayout(addRow)
         central = QtWidgets.QWidget()
         central.setLayout(layout)
         return central
@@ -292,6 +313,14 @@ class BiocalsWindow(ModalityWindow):
             self._grid.addWidget(row.downButton, r, 5)
             self._grid.addWidget(row.removeButton, r, 6)
         self._grid.setColumnStretch(2, 1)
+        # Horizontal scrolling is disabled, so the scroll area must be at least as
+        # wide as the widest row (plus the vertical scrollbar's track).
+        content = self._stackScroll.widget()
+        if content is not None:
+            style = self.style()
+            assert style is not None
+            extent = style.pixelMetric(QtWidgets.QStyle.PixelMetric.PM_ScrollBarExtent)
+            self._stackScroll.setMinimumWidth(content.sizeHint().width() + extent)
         self._refresh_structure_buttons()
         self._update_sequence_enabled()
         self._refresh_column_headers()
@@ -347,7 +376,6 @@ class BiocalsWindow(ModalityWindow):
             )
         )
         self._rebuild_grid()
-        self.adjustSize()
         self.session.log_interaction(f"Added biocal '{b.label}'")
 
     def _remove_row(self, row: BiocalRowWidgets, _checked: bool = False) -> None:
@@ -357,7 +385,6 @@ class BiocalsWindow(ModalityWindow):
         self.rows.remove(row)
         self._destroy_row_widgets(row)
         self._rebuild_grid()
-        self.adjustSize()
         self.session.log_interaction(f"Removed biocal '{name}'")
 
     def _move_row(
