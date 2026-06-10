@@ -117,3 +117,15 @@ def test_load_defaults_when_no_devices_block():
     cfg = devices.load({"cue_device": "Spk"})
     assert cfg.role_for("cue_out") == "bedroom_out"  # default role
     assert cfg.bindings == {}  # nothing bound; the stray key is ignored
+
+
+def test_both_light_technologies_are_visual_roles():
+    # #53: separate BlinkStick and Philips Hue selectors — two roles of the
+    # VISUAL kind, with the visual cue routed to whichever is in use.
+    roles = devices.ROLES_BY_KEY
+    assert roles["blinkstick"].kind == devices.VISUAL
+    assert roles["hue"].kind == devices.VISUAL
+    cfg = devices.from_dict(
+        {"bindings": {"hue": "light:3"}, "routing": {"visual_out": "hue"}}
+    )
+    assert cfg.device_for("visual_out") == "light:3"

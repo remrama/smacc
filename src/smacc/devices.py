@@ -58,16 +58,19 @@ class Role:
     kind: str
 
 
-# The fixed role set. Two outputs and one mic cover the issue's rig; BlinkStick is
-# its own (visual) role. The monitor mic (#37) is a second, optional input so a lab
-# can place a dedicated, sensitive mic for verifying cues without disturbing the
-# (often cheaper) dream-report mic. Kept small on purpose — more can be added later.
+# The fixed role set. Two outputs and one mic cover the issue's rig; the two light
+# technologies are separate visual roles (#53: a BlinkStick binds one USB stick, a
+# Hue binds one bridge light/group — the visual cue routes to whichever is in use).
+# The monitor mic (#37) is a second, optional input so a lab can place a dedicated,
+# sensitive mic for verifying cues without disturbing the (often cheaper)
+# dream-report mic. Kept small on purpose — more can be added later.
 ROLES: tuple[Role, ...] = (
     Role("bedroom_out", "Bedroom speakers", OUTPUT),
     Role("control_out", "Control-room speakers", OUTPUT),
     Role("bedroom_mic", "Bedroom mic", INPUT),
     Role("monitor_mic", "Monitor mic", INPUT),
-    Role("blinkstick", "Bedroom lights", VISUAL),
+    Role("blinkstick", "BlinkStick", VISUAL),
+    Role("hue", "Philips Hue", VISUAL),
 )
 
 

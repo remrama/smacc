@@ -18,6 +18,7 @@ accumulated per tick — so a late or missed GUI tick can't drift the stimulus.
 from __future__ import annotations
 
 import math
+import threading
 from typing import Protocol
 
 RGB = tuple[int, int, int]
@@ -173,8 +174,11 @@ BLINKSTICK_LED_COUNT = 32
 class BlinkStickBackend:
     """Drives one BlinkStick: the same color on all its LEDs.
 
-    ``set_led_data`` expects G,R,B-ordered triplets, one per LED.
+    ``set_led_data`` expects G,R,B-ordered triplets, one per LED. USB-HID writes
+    are fast enough for square-wave flashing, hence ``supports_flash``.
     """
+
+    supports_flash = True
 
     def __init__(self, device) -> None:
         self._device = device
@@ -204,3 +208,63 @@ def resolve_blinkstick(serial: str) -> BlinkStickBackend | None:
     except Exception:
         return None
     return BlinkStickBackend(device) if device is not None else None
+
+
+class FrameWriter:
+    """Applies frames to a backend from its own thread (latest-frame-wins).
+
+    A slow backend (the Hue bridge's ~100 ms HTTP writes) must not run on the GUI
+    thread at the cue tick rate. The GUI submits the newest frame; the worker
+    applies frames as fast as the backend absorbs them, always skipping to the
+    latest (stale frames are dropped, never queued) and skipping duplicates — a
+    steady cue costs one write, not thirty a second. The first write error stops
+    the worker and is kept in :attr:`error` for the GUI to poll; :meth:`stop`
+    joins the thread so the caller can then turn the light off in a known state.
+
+    ``applied`` seeds the duplicate filter with a frame the caller already wrote
+    synchronously (the cue's first frame, applied before its start marker).
+    """
+
+    def __init__(self, backend: LightBackend, applied: RGB | None = None) -> None:
+        self._backend = backend
+        self._cond = threading.Condition()
+        self._latest: RGB | None = None
+        self._applied = applied
+        self._stopping = False
+        self.error: str | None = None
+        self._thread = threading.Thread(
+            target=self._run, name="smacc-light-writer", daemon=True
+        )
+        self._thread.start()
+
+    def submit(self, rgb: RGB) -> None:
+        """Deposit the newest frame (the worker writes it when the device is free)."""
+        with self._cond:
+            self._latest = rgb
+            self._cond.notify()
+
+    def stop(self, timeout: float = 2.0) -> None:
+        """Stop the worker and wait for any in-flight write to finish."""
+        with self._cond:
+            self._stopping = True
+            self._cond.notify()
+        self._thread.join(timeout)
+
+    def _run(self) -> None:
+        while True:
+            with self._cond:
+                while not self._stopping and (
+                    self._latest is None or self._latest == self._applied
+                ):
+                    self._cond.wait()
+                if self._stopping:
+                    return
+                frame = self._latest
+            assert frame is not None  # the wait loop only exits with a fresh frame
+            try:
+                self._backend.apply(frame)  # outside the lock: possibly slow I/O
+            except Exception as exc:
+                self.error = str(exc) or type(exc).__name__
+                return
+            with self._cond:
+                self._applied = frame

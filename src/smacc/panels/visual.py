@@ -4,9 +4,12 @@ The visual sibling of the audio cue board (#86/#87): each slot is one light cue 
 a color at a brightness, shown steady or pulsed/flashed at a rate in Hz — with its
 own length and loop flag, so a protocol that uses several lights (e.g. cue vs.
 sham) can keep them ready and fire any one with a click. Playback is one-at-a-time
-on the BlinkStick resolved from the visual_out role, shaped by a shared brightness
-fade-in/out, and driven by a ~30 Hz QTimer ticking the pure
+on the device the visual_out route resolves to — a BlinkStick over USB, or a
+Philips Hue light/group over the bridge (#53) — shaped by a shared brightness
+fade-in/out and driven by a ~30 Hz QTimer ticking the pure
 :class:`smacc.lights.LightEngine`, so the rest of the GUI stays live throughout.
+Device writes run on a :class:`smacc.lights.FrameWriter` thread (a Hue write is an
+HTTP round-trip), and flash is refused on backends that can't honor it.
 Start/stop are marked with the ``VisualStarted``/``VisualStopped`` registry events
 (detail: the slot name), every stop path turns the light off (including app quit),
 and a "sending" swatch mirrors the exact frame on the device — the visual analog
@@ -22,7 +25,7 @@ from functools import partial
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from .. import lights
+from .. import hue, lights
 from ..session import SmaccSession
 from .base import ModalityWindow, describe_target, make_section_title
 
@@ -95,6 +98,9 @@ class VisualWindow(ModalityWindow):
         self._backend: lights.LightBackend | None = None
         self._active_backend: lights.LightBackend | None = None
         self._active_slot: LightSlot | None = None
+        # Frames go to the device through a writer thread: a Hue write is an HTTP
+        # round-trip (~100 ms), far too slow for the GUI thread at the tick rate.
+        self._writer: lights.FrameWriter | None = None
         self._engine = lights.LightEngine()
         self._clock = time.monotonic  # injectable for deterministic tests
         self._timer = QtCore.QTimer(self)
@@ -195,7 +201,7 @@ class VisualWindow(ModalityWindow):
         # Shared device (chosen in the Devices window) + fade controls.
         self.deviceLabel = QtWidgets.QLabel(self)
         self.deviceLabel.setStatusTip(
-            "Set in the Devices window (Bedroom lights role)."
+            "Set in the Devices window (BlinkStick or Philips Hue role)."
         )
         self.refresh_device_indicator()
 
@@ -390,13 +396,17 @@ class VisualWindow(ModalityWindow):
     # ----- shared device + fade ---------------------------------------------
 
     def refresh_device_indicator(self) -> None:
-        """Resolve the BlinkStick from its role and show where the cue routes.
+        """Resolve the light backend from the routed role (BlinkStick or Hue).
 
         A cue already lit keeps the backend it started with; the fresh resolution
         applies from the next Play.
         """
-        serial = self.session.devices.device_for("visual_out")
-        self._backend = lights.resolve_blinkstick(serial)
+        role = self.session.devices.role_for("visual_out")
+        binding = self.session.devices.device_for("visual_out")
+        if role == "hue":
+            self._backend = hue.resolve_backend(self.session.hue_config, binding)
+        else:
+            self._backend = lights.resolve_blinkstick(binding)
         self.deviceLabel.setText(describe_target(self.session, "visual_out"))
 
     def update_visual_attack(self, value: float) -> None:
@@ -485,14 +495,27 @@ class VisualWindow(ModalityWindow):
         if self._backend is None:
             self.session.show_error_popup(
                 "Visual cue unavailable.",
-                "No BlinkStick is set. Bind one to the Bedroom lights role "
-                "in the Devices window.",
+                "No light is set. In the Devices window, bind a BlinkStick "
+                "(or pair a Philips Hue) and route the visual cue to it.",
+                parent=self,
+            )
+            return
+        backend = self._backend
+        # Refuse flash on a backend that can't honor it (the Hue bridge's rate
+        # limits) rather than degrade the stimulus silently — and refuse before
+        # touching whatever cue is currently lit.
+        if slot.patternCombo.currentData() == lights.FLASH and not getattr(
+            backend, "supports_flash", True
+        ):
+            self.session.show_error_popup(
+                "Flash isn't available on the Philips Hue.",
+                "The bridge rate-limits commands, far below a square wave. Use "
+                "pulse or steady, or route the visual cue to a BlinkStick.",
                 parent=self,
             )
             return
         if self._active_slot is not None:
             self._finish(mark=self._active_slot is not slot)
-        backend = self._backend
         now = self._clock()
         self._engine.start(
             now,
@@ -511,17 +534,25 @@ class VisualWindow(ModalityWindow):
         except Exception as err:
             self._engine.stop(now)
             self.session.show_error_popup(
-                "Could not light the BlinkStick.", str(err), parent=self
+                "Could not light the visual cue.", str(err), parent=self
             )
             return
         self._active_backend = backend
         self._active_slot = slot
+        # Later frames go through the writer thread; it skips duplicates (the
+        # first frame seeds that filter) and always jumps to the newest frame, so
+        # a slow backend lags a little but never queues stale light.
+        self._writer = self._make_writer(backend, first)
         self._timer.start()
         self._set_now_lit(slot)
         self._set_swatch(first)
         # Marked after the first frame is on the device, so the marker trails the
         # photons by microseconds instead of leading them by up to a tick.
         self.session.emit_event("VisualStarted", detail=slot.nameEdit.text())
+
+    def _make_writer(self, backend: lights.LightBackend, first: lights.RGB):
+        """Build the cue's frame writer (a seam: tests inject a synchronous fake)."""
+        return lights.FrameWriter(backend, applied=first)
 
     def stop_slot(self, slot: LightSlot) -> None:
         """Stop a slot (with fade-out) if it is the one currently lit."""
@@ -533,27 +564,33 @@ class VisualWindow(ModalityWindow):
         # Otherwise the release fade runs and _tick finalizes it when done.
 
     def _tick(self) -> None:
-        """Timer slot: push the current frame, finishing once the cue has ended."""
+        """Timer slot: submit the current frame, finishing once the cue has ended."""
         now = self._clock()
         frame = self._engine.frame(now)
         if self._engine.ended:
             self._finish(mark=True)
             return
-        assert self._active_backend is not None  # set with the timer in play_slot
-        try:
-            self._active_backend.apply(frame)
-        except Exception as err:
-            self._finish(mark=True)  # the stimulus is over, whatever the LEDs say
+        writer = self._writer
+        assert writer is not None  # created with the timer in play_slot
+        if writer.error is not None:  # a device write failed on the writer thread
+            error = writer.error
+            self._finish(mark=True)  # the stimulus is over, whatever the light says
             self.session.show_error_popup(
-                "BlinkStick write failed; visual cue stopped.", str(err), parent=self
+                "Light write failed; visual cue stopped.", error, parent=self
             )
             return
+        writer.submit(frame)
         self._set_swatch(frame)
 
     def _finish(self, mark: bool) -> None:
         """Stop the timer, force the light off (best effort), and mark the stop."""
         slot = self._active_slot
         self._timer.stop()
+        if self._writer is not None:
+            # Join the writer before the off, so a slow in-flight frame can't land
+            # after it and leave the light stuck on.
+            self._writer.stop()
+            self._writer = None
         if self._active_backend is not None:
             try:
                 self._active_backend.off()
