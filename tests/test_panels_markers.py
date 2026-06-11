@@ -182,6 +182,47 @@ def test_ttl_column_grays_out_without_a_transport(window):
     assert all(box.isEnabled() for box in window._ttl_boxes)
 
 
+# ----- hardware detection hints ---------------------------------------------------
+
+
+def test_no_serial_ports_shows_the_hint_but_gates_nothing(
+    qtbot, design_session, monkeypatch
+):
+    monkeypatch.setattr(triggers, "list_serial_ports", lambda: [])
+    win = MarkersWindow(design_session)
+    qtbot.addWidget(win)
+    assert not win.portStatusLabel.isHidden()
+    # A hint, not a gate: the per-event TTL routing is untouched (not emptied).
+    assert win._ttl_boxes[_index_of(win, "REMDetected")].isChecked() is True
+
+
+def test_attached_serial_ports_hide_the_hint(stub_serial_ports, window):
+    assert window.portStatusLabel.isHidden()
+
+
+def test_refresh_updates_the_port_hint(window, monkeypatch):
+    monkeypatch.setattr(triggers, "list_serial_ports", lambda: [])
+    window._refresh_ports()
+    assert not window.portStatusLabel.isHidden()
+    monkeypatch.setattr(triggers, "list_serial_ports", lambda: [("COM2", "COM2")])
+    window._refresh_ports()
+    assert window.portStatusLabel.isHidden()
+
+
+def test_missing_inpout_driver_shows_the_hint(qtbot, design_session, monkeypatch):
+    monkeypatch.setattr(triggers, "parallel_driver_available", lambda: False)
+    win = MarkersWindow(design_session)
+    qtbot.addWidget(win)
+    assert not win.driverStatusLabel.isHidden()
+
+
+def test_present_inpout_driver_hides_the_hint(qtbot, design_session, monkeypatch):
+    monkeypatch.setattr(triggers, "parallel_driver_available", lambda: True)
+    win = MarkersWindow(design_session)
+    qtbot.addWidget(win)
+    assert win.driverStatusLabel.isHidden()
+
+
 # ----- hardware transport (the former Trigger output dialog, #28) ----------------
 
 
