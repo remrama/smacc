@@ -1020,24 +1020,28 @@ of several controls spread across the OS.</p>
 window</strong> (in the <em>Tools</em> column) where you do two things:</p>
 <ol>
 <li><strong>Bind each <em>role</em> to a device, once.</strong> The roles are the physical endpoints of a
-   rig: <strong>Bedroom speakers</strong>, <strong>Control-room speakers</strong>, <strong>Bedroom mic</strong>, the
-   <strong>Control-room mic</strong> (the experimenter's intercom voice), plus the light
-   devices (<strong>BlinkStick</strong>, <strong>Philips Hue</strong>).</li>
-<li><strong>Route each modality to a role.</strong> The cue, noise, intercom, and dream-report
-   recorder each point at a role.</li>
+   rig, named by place: <strong>Bedroom speaker</strong>, <strong>Control-room speaker</strong>, <strong>Bedroom
+   mic 1</strong> (and an optional <strong>Bedroom mic 2</strong>), the <strong>Control-room mic</strong> (the
+   experimenter's intercom voice), plus the light devices (<strong>BlinkStick light</strong>,
+   <strong>Philips Hue light</strong>).</li>
+<li><strong>Route each modality to a role.</strong> Every modality is an action verb naming
+   what SMACC does with the device — <em>Play audio cue</em>, <em>Record dream report</em> —
+   and each points at a role. Hover any row in the window for a full description.</li>
 </ol>
-<p>The cue, the noise, and your intercom voice can all share the <strong>Bedroom speakers</strong>
+<p>The cue, the noise, and your intercom voice can all share the <strong>Bedroom speaker</strong>
 role, so swapping the bedroom speaker is one change rather than several. Every other
 window shows a read-only indicator of where it resolves, for example
-<code>Device: Bedroom speakers → Speakers (USB Audio)</code>.</p>
-<div class="highlight"><pre><span></span><code>Bedroom speakers      Speakers (USB Audio)
-Control-room speakers Headphones (Realtek)
-Bedroom mic           Microphone (USB Audio)
+<code>Device: Bedroom speaker → Speakers (USB Audio)</code>, and the Devices window shows the
+same resolution beside each route — a route pointed at a role with nothing bound
+reads <strong>→ no device</strong> instead of looking configured.</p>
+<div class="highlight"><pre><span></span><code>Bedroom speaker       Speakers (USB Audio)
+Control-room speaker  Headphones (Realtek)
+Bedroom mic 1         Microphone (USB Audio)
 ──────────────────────────────────────────
-Present audio cue    → Bedroom speakers    (monitor: Control-room speakers)
-Present audio noise  → Bedroom speakers
-Speak through intercom → Bedroom speakers
-Capture dream report → Bedroom mic
+Play audio cue       → Bedroom speaker    (listen: Control-room speaker)
+Play noise           → Bedroom speaker
+Speak to participant → Bedroom speaker
+Record dream report  → Bedroom mic 1
 </code></pre></div>
 <p>The whole assignment is saved in your SMACC file, so a rig travels with
 its study. If a bound device isn't connected when a study loads, SMACC keeps going
@@ -1047,8 +1051,8 @@ and reports which one is missing instead of silently falling back.</p>
 its default device on its own — plugging in an HDMI monitor or a Bluetooth headset
 is enough — and an overnight study must not follow it. Instead:</p>
 <ul>
-<li>When a session starts (or loads a study) with nothing bound to <strong>Bedroom
-  speakers</strong>, <strong>Bedroom mic</strong>, or the <strong>Control-room mic</strong>, SMACC binds the device
+<li>When a session starts (or loads a study) with nothing bound to the <strong>Bedroom
+  speaker</strong>, <strong>Bedroom mic 1</strong>, or the <strong>Control-room mic</strong>, SMACC binds the device
   that is <em>currently</em> the Windows default — explicitly, by name — and logs which
   one it picked. From then on the binding is pinned: changing the Windows default
   never re-routes a study.</li>
@@ -1065,18 +1069,19 @@ the rig with its roles unbound, and the rig pins its own defaults on first load.
 <h3 id="monitoring-routes">Monitoring routes</h3>
 <p>Three optional routes cover the things you reach for mid-study:</p>
 <ul>
-<li><strong>Monitor audio cue (fan-out).</strong> Route <em>Monitor audio cue</em> to the control-room
-  speakers and the cue plays in the bedroom and the control room at once, so you hear
-  what the participant heard.</li>
-<li><strong>Listen through intercom.</strong> The intercom is two-way: <strong>Speak through intercom</strong>
+<li><strong>Listen to audio cue (fan-out).</strong> Route <em>Listen to audio cue</em> to the
+  control-room speaker and each cue plays in the bedroom and the control room at
+  once, so you hear what the participant hears.</li>
+<li><strong>Listen to participant.</strong> The intercom is two-way: <strong>Speak to participant</strong>
   sends your voice — picked up by the <strong>Control-room mic</strong> — to the participant
-  (and is marked in the EEG record), while <strong>Listen through intercom</strong> brings the
-  participant's mic to your control-room speakers. The intercom also has a typed <a href="../usage/#text-chat">text-chat mode</a>
+  (and is marked in the EEG record), while <strong>Listen to participant</strong> brings the
+  participant's mic to your control-room speaker. The intercom also has a typed <a href="../usage/#text-chat">text-chat mode</a>
   (no audio device involved) for hearing-impaired participants.</li>
-<li><strong>Monitor the bedroom.</strong> A microphone meter in the Audio cue window that confirms a
-  cue is audible in the bedroom (see
-  <a href="#is-the-cue-reaching-the-bedroom">below</a>). It defaults to the <strong>Bedroom mic</strong>, or
-  bind a dedicated, more sensitive <strong>Monitor mic</strong> and route <em>Room monitor</em> to it.</li>
+<li><strong>Monitor bedroom noise.</strong> A microphone meter in the Audio cue window that
+  confirms a cue is audible in the bedroom (see
+  <a href="#is-the-cue-reaching-the-bedroom">below</a>). It defaults to <strong>Bedroom mic 1</strong>, or
+  bind a dedicated, more sensitive <strong>Bedroom mic 2</strong> and route <em>Monitor bedroom
+  noise</em> to it.</li>
 </ul>
 <h2 id="one-audio-engine">One audio engine</h2>
 <p>All real-time audio (cues, noise, the intercom, the dream-report recorder, and the
@@ -1121,12 +1126,13 @@ bedroom speaker could be muted, unplugged, or turned down at the hardware. The
   (the <code>+N</code> next to the reading), so even a small bump stands out.</li>
 </ul>
 <div class="admonition tip">
-<p class="admonition-title">A dedicated monitor mic</p>
-<p>The <em>Bedroom</em> meter listens on the <strong>Room monitor</strong> route, which defaults to your
-bedroom mic. For the most reliable check — especially for the very quiet cues a
-study often starts at — bind a separate, sensitive <strong>Monitor mic</strong> in the Devices
-window and route <em>Room monitor</em> to it. That keeps verification independent of the
-(often cheaper, voice-activated) dream-report mic.</p>
+<p class="admonition-title">A dedicated monitoring mic</p>
+<p>The <em>Bedroom</em> meter listens on the <strong>Monitor bedroom noise</strong> route, which
+defaults to <strong>Bedroom mic 1</strong>. For the most reliable check — especially for the
+very quiet cues a study often starts at — bind a separate, sensitive
+<strong>Bedroom mic 2</strong> in the Devices window and route <em>Monitor bedroom noise</em> to
+it. That keeps verification independent of the (often cheaper,
+voice-activated) dream-report mic.</p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">A quiet mic isn't proof of silence</p>

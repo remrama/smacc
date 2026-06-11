@@ -1173,10 +1173,10 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <span class="w">  </span><span class="nt">devices</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">bindings</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
 <span class="w">    </span><span class="nt">routing</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">cue_out</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bedroom_out</span>
-<span class="w">      </span><span class="nt">noise_out</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bedroom_out</span>
-<span class="w">      </span><span class="nt">report_in</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bedroom_mic</span>
-<span class="w">      </span><span class="nt">visual_out</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">blinkstick</span>
+<span class="w">      </span><span class="nt">play_audio_cue</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bedroom_speaker</span>
+<span class="w">      </span><span class="nt">play_noise</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bedroom_speaker</span>
+<span class="w">      </span><span class="nt">record_dream_report</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bedroom_mic_1</span>
+<span class="w">      </span><span class="nt">play_visual_cue</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">blinkstick_light</span>
 <span class="w">  </span><span class="c1"># --- Event-marker registry -------------------------------------------------</span>
 <span class="w">  </span><span class="nt">event_codes</span><span class="p">:</span>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="nv">REMDetected</span><span class="p p-Indicator">,</span><span class="nt"> code</span><span class="p">:</span><span class="w"> </span><span class="nv">41</span><span class="p p-Indicator">,</span><span class="nt"> lsl</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> ttl</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> preview</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> increment</span><span class="p">:</span><span class="w"> </span><span class="nv">false</span><span class="p p-Indicator">}</span>
@@ -1475,20 +1475,21 @@ and <a href="../../devices/">Devices</a>).</p>
 <tr>
 <td><code>bindings</code></td>
 <td>mapping</td>
-<td>Role key → device key. Roles: <code>bedroom_out</code>, <code>control_out</code>, <code>bedroom_mic</code>, <code>monitor_mic</code>, <code>control_mic</code> (the experimenter's intercom mic), <code>blinkstick</code> (a stick's serial), <code>hue</code> (a bridge target like <code>light:3</code> or <code>group:1</code>).</td>
+<td>Role key → device key. Roles: <code>bedroom_speaker</code>, <code>control_speaker</code>, <code>bedroom_mic_1</code>, <code>bedroom_mic_2</code>, <code>control_mic</code> (the experimenter's intercom mic), <code>blinkstick_light</code> (a stick's serial), <code>philips_hue_light</code> (a bridge target like <code>light:3</code> or <code>group:1</code>).</td>
 </tr>
 <tr>
 <td><code>routing</code></td>
 <td>mapping</td>
-<td>Target key → role key (<code>""</code> = off). Targets: <code>cue_out</code>, <code>cue_monitor</code>, <code>noise_out</code>, <code>intercom_talk</code>, <code>intercom_listen</code>, <code>report_in</code>, <code>monitor_in</code>, <code>visual_out</code>.</td>
+<td>Target key → role key (<code>""</code> = off). Targets: <code>play_audio_cue</code>, <code>listen_audio_cue</code>, <code>play_noise</code>, <code>play_visual_cue</code>, <code>speak_to_participant</code>, <code>listen_to_participant</code>, <code>record_dream_report</code>, <code>monitor_bedroom_noise</code>.</td>
 </tr>
 </tbody>
 </table>
 <p>A missing <code>devices</code> block loads the defaults (each target on its default role, with
-no devices bound). When a live session starts (or loads a study) with <code>bedroom_out</code>,
-<code>bedroom_mic</code>, or <code>control_mic</code> unbound, SMACC binds the current Windows default
-device explicitly, by name, and logs the choice — there is no "system default"
-pseudo-selection (see <a href="../../audio/#no-system-default">Audio &amp; routing</a>).</p>
+no devices bound). When a live session starts (or loads a study) with
+<code>bedroom_speaker</code>, <code>bedroom_mic_1</code>, or <code>control_mic</code> unbound, SMACC binds the
+current Windows default device explicitly, by name, and logs the choice — there is
+no "system default" pseudo-selection (see
+<a href="../../audio/#no-system-default">Audio &amp; routing</a>).</p>
 <h3 id="trigger_output"><code>trigger_output</code></h3>
 <p>Optional hardware TTL trigger output, mirrored alongside the always-on LSL stream
 (see <a href="../../triggers/">Triggers &amp; port codes</a>).</p>
