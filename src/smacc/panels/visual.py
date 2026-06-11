@@ -4,7 +4,7 @@ The visual sibling of the audio cue board (#86/#87): each slot is one light cue 
 a color at a brightness, shown steady or pulsed/flashed at a rate in Hz — with its
 own length and loop flag, so a protocol that uses several lights (e.g. cue vs.
 sham) can keep them ready and fire any one with a click. Playback is one-at-a-time
-on the device the visual_out route resolves to — a BlinkStick over USB, or a
+on the device the play_visual_cue route resolves to — a BlinkStick over USB, or a
 Philips Hue light/group over the bridge (#53) — shaped by a shared brightness
 fade-in/out and driven by a ~30 Hz QTimer ticking the pure
 :class:`smacc.lights.LightEngine`, so the rest of the GUI stays live throughout.
@@ -97,7 +97,7 @@ class VisualWindow(ModalityWindow):
         # Shared brightness fade (attack/release) durations in seconds; 0 == instant.
         self.visual_attack_s = 0.0
         self.visual_release_s = 0.0
-        # Backend resolved from the visual_out role; the one a playing cue is bound
+        # Backend resolved from the play_visual_cue role; the one a playing cue is bound
         # to is held separately, so re-routing applies from the next Play (like an
         # audio cue keeping the stream it opened).
         self._backend: lights.LightBackend | None = None
@@ -406,13 +406,13 @@ class VisualWindow(ModalityWindow):
         A cue already lit keeps the backend it started with; the fresh resolution
         applies from the next Play.
         """
-        role = self.session.devices.role_for("visual_out")
-        binding = self.session.devices.device_for("visual_out")
-        if role == "hue":
+        role = self.session.devices.role_for("play_visual_cue")
+        binding = self.session.devices.device_for("play_visual_cue")
+        if role == "philips_hue_light":
             self._backend = hue.resolve_backend(self.session.hue_config, binding)
         else:
             self._backend = lights.resolve_blinkstick(binding)
-        self.deviceLabel.setText(describe_target(self.session, "visual_out"))
+        self.deviceLabel.setText(describe_target(self.session, "play_visual_cue"))
 
     def update_visual_attack(self, value: float) -> None:
         """Set the shared brightness fade-in (attack) time in seconds."""

@@ -184,9 +184,9 @@ def test_apply_settings_lands_values(
     settings["cues"] = [{"name": "Buzz", "file": "", "volume": 0.3, "loop": True}]
     settings["devices"] = {
         "bindings": {
-            "bedroom_out": mock_devices["outputs"][0],
-            "bedroom_mic": mock_devices["inputs"][0],
-            "blinkstick": mock_devices["blinksticks"][0][1],
+            "bedroom_speaker": mock_devices["outputs"][0],
+            "bedroom_mic_1": mock_devices["inputs"][0],
+            "blinkstick_light": mock_devices["blinksticks"][0][1],
         },
         "routing": {},
     }
@@ -198,7 +198,7 @@ def test_apply_settings_lands_values(
     assert got["visual_cues"][0]["name"] == "Glow"
     assert got["visual_cues"][0]["color"] == "#abcdef"
     assert got["cues"][0]["name"] == "Buzz"
-    assert got["devices"]["bindings"]["bedroom_out"] == mock_devices["outputs"][0]
+    assert got["devices"]["bindings"]["bedroom_speaker"] == mock_devices["outputs"][0]
     # The bound devices all match advertised hardware, so none are flagged missing.
     assert design_session.missing_devices == []
 

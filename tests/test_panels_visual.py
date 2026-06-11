@@ -314,8 +314,8 @@ def test_color_can_be_picked_with_no_device(qtbot, design_session, monkeypatch):
 
 def test_visual_route_to_hue_resolves_a_hue_backend(qtbot, design_session):
     design_session.hue_config = hue.HueConfig("192.168.1.50", "key")
-    design_session.devices.bindings["hue"] = "light:1"
-    design_session.devices.routing["visual_out"] = "hue"
+    design_session.devices.bindings["philips_hue_light"] = "light:1"
+    design_session.devices.routing["play_visual_cue"] = "philips_hue_light"
     panel = VisualWindow(design_session)
     qtbot.addWidget(panel)
     assert isinstance(panel._backend, hue.HueBackend)

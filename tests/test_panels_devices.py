@@ -16,13 +16,13 @@ from smacc.panels.devices import DevicesWindow
 def test_role_combos_populate_from_enumeration(qtbot, design_session, mock_devices):
     window = DevicesWindow(design_session)
     qtbot.addWidget(window)
-    out_combo = window._role_combos["bedroom_out"]
+    out_combo = window._role_combos["bedroom_speaker"]
     # Index 0 is the "(none)" entry, then one row per advertised output.
     assert out_combo.itemText(0) == "(none)"
     assert out_combo.count() == 1 + len(mock_devices["outputs"])
     assert out_combo.itemData(1) == mock_devices["outputs"][0]
 
-    blink_combo = window._role_combos["blinkstick"]
+    blink_combo = window._role_combos["blinkstick_light"]
     assert blink_combo.count() == 1 + len(mock_devices["blinksticks"])
     # BlinkStick rows carry the serial as item data.
     assert blink_combo.itemData(1) == mock_devices["blinksticks"][0][1]
@@ -30,11 +30,11 @@ def test_role_combos_populate_from_enumeration(qtbot, design_session, mock_devic
 
 def test_reload_from_config_selects_bound_device(qtbot, design_session, mock_devices):
     bound = mock_devices["outputs"][1]
-    design_session.devices.bindings["bedroom_out"] = bound
+    design_session.devices.bindings["bedroom_speaker"] = bound
     window = DevicesWindow(design_session)
     qtbot.addWidget(window)
     window.reload_from_config()
-    assert window._role_combos["bedroom_out"].currentText() == bound
+    assert window._role_combos["bedroom_speaker"].currentText() == bound
 
 
 def test_set_binding_writes_to_session(qtbot, design_session, mock_devices):
@@ -44,37 +44,39 @@ def test_set_binding_writes_to_session(qtbot, design_session, mock_devices):
     window.changed.connect(lambda: changed.append(True))
 
     # Selecting a real device row binds it to the role.
-    window._role_combos["bedroom_out"].setCurrentIndex(1)
-    assert design_session.devices.bindings["bedroom_out"] == mock_devices["outputs"][0]
+    window._role_combos["bedroom_speaker"].setCurrentIndex(1)
+    assert (
+        design_session.devices.bindings["bedroom_speaker"] == mock_devices["outputs"][0]
+    )
     assert changed  # the changed signal fired
 
     # Returning to the "(none)" entry clears the binding.
-    window._role_combos["bedroom_out"].setCurrentIndex(0)
-    assert "bedroom_out" not in design_session.devices.bindings
+    window._role_combos["bedroom_speaker"].setCurrentIndex(0)
+    assert "bedroom_speaker" not in design_session.devices.bindings
 
 
 def test_set_routing_writes_to_session(qtbot, design_session, mock_devices):
     window = DevicesWindow(design_session)
     qtbot.addWidget(window)
-    combo = window._route_combos["cue_out"]
-    # Point cue_out at the control-room output role instead of its default.
-    index = combo.findData("control_out")
+    combo = window._route_combos["play_audio_cue"]
+    # Point play_audio_cue at the control-room output role instead of its default.
+    index = combo.findData("control_speaker")
     assert index >= 0
     combo.setCurrentIndex(index)
-    assert design_session.devices.routing["cue_out"] == "control_out"
+    assert design_session.devices.routing["play_audio_cue"] == "control_speaker"
 
 
 def test_reload_flags_missing_bound_device(qtbot, design_session, mock_devices):
-    design_session.devices.bindings["bedroom_out"] = "Unplugged speaker"
+    design_session.devices.bindings["bedroom_speaker"] = "Unplugged speaker"
     window = DevicesWindow(design_session)
     qtbot.addWidget(window)
     window.reload_from_config()
     # The bound device isn't among the advertised ones, so it's flagged and shown
     # as an explicit "(not connected)" row; the binding is kept, never swapped.
-    combo = window._role_combos["bedroom_out"]
+    combo = window._role_combos["bedroom_speaker"]
     assert combo.currentText() == "Unplugged speaker (not connected)"
     assert combo.currentData() == "Unplugged speaker"
-    assert design_session.devices.bindings["bedroom_out"] == "Unplugged speaker"
+    assert design_session.devices.bindings["bedroom_speaker"] == "Unplugged speaker"
     assert any("Unplugged speaker" in entry for entry in design_session.missing_devices)
 
 
@@ -98,19 +100,19 @@ def test_hue_role_combo_lists_bridge_targets(
     monkeypatch.setattr(hue, "targets", lambda cfg: [("Bed lamp (light 1)", "light:1")])
     window = DevicesWindow(design_session)
     qtbot.addWidget(window)
-    combo = window._role_combos["hue"]
+    combo = window._role_combos["philips_hue_light"]
     assert [combo.itemText(i) for i in range(combo.count())] == [
         "(none)",
         "Bed lamp (light 1)",
     ]
     combo.setCurrentIndex(1)  # bind the lamp
-    assert design_session.devices.bindings["hue"] == "light:1"
+    assert design_session.devices.bindings["philips_hue_light"] == "light:1"
 
 
 def test_hue_role_combo_says_no_bridge_without_one(qtbot, design_session, mock_devices):
     window = DevicesWindow(design_session)
     qtbot.addWidget(window)
-    combo = window._role_combos["hue"]
+    combo = window._role_combos["philips_hue_light"]
     assert [combo.itemText(i) for i in range(combo.count())] == ["No bridge paired"]
 
 
@@ -124,12 +126,12 @@ def test_empty_enumeration_says_no_device_found(qtbot, design_session, mock_no_d
         key: [combo.itemText(i) for i in range(combo.count())]
         for key, combo in window._role_combos.items()
     }
-    assert texts["bedroom_out"] == ["No output device found"]
-    assert texts["control_out"] == ["No output device found"]
-    assert texts["bedroom_mic"] == ["No input device found"]
+    assert texts["bedroom_speaker"] == ["No output device found"]
+    assert texts["control_speaker"] == ["No output device found"]
+    assert texts["bedroom_mic_1"] == ["No input device found"]
     assert texts["control_mic"] == ["No input device found"]
-    assert texts["blinkstick"] == ["No BlinkStick found"]
-    assert texts["hue"] == ["No bridge paired"]
+    assert texts["blinkstick_light"] == ["No BlinkStick found"]
+    assert texts["philips_hue_light"] == ["No bridge paired"]
 
 
 def test_paired_bridge_with_no_targets_says_no_lights(
@@ -141,7 +143,7 @@ def test_paired_bridge_with_no_targets_says_no_lights(
     monkeypatch.setattr(hue, "targets", lambda cfg: [])
     window = DevicesWindow(design_session)
     qtbot.addWidget(window)
-    combo = window._role_combos["hue"]
+    combo = window._role_combos["philips_hue_light"]
     assert [combo.itemText(i) for i in range(combo.count())] == ["No lights found"]
 
 
@@ -154,14 +156,14 @@ def test_autobind_defaults_pins_the_required_roles(qtbot, live_session, mock_dev
     # The current Windows defaults are bound explicitly, by name (#139); roles
     # only optional routes use stay unbound.
     bindings = live_session.devices.bindings
-    assert bindings["bedroom_out"] == mock_devices["default_output"]
-    assert bindings["bedroom_mic"] == mock_devices["default_input"]
+    assert bindings["bedroom_speaker"] == mock_devices["default_output"]
+    assert bindings["bedroom_mic_1"] == mock_devices["default_input"]
     assert bindings["control_mic"] == mock_devices["default_input"]  # #160
-    assert "control_out" not in bindings
-    assert "monitor_mic" not in bindings
+    assert "control_speaker" not in bindings
+    assert "bedroom_mic_2" not in bindings
     assert changed  # indicators are told to re-render
     # The combos show the pinned devices.
-    out_combo = window._role_combos["bedroom_out"]
+    out_combo = window._role_combos["bedroom_speaker"]
     assert out_combo.currentData() == mock_devices["default_output"]
 
 
@@ -174,11 +176,39 @@ def test_autobind_defaults_is_a_noop_in_the_editor(qtbot, design_session, mock_d
 
 
 def test_autobind_defaults_keeps_existing_bindings(qtbot, live_session, mock_devices):
-    live_session.devices.bindings["bedroom_out"] = mock_devices["outputs"][1]
+    live_session.devices.bindings["bedroom_speaker"] = mock_devices["outputs"][1]
     window = DevicesWindow(live_session)
     qtbot.addWidget(window)
     window.autobind_defaults()
     # An explicit choice is never overwritten; only the unbound mics are filled.
-    assert live_session.devices.bindings["bedroom_out"] == mock_devices["outputs"][1]
-    assert live_session.devices.bindings["bedroom_mic"] == mock_devices["default_input"]
+    assert (
+        live_session.devices.bindings["bedroom_speaker"] == mock_devices["outputs"][1]
+    )
+    assert (
+        live_session.devices.bindings["bedroom_mic_1"] == mock_devices["default_input"]
+    )
     assert live_session.devices.bindings["control_mic"] == mock_devices["default_input"]
+
+
+def test_combos_carry_description_tooltips(qtbot, design_session, mock_devices):
+    from smacc import devices
+
+    window = DevicesWindow(design_session)
+    qtbot.addWidget(window)
+    for role in devices.ROLES:
+        assert window._role_combos[role.key].toolTip() == role.description
+    for target in devices.TARGETS:
+        assert window._route_combos[target.key].toolTip() == target.description
+
+
+def test_route_indicators_show_the_resolved_device(qtbot, design_session, mock_devices):
+    window = DevicesWindow(design_session)
+    qtbot.addWidget(window)
+    # A default route on an unbound role is honest about it...
+    cue = window._route_indicators["play_audio_cue"]
+    assert cue.text() == "→ no device"
+    # ...an off (optional) route shows nothing...
+    assert window._route_indicators["listen_audio_cue"].text() == ""
+    # ...and binding the role resolves the route live.
+    window._role_combos["bedroom_speaker"].setCurrentIndex(1)
+    assert cue.text() == f"→ {mock_devices['outputs'][0]}"

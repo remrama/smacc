@@ -1,8 +1,8 @@
 """Intercom window: live talk (experimenter -> participant) and listen (back) (#20).
 
 Two independent one-direction bridges: **Talk** pipes the experimenter's mic to the
-participant's output (``intercom_talk``), and **Listen** pipes the participant's mic
-(``bedroom_mic``) to the control-room output (``intercom_listen``). Each is a pair of
+participant's output (``speak_to_participant``), and **Listen** pipes the participant's mic
+(``bedroom_mic_1``) to the control-room output (``listen_to_participant``). Each is a pair of
 single-direction streams bridged by a queue + resampler, so mismatched device rates
 are fine, and the two can run together (full duplex).
 
@@ -332,10 +332,10 @@ class IntercomWindow(ModalityWindow):
         output route plus the source mic ("• mic: …"), the same separator idiom
         the Audio cue window uses for its monitor.
         """
-        talk = describe_target(self.session, "intercom_talk")
+        talk = describe_target(self.session, "speak_to_participant")
         talk += f"   •   mic: {describe_role(self.session, devices.TALK_SOURCE_ROLE)}"
         self.talkDeviceLabel.setText(talk)
-        listen = describe_target(self.session, "intercom_listen")
+        listen = describe_target(self.session, "listen_to_participant")
         listen += (
             f"   •   mic: {describe_role(self.session, devices.LISTEN_SOURCE_ROLE)}"
         )
@@ -370,7 +370,7 @@ class IntercomWindow(ModalityWindow):
 
         Marked in the EEG record via LSL (the experimenter's voice is a manipulation
         the participant hears). The mic is the control-room mic role (#160), the
-        output the ``intercom_talk`` route — both pinned by name, like every other
+        output the ``speak_to_participant`` route — both pinned by name, like every other
         audio path.
         """
         if enabled:
@@ -386,7 +386,7 @@ class IntercomWindow(ModalityWindow):
                 return
             output = require_device(
                 self.session,
-                "intercom_talk",
+                "speak_to_participant",
                 devices.OUTPUT,
                 failure="Could not start intercom talk.",
                 parent=self,
@@ -411,7 +411,7 @@ class IntercomWindow(ModalityWindow):
         """Start/stop piping the participant mic to the control-room output.
 
         Passive monitoring (no EEG marker), the reverse of Talk: the bedroom mic is
-        the source, the ``intercom_listen`` route the destination.
+        the source, the ``listen_to_participant`` route the destination.
         """
         if enabled:
             mic = require_role_device(
@@ -426,7 +426,7 @@ class IntercomWindow(ModalityWindow):
                 return
             output = require_device(
                 self.session,
-                "intercom_listen",
+                "listen_to_participant",
                 devices.OUTPUT,
                 failure="Could not start intercom listen.",
                 parent=self,

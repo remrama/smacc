@@ -78,7 +78,7 @@ The Audio cue window has a **Monitoring** section — a *Sending* meter (what SM
 emitting) beside a *Bedroom* meter (what a mic actually picks up in the room) — so you
 can confirm a cue is audible to the participant, not just leaving SMACC. See
 [Audio &amp; routing](audio.md#is-the-cue-reaching-the-bedroom) for how to read them
-and how to set up a dedicated monitor mic.
+and how to set up a second bedroom mic dedicated to monitoring.
 
 ## Visual cues
 
@@ -94,7 +94,7 @@ BlinkStick-vs-Hue comparison, marker timing, and the photosensitivity notes.
 ## Dream reports
 
 Use the **Record Dream Report** button to record from the mic bound to the
-**Bedroom mic** role in the **Devices** window.
+**Bedroom mic 1** role in the **Devices** window.
 Recordings are saved into the current session folder. Each report is also stamped
 with the time elapsed since you pressed **Start recording** (in the Event logging
 panel), so it is easy to locate in the EEG file; if recording has not been marked

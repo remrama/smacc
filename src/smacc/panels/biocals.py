@@ -618,7 +618,7 @@ class BiocalsWindow(ModalityWindow):
         self._stop_voice()  # safety: never two announcements at once
         device = require_device(
             self.session,
-            "cue_out",
+            "play_audio_cue",
             devices.OUTPUT,
             failure="Could not start the biocal voice output",
             parent=self,
@@ -630,7 +630,7 @@ class BiocalsWindow(ModalityWindow):
             return False
         self._outputs = [primary]
         monitor_device = resolve_device(
-            self.session.devices.device_for("cue_monitor"), devices.OUTPUT
+            self.session.devices.device_for("listen_audio_cue"), devices.OUTPUT
         )
         if monitor_device is not None and monitor_device != device:
             monitor = self._open_output(data, rate, monitor_device, optional=True)
@@ -698,9 +698,11 @@ class BiocalsWindow(ModalityWindow):
 
     def refresh_device_indicator(self) -> None:
         """Show where the voice resolves (the cue route + its monitor fan-out)."""
-        text = describe_target(self.session, "cue_out")
-        if self.session.devices.role_for("cue_monitor"):
-            text += f"   •   monitor: {describe_target(self.session, 'cue_monitor')}"
+        text = describe_target(self.session, "play_audio_cue")
+        if self.session.devices.role_for("listen_audio_cue"):
+            text += (
+                f"   •   monitor: {describe_target(self.session, 'listen_audio_cue')}"
+            )
         self.deviceLabel.setText(text)
 
     def is_streaming(self) -> bool:

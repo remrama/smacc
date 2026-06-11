@@ -310,11 +310,15 @@ class AudioCueWindow(ModalityWindow):
 
     def refresh_device_indicator(self) -> None:
         """Show where cue output resolves, plus the monitor route when enabled."""
-        text = describe_target(self.session, "cue_out")
-        if self.session.devices.role_for("cue_monitor"):
-            text += f"   •   monitor: {describe_target(self.session, 'cue_monitor')}"
+        text = describe_target(self.session, "play_audio_cue")
+        if self.session.devices.role_for("listen_audio_cue"):
+            text += (
+                f"   •   monitor: {describe_target(self.session, 'listen_audio_cue')}"
+            )
         self.deviceLabel.setText(text)
-        self.monitorDeviceLabel.setText(describe_target(self.session, "monitor_in"))
+        self.monitorDeviceLabel.setText(
+            describe_target(self.session, "monitor_bedroom_noise")
+        )
         self._restart_room_monitor_if_active()
 
     def is_streaming(self) -> bool:
@@ -399,7 +403,7 @@ class AudioCueWindow(ModalityWindow):
         """Play one slot (stopping any other playing slot first) with fade-in.
 
         Routes to the cue device, plus a second output on the control-room monitor
-        when ``cue_monitor`` is routed to a different device (the cue fan-out).
+        when ``listen_audio_cue`` is routed to a different device (the cue fan-out).
         """
         if slot.audio is None or slot.audio.shape[0] == 0:
             return  # nothing loaded in this slot
@@ -409,7 +413,7 @@ class AudioCueWindow(ModalityWindow):
             self._finish_active(mark=self._active_slot is not slot)
         device = require_device(
             self.session,
-            "cue_out",
+            "play_audio_cue",
             devices.OUTPUT,
             failure="Could not play the cue.",
             parent=self,
@@ -421,7 +425,7 @@ class AudioCueWindow(ModalityWindow):
             return  # primary failed (error already shown)
         self._outputs = [primary]
         monitor_device = resolve_device(
-            self.session.devices.device_for("cue_monitor"), devices.OUTPUT
+            self.session.devices.device_for("listen_audio_cue"), devices.OUTPUT
         )
         if monitor_device is not None and monitor_device != device:
             monitor = self._open_output(slot, monitor_device, optional=True)
@@ -578,7 +582,7 @@ class AudioCueWindow(ModalityWindow):
         if enabled:
             device = require_device(
                 self.session,
-                "monitor_in",
+                "monitor_bedroom_noise",
                 devices.INPUT,
                 failure="Could not open the room monitor.",
                 parent=self,

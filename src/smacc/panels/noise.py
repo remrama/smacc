@@ -177,7 +177,7 @@ class NoiseWindow(ModalityWindow):
 
     def refresh_device_indicator(self) -> None:
         """Show where noise output resolves (device chosen in the Devices window)."""
-        self.deviceLabel.setText(describe_target(self.session, "noise_out"))
+        self.deviceLabel.setText(describe_target(self.session, "play_noise"))
 
     def is_streaming(self) -> bool:
         """True while noise is playing (an open output stream)."""
@@ -258,7 +258,7 @@ class NoiseWindow(ModalityWindow):
             return  # already playing
         device = require_device(
             self.session,
-            "noise_out",
+            "play_noise",
             devices.OUTPUT,
             failure="Could not start noise output",
             parent=self,

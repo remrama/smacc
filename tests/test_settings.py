@@ -36,10 +36,13 @@ SAMPLE_SETTINGS = {
     "volume_cap": 0.8,
     "devices": {
         "bindings": {
-            "bedroom_out": "Speakers (USB Audio), Windows WASAPI",
-            "bedroom_mic": "Microphone (USB Audio)",
+            "bedroom_speaker": "Speakers (USB Audio), Windows WASAPI",
+            "bedroom_mic_1": "Microphone (USB Audio)",
         },
-        "routing": {"cue_out": "bedroom_out", "report_in": "bedroom_mic"},
+        "routing": {
+            "play_audio_cue": "bedroom_speaker",
+            "record_dream_report": "bedroom_mic_1",
+        },
     },
     "survey_url": "https://example.com/post",
     "survey_options": {
