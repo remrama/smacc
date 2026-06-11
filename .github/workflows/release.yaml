@@ -20,8 +20,22 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --extra dev
+      # The tag is the release's public version; smacc.__version__ is what the app
+      # reports (About dialog, --version) and what the installer is stamped with.
+      # A mismatch would ship an installer that misidentifies itself, so fail fast.
+      - name: Check the tag matches smacc.__version__
+        run: |
+          $version = (uv run python -c "import smacc; print(smacc.__version__)")
+          if ("v$version" -ne "${{ github.ref_name }}") {
+            throw "Tag ${{ github.ref_name }} does not match smacc.__version__ ($version)"
+          }
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+      # Embeds product name/version/publisher in the exe's Properties dialog —
+      # metadata IT departments look at when vetting or whitelisting a binary.
+      - name: Generate the exe version-info resource
+        run: uv run python tools/make_versionfile.py version_info.txt
       - name: Build SMACC.exe
-        run: uv run pyinstaller entry.py --name SMACC --onefile --noconsole --icon src/smacc/assets/icon.ico --add-data "src/smacc/assets/icon.png;smacc/assets" --add-data "src/smacc/assets/default.smacc;smacc/assets" --add-data "src/smacc/assets/cues;smacc/assets/cues" --add-data "src/smacc/assets/biocals;smacc/assets/biocals" --add-data "src/smacc/assets/surveys;smacc/assets/surveys"
+        run: uv run pyinstaller entry.py --name SMACC --onefile --noconsole --icon src/smacc/assets/icon.ico --version-file version_info.txt --add-data "src/smacc/assets/icon.png;smacc/assets" --add-data "src/smacc/assets/default.smacc;smacc/assets" --add-data "src/smacc/assets/cues;smacc/assets/cues" --add-data "src/smacc/assets/biocals;smacc/assets/biocals" --add-data "src/smacc/assets/surveys;smacc/assets/surveys"
       # A broken bundle (missing data file, import error) otherwise ships silently:
       # the exe is windowed (--noconsole), so PowerShell won't wait for it on its
       # own and there is no stdout — Start-Process -Wait + the exit code is the test.
@@ -29,7 +43,28 @@ jobs:
         run: |
           $p = Start-Process -FilePath dist/SMACC.exe -ArgumentList '--version' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "SMACC.exe --version exited with code $($p.ExitCode)" }
-      - name: Attach exe to release
+      # Inno Setup is preinstalled on the GitHub Windows runner images.
+      - name: Build SMACC-Setup.exe (Inno Setup installer)
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=$env:VERSION tools\smacc.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC exited with code $LASTEXITCODE" }
+      # Same idea as the exe smoke test, one level up: a broken installer (bad
+      # source path, registry section typo) would otherwise ship silently. Install
+      # per-user, run the *installed* exe, and confirm the .smacc association the
+      # [Registry] section is responsible for actually landed.
+      - name: Smoke-test the installer
+        run: |
+          $p = Start-Process -FilePath dist/SMACC-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/CURRENTUSER' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "SMACC-Setup.exe exited with code $($p.ExitCode)" }
+          $exe = "$env:LOCALAPPDATA\Programs\SMACC\SMACC.exe"
+          if (-not (Test-Path $exe)) { throw "Installed exe not found at $exe" }
+          $p = Start-Process -FilePath $exe -ArgumentList '--version' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Installed SMACC.exe --version exited with code $($p.ExitCode)" }
+          $progid = (Get-ItemProperty -Path 'HKCU:\Software\Classes\.smacc').'(default)'
+          if ($progid -ne 'SMACC.Study') { throw ".smacc association not registered (got '$progid')" }
+      - name: Attach exe and installer to release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/SMACC.exe
+          files: |
+            dist/SMACC.exe
+            dist/SMACC-Setup.exe

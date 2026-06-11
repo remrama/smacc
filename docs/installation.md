@@ -1,30 +1,56 @@
 # Installation
 
-[Download SMACC](https://github.com/remrama/smacc/releases/latest/download/SMACC.exe){ .md-button .md-button--primary }
+[Download SMACC](https://github.com/remrama/smacc/releases/latest/download/SMACC-Setup.exe){ .md-button .md-button--primary }
 
-The button above always downloads the **latest** version. To get an older or
-specific version, browse the
+The button above always downloads the installer for the **latest** version —
+double-click `SMACC-Setup.exe` and click through. The installer:
+
+- installs SMACC **per-user** — no administrator rights or IT involvement needed;
+- adds a **Start menu** entry (and, if you opt in, a desktop shortcut);
+- associates **`.smacc` files**, so double-clicking a SMACC file opens a session
+  with it;
+- registers an uninstaller — remove SMACC from **Settings › Apps** like any other
+  program. Uninstalling never touches your data: SMACC files, recordings, and
+  logs under `~/SMACC` (or your data directories) all stay put.
+
+Installing a newer version over an existing one upgrades it in place.
+
+To get an older or specific version, browse the
 [releases page](https://github.com/remrama/smacc/releases): pick the release you
-want, open its _Assets_ dropdown, and download SMACC from there. Every version is
-the same kind of single portable file: once downloaded, double-click it to run.
-There is no installer. (The version switcher on this documentation site switches
-the *docs* only — older copies of SMACC itself come from the releases page.)
+want, open its _Assets_ dropdown, and download from there. (The version switcher
+on this documentation site switches the *docs* only — older copies of SMACC
+itself come from the releases page.)
 
 !!! note "System requirements"
     SMACC runs on 64-bit Windows 10 or later.
 
 !!! warning "Windows SmartScreen — “Windows protected your PC”"
-    SMACC isn't code-signed, so the first time you run it Windows SmartScreen may show
-    a blue **“Windows protected your PC”** box. This is expected for any new,
-    unsigned program. To run SMACC anyway, click **More info**, then **Run anyway**.
-    Windows usually stops warning after the first launch.
+    SMACC isn't code-signed yet, so when you run the installer Windows SmartScreen
+    may show a blue **“Windows protected your PC”** box. This is expected for any
+    new, unsigned program. To proceed anyway, click **More info**, then
+    **Run anyway**.
 
 !!! note "Administrator privileges and the UAC prompt"
     For some features you will need to open SMACC with Administrator privileges
-    (right-click the file and select **Run as administrator**). Windows then shows a
-    **User Account Control (UAC)** prompt asking whether to allow the app to make
-    changes — click **Yes** to continue. For everyday use (audio cues, dream reports,
-    LSL markers) you can run SMACC normally, without administrator rights.
+    (right-click the Start menu entry and select **Run as administrator**). Windows
+    then shows a **User Account Control (UAC)** prompt asking whether to allow the
+    app to make changes — click **Yes** to continue. For everyday use (audio cues,
+    dream reports, LSL markers) you can run SMACC normally, without administrator
+    rights.
+
+## Portable SMACC.exe (no install)
+
+Every release also ships the same app as a single portable `SMACC.exe` — download
+it, double-click it, no installation. This suits USB-stick deployment, machines
+where nothing may be installed, and quick tests. The portable build skips the
+installer's conveniences (Start menu entry, uninstaller); it offers to associate
+`.smacc` files itself the first time it runs (see below).
+
+!!! note "For IT departments"
+    The default install is per-user (under `%LOCALAPPDATA%\Programs\SMACC`, no
+    elevation). On managed machines where per-user installs are blocked — e.g.
+    AppLocker policies on `%LOCALAPPDATA%` — run the same installer machine-wide
+    instead: `SMACC-Setup.exe /ALLUSERS` (elevates, installs to Program Files).
 
 ## Optional setup
 
@@ -52,10 +78,11 @@ itself remembers window positions and sizes and your recent files in
 ### SMACC files (`.smacc`)
 
 Your reusable setup is saved to a portable SMACC file (see
-[SMACC files](smacc-files.md)). On the Windows build, the first launch
-offers to associate `.smacc` files so you can **double-click one to open SMACC and
-run a session with it**; you can also (re)enable this from
-**File &rsaquo; Associate .smacc files (Windows)** in the Launcher.
+[SMACC files](smacc-files.md)). The installer associates `.smacc` files so you can
+**double-click one to open SMACC and run a session with it**. The portable
+`SMACC.exe` offers the same association the first time it runs; you can also
+(re)enable it any time from **File &rsaquo; Associate .smacc files (Windows)** in
+the Launcher.
 
 ### Audio cues
 

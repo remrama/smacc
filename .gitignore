@@ -3,6 +3,7 @@ smacc.egg-info/
 dist/
 build/
 *.spec
+version_info.txt
 .venv/
 .*_cache/
 .coverage
