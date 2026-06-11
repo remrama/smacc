@@ -1214,12 +1214,12 @@ on each <code>v*</code> release tag.</p>
 <li>The single source of truth for the version is <code>__version__</code> in
   <code>src/smacc/__init__.py</code>; <code>config.py</code> and the packaging metadata both read from
   it.</li>
-<li>The build/runtime Python is pinned to <strong>3.12</strong> in <code>.python-version</code>. The
+<li>The build/runtime Python is pinned to <strong>3.13</strong> in <code>.python-version</code>. The
   minimum OS is <strong>Windows 10</strong>, set by Qt 6 (PyQt6) — Qt 5 was the last line that
   still ran on Windows 8.1. Keep the pin unless you intend to move the Python floor.</li>
 <li>SMACC is distributed only as a frozen <code>SMACC.exe</code> (no PyPI), so CI tests what
   ships rather than a version range: the <code>test</code> job in <code>ci.yaml</code> runs on the same
-  <code>windows-2022</code> + Python 3.12 + locked dependencies as the release build
+  <code>windows-2022</code> + Python 3.13 + locked dependencies as the release build
   (<code>release.yaml</code>), in a single job rather than a multi-version matrix.</li>
 </ul>
 
