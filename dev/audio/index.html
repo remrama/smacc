@@ -444,6 +444,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#no-system-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No "system default"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#monitoring-routes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -906,6 +917,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#no-system-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        No "system default"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#monitoring-routes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1019,6 +1041,25 @@ Capture dream report → Bedroom mic
 <p>The whole assignment is saved in your SMACC file, so a rig travels with
 its study. If a bound device isn't connected when a study loads, SMACC keeps going
 and reports which one is missing instead of silently falling back.</p>
+<h3 id="no-system-default">No "system default"</h3>
+<p>SMACC never routes audio to "whatever the system default is". Windows reassigns
+its default device on its own — plugging in an HDMI monitor or a Bluetooth headset
+is enough — and an overnight study must not follow it. Instead:</p>
+<ul>
+<li>When a session starts (or loads a study) with nothing bound to <strong>Bedroom
+  speakers</strong> or <strong>Bedroom mic</strong>, SMACC binds the device that is <em>currently</em> the
+  Windows default — explicitly, by name — and logs which one it picked. From then
+  on the binding is pinned: changing the Windows default never re-routes a study.</li>
+<li>A role with nothing bound reads <strong>(none)</strong>, and anything routed to it reports a
+  clear error instead of quietly playing somewhere else.</li>
+<li>If no device is connected at all, the dropdown says so (e.g. <strong>No output device
+  found</strong>) rather than offering an empty choice.</li>
+<li>A bound device that isn't currently connected shows as <strong>(not connected)</strong> and
+  is kept — never silently swapped — until you pick another device or plug it back
+  in (then <strong>Refresh devices (F5)</strong>).</li>
+</ul>
+<p>The study editor never auto-binds: a study built on an office machine arrives at
+the rig with its roles unbound, and the rig pins its own defaults on first load.</p>
 <h3 id="monitoring-routes">Monitoring routes</h3>
 <p>Three optional routes cover the things you reach for mid-study:</p>
 <ul>

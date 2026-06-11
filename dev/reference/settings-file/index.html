@@ -1485,7 +1485,10 @@ and <a href="../../devices/">Devices</a>).</p>
 </tbody>
 </table>
 <p>A missing <code>devices</code> block loads the defaults (each target on its default role, with
-no devices bound).</p>
+no devices bound). When a live session starts (or loads a study) with <code>bedroom_out</code>
+or <code>bedroom_mic</code> unbound, SMACC binds the current Windows default device explicitly,
+by name, and logs the choice — there is no "system default" pseudo-selection (see
+<a href="../../audio/#no-system-default">Audio &amp; routing</a>).</p>
 <h3 id="trigger_output"><code>trigger_output</code></h3>
 <p>Optional hardware TTL trigger output, mirrored alongside the always-on LSL stream
 (see <a href="../../triggers/">Triggers &amp; port codes</a>).</p>
