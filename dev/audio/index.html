@@ -1020,8 +1020,9 @@ of several controls spread across the OS.</p>
 window</strong> (in the <em>Tools</em> column) where you do two things:</p>
 <ol>
 <li><strong>Bind each <em>role</em> to a device, once.</strong> The roles are the physical endpoints of a
-   rig: <strong>Bedroom speakers</strong>, <strong>Control-room speakers</strong>, <strong>Bedroom mic</strong>, plus the
-   light devices (<strong>BlinkStick</strong>, <strong>Philips Hue</strong>).</li>
+   rig: <strong>Bedroom speakers</strong>, <strong>Control-room speakers</strong>, <strong>Bedroom mic</strong>, the
+   <strong>Control-room mic</strong> (the experimenter's intercom voice), plus the light
+   devices (<strong>BlinkStick</strong>, <strong>Philips Hue</strong>).</li>
 <li><strong>Route each modality to a role.</strong> The cue, noise, intercom, and dream-report
    recorder each point at a role.</li>
 </ol>
@@ -1047,9 +1048,10 @@ its default device on its own — plugging in an HDMI monitor or a Bluetooth hea
 is enough — and an overnight study must not follow it. Instead:</p>
 <ul>
 <li>When a session starts (or loads a study) with nothing bound to <strong>Bedroom
-  speakers</strong> or <strong>Bedroom mic</strong>, SMACC binds the device that is <em>currently</em> the
-  Windows default — explicitly, by name — and logs which one it picked. From then
-  on the binding is pinned: changing the Windows default never re-routes a study.</li>
+  speakers</strong>, <strong>Bedroom mic</strong>, or the <strong>Control-room mic</strong>, SMACC binds the device
+  that is <em>currently</em> the Windows default — explicitly, by name — and logs which
+  one it picked. From then on the binding is pinned: changing the Windows default
+  never re-routes a study.</li>
 <li>A role with nothing bound reads <strong>(none)</strong>, and anything routed to it reports a
   clear error instead of quietly playing somewhere else.</li>
 <li>If no device is connected at all, the dropdown says so (e.g. <strong>No output device
@@ -1067,9 +1069,9 @@ the rig with its roles unbound, and the rig pins its own defaults on first load.
   speakers and the cue plays in the bedroom and the control room at once, so you hear
   what the participant heard.</li>
 <li><strong>Listen through intercom.</strong> The intercom is two-way: <strong>Speak through intercom</strong>
-  sends your voice to the participant (and is marked in the EEG record), while
-  <strong>Listen through intercom</strong> brings the participant's mic to your control-room
-  speakers. The intercom also has a typed <a href="../usage/#text-chat">text-chat mode</a>
+  sends your voice — picked up by the <strong>Control-room mic</strong> — to the participant
+  (and is marked in the EEG record), while <strong>Listen through intercom</strong> brings the
+  participant's mic to your control-room speakers. The intercom also has a typed <a href="../usage/#text-chat">text-chat mode</a>
   (no audio device involved) for hearing-impaired participants.</li>
 <li><strong>Monitor the bedroom.</strong> A microphone meter in the Audio cue window that confirms a
   cue is audible in the bedroom (see
