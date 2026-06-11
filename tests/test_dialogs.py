@@ -154,7 +154,7 @@ def test_manage_surveys_guards_editing_typed_survey(qtbot, tmp_path, monkeypatch
     typed = surveys.parse_survey_mapping(
         {
             "kind": surveys.KIND,
-            "schema_version": 2,
+            "schema_version": 1,
             "key": "mine",
             "name": "Mine",
             "title": "Mine",

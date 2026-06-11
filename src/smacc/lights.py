@@ -17,9 +17,12 @@ accumulated per tick — so a late or missed GUI tick can't drift the stimulus.
 
 from __future__ import annotations
 
+import logging
 import math
 import threading
 from typing import Protocol
+
+_logger = logging.getLogger("smacc")
 
 RGB = tuple[int, int, int]
 
@@ -197,7 +200,8 @@ def resolve_blinkstick(serial: str) -> BlinkStickBackend | None:
     The blinkstick import is local: the package is Windows-only and touches USB,
     so the engine half of this module stays importable (and testable) anywhere.
     A USB enumeration hiccup resolves to None rather than raising — the panel
-    treats that the same as no device bound.
+    treats that the same as no device bound — but is logged, so a dead stick is
+    distinguishable from an unbound one when debugging a rig.
     """
     if not serial:
         return None
@@ -206,6 +210,7 @@ def resolve_blinkstick(serial: str) -> BlinkStickBackend | None:
     try:
         device = blinkstick.find_by_serial(serial)
     except Exception:
+        _logger.warning(f"BlinkStick {serial!r} lookup failed", exc_info=True)
         return None
     return BlinkStickBackend(device) if device is not None else None
 

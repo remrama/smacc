@@ -132,7 +132,7 @@ def mixed_survey():
     return surveys.parse_survey_mapping(
         {
             "kind": surveys.KIND,
-            "schema_version": 2,
+            "schema_version": 1,
             "key": "mixed",
             "name": "Mixed",
             "title": "Mixed survey",

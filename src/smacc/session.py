@@ -100,7 +100,7 @@ class SmaccSession:
         self.missing_devices: list[str] = []
         # Device roles + routing (which physical device each modality uses). The
         # Devices window edits this; modality panels resolve their device from it.
-        # A loaded study replaces it via devices.load() (migrating older files).
+        # A loaded study replaces it via devices.load().
         self.devices = devices.default_config()
         # Master output safety cap (0-1): a single ceiling multiplied into every
         # stimulus (cue + noise) in the audio callback, so a cue at full volume on a
@@ -271,11 +271,14 @@ class SmaccSession:
         # sleep) so both edges land as close together as possible. LSL is stamped at
         # the estimated onset (now + onset_offset) so it lines up with the stimulus;
         # the hardware TTL just fires its edge now (LSL is the timed path SMACC owns).
-        if event.lsl and self.outlet is not None:
+        # Snapshot the outlet: emit_event can fire from a non-GUI thread while the
+        # GUI thread closes the session and Nones the attribute.
+        outlet = self.outlet
+        if event.lsl and outlet is not None:
             if onset_offset > 0.0:
-                self.outlet.push_sample([str(code)], local_clock() + onset_offset)
+                outlet.push_sample([str(code)], local_clock() + onset_offset)
             else:
-                self.outlet.push_sample([str(code)])
+                outlet.push_sample([str(code)])
         if event.ttl and self.trigger_out is not None:
             try:
                 self.trigger_out.send(code)
@@ -457,7 +460,7 @@ class SmaccSession:
 
         Gated by ``log_interactions`` so the programmatic widget setup that runs
         during construction or a study load doesn't spam the log; the main window
-        flips the gate on after startup. These lines never carry a portcode.
+        flips the gate on after startup. These lines never carry a port code.
 
         ``debug=True`` logs at DEBUG instead of INFO, for high-frequency lines
         (e.g. live volume edits) that should still hit the file but stay out of

@@ -59,3 +59,18 @@ def test_smacc_preview_false_hides_record_from_preview(qtbot):
 
     assert widget.count() == 1
     assert widget.item(0).text() == "shown"
+
+
+def test_preview_keeps_only_the_newest_max_lines(qtbot):
+    # An overnight session logs thousands of lines; the preview drops the oldest
+    # past the cap (the log file keeps everything).
+    widget = QtWidgets.QListWidget()
+    qtbot.addWidget(widget)
+    logger, handler = _logger_with_handler(widget, "smacc.test.cap")
+    handler.max_lines = 3
+
+    for i in range(5):
+        logger.info(f"line {i}")
+
+    assert widget.count() == 3
+    assert [widget.item(i).text() for i in range(3)] == ["line 2", "line 3", "line 4"]
