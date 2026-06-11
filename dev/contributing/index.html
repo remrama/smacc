@@ -1109,7 +1109,15 @@ never uses, so the warning is harmless. If a frozen build ever fails to import
 the driver, add <code>--hidden-import pywinusb</code>.</p>
 <p>Releases are built automatically: pushing a <code>v*</code> tag (e.g. <code>v0.0.7</code>) triggers the
 <a href="https://github.com/remrama/smacc/blob/main/.github/workflows/release.yaml">release workflow</a>,
-which builds <code>SMACC.exe</code> and attaches it to the GitHub Release.</p>
+which checks the tag against <code>smacc.__version__</code>, builds <code>SMACC.exe</code> (stamped with
+version metadata from <code>tools/make_versionfile.py</code>), wraps it in an Inno Setup
+installer (<code>tools/smacc.iss</code> → <code>SMACC-Setup.exe</code>), smoke-tests both, and attaches
+the two artifacts to the GitHub Release. The installer's asset name is a stable
+contract — the docs' download button links
+<code>releases/latest/download/SMACC-Setup.exe</code> — so don't rename it. The installer's
+<code>[Registry]</code> section must mirror <code>winassoc.association_entries()</code> exactly (so an
+installed build sees the association as already registered);
+<code>tests/test_winassoc.py</code> cross-checks them.</p>
 <h2 id="building-the-docs">Building the docs</h2>
 <p>The documentation site is built with <a href="https://www.mkdocs.org/">MkDocs</a> +
 <a href="https://squidfunk.github.io/mkdocs-material/">Material</a> and versioned with
