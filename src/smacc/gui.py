@@ -141,6 +141,11 @@ class SmaccWindow(ToolWindow):
         self._hotplug_timer.timeout.connect(self._on_devices_hotplug)
         self._media_devices.audioOutputsChanged.connect(self._hotplug_timer.start)
         self._media_devices.audioInputsChanged.connect(self._hotplug_timer.start)
+        # Pin any unbound required role to the current Windows default, explicitly
+        # by name (#139), so a session always knows which physical device it will
+        # use. No-op in the editor; a study loaded below re-runs it on its own
+        # (freshly loaded) config via apply_settings.
+        self.devices_window.autobind_defaults()
 
         self.init_main_window()  # builds the menu + log handler (does not show yet)
         self._apply_preferences(self._prefs)
@@ -751,6 +756,10 @@ class SmaccWindow(ToolWindow):
             # enumerates from the (newly loaded) bridge, so a bound light matches.
             self.session.hue_config = hue.load(state)
             self.devices_window.refresh_device_lists()
+            # A study with unbound required roles (e.g. one authored in the
+            # editor on another machine) gets *this* rig's current defaults
+            # pinned, by name (#139).
+            self.devices_window.autobind_defaults()
             self._refresh_registry_views()  # a loaded study may add/remove buttons
             self.devices_window.reload_from_config()  # sync widgets + flag missing
             self._refresh_device_indicators()

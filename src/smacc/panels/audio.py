@@ -27,6 +27,7 @@ from .base import (
     ModalityWindow,
     describe_target,
     make_section_title,
+    require_device,
     resolve_device,
     restore_spin_value,
 )
@@ -406,9 +407,15 @@ class AudioCueWindow(ModalityWindow):
         # *different* cue is replaced (re-playing the same slot is just a restart).
         if self._active_slot is not None:
             self._finish_active(mark=self._active_slot is not slot)
-        device = resolve_device(
-            self.session.devices.device_for("cue_out"), devices.OUTPUT
+        device = require_device(
+            self.session,
+            "cue_out",
+            devices.OUTPUT,
+            failure="Could not play the cue.",
+            parent=self,
         )
+        if device is None:
+            return
         primary = self._open_output(slot, device)
         if primary is None:
             return  # primary failed (error already shown)
@@ -569,9 +576,16 @@ class AudioCueWindow(ModalityWindow):
         """Start/stop the bedroom monitor-mic meter (the objective acoustic check)."""
         self.session.log_interaction(f"Cue room monitor {'on' if enabled else 'off'}")
         if enabled:
-            device = resolve_device(
-                self.session.devices.device_for("monitor_in"), devices.INPUT
+            device = require_device(
+                self.session,
+                "monitor_in",
+                devices.INPUT,
+                failure="Could not open the room monitor.",
+                parent=self,
             )
+            if device is None:
+                self.monitorCheckBox.setChecked(False)
+                return
             try:
                 self.roomMeter.start(device)
             except Exception as exc:  # PortAudio errors, no device, busy, etc.

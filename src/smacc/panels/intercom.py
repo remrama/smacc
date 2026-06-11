@@ -24,7 +24,13 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from .. import audio, devices
 from ..dialogs import ManageChatPresetsDialog
 from ..session import SmaccSession
-from .base import ModalityWindow, describe_target, make_section_title, resolve_device
+from .base import (
+    ModalityWindow,
+    describe_target,
+    make_section_title,
+    require_device,
+    require_role_device,
+)
 from .chat import EXPERIMENTER, ChatPresets, ChatTranscript, post_chat_message
 from .meter import LevelMeter
 
@@ -351,12 +357,20 @@ class IntercomWindow(ModalityWindow):
         """Start/stop piping the experimenter mic to the participant output.
 
         Marked in the EEG record via LSL (the experimenter's voice is a manipulation
-        the participant hears). The mic is the system default input.
+        the participant hears). The experimenter mic has no role binding: it is
+        whatever the control-room machine's default input is.
         """
         if enabled:
-            output = resolve_device(
-                self.session.devices.device_for("intercom_talk"), devices.OUTPUT
+            output = require_device(
+                self.session,
+                "intercom_talk",
+                devices.OUTPUT,
+                failure="Could not start intercom talk.",
+                parent=self,
             )
+            if output is None:
+                self.talkButton.setChecked(False)
+                return
             try:
                 self._talk.start(None, output)
             except Exception as exc:  # PortAudio errors, no device, busy, etc.
@@ -377,13 +391,26 @@ class IntercomWindow(ModalityWindow):
         the source, the ``intercom_listen`` route the destination.
         """
         if enabled:
-            mic = resolve_device(
-                self.session.devices.device_for_role(devices.LISTEN_SOURCE_ROLE),
+            mic = require_role_device(
+                self.session,
+                devices.LISTEN_SOURCE_ROLE,
                 devices.INPUT,
+                failure="Could not start intercom listen.",
+                parent=self,
             )
-            output = resolve_device(
-                self.session.devices.device_for("intercom_listen"), devices.OUTPUT
+            if mic is None:
+                self.listenButton.setChecked(False)
+                return
+            output = require_device(
+                self.session,
+                "intercom_listen",
+                devices.OUTPUT,
+                failure="Could not start intercom listen.",
+                parent=self,
             )
+            if output is None:
+                self.listenButton.setChecked(False)
+                return
             try:
                 self._listen.start(mic, output)
             except Exception as exc:  # PortAudio errors, no device, busy, etc.

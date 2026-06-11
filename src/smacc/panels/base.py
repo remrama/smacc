@@ -22,9 +22,12 @@ def resolve_device(device: str | None, kind: str) -> int | str | None:
     :func:`smacc.panels.devices.wasapi_devices`).
 
     ``kind`` is :data:`smacc.devices.OUTPUT` or :data:`smacc.devices.INPUT`.
-    ``None``/"" (system default) stays ``None``; a name with no current WASAPI
-    match is returned unchanged, so opening it fails with sounddevice's usual
-    "no device matching" error rather than silently using another device.
+    ``None``/"" (nothing bound) stays ``None`` — callers must not open a stream
+    on it, or PortAudio would fall back to its default device (#139); use
+    :func:`require_device` to refuse with a pointer at the Devices window
+    instead. A name with no current WASAPI match is returned unchanged, so
+    opening it fails with sounddevice's usual "no device matching" error rather
+    than silently using another device.
     """
     if not device:
         return None
@@ -47,9 +50,10 @@ def resolve_device(device: str | None, kind: str) -> int | str | None:
 def describe_target(session: SmaccSession, target_key: str) -> str:
     """A short 'Role → device' description of where a modality target resolves.
 
-    Shown read-only on each modality panel; the actual device is chosen once in the
-    Devices window. An unbound audio role reads as the system default; an unbound
-    BlinkStick reads as not set; an off (optional) route reads as off.
+    Shown read-only on each modality panel; the actual device is chosen once in
+    the Devices window. An off (optional) route reads as off; a role with no
+    device bound reads as not set — there is no silent system-default fallback
+    (#139).
     """
     cfg = session.devices
     role_key = cfg.role_for(target_key)
@@ -60,9 +64,63 @@ def describe_target(session: SmaccSession, target_key: str) -> str:
     device = cfg.device_for(target_key)
     if device:
         return f"{role_label} → {device}"
-    if role is not None and role.kind == devices.VISUAL:
-        return f"{role_label} (not set)"
-    return f"{role_label} (system default)"
+    return f"{role_label} (not set)"
+
+
+def require_role_device(
+    session: SmaccSession,
+    role_key: str,
+    kind: str,
+    *,
+    failure: str,
+    parent: QtWidgets.QWidget | None,
+) -> int | str | None:
+    """Resolve a role's bound device, or show ``failure`` and return ``None``.
+
+    The unbound case used to fall through to PortAudio's default device; after
+    #139 nothing opens implicitly — the operator is pointed at the Devices
+    window instead. A bound-but-disconnected device still resolves (to its
+    name), so opening it fails with the usual "no device matching" error rather
+    than being silently re-routed.
+    """
+    role = devices.ROLES_BY_KEY[role_key]
+    device = session.devices.device_for_role(role_key)
+    if not device:
+        session.show_error_popup(
+            failure,
+            f"No device is bound to the {role.label} role. Bind one in the "
+            "Devices window.",
+            parent=parent,
+        )
+        return None
+    return resolve_device(device, kind)
+
+
+def require_device(
+    session: SmaccSession,
+    target_key: str,
+    kind: str,
+    *,
+    failure: str,
+    parent: QtWidgets.QWidget | None,
+) -> int | str | None:
+    """Resolve a target's device via its route, or show ``failure`` and return ``None``.
+
+    Covers both ways a target can have no device: its route is off (no role), or
+    its role has nothing bound. Each error names the missing piece and points at
+    the Devices window.
+    """
+    target = devices.TARGETS_BY_KEY[target_key]
+    role_key = session.devices.role_for(target_key)
+    if not role_key:
+        session.show_error_popup(
+            failure,
+            f"'{target.label}' is not routed to a role. Route it in the "
+            "Devices window.",
+            parent=parent,
+        )
+        return None
+    return require_role_device(session, role_key, kind, failure=failure, parent=parent)
 
 
 def current_device_key(combo: QtWidgets.QComboBox) -> str:

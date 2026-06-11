@@ -33,7 +33,13 @@ from ..paths import resolve_biocal_voice
 from ..session import SmaccSession
 from ..utils import format_elapsed
 from .audio import CueOutput
-from .base import ModalityWindow, describe_target, make_section_title, resolve_device
+from .base import (
+    ModalityWindow,
+    describe_target,
+    make_section_title,
+    require_device,
+    resolve_device,
+)
 
 # Rows are instances, not definitions, so a stack can repeat biocals freely; the
 # cap just keeps the window and a played sequence manageable.
@@ -610,9 +616,15 @@ class BiocalsWindow(ModalityWindow):
             return False
         data, rate = loaded
         self._stop_voice()  # safety: never two announcements at once
-        device = resolve_device(
-            self.session.devices.device_for("cue_out"), devices.OUTPUT
+        device = require_device(
+            self.session,
+            "cue_out",
+            devices.OUTPUT,
+            failure="Could not start the biocal voice output",
+            parent=self,
         )
+        if device is None:
+            return False
         primary = self._open_output(data, rate, device)
         if primary is None:
             return False

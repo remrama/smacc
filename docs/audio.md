@@ -40,6 +40,27 @@ The whole assignment is saved in your SMACC file, so a rig travels with
 its study. If a bound device isn't connected when a study loads, SMACC keeps going
 and reports which one is missing instead of silently falling back.
 
+### No "system default"
+
+SMACC never routes audio to "whatever the system default is". Windows reassigns
+its default device on its own — plugging in an HDMI monitor or a Bluetooth headset
+is enough — and an overnight study must not follow it. Instead:
+
+* When a session starts (or loads a study) with nothing bound to **Bedroom
+  speakers** or **Bedroom mic**, SMACC binds the device that is *currently* the
+  Windows default — explicitly, by name — and logs which one it picked. From then
+  on the binding is pinned: changing the Windows default never re-routes a study.
+* A role with nothing bound reads **(none)**, and anything routed to it reports a
+  clear error instead of quietly playing somewhere else.
+* If no device is connected at all, the dropdown says so (e.g. **No output device
+  found**) rather than offering an empty choice.
+* A bound device that isn't currently connected shows as **(not connected)** and
+  is kept — never silently swapped — until you pick another device or plug it back
+  in (then **Refresh devices (F5)**).
+
+The study editor never auto-binds: a study built on an office machine arrives at
+the rig with its roles unbound, and the rig pins its own defaults on first load.
+
 ### Monitoring routes
 
 Three optional routes cover the things you reach for mid-study:

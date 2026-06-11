@@ -90,7 +90,13 @@ def mock_devices(monkeypatch):
     def fake_wasapi_devices(kind: str) -> list[str]:
         return list(FAKE_INPUTS) if kind == devices.INPUT else list(FAKE_OUTPUTS)
 
+    def fake_default_wasapi_device(kind: str) -> str:
+        return FAKE_INPUTS[0] if kind == devices.INPUT else FAKE_OUTPUTS[0]
+
     monkeypatch.setattr(devices_panel, "wasapi_devices", fake_wasapi_devices)
+    monkeypatch.setattr(
+        devices_panel, "default_wasapi_device", fake_default_wasapi_device
+    )
     monkeypatch.setattr(
         devices_panel, "blinkstick_devices", lambda: list(FAKE_BLINKSTICKS)
     )
@@ -98,7 +104,19 @@ def mock_devices(monkeypatch):
         "outputs": list(FAKE_OUTPUTS),
         "inputs": list(FAKE_INPUTS),
         "blinksticks": list(FAKE_BLINKSTICKS),
+        "default_output": FAKE_OUTPUTS[0],
+        "default_input": FAKE_INPUTS[0],
     }
+
+
+@pytest.fixture
+def mock_no_devices(monkeypatch):
+    """Advertise no connected hardware at all (the "No … found" placeholders)."""
+    from smacc.panels import devices as devices_panel
+
+    monkeypatch.setattr(devices_panel, "wasapi_devices", lambda kind: [])
+    monkeypatch.setattr(devices_panel, "default_wasapi_device", lambda kind: "")
+    monkeypatch.setattr(devices_panel, "blinkstick_devices", lambda: [])
 
 
 @pytest.fixture

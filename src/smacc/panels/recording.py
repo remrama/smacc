@@ -15,7 +15,7 @@ from ..dialogs import ManageSurveysDialog
 from ..paths import BUNDLED_SURVEYS_DIR, SURVEYS_DIR
 from ..session import SmaccSession
 from ..utils import format_elapsed
-from .base import ModalityWindow, describe_target, make_section_title, resolve_device
+from .base import ModalityWindow, describe_target, make_section_title, require_device
 from .meter import InputLevelMeter
 from .survey import SurveyWindow
 
@@ -118,10 +118,10 @@ class RecordingWindow(ModalityWindow):
         self._record_stream: sd.InputStream | None = None
         self._record_file: sf.SoundFile | None = None
 
-    def _selected_input_device(self) -> int | str | None:
-        """The mic device for the dream-report role (None == system default)."""
-        return resolve_device(
-            self.session.devices.device_for("report_in"), devices.INPUT
+    def _selected_input_device(self, failure: str) -> int | str | None:
+        """The dream-report mic, or ``None`` (after a ``failure`` popup) if unbound."""
+        return require_device(
+            self.session, "report_in", devices.INPUT, failure=failure, parent=self
         )
 
     def refresh_device_indicator(self) -> None:
@@ -176,7 +176,9 @@ class RecordingWindow(ModalityWindow):
         Reports live in this run's session folder; the folder already namespaces
         them, so a short report-NN name is enough.
         """
-        device = self._selected_input_device()
+        device = self._selected_input_device(failure="Could not start recording.")
+        if device is None:
+            return False
         assert self.session.session_dir is not None  # recording is gated on can_record
         # The counter advances only after the stream starts, so a failed attempt
         # can never leave a gap in the report numbering.
@@ -249,8 +251,14 @@ class RecordingWindow(ModalityWindow):
         """Start/stop monitoring the selected input device's level."""
         self.session.log_interaction(f"Input level meter {'on' if enabled else 'off'}")
         if enabled:
+            device = self._selected_input_device(
+                failure="Could not open input for monitoring."
+            )
+            if device is None:
+                self.monitorCheckBox.setChecked(False)
+                return
             try:
-                self.levelMeter.start(self._selected_input_device())
+                self.levelMeter.start(device)
             except Exception as exc:  # PortAudio errors, no device, etc.
                 self.session.show_error_popup(
                     "Could not open input for monitoring.", str(exc), parent=self

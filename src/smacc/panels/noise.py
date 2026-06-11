@@ -16,7 +16,7 @@ from .base import (
     ModalityWindow,
     describe_target,
     make_section_title,
-    resolve_device,
+    require_device,
     restore_spin_value,
 )
 
@@ -256,9 +256,15 @@ class NoiseWindow(ModalityWindow):
         """Start streaming the selected noise (built-in color or file) on loop."""
         if self.noise_stream is not None:
             return  # already playing
-        device = resolve_device(
-            self.session.devices.device_for("noise_out"), devices.OUTPUT
+        device = require_device(
+            self.session,
+            "noise_out",
+            devices.OUTPUT,
+            failure="Could not start noise output",
+            parent=self,
         )
+        if device is None:
+            return
         rate = self._device_samplerate(device)
         try:
             buf = self._build_noise_buffer(rate)
