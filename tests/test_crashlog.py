@@ -190,9 +190,15 @@ def test_faulthandler_dump_survives_a_real_segfault(tmp_path):
     """
     path = tmp_path / "crash.log"
     code = (
+        "import ctypes\n"
         "import faulthandler\n"
         "from pathlib import Path\n"
         "from smacc import crashlog\n"
+        # Keep Windows from raising its error-report popup for this deliberate
+        # crash — it would surface on the developer's desktop on every local
+        # test run (0x8007 = SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX |
+        # SEM_NOALIGNMENTFAULTEXCEPT | SEM_NOOPENFILEERRORBOX).
+        "ctypes.windll.kernel32.SetErrorMode(0x8007)\n"
         f"crashlog.install('0.0-test', Path({str(path)!r}))\n"
         "faulthandler._sigsegv()\n"
     )

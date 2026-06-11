@@ -1,5 +1,6 @@
 """Run the app."""
 
+import ctypes
 import faulthandler
 import logging
 import os
@@ -149,7 +150,17 @@ def _schedule_crash_test(mode: str | None) -> None:
     if mode is None:
         return
     if mode == "native":
-        QTimer.singleShot(0, faulthandler._sigsegv)
+
+        def _segv() -> None:
+            # Keep Windows from raising its error-report popup: this crash is
+            # deliberate, and a modal popup would hang an unattended run (the
+            # release smoke test) waiting for a click. 0x8007 =
+            # SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX |
+            # SEM_NOALIGNMENTFAULTEXCEPT | SEM_NOOPENFILEERRORBOX.
+            ctypes.windll.kernel32.SetErrorMode(0x8007)
+            faulthandler._sigsegv()
+
+        QTimer.singleShot(0, _segv)
         return
 
     def _boom() -> None:
