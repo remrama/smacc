@@ -43,6 +43,27 @@ jobs:
         run: |
           $p = Start-Process -FilePath dist/SMACC.exe -ArgumentList '--version' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "SMACC.exe --version exited with code $($p.ExitCode)" }
+      # The crash-log pipeline (#149) matters most in exactly this windowed build,
+      # where nothing else can capture a crash — and it's the one build the test
+      # suite can't cover. Crash the exe on purpose (the hidden --crash-test flag,
+      # which suppresses the Windows error popup so an unattended runner can't
+      # hang) and require the faulthandler dump in crash.log. The 60s cap guards
+      # against a broken flag leaving the app idling at the launcher forever.
+      - name: Smoke-test the crash-log pipeline
+        run: |
+          $env:SMACC_DIRECTORY = "$env:RUNNER_TEMP\smacc-crash-test"
+          $p = Start-Process -FilePath dist/SMACC.exe -ArgumentList '--crash-test=native' -PassThru
+          if (-not $p.WaitForExit(60000)) {
+            $p.Kill()
+            throw "SMACC.exe --crash-test=native did not exit within 60s"
+          }
+          if ($p.ExitCode -eq 0) { throw "SMACC.exe --crash-test=native exited cleanly; it must crash" }
+          $log = "$env:SMACC_DIRECTORY\logs\crash.log"
+          if (-not (Test-Path $log)) { throw "No crash log was written at $log" }
+          $content = Get-Content $log -Raw
+          if ($content -notmatch 'Windows fatal exception|Fatal Python error') {
+            throw "crash.log has no faulthandler dump"
+          }
       # Inno Setup is preinstalled on the GitHub Windows runner images.
       - name: Build SMACC-Setup.exe (Inno Setup installer)
         run: |
