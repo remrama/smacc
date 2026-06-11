@@ -963,6 +963,7 @@ or corrupt file falls back to the built-in defaults, and saving swallows errors.
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">C:\Users\you\SMACC\peter.smacc</span>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">C:\Users\you\SMACC\paul.smacc</span>
 <span class="w">  </span><span class="nt">last_settings</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">C:\Users\you\SMACC\peter.smacc</span>
+<span class="w">  </span><span class="nt">log_preview_max_lines</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1000</span>
 </code></pre></div>
 <h2 id="fields">Fields</h2>
 <table>
@@ -1020,6 +1021,11 @@ or corrupt file falls back to the built-in defaults, and saving swallows errors.
 <td><code>last_settings</code></td>
 <td>path or <code>null</code></td>
 <td>The last <code>.smacc</code> opened, so the Launcher can preselect it.</td>
+</tr>
+<tr>
+<td><code>log_preview_max_lines</code></td>
+<td>integer</td>
+<td>How many lines the Session window's live log preview keeps (default <strong>1000</strong>); the oldest lines are dropped first. The log <em>file</em> always records everything, so nothing is lost. Very large values cost GUI memory and repaint time over an overnight session.</td>
 </tr>
 </tbody>
 </table>
