@@ -10,9 +10,9 @@ import traceback
 from pathlib import Path
 from types import TracebackType
 
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtCore import Qt, QTimer, QUrl
+from PyQt6.QtGui import QDesktopServices, QIcon
+from PyQt6.QtWidgets import QApplication, QMessageBox, QPushButton
 
 from . import crashlog, preferences
 from .config import VERSION
@@ -80,14 +80,6 @@ def _install_excepthook() -> None:
     """
     logger = logging.getLogger("smacc")
 
-    def log_file_hint() -> str:
-        # Prefer the run log (the crash in context); outside a live session the
-        # crash log is the only file, and it always has the traceback.
-        for handler in logger.handlers:
-            if isinstance(handler, logging.FileHandler):
-                return f"\n\nDetails were written to:\n{handler.baseFilename}"
-        return f"\n\nDetails were written to:\n{CRASH_LOG_PATH}"
-
     def handle_main(
         exc_type: type[BaseException],
         exc_value: BaseException,
@@ -100,11 +92,7 @@ def _install_excepthook() -> None:
         logger.critical("Uncaught exception", exc_info=(exc_type, exc_value, exc_tb))
         summary = "".join(traceback.format_exception_only(exc_type, exc_value)).strip()
         if QApplication.instance() is not None:
-            QMessageBox.critical(
-                None,
-                "SMACC error",
-                f"An unexpected error occurred:\n\n{summary}{log_file_hint()}",
-            )
+            _show_crash_dialog(summary)
         # Keep default behaviour too, so a dev terminal still shows the traceback.
         sys.__excepthook__(exc_type, exc_value, exc_tb)
 
@@ -127,6 +115,53 @@ def _install_excepthook() -> None:
 
     sys.excepthook = handle_main
     threading.excepthook = handle_thread
+
+
+def _crash_details_path() -> Path:
+    """The file that captured the crash for the dialog to point at.
+
+    Prefers the run log (the crash in context) when a session is live; outside
+    a live session the persistent crash log is the only file, and it always
+    has the traceback.
+    """
+    for handler in logging.getLogger("smacc").handlers:
+        if isinstance(handler, logging.FileHandler):
+            return Path(handler.baseFilename)
+    return CRASH_LOG_PATH
+
+
+def _crash_dialog(summary: str, details_path: Path) -> tuple[QMessageBox, QPushButton]:
+    """Build the uncaught-exception dialog; returns it unshown with its extra button.
+
+    Besides Close, the dialog offers **Open logs folder** so a (likely groggy)
+    operator can jump straight to the log named in the message instead of
+    retyping a path off a dialog at 3 a.m. (#154). Close stays the default
+    button so a reflexive Enter doesn't launch Explorer.
+    """
+    box = QMessageBox(
+        QMessageBox.Icon.Critical,
+        "SMACC error",
+        f"An unexpected error occurred:\n\n{summary}"
+        f"\n\nDetails were written to:\n{details_path}",
+    )
+    open_button = box.addButton("Open logs folder", QMessageBox.ButtonRole.ActionRole)
+    assert open_button is not None  # a valid role always yields a button
+    box.addButton(QMessageBox.StandardButton.Close)
+    box.setDefaultButton(QMessageBox.StandardButton.Close)
+    return box, open_button
+
+
+def _show_crash_dialog(summary: str) -> None:
+    """Show the crash dialog; open the log's folder if that button was chosen.
+
+    The folder open is fire-and-forget: Explorer is its own process, so it
+    survives the abort PyQt performs once the excepthook returns.
+    """
+    details_path = _crash_details_path()
+    box, open_button = _crash_dialog(summary, details_path)
+    box.exec()
+    if box.clickedButton() is open_button:
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(details_path.parent)))
 
 
 def pick_crash_test(args: list[str]) -> str | None:
