@@ -15,8 +15,8 @@ jobs:
     # test job (ci.yaml) uses the same runner so it validates this exact env.
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.2.0
         with:
           enable-cache: true
       - run: uv sync --extra dev
@@ -84,7 +84,7 @@ jobs:
           $progid = (Get-ItemProperty -Path 'HKCU:\Software\Classes\.smacc').'(default)'
           if ($progid -ne 'SMACC.Study') { throw ".smacc association not registered (got '$progid')" }
       - name: Attach exe and installer to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             dist/SMACC.exe
