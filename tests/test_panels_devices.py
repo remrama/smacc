@@ -127,6 +127,7 @@ def test_empty_enumeration_says_no_device_found(qtbot, design_session, mock_no_d
     assert texts["bedroom_out"] == ["No output device found"]
     assert texts["control_out"] == ["No output device found"]
     assert texts["bedroom_mic"] == ["No input device found"]
+    assert texts["control_mic"] == ["No input device found"]
     assert texts["blinkstick"] == ["No BlinkStick found"]
     assert texts["hue"] == ["No bridge paired"]
 
@@ -155,7 +156,9 @@ def test_autobind_defaults_pins_the_required_roles(qtbot, live_session, mock_dev
     bindings = live_session.devices.bindings
     assert bindings["bedroom_out"] == mock_devices["default_output"]
     assert bindings["bedroom_mic"] == mock_devices["default_input"]
+    assert bindings["control_mic"] == mock_devices["default_input"]  # #160
     assert "control_out" not in bindings
+    assert "monitor_mic" not in bindings
     assert changed  # indicators are told to re-render
     # The combos show the pinned devices.
     out_combo = window._role_combos["bedroom_out"]
@@ -175,6 +178,7 @@ def test_autobind_defaults_keeps_existing_bindings(qtbot, live_session, mock_dev
     window = DevicesWindow(live_session)
     qtbot.addWidget(window)
     window.autobind_defaults()
-    # An explicit choice is never overwritten; only the unbound mic is filled.
+    # An explicit choice is never overwritten; only the unbound mics are filled.
     assert live_session.devices.bindings["bedroom_out"] == mock_devices["outputs"][1]
     assert live_session.devices.bindings["bedroom_mic"] == mock_devices["default_input"]
+    assert live_session.devices.bindings["control_mic"] == mock_devices["default_input"]

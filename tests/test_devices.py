@@ -118,9 +118,18 @@ def test_both_light_technologies_are_visual_roles():
 
 
 def test_autobind_roles_are_the_required_audio_defaults():
-    # Derived from TARGETS: the default role of each required audio target. Roles
-    # only optional routes point at (control-room, monitor mic) are excluded.
-    assert devices.AUTOBIND_ROLES == ("bedroom_out", "bedroom_mic")
+    # Derived from TARGETS (the default role of each required audio target) plus
+    # the intercom source roles (#160). Roles only optional routes point at
+    # (control-room speakers, monitor mic) are excluded.
+    assert devices.AUTOBIND_ROLES == ("bedroom_out", "bedroom_mic", "control_mic")
+
+
+def test_talk_source_is_the_control_room_mic():
+    # #160: the intercom talk mic is a bound role, not a routable target (routing
+    # it to a bedroom mic would feed the bedroom's sound back out its speakers).
+    role = devices.ROLES_BY_KEY[devices.TALK_SOURCE_ROLE]
+    assert role.key == "control_mic"
+    assert role.kind == devices.INPUT
 
 
 def test_autobind_fills_only_unbound_roles():
@@ -131,8 +140,10 @@ def test_autobind_fills_only_unbound_roles():
     )
     assert cfg.bindings["bedroom_out"] == "Kept (USB)"  # never overwritten
     assert cfg.bindings["bedroom_mic"] == "Default In"
+    assert cfg.bindings["control_mic"] == "Default In"
     assert [(role.key, device) for role, device in filled] == [
-        ("bedroom_mic", "Default In")
+        ("bedroom_mic", "Default In"),
+        ("control_mic", "Default In"),
     ]
     assert "control_out" not in cfg.bindings
     assert "monitor_mic" not in cfg.bindings

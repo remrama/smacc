@@ -26,6 +26,7 @@ from ..dialogs import ManageChatPresetsDialog
 from ..session import SmaccSession
 from .base import (
     ModalityWindow,
+    describe_role,
     describe_target,
     make_section_title,
     require_device,
@@ -325,9 +326,20 @@ class IntercomWindow(ModalityWindow):
             self.session.log_interaction("Edited chat quick-reply presets")
 
     def refresh_device_indicator(self) -> None:
-        """Show where each direction routes (devices set in the Devices window)."""
-        self.talkDeviceLabel.setText(describe_target(self.session, "intercom_talk"))
-        self.listenDeviceLabel.setText(describe_target(self.session, "intercom_listen"))
+        """Show both halves of each direction (devices set in the Devices window).
+
+        Talk and Listen are mic → output paths, so each indicator shows the
+        output route plus the source mic ("• mic: …"), the same separator idiom
+        the Audio cue window uses for its monitor.
+        """
+        talk = describe_target(self.session, "intercom_talk")
+        talk += f"   •   mic: {describe_role(self.session, devices.TALK_SOURCE_ROLE)}"
+        self.talkDeviceLabel.setText(talk)
+        listen = describe_target(self.session, "intercom_listen")
+        listen += (
+            f"   •   mic: {describe_role(self.session, devices.LISTEN_SOURCE_ROLE)}"
+        )
+        self.listenDeviceLabel.setText(listen)
 
     def is_streaming(self) -> bool:
         """True while either direction is live."""
@@ -357,10 +369,21 @@ class IntercomWindow(ModalityWindow):
         """Start/stop piping the experimenter mic to the participant output.
 
         Marked in the EEG record via LSL (the experimenter's voice is a manipulation
-        the participant hears). The experimenter mic has no role binding: it is
-        whatever the control-room machine's default input is.
+        the participant hears). The mic is the control-room mic role (#160), the
+        output the ``intercom_talk`` route — both pinned by name, like every other
+        audio path.
         """
         if enabled:
+            mic = require_role_device(
+                self.session,
+                devices.TALK_SOURCE_ROLE,
+                devices.INPUT,
+                failure="Could not start intercom talk.",
+                parent=self,
+            )
+            if mic is None:
+                self.talkButton.setChecked(False)
+                return
             output = require_device(
                 self.session,
                 "intercom_talk",
@@ -372,7 +395,7 @@ class IntercomWindow(ModalityWindow):
                 self.talkButton.setChecked(False)
                 return
             try:
-                self._talk.start(None, output)
+                self._talk.start(mic, output)
             except Exception as exc:  # PortAudio errors, no device, busy, etc.
                 self.session.show_error_popup(
                     "Could not start intercom talk.", str(exc), parent=self

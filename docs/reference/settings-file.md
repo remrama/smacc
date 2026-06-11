@@ -174,14 +174,14 @@ and [Devices](../devices.md)).
 
 | Key | Type | Meaning |
 |---|---|---|
-| `bindings` | mapping | Role key → device key. Roles: `bedroom_out`, `control_out`, `bedroom_mic`, `monitor_mic`, `blinkstick` (a stick's serial), `hue` (a bridge target like `light:3` or `group:1`). |
+| `bindings` | mapping | Role key → device key. Roles: `bedroom_out`, `control_out`, `bedroom_mic`, `monitor_mic`, `control_mic` (the experimenter's intercom mic), `blinkstick` (a stick's serial), `hue` (a bridge target like `light:3` or `group:1`). |
 | `routing` | mapping | Target key → role key (`""` = off). Targets: `cue_out`, `cue_monitor`, `noise_out`, `intercom_talk`, `intercom_listen`, `report_in`, `monitor_in`, `visual_out`. |
 
 A missing `devices` block loads the defaults (each target on its default role, with
-no devices bound). When a live session starts (or loads a study) with `bedroom_out`
-or `bedroom_mic` unbound, SMACC binds the current Windows default device explicitly,
-by name, and logs the choice — there is no "system default" pseudo-selection (see
-[Audio & routing](../audio.md#no-system-default)).
+no devices bound). When a live session starts (or loads a study) with `bedroom_out`,
+`bedroom_mic`, or `control_mic` unbound, SMACC binds the current Windows default
+device explicitly, by name, and logs the choice — there is no "system default"
+pseudo-selection (see [Audio & routing](../audio.md#no-system-default)).
 
 ### `trigger_output`
 

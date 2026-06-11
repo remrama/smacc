@@ -162,9 +162,10 @@ instructions exactly as they do to cues.
 ## Intercom
 
 The **Intercom** window is the live channel between the control room and the
-bedroom. **Talk** pipes your mic to the participant's output (click to latch, or
-hold the **spacebar** anywhere in SMACC as push-to-talk) and is marked in the EEG
-record; **Listen** brings the bedroom mic to your control-room speakers, unmarked.
+bedroom. **Talk** pipes the control-room mic to the participant's output (click to
+latch, or hold the **spacebar** anywhere in SMACC as push-to-talk) and is marked in
+the EEG record; **Listen** brings the bedroom mic to your control-room speakers,
+unmarked.
 The two directions route through roles set once in the **Devices** window (see
 [Audio &amp; routing](audio.md)). A **level meter** beside each button shows the
 live input level while that direction is on — signal on the bar means audio is

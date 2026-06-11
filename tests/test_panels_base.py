@@ -48,6 +48,19 @@ def test_describe_target_off_route_reads_off(design_session):
     assert base.describe_target(session, "cue_monitor") == "off"
 
 
+def test_describe_role_bound_and_unbound(design_session):
+    # The intercom source roles (#160) are described directly, without a target.
+    session = _session_with(design_session, {"control_mic": "Headset Mic"})
+    assert (
+        base.describe_role(session, devices.TALK_SOURCE_ROLE)
+        == "Control-room mic → Headset Mic"
+    )
+    assert (
+        base.describe_role(session, devices.LISTEN_SOURCE_ROLE)
+        == "Bedroom mic (not set)"
+    )
+
+
 # ----- require_device / require_role_device (#139) ----------------------------
 
 
