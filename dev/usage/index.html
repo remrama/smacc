@@ -547,6 +547,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Event log">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#if-smacc-crashes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        If SMACC crashes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1185,6 +1202,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Event log">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#if-smacc-crashes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        If SMACC crashes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1480,6 +1514,17 @@ mid-session.</p>
 file's <strong>data directory</strong> (e.g. <code>~/SMACC/data/</code>), capturing the events and settings
 for that session. Open one later from the Launcher's <strong>Analyze</strong> to see a
 summary, export its events to BIDS, or recover its settings.</p>
+<h3 id="if-smacc-crashes">If SMACC crashes</h3>
+<p>Separately from the per-run logs, SMACC keeps a permanent crash log at
+<code>~/SMACC/logs/crash.log</code>. Uncaught errors, Qt's own fatal messages, and — via
+Python's <code>faulthandler</code> — the stack of every thread at a hard crash (such as an
+access violation inside Qt or an audio driver) are appended there, even when no
+session is running. Note that a hard-crash dump shows where the <em>Python</em> side
+was at that moment, which is usually enough to identify the failing subsystem.
+Every launch and every session start is also stamped in the file, so a crash
+can be matched to its night and run folder. When reporting a crash, send
+<code>crash.log</code> together with the affected run's folder. The file is rotated at
+launch once it grows large (one older <code>crash.log.1</code> generation is kept).</p>
 <h2 id="smacc-files-smacc">SMACC files (<code>.smacc</code>)</h2>
 <p>A <strong>SMACC file</strong> captures your study's whole configuration — cue files, volumes,
 noise, visual cues, survey presets, event codes, display choices, and the <strong>data
