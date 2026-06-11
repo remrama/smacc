@@ -42,10 +42,16 @@ def _stub_output(monkeypatch, stream_cls=_FakeOutput, rate=8000.0):
     monkeypatch.setattr(noise.sd, "OutputStream", stream_cls)
 
 
+def _bind_output(session):
+    """Give the noise route a definite device (#139: nothing opens unbound)."""
+    session.devices.bindings["bedroom_out"] = "Speakers (Test)"
+
+
 def test_play_then_stop_builds_buffer_and_updates_status(
     qtbot, design_session, monkeypatch
 ):
     _stub_output(monkeypatch)
+    _bind_output(design_session)
     window = NoiseWindow(design_session)
     qtbot.addWidget(window)
     assert not window.is_streaming()
@@ -66,6 +72,7 @@ def test_play_then_stop_builds_buffer_and_updates_status(
 
 def test_play_marks_once_but_not_on_silent_restart(qtbot, design_session, monkeypatch):
     _stub_output(monkeypatch)
+    _bind_output(design_session)
     window = NoiseWindow(design_session)
     qtbot.addWidget(window)
     emitted = []
@@ -112,6 +119,7 @@ def test_file_source_without_a_file_shows_error_and_no_stream(
     qtbot, design_session, monkeypatch, silence_dialogs
 ):
     _stub_output(monkeypatch)
+    _bind_output(design_session)
     window = NoiseWindow(design_session)
     qtbot.addWidget(window)
     window.fileRadio.setChecked(True)
@@ -127,12 +135,31 @@ def test_failed_stream_start_clears_the_buffer(
         raise RuntimeError("no output device")
 
     _stub_output(monkeypatch, stream_cls=boom)
+    _bind_output(design_session)
     window = NoiseWindow(design_session)
     qtbot.addWidget(window)
     window.play_noise()
     assert not window.is_streaming()
     assert window._noise_buffer is None
     assert "stopped" in window.noiseStatusLabel.text()
+
+
+def test_play_with_no_bound_device_errors_and_keeps_quiet(
+    qtbot, design_session, monkeypatch
+):
+    # #139: an unbound role refuses to play (with an error pointing at the
+    # Devices window) instead of falling back to the system default device.
+    _stub_output(monkeypatch)
+    errors = []
+    monkeypatch.setattr(
+        design_session, "show_error_popup", lambda *a, **k: errors.append(a)
+    )
+    window = NoiseWindow(design_session)
+    qtbot.addWidget(window)
+    window.on_play_noise_clicked()
+    assert not window.is_streaming()
+    assert window._noise_buffer is None
+    assert errors and "Bedroom speakers" in errors[0][1]
 
 
 @pytest.mark.parametrize("color", ["white", "pink", "brown"])

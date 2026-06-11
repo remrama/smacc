@@ -30,7 +30,7 @@ class _FakeInput:
 def test_monitor_device_label_shows_the_room_monitor_route(qtbot, design_session):
     panel = AudioCueWindow(design_session)
     qtbot.addWidget(panel)
-    # monitor_in defaults to the bedroom-mic role (unbound -> system default).
+    # monitor_in defaults to the bedroom-mic role (reads "(not set)" until bound).
     assert "Bedroom mic" in panel.monitorDeviceLabel.text()
 
 
@@ -47,6 +47,7 @@ def test_room_monitor_toggle_opens_and_closes_and_gates_streaming(
     qtbot, design_session, monkeypatch
 ):
     monkeypatch.setattr(meter.sd, "InputStream", _FakeInput)
+    design_session.devices.bindings["bedroom_mic"] = "Mic (Test)"
     panel = AudioCueWindow(design_session)
     qtbot.addWidget(panel)
     assert not panel.is_streaming()
@@ -65,8 +66,27 @@ def test_room_monitor_start_failure_reverts_the_checkbox(
         raise RuntimeError("no mic")
 
     monkeypatch.setattr(meter.sd, "InputStream", boom)
+    design_session.devices.bindings["bedroom_mic"] = "Mic (Test)"
     panel = AudioCueWindow(design_session)
     qtbot.addWidget(panel)
     panel.monitorCheckBox.setChecked(True)
     assert not panel.monitorCheckBox.isChecked()  # reverted on failure
     assert not panel.roomMeter.is_active()
+
+
+def test_room_monitor_with_no_bound_mic_errors_and_reverts(
+    qtbot, design_session, monkeypatch
+):
+    # #139: an unbound monitor role refuses to open (instead of listening on the
+    # system default input) and the checkbox reverts.
+    monkeypatch.setattr(meter.sd, "InputStream", _FakeInput)
+    errors = []
+    monkeypatch.setattr(
+        design_session, "show_error_popup", lambda *a, **k: errors.append(a)
+    )
+    panel = AudioCueWindow(design_session)
+    qtbot.addWidget(panel)
+    panel.monitorCheckBox.setChecked(True)
+    assert not panel.monitorCheckBox.isChecked()
+    assert not panel.roomMeter.is_active()
+    assert errors and "Bedroom mic" in errors[0][1]

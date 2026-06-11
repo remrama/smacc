@@ -90,6 +90,19 @@ TARGETS_BY_KEY: dict[str, Target] = {t.key: t for t in TARGETS}
 # any other input monitor: the same mic the dream report uses.
 LISTEN_SOURCE_ROLE = "bedroom_mic"
 
+# Roles SMACC binds automatically when left unbound (live sessions only): the
+# default role of every required audio target, so a fresh study has a definite
+# device for the paths that play/record out of the box. Roles only optional
+# routes point at (control-room speakers, the dedicated monitor mic) imply
+# hardware a rig may not have, so they are never auto-bound.
+AUTOBIND_ROLES: tuple[str, ...] = tuple(
+    dict.fromkeys(
+        t.default_role
+        for t in TARGETS
+        if not t.optional and t.kind in (OUTPUT, INPUT) and t.default_role
+    )
+)
+
 
 @dataclass
 class DeviceConfig:
@@ -152,3 +165,25 @@ def load(settings: dict) -> DeviceConfig:
     no devices bound); :func:`from_dict` tolerates a malformed block the same way.
     """
     return from_dict(settings.get("devices"))
+
+
+def autobind(cfg: DeviceConfig, defaults: dict[str, str]) -> list[tuple[Role, str]]:
+    """Bind each unbound role in :data:`AUTOBIND_ROLES` to its kind's default device.
+
+    ``defaults`` maps a role kind (:data:`OUTPUT`/:data:`INPUT`) to the device that
+    is currently the Windows default ("" when there is none). There is deliberately
+    no "system default" pseudo-selection (#139): the current default is written into
+    the binding *by name*, so a later change of the Windows default never re-routes
+    a study. Existing bindings — including ones whose device is unplugged — are
+    never overwritten. Returns the (role, device) pairs filled, for logging.
+    """
+    filled: list[tuple[Role, str]] = []
+    for role_key in AUTOBIND_ROLES:
+        if cfg.bindings.get(role_key):
+            continue
+        role = ROLES_BY_KEY[role_key]
+        device = defaults.get(role.kind, "")
+        if device:
+            cfg.bindings[role_key] = device
+            filled.append((role, device))
+    return filled

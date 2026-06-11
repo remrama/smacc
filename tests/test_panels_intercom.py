@@ -97,8 +97,21 @@ def _stub_bridges(monkeypatch, fail=False):
     return calls
 
 
+def _bind_devices(session):
+    """Give both intercom directions definite devices (#139: no unbound opens).
+
+    Talk needs the participant output (bedroom speakers); Listen needs the
+    participant mic plus the optional return route pointed at a bound role.
+    """
+    session.devices.bindings["bedroom_out"] = "Speakers (Test)"
+    session.devices.bindings["bedroom_mic"] = "Mic (Test)"
+    session.devices.bindings["control_out"] = "Headphones (Test)"
+    session.devices.routing["intercom_listen"] = "control_out"
+
+
 def test_toggle_talk_starts_the_bridge_and_marks(qtbot, design_session, monkeypatch):
     calls = _stub_bridges(monkeypatch)
+    _bind_devices(design_session)
     window = IntercomWindow(design_session)
     qtbot.addWidget(window)
     emitted = []
@@ -121,6 +134,7 @@ def test_talk_start_failure_reverts_the_button(
     qtbot, design_session, monkeypatch, silence_dialogs
 ):
     _stub_bridges(monkeypatch, fail=True)
+    _bind_devices(design_session)
     window = IntercomWindow(design_session)
     qtbot.addWidget(window)
     emitted = []
@@ -135,6 +149,7 @@ def test_talk_start_failure_reverts_the_button(
 
 def test_listen_toggles_without_markers(qtbot, design_session, monkeypatch):
     calls = _stub_bridges(monkeypatch)
+    _bind_devices(design_session)
     window = IntercomWindow(design_session)
     qtbot.addWidget(window)
     emitted = []
@@ -148,6 +163,48 @@ def test_listen_toggles_without_markers(qtbot, design_session, monkeypatch):
     window.cleanup()
 
 
+def test_listen_with_route_off_errors_and_reverts(qtbot, design_session, monkeypatch):
+    # #139: the listen route is off by default; toggling it must refuse (instead
+    # of opening the participant mix on the system default output) and revert.
+    calls = _stub_bridges(monkeypatch)
+    design_session.devices.bindings["bedroom_mic"] = "Mic (Test)"
+    errors = []
+    monkeypatch.setattr(
+        design_session, "show_error_popup", lambda *a, **k: errors.append(a)
+    )
+    window = IntercomWindow(design_session)
+    qtbot.addWidget(window)
+    window.listenButton.setChecked(True)
+    assert not window.listenButton.isChecked()
+    assert calls["start"] == 0
+    assert errors and "not routed" in errors[0][1]
+    window.cleanup()
+
+
+def test_talk_with_no_bound_output_errors_and_reverts(
+    qtbot, design_session, monkeypatch
+):
+    # #139: an unbound participant output refuses to talk (instead of speaking
+    # through the system default device) and the button reverts, unmarked.
+    calls = _stub_bridges(monkeypatch)
+    errors = []
+    monkeypatch.setattr(
+        design_session, "show_error_popup", lambda *a, **k: errors.append(a)
+    )
+    emitted = []
+    monkeypatch.setattr(
+        design_session, "emit_event", lambda key, **k: emitted.append(key)
+    )
+    window = IntercomWindow(design_session)
+    qtbot.addWidget(window)
+    window.talkButton.setChecked(True)
+    assert not window.talkButton.isChecked()
+    assert calls["start"] == 0
+    assert emitted == []
+    assert errors and "Bedroom speakers" in errors[0][1]
+    window.cleanup()
+
+
 def _space_event(etype) -> QtGui.QKeyEvent:
     return QtGui.QKeyEvent(
         etype, QtCore.Qt.Key.Key_Space, QtCore.Qt.KeyboardModifier.NoModifier
@@ -156,6 +213,7 @@ def _space_event(etype) -> QtGui.QKeyEvent:
 
 def test_spacebar_push_to_talk_holds_and_releases(qtbot, design_session, monkeypatch):
     _stub_bridges(monkeypatch)
+    _bind_devices(design_session)
     window = IntercomWindow(design_session)
     qtbot.addWidget(window)
     monkeypatch.setattr(
@@ -171,6 +229,7 @@ def test_spacebar_push_to_talk_holds_and_releases(qtbot, design_session, monkeyp
 
 def test_spacebar_passes_through_while_typing(qtbot, design_session, monkeypatch):
     _stub_bridges(monkeypatch)
+    _bind_devices(design_session)
     window = IntercomWindow(design_session)
     qtbot.addWidget(window)
     monkeypatch.setattr(

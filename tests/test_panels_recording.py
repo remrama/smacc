@@ -54,6 +54,7 @@ def test_record_start_to_stop_writes_the_report_wav(
     qtbot, live_session, monkeypatch, silence_dialogs
 ):
     _stub_recorder(monkeypatch)
+    live_session.devices.bindings["bedroom_mic"] = "Mic (Test)"
     window = RecordingWindow(live_session)
     qtbot.addWidget(window)
 
@@ -85,6 +86,7 @@ def test_failed_start_reverts_button_and_leaves_no_numbering_gap(
         raise RuntimeError("device busy")
 
     _stub_recorder(monkeypatch, stream_cls=boom)
+    live_session.devices.bindings["bedroom_mic"] = "Mic (Test)"
     window = RecordingWindow(live_session)
     qtbot.addWidget(window)
 
@@ -102,6 +104,25 @@ def test_failed_start_reverts_button_and_leaves_no_numbering_gap(
     window.micrecordButton.setChecked(False)
     window.start_or_stop_recording()
     assert (live_session.session_dir / "report-01.wav").is_file()
+    window.cleanup()
+
+
+def test_record_with_no_bound_mic_errors_and_reverts(qtbot, live_session, monkeypatch):
+    # #139: an unbound dream-report mic refuses to record (instead of capturing
+    # from the system default input); the button reverts and no WAV is opened.
+    _stub_recorder(monkeypatch)
+    errors = []
+    monkeypatch.setattr(
+        live_session, "show_error_popup", lambda *a, **k: errors.append(a)
+    )
+    window = RecordingWindow(live_session)
+    qtbot.addWidget(window)
+    window.micrecordButton.setChecked(True)
+    window.start_or_stop_recording()
+    assert not window.micrecordButton.isChecked()
+    assert window.n_report_counter == 0
+    assert not window.is_streaming()
+    assert errors and "Bedroom mic" in errors[0][1]
     window.cleanup()
 
 

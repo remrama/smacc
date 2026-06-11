@@ -21,13 +21,25 @@ from ..dialogs import HueBridgeDialog
 from ..session import SmaccSession
 from .base import (
     ModalityWindow,
-    current_device_key,
     make_section_title,
     select_saved_device,
 )
 
-_DEFAULT_LABEL = "(system default)"
 _NONE_LABEL = "(none)"
+# Sole-row placeholders when enumeration finds nothing (#139): say so, instead of
+# an ambiguous "(none)" (or the old "(system default)", which implied an output
+# exists when none does). The Hue role distinguishes "no bridge paired yet" (the
+# Set up… button is the path forward) from a paired bridge with nothing to list.
+_EMPTY_LABELS = {
+    devices.OUTPUT: "No output device found",
+    devices.INPUT: "No input device found",
+    devices.VISUAL: "No BlinkStick found",
+}
+_NO_BRIDGE_LABEL = "No bridge paired"
+_NO_LIGHTS_LABEL = "No lights found"
+# Item-data marker for a "(not connected)" row (a bound device with no live row),
+# so a reload can tell it apart from a real match and flag the miss.
+_MISSING_ROLE = QtCore.Qt.ItemDataRole.UserRole + 1
 
 
 def wasapi_devices(kind: str) -> list[str]:
@@ -59,6 +71,26 @@ def wasapi_devices(kind: str) -> list[str]:
         return []
 
 
+def default_wasapi_device(kind: str) -> str:
+    """The name of the device that is currently the WASAPI default ("" when none).
+
+    PortAudio reports each host API's default device as of its last
+    initialization, so this is fresh exactly when SMACC reads it (right after
+    launch or a rescan). Used only to *auto-bind* an unbound role to a concrete
+    device name (#139) — never consulted at stream-open time, so a later change
+    of the Windows default cannot re-route a study.
+    """
+    key = "default_output_device" if kind == devices.OUTPUT else "default_input_device"
+    try:
+        for api in sd.query_hostapis():
+            if api["name"] == devices.WASAPI_HOST_API:
+                index = api[key]
+                return sd.query_devices(index)["name"] if index >= 0 else ""
+    except Exception:
+        pass
+    return ""
+
+
 def blinkstick_devices() -> list[tuple[str, str]]:
     """Return ``(label, serial)`` for each connected BlinkStick (best effort)."""
     try:
@@ -77,8 +109,9 @@ def blinkstick_devices() -> list[tuple[str, str]]:
 def hue_devices(cfg: hue.HueConfig) -> list[tuple[str, str]]:
     """Return ``(label, key)`` for each Hue light/group (best effort).
 
-    Empty when the bridge isn't set up or can't be reached — the combo then only
-    offers "(none)", and the Set up button is the path forward.
+    Empty when the bridge isn't set up or can't be reached — the combo then says
+    so ("No bridge paired" / "No lights found"), and the Set up button is the
+    path forward.
     """
     try:
         return hue.targets(cfg)
@@ -183,39 +216,68 @@ class DevicesWindow(ModalityWindow):
     # ----- enumeration -------------------------------------------------------
 
     def _populate_role_combos(self) -> None:
-        """(Re)fill each role's device dropdown, preserving the current selection."""
+        """(Re)fill each role's device dropdown from a fresh enumeration.
+
+        The selection is re-derived from ``session.devices`` (every user edit
+        writes through to it, so the combo can never hold anything newer): the
+        bound device's row, or the index-0 placeholder when the role is unbound.
+        Index 0 reads "(none)" when there are devices to choose from and a
+        kind-specific "No … found" when there are none (#139).
+        """
         for role in devices.ROLES:
             combo = self._role_combos[role.key]
-            previous = current_device_key(combo)
             combo.blockSignals(True)
             combo.clear()
             if role.key == "hue":
-                combo.addItem(_NONE_LABEL, "")
-                for label, key in hue_devices(self.session.hue_config):
-                    combo.addItem(label, key)
+                entries = hue_devices(self.session.hue_config)
+                empty = (
+                    _NO_LIGHTS_LABEL
+                    if self.session.hue_config.configured
+                    else _NO_BRIDGE_LABEL
+                )
             elif role.kind == devices.VISUAL:
-                combo.addItem(_NONE_LABEL, "")
-                for label, serial in blinkstick_devices():
-                    combo.addItem(label, serial)
+                entries = blinkstick_devices()
+                empty = _EMPTY_LABELS[devices.VISUAL]
             else:
-                combo.addItem(_DEFAULT_LABEL, "")
-                for device_str in wasapi_devices(role.kind):
-                    combo.addItem(device_str, device_str)
-            # Restore the prior selection (after a refresh) or the bound device.
-            target_key = previous or self.session.devices.device_for_role(role.key)
-            if not select_saved_device(combo, target_key):
-                combo.setCurrentIndex(0)  # default / none
+                entries = [(name, name) for name in wasapi_devices(role.kind)]
+                empty = _EMPTY_LABELS[role.kind]
+            combo.addItem(_NONE_LABEL if entries else empty, "")
+            for label, key in entries:
+                combo.addItem(label, key)
+            bound = self.session.devices.device_for_role(role.key)
+            self._select_device_row(combo, bound)
             combo.blockSignals(False)
+
+    def _select_device_row(self, combo: QtWidgets.QComboBox, key: str) -> bool:
+        """Select the row for device ``key``; index 0 (the placeholder) when blank.
+
+        A bound device with no row (not currently connected) is added as an
+        explicit "(not connected)" row carrying ``key`` as its data and selected,
+        so the combo shows the truth instead of displaying the placeholder while
+        the binding — which is kept (flag, don't swap) — still targets the
+        missing device. Returns False in exactly that case so
+        :meth:`reload_from_config` can flag it. A rescan rebuilds the list, so
+        the row disappears once the device is back (or another is picked).
+        """
+        if not key:
+            combo.setCurrentIndex(0)
+            return True
+        if select_saved_device(combo, key):
+            return not combo.itemData(combo.currentIndex(), _MISSING_ROLE)
+        combo.addItem(f"{key} (not connected)", key)
+        index = combo.count() - 1
+        combo.setItemData(index, True, _MISSING_ROLE)
+        combo.setCurrentIndex(index)
+        return False
 
     # ----- editing -> session.devices ----------------------------------------
 
     def _set_binding(self, role_key: str) -> None:
         """A role's device dropdown changed: write just that role's binding."""
-        combo = self._role_combos[role_key]
-        key = current_device_key(combo)
-        if key and combo.currentIndex() > 0:  # index 0 is the default/none entry
+        key = self._role_combos[role_key].currentData()
+        if key:
             self.session.devices.bindings[role_key] = key
-        else:
+        else:  # the "(none)" / "No … found" placeholder rows carry no device key
             self.session.devices.bindings.pop(role_key, None)
         self.session.log_interaction(
             f"{devices.ROLES_BY_KEY[role_key].label} device set"
@@ -238,17 +300,16 @@ class DevicesWindow(ModalityWindow):
         """Sync every dropdown to ``session.devices`` (after a study load).
 
         Flags any bound device that isn't currently connected so the operator is
-        told (the same consolidated notice the other panels use).
+        told (the same consolidated notice the other panels use); the binding is
+        kept and shown as a "(not connected)" row, never silently swapped.
         """
         cfg = self.session.devices
         for role_key, combo in self._role_combos.items():
             combo.blockSignals(True)
             bound = cfg.device_for_role(role_key)
-            if not select_saved_device(combo, bound):
-                combo.setCurrentIndex(0)
-                if bound:  # a saved device that isn't plugged in
-                    role = devices.ROLES_BY_KEY[role_key]
-                    self.session.note_missing_device(role.label, bound)
+            if not self._select_device_row(combo, bound):
+                role = devices.ROLES_BY_KEY[role_key]
+                self.session.note_missing_device(role.label, bound)
             combo.blockSignals(False)
         for target_key, combo in self._route_combos.items():
             combo.blockSignals(True)
@@ -259,6 +320,36 @@ class DevicesWindow(ModalityWindow):
     def refresh_device_lists(self) -> None:
         """Re-enumerate the role device dropdowns (the Refresh devices hook)."""
         self._populate_role_combos()
+
+    def autobind_defaults(self) -> None:
+        """Bind unbound required roles to the current Windows default, by name (#139).
+
+        Live sessions only: the editor usually runs on a different machine than
+        the rig, so baking *its* devices into a study would be wrong — the rig
+        pins its own defaults the first time the study loads there. Called at
+        session construction and after a study load, deliberately not on rescans,
+        so an explicit "(none)" never snaps back on a hot-plug. Once bound, the
+        device is pinned: a later change of the Windows default re-routes
+        nothing. Each fill is logged ungated — which physical device a night
+        actually used is provenance, not chatter.
+        """
+        if self.session.design:
+            return
+        defaults = {
+            kind: default_wasapi_device(kind)
+            for kind in (devices.OUTPUT, devices.INPUT)
+        }
+        filled = devices.autobind(self.session.devices, defaults)
+        for role, device in filled:
+            combo = self._role_combos[role.key]
+            combo.blockSignals(True)
+            self._select_device_row(combo, device)
+            combo.blockSignals(False)
+            self.session.log_info_msg(
+                f"{role.label} auto-selected: {device} (the current Windows default)"
+            )
+        if filled:
+            self.changed.emit()
 
     def setup_hue_bridge(self) -> None:
         """Open the Hue pairing dialog; on accept, store the config and re-list."""

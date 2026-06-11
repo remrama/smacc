@@ -112,3 +112,33 @@ def test_both_light_technologies_are_visual_roles():
         {"bindings": {"hue": "light:3"}, "routing": {"visual_out": "hue"}}
     )
     assert cfg.device_for("visual_out") == "light:3"
+
+
+# ----- autobind (#139) ---------------------------------------------------------
+
+
+def test_autobind_roles_are_the_required_audio_defaults():
+    # Derived from TARGETS: the default role of each required audio target. Roles
+    # only optional routes point at (control-room, monitor mic) are excluded.
+    assert devices.AUTOBIND_ROLES == ("bedroom_out", "bedroom_mic")
+
+
+def test_autobind_fills_only_unbound_roles():
+    cfg = devices.default_config()
+    cfg.bindings["bedroom_out"] = "Kept (USB)"
+    filled = devices.autobind(
+        cfg, {devices.OUTPUT: "Default Out", devices.INPUT: "Default In"}
+    )
+    assert cfg.bindings["bedroom_out"] == "Kept (USB)"  # never overwritten
+    assert cfg.bindings["bedroom_mic"] == "Default In"
+    assert [(role.key, device) for role, device in filled] == [
+        ("bedroom_mic", "Default In")
+    ]
+    assert "control_out" not in cfg.bindings
+    assert "monitor_mic" not in cfg.bindings
+
+
+def test_autobind_skips_kinds_without_a_default():
+    cfg = devices.default_config()
+    assert devices.autobind(cfg, {devices.OUTPUT: "", devices.INPUT: ""}) == []
+    assert cfg.bindings == {}
