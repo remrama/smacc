@@ -40,19 +40,11 @@ def index_of_device(candidates: Sequence[str], saved: str | None) -> int | None:
     ``saved`` (no prior selection) returns ``None``, as does a saved device that is
     no longer present (unplugged) — the caller then flags the miss and keeps the
     default.
-
-    Both sides are normalized with :func:`smacc.devices.strip_wasapi_suffix` first,
-    so a binding saved by an older SMACC as ``"Name, Windows WASAPI"`` still matches
-    the bare ``"Name"`` now advertised (and vice versa) — keeping existing ``.smacc``
-    files working without a fuzzy match.
     """
     if not saved:
         return None
-    from . import devices
-
-    target = devices.strip_wasapi_suffix(saved)
     for index, key in enumerate(candidates):
-        if devices.strip_wasapi_suffix(key) == target:
+        if key == saved:
             return index
     return None
 
@@ -80,16 +72,11 @@ def pick_random_demo_cue(cues_dir: Path) -> Path | None:
 def get_smacc_directory() -> Path:
     """Return the SMACC root directory, creating it if needed.
 
-    Honors the ``SMACC_DIRECTORY`` environment variable, falling back to the
-    legacy ``SMACC_DATA_DIRECTORY`` (deprecated) and then to ``~/SMACC``. This
-    root holds the per-study workspaces under ``studies/`` and the global,
-    machine-level ``preferences.yaml``.
+    Honors the ``SMACC_DIRECTORY`` environment variable, falling back to
+    ``~/SMACC``. This root holds the per-study workspaces under ``studies/`` and
+    the global, machine-level ``preferences.yaml``.
     """
-    raw = (
-        environ.get("SMACC_DIRECTORY")
-        or environ.get("SMACC_DATA_DIRECTORY")
-        or "~/SMACC"
-    )
+    raw = environ.get("SMACC_DIRECTORY") or "~/SMACC"
     root = Path(raw).expanduser()
     root.mkdir(parents=True, exist_ok=True)
     return root

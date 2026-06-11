@@ -9,8 +9,8 @@ reject YAML that wasn't written by it.
 The on-disk shape (a ``.smacc`` file is YAML text with a leading comment header)::
 
     kind: smacc/settings
-    schema_version: 3
-    smacc_version: "0.0.7"
+    schema_version: 1
+    smacc_version: "0.0.9"
     metadata: {subject: "", session: "", notes: "", created: "..."}
     settings: { ...the panel state from SmaccWindow.gather_settings()... }
 
@@ -48,18 +48,13 @@ KIND = "smacc/settings"
 # ignores ``#`` comments, so this round-trips cleanly through ``safe_load``).
 _FILE_HEADER = "# SMACC settings — YAML (.smacc). Edit with care.\n"
 
-# v1 was the first stable on-disk schema; v2 reshaped the single visual cue
-# (``blink_color``/``blink_length``) into the multi-slot ``visual_cues`` list;
-# v3 (pre-release, deliberately unmigrated) replaced each event_codes entry's
-# ``trigger`` flag with per-transport ``lsl`` + ``ttl`` routing — an older file's
-# ``trigger`` keys are ignored and the routing defaults apply.
-# Bump this when the layout changes incompatibly — and when you do, extend
-# :func:`_migrate_settings` plus the version-history table in
-# docs/reference/settings-file.md. A file carrying a higher or otherwise-unknown
-# version is rejected on load. Missing *optional* keys are not a version concern:
-# each panel/sub-block fills its own default, so a partial or hand-edited file
-# still loads.
-SCHEMA_VERSION = 3
+# v1 is the v0.0.9 baseline (pre-release schemas were retired without migration).
+# Bump this when the layout changes incompatibly — and when you do, update the
+# version-history table in docs/reference/settings-file.md. A file carrying any
+# other version is rejected on load. Missing *optional* keys are not a version
+# concern: each panel/sub-block fills its own default, so a partial or
+# hand-edited file still loads.
+SCHEMA_VERSION = 1
 
 
 def build_payload(settings: dict[str, Any], metadata: dict) -> dict[str, Any]:
@@ -109,13 +104,13 @@ def parse_settings_mapping(payload: Any) -> tuple[dict, dict]:
     if kind is not None and kind != KIND:
         raise ValueError(f"Not a compatible SMACC settings file (kind={kind!r}).")
     version = payload.get("schema_version")
-    # Versions 1..current are accepted; older shapes are upgraded on the way in.
     if isinstance(version, bool) or not isinstance(version, int):
         raise ValueError(f"Unsupported settings schema version {version!r}.")
-    if not (1 <= version <= SCHEMA_VERSION):
+    if version != SCHEMA_VERSION:
         raise ValueError(
-            f"Unsupported settings schema version {version!r} "
-            f"(expected 1..{SCHEMA_VERSION})."
+            f"Unsupported settings schema version {version!r} (expected "
+            f"{SCHEMA_VERSION}). A file from a pre-release SMACC must be "
+            "recreated in the Editor."
         )
     settings = payload.get("settings")
     if not isinstance(settings, dict):
@@ -123,27 +118,7 @@ def parse_settings_mapping(payload: Any) -> tuple[dict, dict]:
     metadata = payload.get("metadata")
     if not isinstance(metadata, dict):
         metadata = {}
-    return _migrate_settings(settings, version), metadata
-
-
-def _migrate_settings(settings: dict, version: int) -> dict:
-    """Upgrade an older-schema ``settings`` mapping to the current shape, in place.
-
-    v1 -> v2: the single visual cue (``blink_color``/``blink_length``) became the
-    multi-slot ``visual_cues`` list; a v1 file's blink keys load into the first
-    slot (panels only ever see the current shape).
-    """
-    if version < 2:
-        color = settings.pop("blink_color", None)
-        length = settings.pop("blink_length", None)
-        if "visual_cues" not in settings and (color is not None or length is not None):
-            slot: dict[str, Any] = {"name": "Light 1"}
-            if color is not None:
-                slot["color"] = color
-            if length is not None:
-                slot["length"] = length
-            settings["visual_cues"] = [slot]
-    return settings
+    return settings, metadata
 
 
 def load_settings(path: str | Path) -> tuple[dict, dict]:

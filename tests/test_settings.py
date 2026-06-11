@@ -66,7 +66,7 @@ def test_saved_file_is_tagged_yaml(tmp_path):
     assert text.splitlines()[0].startswith("#")  # self-identifying header comment
     payload = yaml.safe_load(text)  # comment is ignored, so it still parses
     assert payload["kind"] == settings.KIND
-    assert payload["schema_version"] == settings.SCHEMA_VERSION == 3
+    assert payload["schema_version"] == settings.SCHEMA_VERSION == 1
     assert payload["smacc_version"] == smacc.__version__
     assert payload["settings"] == {"cue_attack": 0.2}
 
@@ -192,8 +192,7 @@ def test_load_rejects_unsupported_schema(tmp_path):
 
 
 def test_load_rejects_higher_schema_version(tmp_path):
-    # Older versions migrate forward, but there is no *backward* migration, so a
-    # higher version (e.g. a file from a future SMACC) is rejected.
+    # Only the current version loads — a file from a future SMACC is rejected.
     path = tmp_path / "future.smacc"
     path.write_text(
         yaml.safe_dump(
@@ -298,34 +297,10 @@ def test_resolve_keeps_absolute_and_skips_empty(tmp_path):
     assert out["noise_file"] == ""  # empty untouched
 
 
-def test_v1_blink_keys_migrate_into_the_first_visual_slot():
-    payload = {
-        "kind": settings.KIND,
-        "schema_version": 1,
-        "settings": {
-            "blink_color": "#123456",
-            "blink_length": 2.5,
-            "noise_volume": 0.1,
-        },
-    }
-    state, _ = settings.parse_settings_mapping(payload)
-    assert "blink_color" not in state and "blink_length" not in state
-    assert state["visual_cues"] == [
-        {"name": "Light 1", "color": "#123456", "length": 2.5}
-    ]
-    assert state["noise_volume"] == 0.1  # everything else is untouched
-
-
-def test_v1_without_blink_keys_gains_no_visual_block():
-    payload = {"kind": settings.KIND, "schema_version": 1, "settings": {}}
-    state, _ = settings.parse_settings_mapping(payload)
-    assert "visual_cues" not in state
-
-
-def test_current_version_settings_are_not_migrated():
-    # A stray hand-edited blink key in a v2 file is left alone (panels ignore it)
-    # and never overwrites the real visual_cues block.
-    original = {"blink_color": "#123456", "visual_cues": [{"name": "A"}]}
+def test_settings_pass_through_unaltered():
+    # The data layer never rewrites the settings mapping — stray hand-edited keys
+    # are left alone (panels ignore them).
+    original = {"stray_key": "#123456", "visual_cues": [{"name": "A"}]}
     payload = {
         "kind": settings.KIND,
         "schema_version": settings.SCHEMA_VERSION,

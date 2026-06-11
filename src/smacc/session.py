@@ -100,7 +100,7 @@ class SmaccSession:
         self.missing_devices: list[str] = []
         # Device roles + routing (which physical device each modality uses). The
         # Devices window edits this; modality panels resolve their device from it.
-        # A loaded study replaces it via devices.load() (migrating older files).
+        # A loaded study replaces it via devices.load().
         self.devices = devices.default_config()
         # Master output safety cap (0-1): a single ceiling multiplied into every
         # stimulus (cue + noise) in the audio callback, so a cue at full volume on a
