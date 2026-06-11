@@ -12,6 +12,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
+from importlib.util import find_spec
 from pathlib import Path
 
 import numpy as np
@@ -483,3 +484,19 @@ def test_version_flag_exits_zero_without_a_window():
     )
     assert proc.returncode == 0, proc.stderr
     assert VERSION in proc.stdout
+
+
+def test_selftest_round_trips_through_mne():
+    # The stronger frozen-bundle smoke test (MNE is lazy, so --version alone
+    # can't catch a broken MNE bundling). Exercised here on the dev install so
+    # a selftest regression is caught before a release build trips on it.
+    if find_spec("mne") is None:
+        pytest.skip("needs the eeg extra (mne)")
+    proc = subprocess.run(
+        [sys.executable, "-m", "smacc.eeg", "--selftest"],
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "selftest ok" in proc.stdout

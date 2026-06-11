@@ -113,6 +113,30 @@ PyYAML (settings export/import) is pure Python and is picked up automatically by
 PyInstaller; if a frozen build ever fails to import `yaml`, add
 `--hidden-import yaml`.
 
+The optional EEG review component (#136) is a second frozen exe with its own
+entry point — it carries the MNE/pyqtgraph stack the base exe deliberately
+doesn't (requires `uv sync --extra dev --extra eeg`):
+
+```sh
+uv run pyinstaller entry_eeg.py --name SMACC-EEG --onefile --noconsole \
+  --icon src/smacc/assets/icon.ico \
+  --add-data "src/smacc/assets/icon.png:smacc/assets" \
+  --collect-submodules mne --collect-data mne
+```
+
+The `--collect-*` flags matter: MNE uses `lazy_loader`, which imports
+submodules by name at runtime and reads the package's `.pyi` stubs — both
+invisible to PyInstaller's static analysis. Without them the exe builds
+cleanly and dies on first MNE use. Don't try `--exclude-module matplotlib`
+to slim the bundle: the viewer never plots with it, but MNE's IO layer
+transitively imports `mne.viz.ui_events` (→ matplotlib) at import time, so
+the exclusion breaks `read_raw_*`.
+
+Verify a built `SMACC-EEG.exe` with `--selftest` (the check is exit code 0):
+it round-trips a synthetic recording through MNE, the display filters, and the
+annotation sidecar. `--version` alone would not catch a broken MNE bundling —
+MNE is imported lazily, so it only loads when a recording is actually touched.
+
 The `blinkstick` driver (BlinkStick visual cues) and its Windows backend
 `pywinusb` are pure Python and bundle the same way. PyInstaller may warn that
 `usb.core` is missing — that is BlinkStick's non-Windows backend, which SMACC
@@ -121,10 +145,13 @@ the driver, add `--hidden-import pywinusb`.
 
 Releases are built automatically: pushing a `v*` tag (e.g. `v0.0.7`) triggers the
 [release workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/release.yaml),
-which checks the tag against `smacc.__version__`, builds `SMACC.exe` (stamped with
-version metadata from `tools/make_versionfile.py`), wraps it in an Inno Setup
-installer (`tools/smacc.iss` → `SMACC-Setup.exe`), smoke-tests both, and attaches
-the two artifacts to the GitHub Release. The installer's asset name is a stable
+which checks the tag against `smacc.__version__`, builds `SMACC.exe` and
+`SMACC-EEG.exe` (each stamped with version metadata from
+`tools/make_versionfile.py`), wraps them in an Inno Setup installer
+(`tools/smacc.iss` → `SMACC-Setup.exe`, with the EEG exe as the optional
+component), smoke-tests the exes (`--version`, and `--selftest` for the EEG
+one) and both installer component configurations, and attaches the three
+artifacts to the GitHub Release. The installer's asset name is a stable
 contract — the docs' download button links
 `releases/latest/download/SMACC-Setup.exe` — so don't rename it. The installer's
 `[Registry]` section must mirror `winassoc.association_entries()` exactly (so an
