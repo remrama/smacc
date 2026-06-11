@@ -460,7 +460,7 @@ class SmaccSession:
 
         Gated by ``log_interactions`` so the programmatic widget setup that runs
         during construction or a study load doesn't spam the log; the main window
-        flips the gate on after startup. These lines never carry a portcode.
+        flips the gate on after startup. These lines never carry a port code.
 
         ``debug=True`` logs at DEBUG instead of INFO, for high-frequency lines
         (e.g. live volume edits) that should still hit the file but stay out of

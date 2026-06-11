@@ -1,14 +1,14 @@
 """The configurable event-marker registry: codes, labels, and per-event routing.
 
 SMACC marks experiment events (a cue played, a dream report, observed REM, …) by
-pushing a numeric *portcode* to its marker stream and writing a matching log line.
+pushing a numeric *port code* to its marker stream and writing a matching log line.
 Those codes used to live as hardcoded dicts in :mod:`smacc.config`; this module
 makes them a single editable registry a study can tune, persist in its ``.smacc``
 file, and recover from any session log.
 
 Each :class:`EventDef` carries:
 
-* ``code`` — the 8-bit portcode (``1..255``) sent on a trigger.
+* ``code`` — the 8-bit port code (``1..255``) sent on a trigger.
 * ``lsl`` / ``ttl`` — per-transport routing: whether a firing pushes the code over
   the LSL marker stream and/or the hardware TTL trigger (when one is configured).
   An event routed to neither transport is log-only.
@@ -34,7 +34,7 @@ from typing import Any
 
 from . import biocals
 
-# 8-bit parallel/serial trigger byte: the universally safe portcode range.
+# 8-bit parallel/serial trigger byte: the universally safe port code range.
 CODE_MIN = 1
 CODE_MAX = 255
 # Default soft ceiling; a study can lower it to match older trigger hardware.
@@ -514,7 +514,7 @@ def routing_summary(event: EventDef) -> str:
 
     Shown in the Event logging grid's button tooltips (and anywhere else a
     one-liner is wanted) so an operator can tell, without opening the Markers
-    window, whether pressing a button sends a portcode and where.
+    window, whether pressing a button sends a port code and where.
     """
     if event.triggered:
         code = f"codes {event.code}+" if event.increment else f"code {event.code}"
@@ -526,7 +526,7 @@ def routing_summary(event: EventDef) -> str:
             where = "TTL only"
         summary = f"{code} → {where}"
     else:
-        summary = "log only (no portcode sent)"
+        summary = "log only (no port code sent)"
     if not event.preview:
         summary += " · hidden from the live preview"
     return summary
