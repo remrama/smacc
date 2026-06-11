@@ -87,13 +87,13 @@ settings:
 
 ## Envelope
 
-| Key | Type | Meaning |
-|---|---|---|
-| `kind` | string | Always `smacc/settings`; a file with a different `kind` is rejected. |
-| `schema_version` | integer | The settings schema version — currently **1**. Only the current version loads; any other is rejected (see [Version history](#version-history)). |
-| `smacc_version` | string | The SMACC version that wrote the file (informational). |
-| `metadata` | mapping | Optional run metadata: `subject`, `session`, `notes`, and `created` (ISO timestamp). Blank by default; recorded in the log, not baked into filenames. |
-| `settings` | mapping | The configuration itself (below). |
+| Key              | Type    | Meaning                                                                                                                                               |
+| ---------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `kind`           | string  | Always `smacc/settings`; a file with a different `kind` is rejected.                                                                                  |
+| `schema_version` | integer | The settings schema version — currently **1**. Only the current version loads; any other is rejected (see [Version history](#version-history)).       |
+| `smacc_version`  | string  | The SMACC version that wrote the file (informational).                                                                                                |
+| `metadata`       | mapping | Optional run metadata: `subject`, `session`, `notes`, and `created` (ISO timestamp). Blank by default; recorded in the log, not baked into filenames. |
+| `settings`       | mapping | The configuration itself (below).                                                                                                                     |
 
 ## `settings`
 
@@ -102,26 +102,26 @@ Any key may be omitted — each falls back to its default.
 
 ### Audio, noise, visual, survey, chat, volume
 
-| Key | Type | Meaning |
-|---|---|---|
-| `cues` | list | One entry per cue slot: `name` (string), `file` (WAV path), `volume` (0–1), `loop` (bool). |
-| `cue_attack` | seconds | Fade-in applied to a starting cue. |
-| `cue_release` | seconds | Fade-out applied to a stopping cue. |
-| `noise_volume` | 0–1 | Background-noise level. |
-| `noise_color` | string | Selected noise colour (as offered in the Noise panel, e.g. `white`). |
-| `noise_source` | `builtin` \| `file` | Generated noise, or a WAV file. |
-| `noise_file` | path | The noise WAV when `noise_source: file`. |
-| `visual_cues` | list | One entry per light slot: `name` (string), `color` (`#rrggbb`), `brightness` (0–1), `pattern` (`steady` \| `pulse` \| `flash`), `rate` (Hz, the pulse/flash speed), `length` (seconds; ignored while `loop`), `loop` (bool). |
-| `visual_attack` | seconds | Brightness fade-in applied to a starting visual cue. |
-| `visual_release` | seconds | Brightness fade-out applied to a stopping visual cue. |
-| `survey_url` | string | The selected survey: a web URL, or `smacc://survey/<key>` for an in-app survey. |
-| `survey_options` | mapping | Named *web* survey presets: label → URL. In-app surveys (built-in or custom) are not persisted here — they come from survey definition files (see [Surveys](../surveys.md)). |
-| `chat_font_size` | integer | Participant chat window text size, in points (8–72). |
-| `chat_red_text` | boolean | Red-shifted night text in the participant chat window. |
-| `chat_experimenter_presets` | list | Intercom quick-reply prompts the experimenter sends with one click (verbatim, like a typed message). Omitted → seeded defaults; an empty list is respected. |
-| `chat_participant_presets` | list | Participant quick replies, shown as numbered chips and sent with the number keys 1–9 (max 9). Omitted → seeded defaults; an empty list is respected. |
-| `volume_cap` | 0–1 | Master output safety cap multiplied into every stimulus (`1.0` = no cap). |
-| `output_latency` | `high` \| `low` | Output buffer for the cue + noise streams: `high` is robust (default), `low` trims marker-to-sound delay where the device allows it (often unchanged on shared-mode WASAPI). See [Latency](../latency.md). |
+| Key                         | Type                | Meaning                                                                                                                                                                                                                      |
+| --------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cues`                      | list                | One entry per cue slot: `name` (string), `file` (WAV path), `volume` (0–1), `loop` (bool).                                                                                                                                   |
+| `cue_attack`                | seconds             | Fade-in applied to a starting cue.                                                                                                                                                                                           |
+| `cue_release`               | seconds             | Fade-out applied to a stopping cue.                                                                                                                                                                                          |
+| `noise_volume`              | 0–1                 | Background-noise level.                                                                                                                                                                                                      |
+| `noise_color`               | string              | Selected noise colour (as offered in the Noise panel, e.g. `white`).                                                                                                                                                         |
+| `noise_source`              | `builtin` \| `file` | Generated noise, or a WAV file.                                                                                                                                                                                              |
+| `noise_file`                | path                | The noise WAV when `noise_source: file`.                                                                                                                                                                                     |
+| `visual_cues`               | list                | One entry per light slot: `name` (string), `color` (`#rrggbb`), `brightness` (0–1), `pattern` (`steady` \| `pulse` \| `flash`), `rate` (Hz, the pulse/flash speed), `length` (seconds; ignored while `loop`), `loop` (bool). |
+| `visual_attack`             | seconds             | Brightness fade-in applied to a starting visual cue.                                                                                                                                                                         |
+| `visual_release`            | seconds             | Brightness fade-out applied to a stopping visual cue.                                                                                                                                                                        |
+| `survey_url`                | string              | The selected survey: a web URL, or `smacc://survey/<key>` for an in-app survey.                                                                                                                                              |
+| `survey_options`            | mapping             | Named *web* survey presets: label → URL. In-app surveys (built-in or custom) are not persisted here — they come from survey definition files (see [Surveys](../surveys.md)).                                                 |
+| `chat_font_size`            | integer             | Participant chat window text size, in points (8–72).                                                                                                                                                                         |
+| `chat_red_text`             | boolean             | Red-shifted night text in the participant chat window.                                                                                                                                                                       |
+| `chat_experimenter_presets` | list                | Intercom quick-reply prompts the experimenter sends with one click (verbatim, like a typed message). Omitted → seeded defaults; an empty list is respected.                                                                  |
+| `chat_participant_presets`  | list                | Participant quick replies, shown as numbered chips and sent with the number keys 1–9 (max 9). Omitted → seeded defaults; an empty list is respected.                                                                         |
+| `volume_cap`                | 0–1                 | Master output safety cap multiplied into every stimulus (`1.0` = no cap).                                                                                                                                                    |
+| `output_latency`            | `high` \| `low`     | Output buffer for the cue + noise streams: `high` is robust (default), `low` trims marker-to-sound delay where the device allows it (often unchanged on shared-mode WASAPI). See [Latency](../latency.md).                   |
 
 ### `biocals`
 
@@ -131,21 +131,21 @@ stack row, in display order. Rows may repeat a biocal (e.g. eyes-closed twice in
 the played sequence). A missing block — or a block without `rows` — loads the
 default stack; an empty `rows` list is respected as a deliberately cleared one.
 
-| Field | Type | Meaning |
-|---|---|---|
-| `biocal` | string | Stable biocal id (e.g. `eyes_open`); unknown ids are dropped. |
-| `sequence` | boolean | Include this row when the sequence is played. |
-| `voice` | boolean | Speak the pre-recorded instruction when the biocal starts. |
+| Field      | Type    | Meaning                                                                                   |
+| ---------- | ------- | ----------------------------------------------------------------------------------------- |
+| `biocal`   | string  | Stable biocal id (e.g. `eyes_open`); unknown ids are dropped.                             |
+| `sequence` | boolean | Include this row when the sequence is played.                                             |
+| `voice`    | boolean | Speak the pre-recorded instruction when the biocal starts.                                |
 | `duration` | integer | Task-window length in seconds (1–600); the countdown and the completion marker run on it. |
 
 ### Window-level
 
-| Key | Type | Meaning |
-|---|---|---|
-| `data_directory` | path | Where this study's runs are written (relative to the `.smacc`, or absolute). |
-| `preview_levels` | list | Log levels shown in the live preview, e.g. `[INFO, WARNING, ERROR, CRITICAL]`. |
-| `always_on_top` | boolean | Whether the main session window floats on top. |
-| `tool_always_on_top` | mapping | Per-tool always-on-top, keyed by panel key. |
+| Key                  | Type    | Meaning                                                                        |
+| -------------------- | ------- | ------------------------------------------------------------------------------ |
+| `data_directory`     | path    | Where this study's runs are written (relative to the `.smacc`, or absolute).   |
+| `preview_levels`     | list    | Log levels shown in the live preview, e.g. `[INFO, WARNING, ERROR, CRITICAL]`. |
+| `always_on_top`      | boolean | Whether the main session window floats on top.                                 |
+| `tool_always_on_top` | mapping | Per-tool always-on-top, keyed by panel key.                                    |
 
 ### `event_codes`
 
@@ -153,14 +153,14 @@ The editable event-marker registry: a list of overrides applied over the
 [built-in registry](../triggers.md#default-event-codes). A study that omits it uses
 the built-ins; one that overrides a few codes keeps the rest.
 
-| Field | Type | Meaning |
-|---|---|---|
-| `key` | string | Stable event id (e.g. `REMDetected`). |
-| `code` | integer | Port code, 1–255. |
-| `lsl` | boolean | Whether a firing pushes the code over the LSL marker stream. |
-| `ttl` | boolean | Whether a firing pushes the code over the hardware TTL trigger (when one is configured). |
-| `preview` | boolean | Whether it shows in the live preview (the file always records it). |
-| `increment` | boolean | Whether successive firings advance the code (e.g. dream reports). |
+| Field       | Type    | Meaning                                                                                  |
+| ----------- | ------- | ---------------------------------------------------------------------------------------- |
+| `key`       | string  | Stable event id (e.g. `REMDetected`).                                                    |
+| `code`      | integer | Port code, 1–255.                                                                        |
+| `lsl`       | boolean | Whether a firing pushes the code over the LSL marker stream.                             |
+| `ttl`       | boolean | Whether a firing pushes the code over the hardware TTL trigger (when one is configured). |
+| `preview`   | boolean | Whether it shows in the live preview (the file always records it).                       |
+| `increment` | boolean | Whether successive firings advance the code (e.g. dream reports).                        |
 
 A built-in entry persists only those fields. A **custom** event also carries
 `label`, `category`, `tooltip`, and `builtin: false` so it can be reconstructed on
@@ -172,10 +172,10 @@ for TTL-routed codes (LSL carries any code).
 Equipment → device bindings plus action → equipment routing (see [Audio & routing](../audio.md)
 and [Devices](../devices.md)).
 
-| Key | Type | Meaning |
-|---|---|---|
+| Key        | Type    | Meaning                                                                                                                                                                                                                                                                   |
+| ---------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `bindings` | mapping | Equipment key → device key. Equipment: `bedroom_speaker`, `control_speaker`, `bedroom_mic_1`, `bedroom_mic_2`, `control_mic` (the experimenter's intercom mic), `blinkstick_light` (a stick's serial), `philips_hue_light` (a bridge target like `light:3` or `group:1`). |
-| `routing` | mapping | Action key → equipment key (`""` = off). Actions: `play_audio_cue`, `listen_audio_cue`, `play_noise`, `play_visual_cue`, `speak_to_participant`, `listen_to_participant`, `record_dream_report`, `monitor_bedroom_noise`. |
+| `routing`  | mapping | Action key → equipment key (`""` = off). Actions: `play_audio_cue`, `listen_audio_cue`, `play_noise`, `play_visual_cue`, `speak_to_participant`, `listen_to_participant`, `record_dream_report`, `monitor_bedroom_noise`.                                                 |
 
 A missing `devices` block loads the defaults (each action on its default equipment, with
 no devices bound). When a live session starts (or loads a study) with
@@ -189,15 +189,15 @@ no "system default" pseudo-selection (see
 Optional hardware TTL trigger output, mirrored alongside the always-on LSL stream
 (see [Triggers & port codes](../triggers.md)).
 
-| Field | Type | Meaning |
-|---|---|---|
-| `enabled` | boolean | Whether the hardware path is on (LSL is always on regardless). |
-| `transport` | `serial` \| `parallel` | USB trigger box, or parallel (LPT) port. |
-| `port` | string | Serial COM port, e.g. `COM3`. |
-| `baud` | integer | Serial baud rate (default 115200). |
-| `address` | string | Parallel-port base address as hex, e.g. `0x378`. |
-| `mode` | `pulsed` \| `hold` | Pulse the code then drop, or set-and-hold until the next event. |
-| `pulse_ms` | integer | Pulse width in ms when `mode: pulsed` (default 10). |
+| Field       | Type                   | Meaning                                                         |
+| ----------- | ---------------------- | --------------------------------------------------------------- |
+| `enabled`   | boolean                | Whether the hardware path is on (LSL is always on regardless).  |
+| `transport` | `serial` \| `parallel` | USB trigger box, or parallel (LPT) port.                        |
+| `port`      | string                 | Serial COM port, e.g. `COM3`.                                   |
+| `baud`      | integer                | Serial baud rate (default 115200).                              |
+| `address`   | string                 | Parallel-port base address as hex, e.g. `0x378`.                |
+| `mode`      | `pulsed` \| `hold`     | Pulse the code then drop, or set-and-hold until the next event. |
+| `pulse_ms`  | integer                | Pulse width in ms when `mode: pulsed` (default 10).             |
 
 ### `hue`
 
@@ -206,10 +206,10 @@ paired once in the Devices window. Like the device bindings, this is rig state
 that travels with the study — note that `app_key` is the bridge credential minted
 by pairing, stored in plain text.
 
-| Field | Type | Meaning |
-|---|---|---|
-| `bridge_ip` | string | The bridge's IP on the rig's network. |
-| `app_key` | string | The app key minted by press-button pairing (blank = not set up). |
+| Field       | Type   | Meaning                                                          |
+| ----------- | ------ | ---------------------------------------------------------------- |
+| `bridge_ip` | string | The bridge's IP on the rig's network.                            |
+| `app_key`   | string | The app key minted by press-button pairing (blank = not set up). |
 
 ## Paths and portability
 
@@ -219,6 +219,6 @@ folder stays valid when moved, copied, or zipped.
 
 ## Version history
 
-| Version | Changes |
-|---|---|
-| 1 | The v0.0.9 baseline (numbering restarted; pre-release schemas were retired without migration). Envelope (`kind` / `schema_version` / `smacc_version` / `metadata` / `settings`); panel state; the `biocals`, `devices`, `event_codes` + `event_code_safe_max`, `trigger_output`, `data_directory`, `preview_levels`, `always_on_top`, and `tool_always_on_top` blocks. |
+| Version | Changes                                                                                                                                                                                                                                                                                                                                                                |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1       | The v0.0.9 baseline (numbering restarted; pre-release schemas were retired without migration). Envelope (`kind` / `schema_version` / `smacc_version` / `metadata` / `settings`); panel state; the `biocals`, `devices`, `event_codes` + `event_code_safe_max`, `trigger_output`, `data_directory`, `preview_levels`, `always_on_top`, and `tool_always_on_top` blocks. |

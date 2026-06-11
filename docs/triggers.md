@@ -26,14 +26,14 @@ The words *event*, *marker*, *trigger*, and *port code* get used loosely in the
 field; SMACC uses each one for exactly one thing, in the UI, the docs, and the
 session log:
 
-| Term | Meaning in SMACC |
-|---|---|
-| **Event** | A named thing that can happen during a session — a cue started, REM observed, lights off. Each is an entry in the study's event registry, with a label and a port code. |
-| **Marker** | The durable record produced when an event fires. A marker is always a [log line](reference/session-log.md); if the event is routed to a transport, it also carries the port code there. |
-| **Port code** | The 8-bit number (**1–255**) identifying an event on the amplifier's trigger channel. Also called a *trigger code*. |
-| **Trigger** | The act of *sending* a port code over a transport. An event can be logged without being triggered. |
-| **Transport** | A path that carries the code to the recording: the **LSL** marker stream, or a hardware **TTL** line (serial trigger box / parallel port). |
-| **Log level** | The severity tag on a log line (`DEBUG`…`CRITICAL`). The log *file* records every level; levels only filter the live preview. See [log levels](reference/session-log.md#log-levels). |
+| Term          | Meaning in SMACC                                                                                                                                                                        |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Event**     | A named thing that can happen during a session — a cue started, REM observed, lights off. Each is an entry in the study's event registry, with a label and a port code.                 |
+| **Marker**    | The durable record produced when an event fires. A marker is always a [log line](reference/session-log.md); if the event is routed to a transport, it also carries the port code there. |
+| **Port code** | The 8-bit number (**1–255**) identifying an event on the amplifier's trigger channel. Also called a *trigger code*.                                                                     |
+| **Trigger**   | The act of *sending* a port code over a transport. An event can be logged without being triggered.                                                                                      |
+| **Transport** | A path that carries the code to the recording: the **LSL** marker stream, or a hardware **TTL** line (serial trigger box / parallel port).                                              |
+| **Log level** | The severity tag on a log line (`DEBUG`…`CRITICAL`). The log *file* records every level; levels only filter the live preview. See [log levels](reference/session-log.md#log-levels).    |
 
 ## Default event codes
 
@@ -43,61 +43,63 @@ study can retune any code in the **Markers** window; the change travels in its
 [`.smacc`](reference/settings-file.md) and is written into every session log.
 
 <!-- BEGIN auto:event-codes (kept in lockstep with smacc.events.default_events by tests/test_docs_schema.py) -->
-| Code | Event | Key | Notes |
-|------|-------|-----|-------|
-| 41 | REM detected | `REMDetected` | |
-| 42 | Tech in room | `TechInRoom` | |
-| 43 | Training start | `TrainingStart` | start of a training/learning phase (TMR cue learning, TLR practice) |
-| 44 | Training end | `TrainingEnd` | |
-| 45 | Signal observed | `SignalObserved` | a lucidity/communication signal; the signal type + confidence are logged as the detail |
-| 46 | Sleep onset | `SleepOnset` | |
-| 47 | Lights off | `LightsOff` | |
-| 48 | Lights on | `LightsOn` | |
-| 49 | Clapper | `Clapper` | sync marker |
-| 50 | Note | `Note` | |
-| 51 | Start recording | `RecordingStarted` | sets the reference clock for dream-report timestamps |
-| 52 | Wake detected | `WakeDetected` | sleep-stage observation (keypad 0 in the Event logging window) |
-| 53 | N1 detected | `N1Detected` | sleep-stage observation (keypad 1) |
-| 54 | N2 detected | `N2Detected` | sleep-stage observation (keypad 2) |
-| 55 | N3 detected | `N3Detected` | sleep-stage observation (keypad 3) |
-| 56 | Arousal detected | `ArousalDetected` | a brief transient arousal (distinct from a sustained Wake) |
-| 57 | Artifact detected | `ArtifactDetected` | EEG artifact (movement, electrode noise, etc.) |
-| 60 | Cue started | `CueStarted` | |
-| 61 | Cue stopped | `CueStopped` | |
-| 62 | Noise started | `NoiseStarted` | |
-| 63 | Noise stopped | `NoiseStopped` | |
-| 64 | Intercom started | `IntercomStarted` | |
-| 65 | Intercom stopped | `IntercomStopped` | |
-| 66 | Visual started | `VisualStarted` | |
-| 67 | Survey opened | `SurveyOpened` | |
-| 68 | Visual stopped | `VisualStopped` | the light is actually off (pairs with 66) |
-| 69 | Chat to participant | `ChatMessageSent` | typed intercom message; log-only by default |
-| 70 | Chat from participant | `ChatMessageReceived` | participant's typed reply; log-only by default |
-| 71 | Survey submitted | `SurveySubmitted` | in-app survey responses saved; log-only by default |
-| 100 | SMACC initialized | `TriggerInitialization` | startup connection test; not a stimulus marker |
-| 105 | Biocal sequence started | `BiocalSequenceStarted` | brackets a played biocal sequence |
-| 106 | Biocal sequence stopped | `BiocalSequenceStopped` | completed or aborted |
-| 107 | Biocal cancelled | `BiocalCancelled` | shared; the preceding start code identifies the biocal |
-| 108 | Biocal completed | `BiocalCompleted` | shared; the task window ran out |
-| 110 | Biocal: Eyes Open | `BiocalEyesOpen` | biocal starts mark the task-window opening |
-| 111 | Biocal: Eyes Closed | `BiocalEyesClosed` | |
-| 112 | Biocal: Look L/R | `BiocalLookLR` | |
-| 113 | Biocal: Look U/D | `BiocalLookUD` | |
-| 114 | Biocal: Blink | `BiocalBlink` | |
-| 115 | Biocal: Clench Jaw | `BiocalClenchJaw` | |
-| 116 | Biocal: Flex Feet | `BiocalFlexFeet` | |
-| 117 | Biocal: Hold Breath | `BiocalHoldBreath` | |
-| 118 | Biocal: Breathe | `BiocalBreathe` | |
-| 119 | Biocal: Rest | `BiocalRest` | |
-| 120 | Biocal: LRLR Open | `BiocalLRLROpen` | |
-| 121 | Biocal: LRLR Closed | `BiocalLRLRClosed` | |
-| 122 | Biocal: LRLR Slow | `BiocalLRLRSlow` | |
-| 123 | Biocal: Fist Clench | `BiocalFistClench` | |
-| 124 | Biocal: Fist Closed | `BiocalFistClosed` | |
-| 125 | Biocal: Sniff Open | `BiocalSniffOpen` | |
-| 126 | Biocal: Sniff Closed | `BiocalSniffClosed` | |
-| 200 | Dream report stopped | `DreamReportStopped` | |
-| 201 | Dream report started | `DreamReportStarted` | increments per report (201, 202, …) |
+
+| Code | Event                   | Key                     | Notes                                                                                  |
+| ---- | ----------------------- | ----------------------- | -------------------------------------------------------------------------------------- |
+| 41   | REM detected            | `REMDetected`           |                                                                                        |
+| 42   | Tech in room            | `TechInRoom`            |                                                                                        |
+| 43   | Training start          | `TrainingStart`         | start of a training/learning phase (TMR cue learning, TLR practice)                    |
+| 44   | Training end            | `TrainingEnd`           |                                                                                        |
+| 45   | Signal observed         | `SignalObserved`        | a lucidity/communication signal; the signal type + confidence are logged as the detail |
+| 46   | Sleep onset             | `SleepOnset`            |                                                                                        |
+| 47   | Lights off              | `LightsOff`             |                                                                                        |
+| 48   | Lights on               | `LightsOn`              |                                                                                        |
+| 49   | Clapper                 | `Clapper`               | sync marker                                                                            |
+| 50   | Note                    | `Note`                  |                                                                                        |
+| 51   | Start recording         | `RecordingStarted`      | sets the reference clock for dream-report timestamps                                   |
+| 52   | Wake detected           | `WakeDetected`          | sleep-stage observation (keypad 0 in the Event logging window)                         |
+| 53   | N1 detected             | `N1Detected`            | sleep-stage observation (keypad 1)                                                     |
+| 54   | N2 detected             | `N2Detected`            | sleep-stage observation (keypad 2)                                                     |
+| 55   | N3 detected             | `N3Detected`            | sleep-stage observation (keypad 3)                                                     |
+| 56   | Arousal detected        | `ArousalDetected`       | a brief transient arousal (distinct from a sustained Wake)                             |
+| 57   | Artifact detected       | `ArtifactDetected`      | EEG artifact (movement, electrode noise, etc.)                                         |
+| 60   | Cue started             | `CueStarted`            |                                                                                        |
+| 61   | Cue stopped             | `CueStopped`            |                                                                                        |
+| 62   | Noise started           | `NoiseStarted`          |                                                                                        |
+| 63   | Noise stopped           | `NoiseStopped`          |                                                                                        |
+| 64   | Intercom started        | `IntercomStarted`       |                                                                                        |
+| 65   | Intercom stopped        | `IntercomStopped`       |                                                                                        |
+| 66   | Visual started          | `VisualStarted`         |                                                                                        |
+| 67   | Survey opened           | `SurveyOpened`          |                                                                                        |
+| 68   | Visual stopped          | `VisualStopped`         | the light is actually off (pairs with 66)                                              |
+| 69   | Chat to participant     | `ChatMessageSent`       | typed intercom message; log-only by default                                            |
+| 70   | Chat from participant   | `ChatMessageReceived`   | participant's typed reply; log-only by default                                         |
+| 71   | Survey submitted        | `SurveySubmitted`       | in-app survey responses saved; log-only by default                                     |
+| 100  | SMACC initialized       | `TriggerInitialization` | startup connection test; not a stimulus marker                                         |
+| 105  | Biocal sequence started | `BiocalSequenceStarted` | brackets a played biocal sequence                                                      |
+| 106  | Biocal sequence stopped | `BiocalSequenceStopped` | completed or aborted                                                                   |
+| 107  | Biocal cancelled        | `BiocalCancelled`       | shared; the preceding start code identifies the biocal                                 |
+| 108  | Biocal completed        | `BiocalCompleted`       | shared; the task window ran out                                                        |
+| 110  | Biocal: Eyes Open       | `BiocalEyesOpen`        | biocal starts mark the task-window opening                                             |
+| 111  | Biocal: Eyes Closed     | `BiocalEyesClosed`      |                                                                                        |
+| 112  | Biocal: Look L/R        | `BiocalLookLR`          |                                                                                        |
+| 113  | Biocal: Look U/D        | `BiocalLookUD`          |                                                                                        |
+| 114  | Biocal: Blink           | `BiocalBlink`           |                                                                                        |
+| 115  | Biocal: Clench Jaw      | `BiocalClenchJaw`       |                                                                                        |
+| 116  | Biocal: Flex Feet       | `BiocalFlexFeet`        |                                                                                        |
+| 117  | Biocal: Hold Breath     | `BiocalHoldBreath`      |                                                                                        |
+| 118  | Biocal: Breathe         | `BiocalBreathe`         |                                                                                        |
+| 119  | Biocal: Rest            | `BiocalRest`            |                                                                                        |
+| 120  | Biocal: LRLR Open       | `BiocalLRLROpen`        |                                                                                        |
+| 121  | Biocal: LRLR Closed     | `BiocalLRLRClosed`      |                                                                                        |
+| 122  | Biocal: LRLR Slow       | `BiocalLRLRSlow`        |                                                                                        |
+| 123  | Biocal: Fist Clench     | `BiocalFistClench`      |                                                                                        |
+| 124  | Biocal: Fist Closed     | `BiocalFistClosed`      |                                                                                        |
+| 125  | Biocal: Sniff Open      | `BiocalSniffOpen`       |                                                                                        |
+| 126  | Biocal: Sniff Closed    | `BiocalSniffClosed`     |                                                                                        |
+| 200  | Dream report stopped    | `DreamReportStopped`    |                                                                                        |
+| 201  | Dream report started    | `DreamReportStarted`    | increments per report (201, 202, …)                                                    |
+
 <!-- END auto:event-codes -->
 
 Codes are integers in **1–255** and must be unique among events routed to a
@@ -112,13 +114,14 @@ and each event routes to either path independently: its **LSL** and **TTL** flag
 the registry decide where its code goes (both by default; an event routed to
 neither is log-only).
 
-| Transport | What it is | What you need |
-|---|---|---|
-| **LSL** (always on) | A network marker stream recorded by an LSL-aware recorder (e.g. LabRecorder → XDF). Works on the same computer or across the network. | Nothing extra. |
-| **Serial (USB trigger box)** | The modern replacement for the parallel port. The box appears as a COM port; SMACC writes the code as one byte and the box mirrors it onto 8 TTL lines. | A USB-serial trigger box and its COM port. |
-| **Parallel port (LPT)** | The classic 25-pin port. Eight data pins carry the code byte, sampled by the amplifier. | An LPT port (often an add-in card) and the **InpOut32** driver (see below). |
+| Transport                    | What it is                                                                                                                                              | What you need                                                               |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **LSL** (always on)          | A network marker stream recorded by an LSL-aware recorder (e.g. LabRecorder → XDF). Works on the same computer or across the network.                   | Nothing extra.                                                              |
+| **Serial (USB trigger box)** | The modern replacement for the parallel port. The box appears as a COM port; SMACC writes the code as one byte and the box mirrors it onto 8 TTL lines. | A USB-serial trigger box and its COM port.                                  |
+| **Parallel port (LPT)**      | The classic 25-pin port. Eight data pins carry the code byte, sampled by the amplifier.                                                                 | An LPT port (often an add-in card) and the **InpOut32** driver (see below). |
 
 !!! note "LSL stays on"
+
     Enabling a hardware transport does **not** turn LSL off — events routed to both
     (the default) reach the LSL stream and the hardware line together. The hardware
     path is purely additional. LSL support ships inside SMACC itself — there is
@@ -126,6 +129,7 @@ neither is log-only).
     LabRecorder, is its own program).
 
 !!! tip "Why route per event?"
+
     Most studies leave every event on both transports. Per-event routing earns its
     keep when the TTL hardware is restricted — an older amplifier that only accepts
     a limited code range can keep its key events on TTL (inside the
@@ -143,14 +147,14 @@ The one rule that matters is that **both ends must use the same baud rate.** You
 is configured (by a switch, firmware, or its manual) to expect a specific rate, and
 SMACC has to match it — a mismatch produces garbled or missed triggers, not an error.
 
-* **Where to find it:** check your trigger box's manual or its configuration utility.
-  Common rates are 9600, 19200, 38400, 57600, **115200**, and 230400.
-* **SMACC's default is 115200**, which many modern USB trigger boxes (e.g. typical
-  BrainProducts/Neurospec-style adapters) use out of the box. If yours specifies a
-  different rate, pick it from the dropdown (or type any other value).
-* **Higher isn't "better."** A faster rate shaves only microseconds off a one-byte
-  write, which is negligible next to audio/event timing — so choose the rate your box
-  expects rather than the largest one.
+- **Where to find it:** check your trigger box's manual or its configuration utility.
+    Common rates are 9600, 19200, 38400, 57600, **115200**, and 230400.
+- **SMACC's default is 115200**, which many modern USB trigger boxes (e.g. typical
+    BrainProducts/Neurospec-style adapters) use out of the box. If yours specifies a
+    different rate, pick it from the dropdown (or type any other value).
+- **Higher isn't "better."** A faster rate shaves only microseconds off a one-byte
+    write, which is negligible next to audio/event timing — so choose the rate your box
+    expects rather than the largest one.
 
 If triggers don't register, a wrong baud rate is one of the first things to check
 (alongside the COM port and the [pulsed vs. set-and-hold](#pulsed-vs-set-and-hold)
@@ -161,14 +165,14 @@ mode).
 Amplifiers and trigger boxes differ in how they expect the code to appear on the
 lines, so SMACC offers two modes:
 
-* **Pulsed** — SMACC raises the code on the lines, waits a configurable **pulse
-  width** (e.g. 10 ms), then drops them back to 0. Each event is a brief, distinct
-  pulse. Choose this when the amplifier expects a momentary trigger, or when you want
-  SMACC to control the pulse length.
-* **Set-and-hold** — SMACC writes the code once and leaves it on the lines until the
-  next event. Choose this for amplifiers that sample a held level, **and** for boxes
-  that generate their own fixed-width pulse when they receive a byte (SMACC just sets
-  the value; the box shapes the pulse).
+- **Pulsed** — SMACC raises the code on the lines, waits a configurable **pulse
+    width** (e.g. 10 ms), then drops them back to 0. Each event is a brief, distinct
+    pulse. Choose this when the amplifier expects a momentary trigger, or when you want
+    SMACC to control the pulse length.
+- **Set-and-hold** — SMACC writes the code once and leaves it on the lines until the
+    next event. Choose this for amplifiers that sample a held level, **and** for boxes
+    that generate their own fixed-width pulse when they receive a byte (SMACC just sets
+    the value; the box shapes the pulse).
 
 If you're not sure which your hardware wants, start with **pulsed at 10 ms** and
 verify with the **Test** button (below); switch to set-and-hold if events don't
@@ -177,20 +181,20 @@ register cleanly.
 ## Configuring trigger output in SMACC
 
 1. Open the **Markers** window from the Tools column (available both in a live
-   Session and in the Editor) and find its **Hardware TTL transport** section.
-2. Tick **Enable hardware trigger output**.
-3. Choose a **Transport**:
-    * **Serial** — pick your box's **Port** from the dropdown (click **Refresh** if
-      you plugged it in after opening the window) and set the **Baud** rate to match
-      your box (see [What is the baud rate?](#what-is-the-baud-rate); SMACC defaults to
-      115200). If the rig isn't attached right now, you can type the port name (e.g.
-      `COM3`) directly.
-    * **Parallel port** — enter the **Address** as hex (see
-      [Finding your parallel-port address](#finding-your-parallel-port-address)).
-4. Choose a **Mode** (pulsed or set-and-hold) and, for pulsed, a **Pulse width**.
-5. Click **Test** to send one pulse and confirm the amplifier sees it. The result
-   appears next to the button; an error explains what went wrong.
-6. Click **Apply**.
+    Session and in the Editor) and find its **Hardware TTL transport** section.
+1. Tick **Enable hardware trigger output**.
+1. Choose a **Transport**:
+    - **Serial** — pick your box's **Port** from the dropdown (click **Refresh** if
+        you plugged it in after opening the window) and set the **Baud** rate to match
+        your box (see [What is the baud rate?](#what-is-the-baud-rate); SMACC defaults to
+        115200). If the rig isn't attached right now, you can type the port name (e.g.
+        `COM3`) directly.
+    - **Parallel port** — enter the **Address** as hex (see
+        [Finding your parallel-port address](#finding-your-parallel-port-address)).
+1. Choose a **Mode** (pulsed or set-and-hold) and, for pulsed, a **Pulse width**.
+1. Click **Test** to send one pulse and confirm the amplifier sees it. The result
+    appears next to the button; an error explains what went wrong.
+1. Click **Apply**.
 
 The whole configuration is saved in your
 [SMACC file](smacc-files.md), so it travels with the rest of your
@@ -199,6 +203,7 @@ reports a clear error if the saved port can't be opened on the machine you load 
 — re-pick it in the Markers window and save again.
 
 !!! warning "Always validate on the real hardware"
+
     A successful **Test** confirms SMACC could open the port and write to it. It does
     **not** prove the amplifier recorded the correct code on its trigger channel.
     Before relying on triggers for a study, record a few test events and confirm they
@@ -209,17 +214,17 @@ reports a clear error if the saved port can't be opened on the machine you load 
 A parallel port is addressed by a base **I/O address**, written in hexadecimal. The
 most common values are:
 
-* `0x378` — the usual address for the first parallel port (LPT1).
-* `0x278` — a common second port (LPT2).
-* `0x3BC` — older onboard ports.
+- `0x378` — the usual address for the first parallel port (LPT1).
+- `0x278` — a common second port (LPT2).
+- `0x3BC` — older onboard ports.
 
 Add-in PCIe/PCI parallel cards are frequently mapped somewhere else entirely, so
 **don't assume** — look it up:
 
 1. Open **Device Manager** (press `Win+X`, then choose Device Manager).
-2. Expand **Ports (COM & LPT)** and double-click your parallel port.
-3. Go to the **Resources** tab and read the first **I/O Range** — the start of that
-   range is your address. Enter it in SMACC with a `0x` prefix (e.g. `0x378`).
+1. Expand **Ports (COM & LPT)** and double-click your parallel port.
+1. Go to the **Resources** tab and read the first **I/O Range** — the start of that
+    range is your address. Enter it in SMACC with a `0x` prefix (e.g. `0x378`).
 
 ## Installing the InpOut32 driver (parallel port only)
 
@@ -229,18 +234,18 @@ download or install it for you (an earlier version did, and it proved fragile an
 required admin rights every launch). Install it once, manually:
 
 1. Download **InpOutBinaries** from [highrez.co.uk](https://www.highrez.co.uk/downloads/inpout32/).
-2. Run the included **`InstallDriver.exe`** once (as administrator) to install the
-   kernel driver.
-3. Make sure **`inpoutx64.dll`** is where SMACC can load it — on the system path, in
-   `C:\Windows\System32`, or beside `SMACC.exe`.
+1. Run the included **`InstallDriver.exe`** once (as administrator) to install the
+    kernel driver.
+1. Make sure **`inpoutx64.dll`** is where SMACC can load it — on the system path, in
+    `C:\Windows\System32`, or beside `SMACC.exe`.
 
 If the driver isn't available, SMACC's parallel transport reports a clear error and
 falls back to LSL only — it never crashes a session over a missing driver.
 
 ## Verifying
 
-* Use the **Test** button in the Markers window's transport section for a quick
-  "can SMACC drive the line?" check.
-* Then confirm end-to-end on the amplifier: record a short block, fire a few events
-  from the **Event logging** window, and check that the codes land on the EEG trigger
-  channel. Only the real recording proves the path works.
+- Use the **Test** button in the Markers window's transport section for a quick
+    "can SMACC drive the line?" check.
+- Then confirm end-to-end on the amplifier: record a short block, fire a few events
+    from the **Event logging** window, and check that the codes land on the EEG trigger
+    channel. Only the real recording proves the path works.

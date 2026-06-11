@@ -1,12 +1,14 @@
 # Contributing
 
 !!! info "For both human and AI contributors"
+
     This page is the canonical development guide for SMACC. It is written for both
     human contributors and AI coding assistants — AI agents are pointed here from
     [`AGENTS.md`](https://github.com/remrama/smacc/blob/main/AGENTS.md), so the
     instructions live here once rather than being duplicated across files.
 
 !!! info "Requesting a change? Open a GitHub issue"
+
     Human contributors should open a
     [GitHub issue](https://github.com/remrama/smacc/issues) for new feature
     requests or bug reports before starting work, so changes can be discussed
@@ -14,17 +16,17 @@
 
 ## Conventions
 
-* Always use [uv](https://docs.astral.sh/uv/) to run Python scripts and install
-  dependencies. Never `pip install` or run naked `python`.
-* Use the marker vocabulary consistently in UI text, docs, and docstrings — *event*,
-  *marker*, *port code*, *trigger*, *transport* each mean exactly one thing; see the
-  [terminology table](triggers.md#terminology).
-* Pick log levels by the [session-log convention](reference/session-log.md#log-levels):
-  `DEBUG` for housekeeping/high-frequency detail, `INFO` for markers and meaningful
-  operator actions, `WARNING` for mid-session config changes and recoverable faults,
-  `ERROR` for faults that cost something. The file records every level, so demoting a
-  line to `DEBUG` only moves it out of the default live preview, never out of the
-  record.
+- Always use [uv](https://docs.astral.sh/uv/) to run Python scripts and install
+    dependencies. Never `pip install` or run naked `python`.
+- Use the marker vocabulary consistently in UI text, docs, and docstrings — *event*,
+    *marker*, *port code*, *trigger*, *transport* each mean exactly one thing; see the
+    [terminology table](triggers.md#terminology).
+- Pick log levels by the [session-log convention](reference/session-log.md#log-levels):
+    `DEBUG` for housekeeping/high-frequency detail, `INFO` for markers and meaningful
+    operator actions, `WARNING` for mid-session config changes and recoverable faults,
+    `ERROR` for faults that cost something. The file records every level, so demoting a
+    line to `DEBUG` only moves it out of the default live preview, never out of the
+    record.
 
 ## Commit and pull-request style
 
@@ -32,13 +34,13 @@ Keep the history skimmable and merge commits clean.
 
 **Commits**
 
-* One line only — a subject, with no body or extended description.
-* Start with a [Conventional Commits](https://www.conventionalcommits.org/) prefix:
-  `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, `build:`, `ci:`, or
-  `perf:`.
-* Imperative mood, lower-case after the prefix, no trailing period, and ideally
-  under ~72 characters.
-* No AI attribution or co-author trailers.
+- One line only — a subject, with no body or extended description.
+- Start with a [Conventional Commits](https://www.conventionalcommits.org/) prefix:
+    `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, `build:`, `ci:`, or
+    `perf:`.
+- Imperative mood, lower-case after the prefix, no trailing period, and ideally
+    under ~72 characters.
+- No AI attribution or co-author trailers.
 
 ```text
 feat: optional hardware TTL trigger output
@@ -48,16 +50,16 @@ fix: clamp incrementing port codes to 255
 
 **Pull requests**
 
-* The title follows the same one-line Conventional-Commits rule — on a squash merge
-  it becomes the commit subject (GitHub appends the `(#NN)` PR number).
-* The body is a brief summary, not an exhaustive change list: what changed, why, and
-  how it was verified. A few sentences or bullets is plenty.
-* No AI attribution footer.
+- The title follows the same one-line Conventional-Commits rule — on a squash merge
+    it becomes the commit subject (GitHub appends the `(#NN)` PR number).
+- The body is a brief summary, not an exhaustive change list: what changed, why, and
+    how it was verified. A few sentences or bullets is plenty.
+- No AI attribution footer.
 
 **Merging**
 
-* Squash-merge, and clear the auto-generated commit body so the merged commit is the
-  one-line title alone — no bundled description or commit list.
+- Squash-merge, and clear the auto-generated commit body so the merged commit is the
+    one-line title alone — no bundled description or commit list.
 
 ## Development
 
@@ -176,16 +178,27 @@ runs `mkdocs build --strict` on every pull request, deploys a `dev` version on
 pushes to `main`, and publishes a numbered version (updating the `latest` alias)
 on each `v*` release tag.
 
+Markdown is formatted with [mdformat](https://mdformat.readthedocs.io/) — the
+docs counterpart to ruff. It applies to the published docs and the two root
+guides (`README.md`, `AGENTS.md`); the CI `quality` job and the pre-commit hook
+both enforce it, and the plugin set and options live in `[tool.mdformat]` in
+`pyproject.toml`.
+
+```sh
+uv run --extra docs mdformat docs README.md AGENTS.md          # format
+uv run --extra docs mdformat --check docs README.md AGENTS.md  # the check CI runs
+```
+
 ## Project notes
 
-* `src/` layout: the package lives in `src/smacc/`.
-* The single source of truth for the version is `__version__` in
-  `src/smacc/__init__.py`; `config.py` and the packaging metadata both read from
-  it.
-* The build/runtime Python is pinned to **3.12** in `.python-version`. The
-  minimum OS is **Windows 10**, set by Qt 6 (PyQt6) — Qt 5 was the last line that
-  still ran on Windows 8.1. Keep the pin unless you intend to move the Python floor.
-* SMACC is distributed only as a frozen `SMACC.exe` (no PyPI), so CI tests what
-  ships rather than a version range: the `test` job in `ci.yaml` runs on the same
-  `windows-2022` + Python 3.12 + locked dependencies as the release build
-  (`release.yaml`), in a single job rather than a multi-version matrix.
+- `src/` layout: the package lives in `src/smacc/`.
+- The single source of truth for the version is `__version__` in
+    `src/smacc/__init__.py`; `config.py` and the packaging metadata both read from
+    it.
+- The build/runtime Python is pinned to **3.12** in `.python-version`. The
+    minimum OS is **Windows 10**, set by Qt 6 (PyQt6) — Qt 5 was the last line that
+    still ran on Windows 8.1. Keep the pin unless you intend to move the Python floor.
+- SMACC is distributed only as a frozen `SMACC.exe` (no PyPI), so CI tests what
+    ships rather than a version range: the `test` job in `ci.yaml` runs on the same
+    `windows-2022` + Python 3.12 + locked dependencies as the release build
+    (`release.yaml`), in a single job rather than a multi-version matrix.

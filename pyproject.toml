@@ -49,6 +49,15 @@ dependencies = [
 docs = [
     "mkdocs-material",
     "mike",
+    # Markdown formatter (the docs counterpart to ruff). mdformat is the
+    # canonical formatter; the plugins teach it the syntax these docs use —
+    # GitHub-flavored tables/task-lists (gfm) and mkdocs-material admonitions
+    # / content tabs / 4-space list nesting (mkdocs). Without the mkdocs plugin
+    # a plain CommonMark formatter would mangle the `!!! note` blocks.
+    "mdformat",
+    "mdformat-gfm",
+    "mdformat-mkdocs",
+    "mdformat-frontmatter",
 ]
 # The optional EEG review tool (#136). MNE is far too heavy for the base install,
 # so the viewer ships as a separate frozen exe / installer component; this extra
@@ -92,6 +101,12 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 smacc = ["assets/*", "assets/biocals/*", "assets/cues/*", "assets/surveys/*"]
+
+[tool.mdformat]
+# Preserve the docs' hand-wrapped lines rather than reflowing prose (mirrors how
+# the Python sources are wrapped). LF endings pair with .gitattributes.
+wrap = "keep"
+end_of_line = "lf"
 
 [tool.ruff]
 target-version = "py312"

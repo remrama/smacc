@@ -13,3 +13,16 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+      # Markdown formatter, run from the project's own env (like the mypy hook
+      # above) so the plugin set and options in pyproject stay the single source
+      # of truth for *how* to format. This hook is also the single source of
+      # truth for *what* to format: every tracked Markdown file except the
+      # AI-assistant configs under .claude/. CI runs this same hook (see
+      # .github/workflows/ci.yaml), so the scope can't drift between local,
+      # pre-commit, and CI.
+      - id: mdformat
+        name: mdformat
+        entry: uv run --extra docs mdformat
+        language: system
+        types: [markdown]
+        exclude: ^\.claude/

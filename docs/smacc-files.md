@@ -27,15 +27,15 @@ format, see the [SMACC file reference](reference/settings-file.md).
 There are two ways to make one:
 
 - **From scratch, in the Editor.** In the [Launcher](usage.md#opening-smacc),
-  click **Create** to open the **Editor** on a fresh configuration (or select an
-  existing SMACC file and click **Edit**). Configure each tool on the left, set
-  the data directory, and **Save as…** to a new `.smacc` anywhere you like. The
-  Editor never records a run — it only authors configuration.
-- **From a live session.** In a running **Session**, use **File &rsaquo; Save
-  SMACC file as…** to snapshot the session's *current* settings — including any
-  mid-session tweaks (volumes, device routing, event-code edits) — to a new
-  SMACC file. Handy when you've tuned things live and want tonight's setup to be
-  tomorrow's starting point.
+    click **Create** to open the **Editor** on a fresh configuration (or select an
+    existing SMACC file and click **Edit**). Configure each tool on the left, set
+    the data directory, and **Save as…** to a new `.smacc` anywhere you like. The
+    Editor never records a run — it only authors configuration.
+- **From a live session.** In a running **Session**, use **File › Save
+    SMACC file as…** to snapshot the session's *current* settings — including any
+    mid-session tweaks (volumes, device routing, event-code edits) — to a new
+    SMACC file. Handy when you've tuned things live and want tonight's setup to be
+    tomorrow's starting point.
 
 SMACC ships a `default.smacc` in your SMACC directory as a working example. It
 is treated as a read-only template — saving over it redirects to Save-As — so
@@ -59,9 +59,9 @@ determines where a night's data ends up.
 Opening a SMACC file starts a new session configured by it:
 
 - **Double-click the file** (Windows build): SMACC launches straight into a
-  Session for it. The first launch offers to set up this file association; you
-  can (re)enable it any time from **File &rsaquo; Associate .smacc files
-  (Windows)** in the Launcher.
+    Session for it. The first launch offers to set up this file association; you
+    can (re)enable it any time from **File › Associate .smacc files
+    (Windows)** in the Launcher.
 - **From the Launcher**: pick the file in the **Settings** dropdown (recent
-  files are listed; **Browse…** finds any other), then click **Start**.
+    files are listed; **Browse…** finds any other), then click **Start**.
 - **From a terminal**: `SMACC path/to/file.smacc`.

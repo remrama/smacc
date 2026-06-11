@@ -15,12 +15,12 @@ onset	duration	trial_type	value
 283.9	n/a	Dream report started	201
 ```
 
-| Column | Type | Meaning |
-|---|---|---|
-| `onset` | seconds | Time from the **first** parseable log line (the onset origin). |
-| `duration` | seconds or `n/a` | `n/a` for instantaneous markers (all SMACC markers are instantaneous). |
-| `trial_type` | string | The event label, exactly as logged. |
-| `value` | integer | The event's port code (1–255). |
+| Column       | Type             | Meaning                                                                |
+| ------------ | ---------------- | ---------------------------------------------------------------------- |
+| `onset`      | seconds          | Time from the **first** parseable log line (the onset origin).         |
+| `duration`   | seconds or `n/a` | `n/a` for instantaneous markers (all SMACC markers are instantaneous). |
+| `trial_type` | string           | The event label, exactly as logged.                                    |
+| `value`      | integer          | The event's port code (1–255).                                         |
 
 ## JSON sidecar
 

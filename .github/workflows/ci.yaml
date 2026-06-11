@@ -21,6 +21,14 @@ jobs:
         run: uv run --extra dev ruff check .
       - name: Ruff format check
         run: uv run --extra dev ruff format --check .
+      # Markdown is formatted by mdformat (the docs counterpart to ruff). Run
+      # the pre-commit hook itself rather than re-listing files here, so the
+      # set of formatted files is defined once (the hook's scope in
+      # .pre-commit-config.yaml) and can't drift between CI and local use. The
+      # hook formats in place; pre-commit fails the job if anything changed,
+      # which is the check.
+      - name: Markdown format check
+        run: uv run --extra dev pre-commit run mdformat --all-files --show-diff-on-failure
       # mypy doesn't need the eeg extra: neither mne nor pyqtgraph ships
       # py.typed, so installing them adds no type information (and
       # ignore_missing_imports already covers their absence).

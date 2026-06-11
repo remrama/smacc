@@ -8,14 +8,14 @@ double-click `SMACC-Setup.exe` and click through. The installer:
 - installs SMACC **per-user** — no administrator rights or IT involvement needed;
 - adds a **Start menu** entry (and, if you opt in, a desktop shortcut);
 - associates **`.smacc` files**, so double-clicking a SMACC file opens a session
-  with it;
+    with it;
 - optionally installs the **EEG Review Tools** — the post-hoc
-  [EEG viewer/annotator](eeg-review.md). Off by default (it carries the
-  heavyweight MNE library); choose **Full installation** to include it, or
-  re-run the installer later to add it;
+    [EEG viewer/annotator](eeg-review.md). Off by default (it carries the
+    heavyweight MNE library); choose **Full installation** to include it, or
+    re-run the installer later to add it;
 - registers an uninstaller — remove SMACC from **Settings › Apps** like any other
-  program. Uninstalling never touches your data: SMACC files, recordings, and
-  logs under `~/SMACC` (or your data directories) all stay put.
+    program. Uninstalling never touches your data: SMACC files, recordings, and
+    logs under `~/SMACC` (or your data directories) all stay put.
 
 Installing a newer version over an existing one upgrades it in place, keeping
 whichever components you had chosen.
@@ -27,15 +27,18 @@ on this documentation site switches the *docs* only — older copies of SMACC
 itself come from the releases page.)
 
 !!! note "System requirements"
+
     SMACC runs on 64-bit Windows 10 or later.
 
 !!! warning "Windows SmartScreen — “Windows protected your PC”"
+
     SMACC isn't code-signed yet, so when you run the installer Windows SmartScreen
     may show a blue **“Windows protected your PC”** box. This is expected for any
     new, unsigned program. To proceed anyway, click **More info**, then
     **Run anyway**.
 
 !!! note "Administrator privileges and the UAC prompt"
+
     For some features you will need to open SMACC with Administrator privileges
     (right-click the Start menu entry and select **Run as administrator**). Windows
     then shows a **User Account Control (UAC)** prompt asking whether to allow the
@@ -55,6 +58,7 @@ installer's conveniences (Start menu entry, uninstaller); it offers to associate
 EEG* button lights up (it also runs standalone).
 
 !!! note "For IT departments"
+
     The default install is per-user (under `%LOCALAPPDATA%\Programs\SMACC`, no
     elevation). On managed machines where per-user installs are blocked — e.g.
     AppLocker policies on `%LOCALAPPDATA%` — run the same installer machine-wide
@@ -62,7 +66,7 @@ EEG* button lights up (it also runs standalone).
 
 ## Updating SMACC
 
-From the Launcher, **File &rsaquo; Check for updates…** asks GitHub whether a
+From the Launcher, **File › Check for updates…** asks GitHub whether a
 newer release exists and, if one does, offers to open the download page in your
 browser — run the new installer and it upgrades the existing install in place.
 SMACC never checks on its own: lab machines are often offline, and studies
@@ -86,7 +90,7 @@ own SMACC files anywhere. See [SMACC files](smacc-files.md).
 
 Each run gets its own timestamped folder under the SMACC file's data directory
 (e.g. `smacc-20260607-223015/`) holding that run's `.log`, dream-report recordings,
-and any exports. Subject/session are optional metadata (set from **File &rsaquo;
+and any exports. Subject/session are optional metadata (set from **File ›
 Session info…**) recorded inside the log/exports rather than in filenames. Display
 choices that apply to a session — **always-on-top** and which **log-preview** levels
 show — are stored in the SMACC file too, so they travel with the study. The machine
@@ -99,7 +103,7 @@ Your reusable setup is saved to a portable SMACC file (see
 [SMACC files](smacc-files.md)). The installer associates `.smacc` files so you can
 **double-click one to open SMACC and run a session with it**. The portable
 `SMACC.exe` offers the same association the first time it runs; you can also
-(re)enable it any time from **File &rsaquo; Associate .smacc files (Windows)** in
+(re)enable it any time from **File › Associate .smacc files (Windows)** in
 the Launcher.
 
 ### Audio cues
@@ -118,7 +122,7 @@ run folder) or a survey URL hosted on e.g. Qualtrics or REDCap (opened in the
 browser). Manage them from the Dream-recording panel's **Manage…** button; saved
 URLs persist in your SMACC file. Pick one from the survey dropdown to open it
 automatically when recording starts, or open any survey on its own from
-**File &rsaquo; Surveys**. See [Surveys](surveys.md).
+**File › Surveys**. See [Surveys](surveys.md).
 
 ### Recording device
 
