@@ -432,15 +432,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#roles-not-per-window-device-pickers" class="md-nav__link">
+  <a href="#equipment-not-per-window-device-pickers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Roles, not per-window device pickers
+        Equipment, not per-window device pickers
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Roles, not per-window device pickers">
+    <nav class="md-nav" aria-label="Equipment, not per-window device pickers">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -905,15 +905,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#roles-not-per-window-device-pickers" class="md-nav__link">
+  <a href="#equipment-not-per-window-device-pickers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Roles, not per-window device pickers
+        Equipment, not per-window device pickers
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Roles, not per-window device pickers">
+    <nav class="md-nav" aria-label="Equipment, not per-window device pickers">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1015,25 +1015,25 @@ more than one physical device and two rooms. On Windows, the same speaker can al
 appear under several names, and the level that reaches the participant is the product
 of several controls spread across the OS.</p>
 <p>This page describes how SMACC handles devices, routing, and volume.</p>
-<h2 id="roles-not-per-window-device-pickers">Roles, not per-window device pickers</h2>
+<h2 id="equipment-not-per-window-device-pickers">Equipment, not per-window device pickers</h2>
 <p>Instead of picking a device separately in every window, SMACC has one <strong>Devices
 window</strong> (in the <em>Tools</em> column) where you do two things:</p>
 <ol>
-<li><strong>Bind each <em>role</em> to a device, once.</strong> The roles are the physical endpoints of a
-   rig, named by place: <strong>Bedroom speaker</strong>, <strong>Control-room speaker</strong>, <strong>Bedroom
+<li><strong>Bind each piece of <em>equipment</em> to a device, once.</strong> Equipment entries are
+   the physical endpoints of a rig, named by place: <strong>Bedroom speaker</strong>, <strong>Control-room speaker</strong>, <strong>Bedroom
    mic 1</strong> (and an optional <strong>Bedroom mic 2</strong>), the <strong>Control-room mic</strong> (the
    experimenter's intercom voice), plus the light devices (<strong>BlinkStick light</strong>,
    <strong>Philips Hue light</strong>).</li>
-<li><strong>Route each modality to a role.</strong> Every modality is an action verb naming
-   what SMACC does with the device — <em>Play audio cue</em>, <em>Record dream report</em> —
-   and each points at a role. Hover any row in the window for a full description.</li>
+<li><strong>Route each <em>action</em> to equipment.</strong> Every action names what SMACC does
+   with a device — <em>Play audio cue</em>, <em>Record dream report</em> — and each points
+   at a piece of equipment. Hover any row in the window for a full description.</li>
 </ol>
-<p>The cue, the noise, and your intercom voice can all share the <strong>Bedroom speaker</strong>
-role, so swapping the bedroom speaker is one change rather than several. Every other
+<p>The cue, the noise, and your intercom voice can all share the <strong>Bedroom
+speaker</strong>, so swapping it is one change rather than several. Every other
 window shows a read-only indicator of where it resolves, for example
 <code>Device: Bedroom speaker → Speakers (USB Audio)</code>, and the Devices window shows the
-same resolution beside each route — a route pointed at a role with nothing bound
-reads <strong>→ no device</strong> instead of looking configured.</p>
+same resolution beside each route — a route pointed at equipment with nothing
+bound reads <strong>→ no device</strong> instead of looking configured.</p>
 <div class="highlight"><pre><span></span><code>Bedroom speaker       Speakers (USB Audio)
 Control-room speaker  Headphones (Realtek)
 Bedroom mic 1         Microphone (USB Audio)
@@ -1056,8 +1056,8 @@ is enough — and an overnight study must not follow it. Instead:</p>
   that is <em>currently</em> the Windows default — explicitly, by name — and logs which
   one it picked. From then on the binding is pinned: changing the Windows default
   never re-routes a study.</li>
-<li>A role with nothing bound reads <strong>(none)</strong>, and anything routed to it reports a
-  clear error instead of quietly playing somewhere else.</li>
+<li>Equipment with nothing bound reads <strong>(none)</strong>, and anything routed to it
+  reports a clear error instead of quietly playing somewhere else.</li>
 <li>If no device is connected at all, the dropdown says so (e.g. <strong>No output device
   found</strong>) rather than offering an empty choice.</li>
 <li>A bound device that isn't currently connected shows as <strong>(not connected)</strong> and
@@ -1065,7 +1065,8 @@ is enough — and an overnight study must not follow it. Instead:</p>
   in (then <strong>Refresh devices (F5)</strong>).</li>
 </ul>
 <p>The study editor never auto-binds: a study built on an office machine arrives at
-the rig with its roles unbound, and the rig pins its own defaults on first load.</p>
+the rig with its equipment unbound, and the rig pins its own defaults on first
+load.</p>
 <h3 id="monitoring-routes">Monitoring routes</h3>
 <p>Three optional routes cover the things you reach for mid-study:</p>
 <ul>

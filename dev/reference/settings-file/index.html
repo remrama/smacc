@@ -1169,7 +1169,7 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <span class="w">  </span><span class="c1"># --- Output cap + latency --------------------------------------------------</span>
 <span class="w">  </span><span class="nt">volume_cap</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
 <span class="w">  </span><span class="nt">output_latency</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high</span>
-<span class="w">  </span><span class="c1"># --- Device roles + routing ------------------------------------------------</span>
+<span class="w">  </span><span class="c1"># --- Device equipment + routing --------------------------------------------</span>
 <span class="w">  </span><span class="nt">devices</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">bindings</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
 <span class="w">    </span><span class="nt">routing</span><span class="p">:</span>
@@ -1461,7 +1461,7 @@ the built-ins; one that overrides a few codes keeps the rest.</p>
 load. <code>event_code_safe_max</code> (integer, default 255) sets the soft upper-bound warning
 for TTL-routed codes (LSL carries any code).</p>
 <h3 id="devices"><code>devices</code></h3>
-<p>Role → device bindings plus target → role routing (see <a href="../../audio/">Audio &amp; routing</a>
+<p>Equipment → device bindings plus action → equipment routing (see <a href="../../audio/">Audio &amp; routing</a>
 and <a href="../../devices/">Devices</a>).</p>
 <table>
 <thead>
@@ -1475,16 +1475,16 @@ and <a href="../../devices/">Devices</a>).</p>
 <tr>
 <td><code>bindings</code></td>
 <td>mapping</td>
-<td>Role key → device key. Roles: <code>bedroom_speaker</code>, <code>control_speaker</code>, <code>bedroom_mic_1</code>, <code>bedroom_mic_2</code>, <code>control_mic</code> (the experimenter's intercom mic), <code>blinkstick_light</code> (a stick's serial), <code>philips_hue_light</code> (a bridge target like <code>light:3</code> or <code>group:1</code>).</td>
+<td>Equipment key → device key. Equipment: <code>bedroom_speaker</code>, <code>control_speaker</code>, <code>bedroom_mic_1</code>, <code>bedroom_mic_2</code>, <code>control_mic</code> (the experimenter's intercom mic), <code>blinkstick_light</code> (a stick's serial), <code>philips_hue_light</code> (a bridge target like <code>light:3</code> or <code>group:1</code>).</td>
 </tr>
 <tr>
 <td><code>routing</code></td>
 <td>mapping</td>
-<td>Target key → role key (<code>""</code> = off). Targets: <code>play_audio_cue</code>, <code>listen_audio_cue</code>, <code>play_noise</code>, <code>play_visual_cue</code>, <code>speak_to_participant</code>, <code>listen_to_participant</code>, <code>record_dream_report</code>, <code>monitor_bedroom_noise</code>.</td>
+<td>Action key → equipment key (<code>""</code> = off). Actions: <code>play_audio_cue</code>, <code>listen_audio_cue</code>, <code>play_noise</code>, <code>play_visual_cue</code>, <code>speak_to_participant</code>, <code>listen_to_participant</code>, <code>record_dream_report</code>, <code>monitor_bedroom_noise</code>.</td>
 </tr>
 </tbody>
 </table>
-<p>A missing <code>devices</code> block loads the defaults (each target on its default role, with
+<p>A missing <code>devices</code> block loads the defaults (each action on its default equipment, with
 no devices bound). When a live session starts (or loads a study) with
 <code>bedroom_speaker</code>, <code>bedroom_mic_1</code>, or <code>control_mic</code> unbound, SMACC binds the
 current Windows default device explicitly, by name, and logs the choice — there is
