@@ -271,11 +271,14 @@ class SmaccSession:
         # sleep) so both edges land as close together as possible. LSL is stamped at
         # the estimated onset (now + onset_offset) so it lines up with the stimulus;
         # the hardware TTL just fires its edge now (LSL is the timed path SMACC owns).
-        if event.lsl and self.outlet is not None:
+        # Snapshot the outlet: emit_event can fire from a non-GUI thread while the
+        # GUI thread closes the session and Nones the attribute.
+        outlet = self.outlet
+        if event.lsl and outlet is not None:
             if onset_offset > 0.0:
-                self.outlet.push_sample([str(code)], local_clock() + onset_offset)
+                outlet.push_sample([str(code)], local_clock() + onset_offset)
             else:
-                self.outlet.push_sample([str(code)])
+                outlet.push_sample([str(code)])
         if event.ttl and self.trigger_out is not None:
             try:
                 self.trigger_out.send(code)

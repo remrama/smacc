@@ -39,6 +39,21 @@ def test_partial_file_merges_over_defaults(tmp_path):
     assert "association_prompted" in prefs  # every default key present
 
 
+def test_log_preview_max_lines_reads_a_positive_int():
+    assert preferences.log_preview_max_lines({"log_preview_max_lines": 50}) == 50
+
+
+def test_log_preview_max_lines_falls_back_on_garbage():
+    default = preferences.DEFAULTS["log_preview_max_lines"]
+    for bad in (
+        {},
+        {"log_preview_max_lines": 0},
+        {"log_preview_max_lines": "many"},
+        {"log_preview_max_lines": True},
+    ):
+        assert preferences.log_preview_max_lines(bad) == default
+
+
 def test_round_trip(tmp_path):
     path = tmp_path / "preferences.yaml"
     custom = preferences.default_preferences()
