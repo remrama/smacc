@@ -21,6 +21,9 @@ jobs:
         run: uv run --extra dev ruff check .
       - name: Ruff format check
         run: uv run --extra dev ruff format --check .
+      # mypy doesn't need the eeg extra: neither mne nor pyqtgraph ships
+      # py.typed, so installing them adds no type information (and
+      # ignore_missing_imports already covers their absence).
       - name: Type check
         run: uv run --extra dev mypy
 
@@ -46,8 +49,10 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+      # --extra eeg pulls mne/pyqtgraph so the optional EEG review tests run
+      # too (#136); they importorskip, so a base env still passes without it.
       - name: Run tests
-        run: uv run --extra dev pytest --cov=smacc --cov-report=xml --cov-report=term-missing
+        run: uv run --extra dev --extra eeg pytest --cov=smacc --cov-report=xml --cov-report=term-missing
       - name: Upload coverage to Codecov
         # Upload only from the release-mirror runner, and only when the tests passed
         # (`success()` — an explicit `if:` otherwise overrides the implicit

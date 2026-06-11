@@ -50,6 +50,14 @@ docs = [
     "mkdocs-material",
     "mike",
 ]
+# The optional EEG review tool (#136). MNE is far too heavy for the base install,
+# so the viewer ships as a separate frozen exe / installer component; this extra
+# is its dev/CI environment. MNE is I/O and annotation conversion only — rendering
+# is pyqtgraph and display filtering is scipy (a core dependency).
+eeg = [
+    "mne>=1.6",
+    "pyqtgraph>=0.13",
+]
 dev = [
     "pytest",
     # GUI tests run headless via the Qt "offscreen" platform (set in
