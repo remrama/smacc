@@ -37,6 +37,11 @@ preferences_path = smacc_directory / "preferences.yaml"
 DEFAULT_SETTINGS_PATH = smacc_directory / "default.smacc"
 # Where runs go when a settings file doesn't name its own data directory.
 DEFAULT_DATA_DIR = smacc_directory / "data"
+# App-level logs, global to this machine (run logs live in per-run folders).
+LOGS_DIR = smacc_directory / "logs"
+# The persistent crash log: faulthandler dumps, uncaught-exception tracebacks,
+# and Qt fatal messages land here even when no run log exists (see smacc.crashlog).
+CRASH_LOG_PATH = LOGS_DIR / "crash.log"
 # Biocal voice recordings (#78). The standard set is read straight from the
 # bundle (so it tracks the app on upgrade, #122); this folder is an optional
 # *override* — a lab drops a same-named WAV here to replace one — and is not

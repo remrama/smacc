@@ -1,5 +1,6 @@
 """Run the app."""
 
+import faulthandler
 import logging
 import os
 import sys
@@ -8,16 +9,17 @@ import traceback
 from pathlib import Path
 from types import TracebackType
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
-from . import preferences
+from . import crashlog, preferences
 from .config import VERSION
 from .launcher import LauncherWindow, resolve_initial_settings
 from .paths import (
     BUNDLED_CUES_DIR,
     BUNDLED_DEFAULT_SETTINGS,
+    CRASH_LOG_PATH,
     DEFAULT_DATA_DIR,
     DEFAULT_SETTINGS_PATH,
     LOGO_PATH,
@@ -64,22 +66,26 @@ def pick_settings_path(args: list[str]) -> str | None:
 
 
 def _install_excepthook() -> None:
-    """Capture uncaught exceptions in the log file (and a dialog on the GUI thread).
+    """Capture uncaught exceptions in the crash log, the run log, and a dialog.
 
     The packaged app is built with PyInstaller ``--noconsole``, so without this an
-    unhandled exception would be lost entirely (no terminal to print to). We log
-    the full traceback to the smacc log file and still chain to the default hook
-    so a dev terminal keeps printing tracebacks. Background-thread exceptions
-    (e.g. the audio callback) are logged only — never touch widgets off the GUI
-    thread.
+    unhandled exception would be lost entirely (no terminal to print to). The
+    traceback goes to the persistent crash log first (a direct file write that
+    depends on nothing), then to the smacc logger (the run log, when a session
+    is live), then a dialog — shown only once a QApplication exists, so the
+    hook can be installed before Qt starts and still cover the whole launch.
+    Background-thread exceptions (e.g. the audio callback) are logged only —
+    never touch widgets off the GUI thread.
     """
     logger = logging.getLogger("smacc")
 
     def log_file_hint() -> str:
+        # Prefer the run log (the crash in context); outside a live session the
+        # crash log is the only file, and it always has the traceback.
         for handler in logger.handlers:
             if isinstance(handler, logging.FileHandler):
                 return f"\n\nDetails were written to:\n{handler.baseFilename}"
-        return ""
+        return f"\n\nDetails were written to:\n{CRASH_LOG_PATH}"
 
     def handle_main(
         exc_type: type[BaseException],
@@ -89,13 +95,15 @@ def _install_excepthook() -> None:
         if issubclass(exc_type, KeyboardInterrupt):
             sys.__excepthook__(exc_type, exc_value, exc_tb)
             return
+        crashlog.record_exception("Uncaught exception", exc_type, exc_value, exc_tb)
         logger.critical("Uncaught exception", exc_info=(exc_type, exc_value, exc_tb))
         summary = "".join(traceback.format_exception_only(exc_type, exc_value)).strip()
-        QMessageBox.critical(
-            None,
-            "SMACC error",
-            f"An unexpected error occurred:\n\n{summary}{log_file_hint()}",
-        )
+        if QApplication.instance() is not None:
+            QMessageBox.critical(
+                None,
+                "SMACC error",
+                f"An unexpected error occurred:\n\n{summary}{log_file_hint()}",
+            )
         # Keep default behaviour too, so a dev terminal still shows the traceback.
         sys.__excepthook__(exc_type, exc_value, exc_tb)
 
@@ -104,6 +112,12 @@ def _install_excepthook() -> None:
             return
         name = args.thread.name if args.thread is not None else "?"
         exc_value = args.exc_value if args.exc_value is not None else args.exc_type()
+        crashlog.record_exception(
+            f"Uncaught exception in thread {name}",
+            args.exc_type,
+            exc_value,
+            args.exc_traceback,
+        )
         logger.critical(
             "Uncaught exception in thread %s",
             name,
@@ -112,6 +126,36 @@ def _install_excepthook() -> None:
 
     sys.excepthook = handle_main
     threading.excepthook = handle_thread
+
+
+def pick_crash_test(args: list[str]) -> str | None:
+    """Return the hidden ``--crash-test`` mode from CLI args, or ``None``.
+
+    ``--crash-test`` (or ``=python``) raises a RuntimeError once the event loop
+    runs, exercising the excepthook → crash log → dialog path; ``=native``
+    segfaults the process, exercising the faulthandler dump. This is the only
+    way to verify the crash pipeline on the frozen ``--noconsole`` exe, where
+    no console or debugger is attached. Deliberately undocumented in the UI.
+    """
+    for arg in args:
+        if arg == "--crash-test" or arg.startswith("--crash-test="):
+            mode = arg.partition("=")[2]
+            return mode or "python"
+    return None
+
+
+def _schedule_crash_test(mode: str | None) -> None:
+    """Arm the deliberate ``--crash-test`` crash to fire once the loop starts."""
+    if mode is None:
+        return
+    if mode == "native":
+        QTimer.singleShot(0, faulthandler._sigsegv)
+        return
+
+    def _boom() -> None:
+        raise RuntimeError("SMACC crash test (--crash-test)")
+
+    QTimer.singleShot(0, _boom)
 
 
 def main() -> None:
@@ -133,9 +177,14 @@ def main() -> None:
         if sys.stdout is not None:  # absent in a --noconsole build
             print(f"SMACC {VERSION}")
         return
+    # Crash capture first, before any Qt: a native crash during Qt startup is
+    # exactly what the persistent crash log exists to record (#149). The
+    # excepthook's dialog arms itself once the QApplication below exists.
+    crashlog.install(VERSION)
+    crashlog.install_qt_message_handler()
+    _install_excepthook()
     _quiet_qt_multimedia_logging()  # before QApplication: Qt reads the rule at startup
     app = QApplication(sys.argv)
-    _install_excepthook()
     # Fusion honors the full QPalette consistently across platforms, which the
     # native Windows style does not — required for the lights-off dark theme.
     app.setStyle("Fusion")
@@ -168,6 +217,8 @@ def main() -> None:
         prefs = preferences.load_preferences(preferences_path)
         launcher = LauncherWindow(resolve_initial_settings(prefs))
         launcher.show()
+    # Hidden QA hook: crash on purpose right after startup (see pick_crash_test).
+    _schedule_crash_test(pick_crash_test(sys.argv[1:]))
     # `launcher` stays referenced for the life of main() (until app.exec returns),
     # so Qt won't garbage-collect the root window.
     sys.exit(app.exec())

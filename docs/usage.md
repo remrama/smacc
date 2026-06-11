@@ -292,6 +292,19 @@ file's **data directory** (e.g. `~/SMACC/data/`), capturing the events and setti
 for that session. Open one later from the Launcher's **Analyze** to see a
 summary, export its events to BIDS, or recover its settings.
 
+### If SMACC crashes
+
+Separately from the per-run logs, SMACC keeps a permanent crash log at
+`~/SMACC/logs/crash.log`. Uncaught errors, Qt's own fatal messages, and — via
+Python's `faulthandler` — the stack of every thread at a hard crash (such as an
+access violation inside Qt or an audio driver) are appended there, even when no
+session is running. Note that a hard-crash dump shows where the *Python* side
+was at that moment, which is usually enough to identify the failing subsystem.
+Every launch and every session start is also stamped in the file, so a crash
+can be matched to its night and run folder. When reporting a crash, send
+`crash.log` together with the affected run's folder. The file is rotated at
+launch once it grows large (one older `crash.log.1` generation is kept).
+
 ## SMACC files (`.smacc`)
 
 A **SMACC file** captures your study's whole configuration — cue files, volumes,

@@ -17,7 +17,7 @@ from pathlib import Path
 from pylsl import StreamInfo, StreamOutlet, local_clock
 from PyQt6 import QtWidgets
 
-from . import bids, devices, events, hue, settings, triggers
+from . import bids, crashlog, devices, events, hue, settings, triggers
 from .config import VERSION
 
 
@@ -134,6 +134,10 @@ class SmaccSession:
             log_path = session_dir / f"{session_dir.name}.log"
             self.log_path = log_path
             self.init_logger(log_path)
+            # Breadcrumb in the persistent crash log: a faulthandler dump has
+            # no timestamps, so this line is what ties a crash to its night
+            # and points at the run folder with the detailed log (#149).
+            crashlog.note(f"Session started: {session_dir}")
             self.init_lsl_stream()
 
     def init_logger(self, log_path: Path) -> None:
