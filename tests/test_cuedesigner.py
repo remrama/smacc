@@ -144,6 +144,17 @@ def test_waveform_tracks_the_design(qtbot):
     win.rows[0].durationSpin.setValue(0.25)
     win._refresh_waveform()  # debounced in the app; forced here
     assert win.waveformView._samples.shape == (EXPORT_RATE // 4,)
+    pixmap = win.waveformView.pixmap()
+    assert not pixmap.isNull()  # the envelope actually rendered
+
+
+def test_close_stops_the_pending_waveform_render(qtbot):
+    win = CueDesignerWindow()
+    qtbot.addWidget(win)
+    win.rows[0].durationSpin.setValue(0.2)  # schedules a debounced render
+    assert win._renderTimer.isActive()
+    win.close()
+    assert not win._renderTimer.isActive()
 
 
 def test_save_and_open_design_round_trip(qtbot, tmp_path, monkeypatch):

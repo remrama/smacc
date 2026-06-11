@@ -26,7 +26,7 @@ from pathlib import Path
 
 import numpy as np
 import sounddevice as sd
-from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets, sip
 
 from . import audio, synth
 from .panels.base import make_section_title
@@ -79,13 +79,20 @@ def make_presets() -> list[tuple[str, synth.CueDesign]]:
     ]
 
 
-class WaveformView(QtWidgets.QWidget):
+class WaveformView(QtWidgets.QLabel):
     """Min/max-envelope view of the rendered cue, one column per pixel.
 
     Pure display: the window hands it the latest rendered buffer (debounced) and
-    it paints with palette colors so it follows the app theme. The envelope — not
+    it draws with palette colors so it follows the app theme. The envelope — not
     the raw wave — is what cue design needs at a glance: levels, decays, gaps,
     repeats, and fades.
+
+    The drawing happens off-screen into a pixmap shown by this QLabel (the same
+    pattern as the Visual cue swatch) rather than in a ``paintEvent`` override —
+    a queued paint can be delivered while the widget is being torn down, and a
+    Python paint handler at that moment aborts the process (seen intermittently
+    in offscreen CI runs). A pixmap never paints on a live widget, so there is no
+    such window.
     """
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
@@ -98,37 +105,45 @@ class WaveformView(QtWidgets.QWidget):
         self._samples: np.ndarray = np.zeros(0, dtype=np.float32)
 
     def set_samples(self, samples: np.ndarray) -> None:
-        """Show ``samples`` (mono float32 in ``[-1, 1]``); empty clears the view."""
+        """Show ``samples`` (mono float32 in ``[-1, 1]``); empty clears the wave."""
         self._samples = samples
-        self.update()
+        self._redraw()
 
-    def paintEvent(self, event: QtGui.QPaintEvent | None) -> None:
-        painter = QtGui.QPainter(self)
-        rect = self.rect()
+    def resizeEvent(self, event: QtGui.QResizeEvent | None) -> None:
+        super().resizeEvent(event)
+        if not sip.isdeleted(self):  # resizes can also land mid-teardown
+            self._redraw()
+
+    def _redraw(self) -> None:
+        """Render the envelope into a fresh pixmap sized to the current widget."""
+        width = max(1, self.width())
+        height = max(1, self.height())
+        pixmap = QtGui.QPixmap(width, height)
         palette = self.palette()
-        painter.fillRect(rect, palette.color(QtGui.QPalette.ColorRole.Base))
-        mid_y = rect.height() / 2
+        pixmap.fill(palette.color(QtGui.QPalette.ColorRole.Base))
+        painter = QtGui.QPainter(pixmap)
+        mid_y = height / 2
         painter.setPen(palette.color(QtGui.QPalette.ColorRole.Mid))
-        painter.drawLine(QtCore.QLineF(0, mid_y, rect.width(), mid_y))
+        painter.drawLine(QtCore.QLineF(0, mid_y, width, mid_y))
         n = self._samples.shape[0]
-        if n == 0:
-            return
-        width = max(1, rect.width())
-        # Column boundaries into the sample buffer; each column draws the
-        # min..max span of its slice (a slice may be empty when n < width).
-        edges = np.linspace(0, n, num=width + 1).astype(np.int64)
-        painter.setPen(palette.color(QtGui.QPalette.ColorRole.Highlight))
-        half = mid_y - 2
-        for x in range(width):
-            lo, hi = int(edges[x]), int(edges[x + 1])
-            if hi <= lo:
-                hi = min(lo + 1, n)
-            chunk = self._samples[lo:hi]
-            if chunk.size == 0:
-                continue
-            top = mid_y - float(chunk.max()) * half
-            bottom = mid_y - float(chunk.min()) * half
-            painter.drawLine(QtCore.QLineF(x, top, x, bottom))
+        if n:
+            # Column boundaries into the sample buffer; each column draws the
+            # min..max span of its slice (a slice may be empty when n < width).
+            edges = np.linspace(0, n, num=width + 1).astype(np.int64)
+            painter.setPen(palette.color(QtGui.QPalette.ColorRole.Highlight))
+            half = mid_y - 2
+            for x in range(width):
+                lo, hi = int(edges[x]), int(edges[x + 1])
+                if hi <= lo:
+                    hi = min(lo + 1, n)
+                chunk = self._samples[lo:hi]
+                if chunk.size == 0:
+                    continue
+                top = mid_y - float(chunk.max()) * half
+                bottom = mid_y - float(chunk.min()) * half
+                painter.drawLine(QtCore.QLineF(x, top, x, bottom))
+        painter.end()
+        self.setPixmap(pixmap)
 
 
 @dataclass
@@ -664,6 +679,7 @@ class CueDesignerWindow(ToolWindow):
 
     def closeEvent(self, event: QtGui.QCloseEvent | None) -> None:
         """Stop any preview and hand control back to the launcher."""
+        self._renderTimer.stop()  # no debounced render into a closing window
         self.stop_preview()
         if event is not None:
             event.accept()
