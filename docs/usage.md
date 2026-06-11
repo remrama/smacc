@@ -206,16 +206,16 @@ message.
 
 **What's recorded.** Every message is written verbatim to the session log as a
 DEBUG line (tick *Debug* above the log preview to watch the exchange live). By
-default no portcodes fire and nothing reaches the BIDS events export — a typed
+default no port codes fire and nothing reaches the BIDS events export — a typed
 exchange is rapid and conversational, and would flood the marker channel. If a
 study needs marker timestamps, route `Chat to participant` (code 69) and/or
 `Chat from participant` (code 70) to LSL/TTL in the **Markers** window;
 the markers stay bare (no message text) so the trigger channel remains legible.
 
-## EEG portcodes
+## EEG port codes
 
 SMACC marks experiment events — a cue played, a dream report, observed REM, the
-lights toggled — by sending a numeric **portcode** to its marker stream and writing a
+lights toggled — by sending a numeric **port code** to its marker stream and writing a
 matching line to the session log, keeping cue delivery and your neural data in sync.
 
 ### Configuring codes
@@ -229,7 +229,7 @@ biocals, chat, system) — and the
 [hardware TTL transport](triggers.md#configuring-trigger-output-in-smacc).
 For each event you can set:
 
-- **Code** — the 8-bit portcode (1–255) sent when the event triggers.
+- **Code** — the 8-bit port code (1–255) sent when the event triggers.
 - **LSL** — whether a firing sends the code over the LSL marker stream.
 - **TTL** — whether a firing sends the code over the hardware TTL trigger. The
   column is grayed out until a transport is enabled in the window's **Hardware
@@ -258,8 +258,8 @@ re-reads the session's current setup. The window stays available throughout a
 session. If you change a code mid-session, the change is written to the log with a
 timestamp, so the code-to-event mapping for that session is always recoverable.
 
-Beyond portcodes, SMACC logs the important interactions too — volume, color, device,
-and fade changes — as plain log lines (no portcode), so the session record is complete.
+Beyond port codes, SMACC logs the important interactions too — volume, color, device,
+and fade changes — as plain log lines (no port code), so the session record is complete.
 
 ### Event logging panel
 

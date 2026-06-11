@@ -43,7 +43,7 @@ Keep the history skimmable and merge commits clean.
 ```text
 feat: optional hardware TTL trigger output
 docs: document audio routing
-fix: clamp incrementing portcodes to 255
+fix: clamp incrementing port codes to 255
 ```
 
 **Pull requests**

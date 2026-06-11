@@ -177,11 +177,11 @@ class RecordingWindow(ModalityWindow):
         them, so a short report-NN name is enough.
         """
         device = self._selected_input_device()
-        self.n_report_counter += 1
         assert self.session.session_dir is not None  # recording is gated on can_record
-        export_path = (
-            self.session.session_dir / f"report-{self.n_report_counter:02d}.wav"
-        )
+        # The counter advances only after the stream starts, so a failed attempt
+        # can never leave a gap in the report numbering.
+        number = self.n_report_counter + 1
+        export_path = self.session.session_dir / f"report-{number:02d}.wav"
         try:
             rate = int(sd.query_devices(device, "input")["default_samplerate"])
             self._record_file = sf.SoundFile(
@@ -200,11 +200,11 @@ class RecordingWindow(ModalityWindow):
             self._record_stream.start()
         except Exception as exc:  # PortAudio / file-open errors
             self._teardown_recording()
-            self.n_report_counter -= 1  # this attempt produced no report
             self.session.show_error_popup(
                 "Could not start recording.", str(exc), parent=self
             )
             return False
+        self.n_report_counter = number
         self._set_recording_indicator(True)
         return True
 

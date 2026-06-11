@@ -28,7 +28,6 @@ def resolve_device(device: str | None, kind: str) -> int | str | None:
     """
     if not device:
         return None
-    name = devices.strip_wasapi_suffix(device)
     chan_key = f"max_{kind}_channels"
     try:
         host_api_names = [api["name"] for api in sd.query_hostapis()]
@@ -37,12 +36,12 @@ def resolve_device(device: str | None, kind: str) -> int | str | None:
             if (
                 info["hostapi"] == hostapi
                 and info[chan_key] > 0
-                and info["name"] == name
+                and info["name"] == device
             ):
                 return index
     except Exception:
         pass  # no WASAPI host API (or query failed): fall through to the name
-    return name
+    return device
 
 
 def describe_target(session: SmaccSession, target_key: str) -> str:

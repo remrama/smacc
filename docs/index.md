@@ -8,7 +8,7 @@ a simple, clickable interface and is commonly used in dream engineering research
 * Trigger audio cues
 * Trigger visual cues (BlinkStick or Philips Hue)
 * Collect dream reports
-* Trigger EEG portcodes
+* Trigger EEG port codes
 * Save a detailed event log
 * and more!
 
@@ -26,7 +26,7 @@ download, or for downloading older versions.
 ## Get started
 
 * [Installation](installation.md) — download and run SMACC.
-* [Usage](usage.md) — trigger cues, record dream reports, send portcodes, and more.
+* [Usage](usage.md) — trigger cues, record dream reports, send port codes, and more.
 * [SMACC files](smacc-files.md) — create and reuse a study's configuration (`.smacc`).
 * [Audio & routing](audio.md) — assign devices to roles, route cues/noise/intercom, and set volume.
 * [Visual cues](visual.md) — light cues on a BlinkStick or Philips Hue: patterns, timing, and safety.

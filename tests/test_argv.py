@@ -1,12 +1,15 @@
 """Tests for launch-with-a-file argument picking (no GUI required)."""
 
 import os
+import sys
 
 from smacc.__main__ import (
     _FFMPEG_QUIET_RULE,
     _quiet_qt_multimedia_logging,
+    main,
     pick_settings_path,
 )
+from smacc.config import VERSION
 
 
 def test_no_positional_returns_none():
@@ -30,6 +33,14 @@ def test_ignores_flags_and_other_files():
 
 def test_last_study_file_wins():
     assert pick_settings_path(["SMACC.exe", "a.smacc", "b.smacc"]) == "b.smacc"
+
+
+def test_version_flag_exits_before_any_window(monkeypatch, capsys):
+    # The release workflow's smoke test: --version must return (exit code 0)
+    # without constructing a QApplication or touching the SMACC directory.
+    monkeypatch.setattr(sys, "argv", ["SMACC.exe", "--version"])
+    main()  # returns instead of entering the Qt event loop
+    assert f"SMACC {VERSION}" in capsys.readouterr().out
 
 
 # ----- Qt-multimedia logging rule (quiet the FFmpeg startup banner) ----------

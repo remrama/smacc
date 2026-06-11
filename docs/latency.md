@@ -124,7 +124,7 @@ rig**. To characterise yours:
 
 - **Against the EEG, per session (authoritative).** Record the real stimulus onset on
   a spare amplifier channel — a microphone for the cue, a photodiode for the light —
-  alongside the LSL portcode. The difference between the portcode and the recorded
+  alongside the LSL port code. The difference between the port code and the recorded
   onset, across the night, is the true distribution, and it can be visualised in the
   Analyze tool. This needs a spare channel and is tracked in
   [#104](https://github.com/remrama/smacc/issues/104).

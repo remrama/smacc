@@ -10,7 +10,7 @@ the timing/marker state machine; the Qt window that renders it lives in
 Three layers, all Qt-free and unit-testable:
 
 * :class:`BiocalDef` — the app-defined table of biocals (label, task-window
-  duration, spoken instruction, default portcode). Like event labels, these stay
+  duration, spoken instruction, default port code). Like event labels, these stay
   app-defined so improvements reach old studies; only the *stack* below travels
   with a study.
 * :class:`BiocalRow` — one row of a study's biocal stack: which biocal, whether
@@ -21,7 +21,7 @@ Three layers, all Qt-free and unit-testable:
   The GUI feeds it presses/ticks and executes the :data:`Action` values it
   returns (emit a marker, start/stop the voice).
 
-Marker timing: the start portcode marks the *task window* opening — with the
+Marker timing: the start port code marks the *task window* opening — with the
 voice enabled it fires when the announcement ends, matching the manual practice
 of speaking the instruction first and marking when the participant complies.
 So the trigger channel reads the same whether the voice or the experimenter
