@@ -3,7 +3,7 @@
 # "Attitude towards dreams" matrix (likert). The 0–7 yearly-frequency scale is
 # defined once (&freq) and reused (*freq).
 kind: smacc/survey
-schema_version: 2
+schema_version: 1
 key: madre
 name: MADRE
 title: Mannheim Dream Questionnaire (MADRE)

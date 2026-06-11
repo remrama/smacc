@@ -27,26 +27,9 @@ OUTPUT = "output"
 INPUT = "input"
 VISUAL = "visual"
 
-# SMACC enumerates only WASAPI audio devices, so device names used to carry a
-# redundant ", Windows WASAPI" suffix (the host-API name PortAudio appends). New
-# bindings store the bare name; this constant lets older settings that saved the
-# suffixed form still resolve. See :func:`strip_wasapi_suffix`.
+# The PortAudio host API SMACC enumerates (and pins streams to); bindings store
+# the bare device name without this host-API name appended.
 WASAPI_HOST_API = "Windows WASAPI"
-_WASAPI_SUFFIX = f", {WASAPI_HOST_API}"
-
-
-def strip_wasapi_suffix(device: str) -> str:
-    """Drop a trailing ", Windows WASAPI" from a stored device string.
-
-    Device names are no longer stored with the host-API suffix (SMACC only ever
-    lists WASAPI devices, so it added nothing). Older ``.smacc`` files saved the
-    suffixed form, though, so every place that matches a stored device string
-    normalizes through this first — the bare and suffixed forms then compare equal
-    and an existing binding keeps resolving to the same device.
-    """
-    if device.endswith(_WASAPI_SUFFIX):
-        return device[: -len(_WASAPI_SUFFIX)]
-    return device
 
 
 @dataclass(frozen=True)

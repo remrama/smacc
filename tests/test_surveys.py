@@ -104,9 +104,8 @@ def test_parse_rejects_non_mapping():
 
 
 def _typed_mapping(items, **overrides):
-    """A valid schema_version 2 mapping carrying the given (typed) items."""
+    """A valid survey mapping carrying the given (typed) items."""
     payload = _mapping(**overrides)
-    payload["schema_version"] = 2
     payload["items"] = items
     return payload
 
@@ -148,19 +147,11 @@ def test_parse_select_number_text_heading_items():
     assert len(survey.response_items) == 4  # the heading collects nothing
 
 
-def test_typed_items_require_schema_version_2():
-    # A mapping (typed) item in a v1 file is rejected with a clear message.
-    payload = _mapping()  # schema_version 1, string items
-    payload["items"] = ["ok", {"text": "Age", "type": "number"}]
-    with pytest.raises(ValueError, match="schema_version 2"):
-        surveys.parse_survey_mapping(payload)
-
-
 def test_scale_optional_when_no_likert_items():
     survey = surveys.parse_survey_mapping(
         {
             "kind": surveys.KIND,
-            "schema_version": 2,
+            "schema_version": surveys.SCHEMA_VERSION,
             "key": "demo",
             "name": "Demo",
             "items": [{"text": "Job", "type": "text"}],  # no Likert -> no scale needed
@@ -213,15 +204,10 @@ def test_typed_survey_round_trips_through_mapping():
         )
     )
     mapping = surveys.survey_to_mapping(survey)
-    assert mapping["schema_version"] == 2  # typed items force v2
+    assert mapping["schema_version"] == surveys.SCHEMA_VERSION
     assert mapping["items"][1] == "A Likert item"  # plain Likert collapses to a string
     reloaded = surveys.parse_survey_mapping(mapping)
     assert reloaded.items == survey.items
-
-
-def test_simple_likert_round_trips_as_version_1():
-    survey = surveys.parse_survey_mapping(_mapping())
-    assert surveys.survey_to_mapping(survey)["schema_version"] == 1
 
 
 # ----- save / load round trip ---------------------------------------------------

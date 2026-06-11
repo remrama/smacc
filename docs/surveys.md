@@ -155,9 +155,7 @@ items:
 
 A bare-string item is a **Likert** item rated against the survey's shared
 `scale` — the original shape, and all the builder produces. Definition files can
-also mix in other item types by writing an item as a mapping with a `type`
-(this requires `schema_version: 2`; an older SMACC then refuses the file cleanly
-rather than mis-reading it):
+also mix in other item types by writing an item as a mapping with a `type`:
 
 | `type` | Renders as | Extra fields |
 |---|---|---|
@@ -176,7 +174,7 @@ and points at the path). For a full worked example, see the bundled
 
 ```yaml
 kind: smacc/survey
-schema_version: 2
+schema_version: 1
 key: intake
 name: Intake
 title: Session intake
