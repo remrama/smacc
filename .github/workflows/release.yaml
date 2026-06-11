@@ -22,6 +22,13 @@ jobs:
       - run: uv sync --extra dev
       - name: Build SMACC.exe
         run: uv run pyinstaller entry.py --name SMACC --onefile --noconsole --icon src/smacc/assets/icon.ico --add-data "src/smacc/assets/icon.png;smacc/assets" --add-data "src/smacc/assets/default.smacc;smacc/assets" --add-data "src/smacc/assets/cues;smacc/assets/cues" --add-data "src/smacc/assets/biocals;smacc/assets/biocals" --add-data "src/smacc/assets/surveys;smacc/assets/surveys"
+      # A broken bundle (missing data file, import error) otherwise ships silently:
+      # the exe is windowed (--noconsole), so PowerShell won't wait for it on its
+      # own and there is no stdout — Start-Process -Wait + the exit code is the test.
+      - name: Smoke-test the exe
+        run: |
+          $p = Start-Process -FilePath dist/SMACC.exe -ArgumentList '--version' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "SMACC.exe --version exited with code $($p.ExitCode)" }
       - name: Attach exe to release
         uses: softprops/action-gh-release@v2
         with:
