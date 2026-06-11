@@ -52,6 +52,16 @@ installer's conveniences (Start menu entry, uninstaller); it offers to associate
     AppLocker policies on `%LOCALAPPDATA%` — run the same installer machine-wide
     instead: `SMACC-Setup.exe /ALLUSERS` (elevates, installs to Program Files).
 
+## Updating SMACC
+
+From the Launcher, **File &rsaquo; Check for updates…** asks GitHub whether a
+newer release exists and, if one does, offers to open the download page in your
+browser — run the new installer and it upgrades the existing install in place.
+SMACC never checks on its own: lab machines are often offline, and studies
+usually pin one version for their whole run, so checking is always an explicit
+click. If you use the portable `SMACC.exe`, download the new one and replace
+your old copy.
+
 ## Optional setup
 
 ### Data directory
