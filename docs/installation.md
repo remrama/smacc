@@ -9,11 +9,16 @@ double-click `SMACC-Setup.exe` and click through. The installer:
 - adds a **Start menu** entry (and, if you opt in, a desktop shortcut);
 - associates **`.smacc` files**, so double-clicking a SMACC file opens a session
   with it;
+- optionally installs the **EEG Review Tools** — the post-hoc
+  [EEG viewer/annotator](eeg-review.md). Off by default (it carries the
+  heavyweight MNE library); choose **Full installation** to include it, or
+  re-run the installer later to add it;
 - registers an uninstaller — remove SMACC from **Settings › Apps** like any other
   program. Uninstalling never touches your data: SMACC files, recordings, and
   logs under `~/SMACC` (or your data directories) all stay put.
 
-Installing a newer version over an existing one upgrades it in place.
+Installing a newer version over an existing one upgrades it in place, keeping
+whichever components you had chosen.
 
 To get an older or specific version, browse the
 [releases page](https://github.com/remrama/smacc/releases): pick the release you
@@ -44,7 +49,10 @@ Every release also ships the same app as a single portable `SMACC.exe` — downl
 it, double-click it, no installation. This suits USB-stick deployment, machines
 where nothing may be installed, and quick tests. The portable build skips the
 installer's conveniences (Start menu entry, uninstaller); it offers to associate
-`.smacc` files itself the first time it runs (see below).
+`.smacc` files itself the first time it runs (see below). The
+[EEG review tool](eeg-review.md) is likewise available portable as
+`SMACC-EEG.exe` — put it **next to** `SMACC.exe` and the Launcher's *Review
+EEG* button lights up (it also runs standalone).
 
 !!! note "For IT departments"
     The default install is per-user (under `%LOCALAPPDATA%\Programs\SMACC`, no

@@ -12,6 +12,7 @@ from the task-oriented [Usage](../usage.md) guide.
 | [BIDS export](bids-export.md) | `events.tsv` + JSON sidecar | TSV / JSON | follows BIDS |
 | [Survey definition](../surveys.md) | An in-app survey (built-in or custom) | YAML | `schema_version: 1` |
 | [Survey response](../surveys.md#response-files) | One administration's answers | JSON | — |
+| [Annotations sidecar](annotations-file.md) | EEG review marks (`*.annotations.tsv`) | TSV / JSON | follows BIDS columns |
 
 ## Where each file lives
 

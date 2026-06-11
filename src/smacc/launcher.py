@@ -19,7 +19,7 @@ from pathlib import Path
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from . import preferences, settings, updates, winassoc, windowstate
+from . import eeg, preferences, settings, updates, winassoc, windowstate
 from .analyze import AnalyzeWindow
 from .config import VERSION
 from .cuedesigner import CueDesignerWindow
@@ -118,6 +118,29 @@ class LauncherWindow(QtWidgets.QMainWindow):
         )
         analyzeButton.clicked.connect(self.analyze_session)
         layout.addWidget(analyzeButton)
+
+        # The optional EEG review component (#136). Shown disabled (not
+        # hidden) when absent, so a lab knows the tool exists and how to get
+        # it — the same surface-don't-hide approach as missing trigger
+        # hardware (#147). Availability is probed once, here: installing the
+        # component mid-run requires closing SMACC anyway (the installer
+        # replaces the locked exe), and a stale True is already handled by
+        # the launch-failure dialog.
+        reviewEegButton = QtWidgets.QPushButton("Review EEG", self)
+        reviewEegButton.setMinimumHeight(40)
+        if eeg.available():
+            reviewEegButton.setStatusTip(
+                "Open the EEG review tool in its own window (annotate a recording)."
+            )
+        else:
+            reviewEegButton.setEnabled(False)
+            reviewEegButton.setStatusTip(
+                "EEG Review Tools are not installed — re-run the SMACC "
+                "installer and select the component."
+            )
+        reviewEegButton.clicked.connect(self.review_eeg)
+        self.reviewEegButton = reviewEegButton
+        layout.addWidget(reviewEegButton)
 
         layout.addStretch(1)
         # Link to the documentation site (not the repo), hyperlinked. Rich text +
@@ -334,6 +357,27 @@ class LauncherWindow(QtWidgets.QMainWindow):
     def analyze_session(self) -> None:
         """Open the analyze window over the current settings' data directory."""
         self._open_tool(AnalyzeWindow(self._data_dir()))
+
+    def review_eeg(self) -> None:
+        """Launch the EEG review tool as its own detached process.
+
+        Unlike the launcher-managed tools this never hides the launcher: the
+        viewer is a sibling app in a separate process (the frozen build can't
+        run it in-process — MNE isn't bundled in SMACC.exe), so there is no
+        ``closed`` signal to bring the launcher back.
+        """
+        if eeg.launch():
+            bar = self.statusBar()
+            if bar is not None:
+                bar.showMessage("EEG review opened in its own window.", 5000)
+            return
+        QtWidgets.QMessageBox.warning(
+            self,
+            "Review EEG",
+            "Could not start the EEG review tool.\n\n"
+            "Re-running the SMACC installer and selecting the EEG Review "
+            "Tools component may repair it.",
+        )
 
     def associate_files(self) -> None:
         """Register SMACC as the Windows handler for .smacc files (packaged build)."""

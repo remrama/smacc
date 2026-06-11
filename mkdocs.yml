@@ -54,10 +54,12 @@ nav:
   - Devices: devices.md
   - Surveys: surveys.md
   - Triggers & port codes: triggers.md
+  - EEG review: eeg-review.md
   - Reference:
     - File formats: reference/index.md
     - SMACC file (.smacc): reference/settings-file.md
     - Preferences file: reference/preferences-file.md
     - Session log: reference/session-log.md
     - BIDS export: reference/bids-export.md
+    - Annotations sidecar: reference/annotations-file.md
   - Contributing: contributing.md

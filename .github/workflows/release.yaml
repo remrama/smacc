@@ -14,12 +14,21 @@ jobs:
     # Windows runner, maximizing compatibility for labs on older Windows. CI's
     # test job (ci.yaml) uses the same runner so it validates this exact env.
     runs-on: windows-2022
+    # A crashed --noconsole exe shows PyInstaller's "Failed to execute script"
+    # MessageBox, which Start-Process -Wait sits behind forever — exactly the
+    # failure the smoke tests exist to catch would otherwise hang the job for
+    # GitHub's default 6 hours instead of failing fast.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.2.0
         with:
           enable-cache: true
-      - run: uv sync --extra dev
+      # --extra eeg supplies mne/pyqtgraph for the SMACC-EEG.exe build (#136).
+      # It cannot leak into SMACC.exe: PyInstaller traces entry.py's imports,
+      # and nothing reachable from the base app imports the MNE-touching eeg
+      # modules (smacc.eeg's __init__ is import-light by design).
+      - run: uv sync --extra dev --extra eeg
       # The tag is the release's public version; smacc.__version__ is what the app
       # reports (About dialog, --version) and what the installer is stamped with.
       # A mismatch would ship an installer that misidentifies itself, so fail fast.
@@ -32,17 +41,43 @@ jobs:
           "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
       # Embeds product name/version/publisher in the exe's Properties dialog —
       # metadata IT departments look at when vetting or whitelisting a binary.
-      - name: Generate the exe version-info resource
-        run: uv run python tools/make_versionfile.py version_info.txt
+      # Each call is checked: the step's result otherwise reflects only the
+      # last command, and a failed first write would surface one step late
+      # (at the SMACC.exe build) misattributed to PyInstaller.
+      - name: Generate the exe version-info resources
+        run: |
+          uv run python tools/make_versionfile.py version_info.txt
+          if ($LASTEXITCODE -ne 0) { throw "make_versionfile (SMACC) exited with code $LASTEXITCODE" }
+          uv run python tools/make_versionfile.py version_info_eeg.txt --product SMACC-EEG --description "SMACC EEG review tool"
+          if ($LASTEXITCODE -ne 0) { throw "make_versionfile (SMACC-EEG) exited with code $LASTEXITCODE" }
       - name: Build SMACC.exe
         run: uv run pyinstaller entry.py --name SMACC --onefile --noconsole --icon src/smacc/assets/icon.ico --version-file version_info.txt --add-data "src/smacc/assets/icon.png;smacc/assets" --add-data "src/smacc/assets/default.smacc;smacc/assets" --add-data "src/smacc/assets/cues;smacc/assets/cues" --add-data "src/smacc/assets/biocals;smacc/assets/biocals" --add-data "src/smacc/assets/surveys;smacc/assets/surveys"
+      # The optional EEG review component (#136): a second frozen exe carrying
+      # the MNE/pyqtgraph stack the base exe deliberately doesn't. MNE uses
+      # lazy_loader, which imports submodules by name at runtime and reads the
+      # package's .pyi stubs — both invisible to PyInstaller's static analysis —
+      # so MNE's submodules and data must be collected explicitly (without them
+      # the exe builds fine and dies on first MNE use). matplotlib must ship
+      # even though the viewer renders with pyqtgraph: MNE's IO layer
+      # transitively imports mne.viz.ui_events (-> matplotlib) at import time,
+      # so excluding it kills read_raw_*. The --selftest smoke below proves
+      # all of this end to end.
+      - name: Build SMACC-EEG.exe
+        run: uv run pyinstaller entry_eeg.py --name SMACC-EEG --onefile --noconsole --icon src/smacc/assets/icon.ico --version-file version_info_eeg.txt --add-data "src/smacc/assets/icon.png;smacc/assets" --collect-submodules mne --collect-data mne
       # A broken bundle (missing data file, import error) otherwise ships silently:
-      # the exe is windowed (--noconsole), so PowerShell won't wait for it on its
-      # own and there is no stdout — Start-Process -Wait + the exit code is the test.
-      - name: Smoke-test the exe
+      # the exes are windowed (--noconsole), so PowerShell won't wait for them on
+      # their own and there is no stdout — Start-Process -Wait + the exit code is
+      # the test. For the EEG exe, --version only proves the import tree (MNE is
+      # imported lazily), so --selftest additionally round-trips a synthetic
+      # recording through MNE, the filters, and the annotation sidecar.
+      - name: Smoke-test the exes
         run: |
           $p = Start-Process -FilePath dist/SMACC.exe -ArgumentList '--version' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "SMACC.exe --version exited with code $($p.ExitCode)" }
+          $p = Start-Process -FilePath dist/SMACC-EEG.exe -ArgumentList '--version' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "SMACC-EEG.exe --version exited with code $($p.ExitCode)" }
+          $p = Start-Process -FilePath dist/SMACC-EEG.exe -ArgumentList '--selftest' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "SMACC-EEG.exe --selftest exited with code $($p.ExitCode)" }
       # The crash-log pipeline (#149) matters most in exactly this windowed build,
       # where nothing else can capture a crash — and it's the one build the test
       # suite can't cover. Crash the exe on purpose (the hidden --crash-test flag,
@@ -70,12 +105,13 @@ jobs:
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=$env:VERSION tools\smacc.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC exited with code $LASTEXITCODE" }
       # Same idea as the exe smoke test, one level up: a broken installer (bad
-      # source path, registry section typo) would otherwise ship silently. Install
-      # per-user, run the *installed* exe, and confirm the .smacc association the
-      # [Registry] section is responsible for actually landed.
-      - name: Smoke-test the installer
+      # source path, registry section typo) would otherwise ship silently. Both
+      # component configurations are exercised: the default (standard) install
+      # must NOT drop the EEG exe, then an explicit core+eeg install (the same
+      # in-place upgrade path a lab uses to add the component later) must.
+      - name: Smoke-test the installer (default - no EEG component)
         run: |
-          $p = Start-Process -FilePath dist/SMACC-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/CURRENTUSER' -Wait -PassThru
+          $p = Start-Process -FilePath dist/SMACC-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "SMACC-Setup.exe exited with code $($p.ExitCode)" }
           $exe = "$env:LOCALAPPDATA\Programs\SMACC\SMACC.exe"
           if (-not (Test-Path $exe)) { throw "Installed exe not found at $exe" }
@@ -83,9 +119,19 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "Installed SMACC.exe --version exited with code $($p.ExitCode)" }
           $progid = (Get-ItemProperty -Path 'HKCU:\Software\Classes\.smacc').'(default)'
           if ($progid -ne 'SMACC.Study') { throw ".smacc association not registered (got '$progid')" }
-      - name: Attach exe and installer to release
+          if (Test-Path "$env:LOCALAPPDATA\Programs\SMACC\SMACC-EEG.exe") { throw "Default install must not include SMACC-EEG.exe" }
+      - name: Smoke-test the installer (adding the EEG component)
+        run: |
+          $p = Start-Process -FilePath dist/SMACC-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/COMPONENTS="core,eeg"' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "SMACC-Setup.exe (core,eeg) exited with code $($p.ExitCode)" }
+          $eeg = "$env:LOCALAPPDATA\Programs\SMACC\SMACC-EEG.exe"
+          if (-not (Test-Path $eeg)) { throw "Installed EEG exe not found at $eeg" }
+          $p = Start-Process -FilePath $eeg -ArgumentList '--selftest' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Installed SMACC-EEG.exe --selftest exited with code $($p.ExitCode)" }
+      - name: Attach exes and installer to release
         uses: softprops/action-gh-release@v3
         with:
           files: |
             dist/SMACC.exe
+            dist/SMACC-EEG.exe
             dist/SMACC-Setup.exe
