@@ -362,6 +362,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#updating-smacc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Updating SMACC
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#optional-setup" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -916,6 +927,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#updating-smacc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Updating SMACC
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#optional-setup" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1059,6 +1081,14 @@ elevation). On managed machines where per-user installs are blocked — e.g.
 AppLocker policies on <code>%LOCALAPPDATA%</code> — run the same installer machine-wide
 instead: <code>SMACC-Setup.exe /ALLUSERS</code> (elevates, installs to Program Files).</p>
 </div>
+<h2 id="updating-smacc">Updating SMACC</h2>
+<p>From the Launcher, <strong>File &rsaquo; Check for updates…</strong> asks GitHub whether a
+newer release exists and, if one does, offers to open the download page in your
+browser — run the new installer and it upgrades the existing install in place.
+SMACC never checks on its own: lab machines are often offline, and studies
+usually pin one version for their whole run, so checking is always an explicit
+click. If you use the portable <code>SMACC.exe</code>, download the new one and replace
+your old copy.</p>
 <h2 id="optional-setup">Optional setup</h2>
 <h3 id="data-directory">Data directory</h3>
 <p>By default SMACC stores everything under <code>~/SMACC</code>. To use a different location,
