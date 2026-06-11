@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://remrama.github.io/smacc/dev/contributing/">
       
       
-        <link rel="prev" href="../reference/bids-export/">
+        <link rel="prev" href="../reference/annotations-file/">
       
       
       
@@ -531,6 +531,33 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../eeg-review/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EEG review
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     
     
     
@@ -540,10 +567,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
         
           
-          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_12" id="__nav_12_label" tabindex="0">
             
   
   
@@ -561,8 +588,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_11">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -699,6 +726,34 @@
     
   
     BIDS export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/annotations-file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotations sidecar
   
 
     
@@ -1102,6 +1157,25 @@ window/taskbar icon, which SMACC resolves via <code>sys._MEIPASS</code>. On Wind
 <p>PyYAML (settings export/import) is pure Python and is picked up automatically by
 PyInstaller; if a frozen build ever fails to import <code>yaml</code>, add
 <code>--hidden-import yaml</code>.</p>
+<p>The optional EEG review component (#136) is a second frozen exe with its own
+entry point — it carries the MNE/pyqtgraph stack the base exe deliberately
+doesn't (requires <code>uv sync --extra dev --extra eeg</code>):</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>pyinstaller<span class="w"> </span>entry_eeg.py<span class="w"> </span>--name<span class="w"> </span>SMACC-EEG<span class="w"> </span>--onefile<span class="w"> </span>--noconsole<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--icon<span class="w"> </span>src/smacc/assets/icon.ico<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--add-data<span class="w"> </span><span class="s2">&quot;src/smacc/assets/icon.png:smacc/assets&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--collect-submodules<span class="w"> </span>mne<span class="w"> </span>--collect-data<span class="w"> </span>mne
+</code></pre></div>
+<p>The <code>--collect-*</code> flags matter: MNE uses <code>lazy_loader</code>, which imports
+submodules by name at runtime and reads the package's <code>.pyi</code> stubs — both
+invisible to PyInstaller's static analysis. Without them the exe builds
+cleanly and dies on first MNE use. Don't try <code>--exclude-module matplotlib</code>
+to slim the bundle: the viewer never plots with it, but MNE's IO layer
+transitively imports <code>mne.viz.ui_events</code> (→ matplotlib) at import time, so
+the exclusion breaks <code>read_raw_*</code>.</p>
+<p>Verify a built <code>SMACC-EEG.exe</code> with <code>--selftest</code> (the check is exit code 0):
+it round-trips a synthetic recording through MNE, the display filters, and the
+annotation sidecar. <code>--version</code> alone would not catch a broken MNE bundling —
+MNE is imported lazily, so it only loads when a recording is actually touched.</p>
 <p>The <code>blinkstick</code> driver (BlinkStick visual cues) and its Windows backend
 <code>pywinusb</code> are pure Python and bundle the same way. PyInstaller may warn that
 <code>usb.core</code> is missing — that is BlinkStick's non-Windows backend, which SMACC
@@ -1109,10 +1183,13 @@ never uses, so the warning is harmless. If a frozen build ever fails to import
 the driver, add <code>--hidden-import pywinusb</code>.</p>
 <p>Releases are built automatically: pushing a <code>v*</code> tag (e.g. <code>v0.0.7</code>) triggers the
 <a href="https://github.com/remrama/smacc/blob/main/.github/workflows/release.yaml">release workflow</a>,
-which checks the tag against <code>smacc.__version__</code>, builds <code>SMACC.exe</code> (stamped with
-version metadata from <code>tools/make_versionfile.py</code>), wraps it in an Inno Setup
-installer (<code>tools/smacc.iss</code> → <code>SMACC-Setup.exe</code>), smoke-tests both, and attaches
-the two artifacts to the GitHub Release. The installer's asset name is a stable
+which checks the tag against <code>smacc.__version__</code>, builds <code>SMACC.exe</code> and
+<code>SMACC-EEG.exe</code> (each stamped with version metadata from
+<code>tools/make_versionfile.py</code>), wraps them in an Inno Setup installer
+(<code>tools/smacc.iss</code> → <code>SMACC-Setup.exe</code>, with the EEG exe as the optional
+component), smoke-tests the exes (<code>--version</code>, and <code>--selftest</code> for the EEG
+one) and both installer component configurations, and attaches the three
+artifacts to the GitHub Release. The installer's asset name is a stable
 contract — the docs' download button links
 <code>releases/latest/download/SMACC-Setup.exe</code> — so don't rename it. The installer's
 <code>[Registry]</code> section must mirror <code>winassoc.association_entries()</code> exactly (so an

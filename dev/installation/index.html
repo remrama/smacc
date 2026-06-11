@@ -674,6 +674,33 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../eeg-review/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EEG review
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     
     
     
@@ -683,10 +710,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
         
           
-          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_12" id="__nav_12_label" tabindex="0">
             
   
   
@@ -704,8 +731,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_11">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -842,6 +869,34 @@
     
   
     BIDS export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/annotations-file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotations sidecar
   
 
     
@@ -1038,11 +1093,16 @@ double-click <code>SMACC-Setup.exe</code> and click through. The installer:</p>
 <li>adds a <strong>Start menu</strong> entry (and, if you opt in, a desktop shortcut);</li>
 <li>associates <strong><code>.smacc</code> files</strong>, so double-clicking a SMACC file opens a session
   with it;</li>
+<li>optionally installs the <strong>EEG Review Tools</strong> — the post-hoc
+  <a href="../eeg-review/">EEG viewer/annotator</a>. Off by default (it carries the
+  heavyweight MNE library); choose <strong>Full installation</strong> to include it, or
+  re-run the installer later to add it;</li>
 <li>registers an uninstaller — remove SMACC from <strong>Settings › Apps</strong> like any other
   program. Uninstalling never touches your data: SMACC files, recordings, and
   logs under <code>~/SMACC</code> (or your data directories) all stay put.</li>
 </ul>
-<p>Installing a newer version over an existing one upgrades it in place.</p>
+<p>Installing a newer version over an existing one upgrades it in place, keeping
+whichever components you had chosen.</p>
 <p>To get an older or specific version, browse the
 <a href="https://github.com/remrama/smacc/releases">releases page</a>: pick the release you
 want, open its <em>Assets</em> dropdown, and download from there. (The version switcher
@@ -1073,7 +1133,10 @@ rights.</p>
 it, double-click it, no installation. This suits USB-stick deployment, machines
 where nothing may be installed, and quick tests. The portable build skips the
 installer's conveniences (Start menu entry, uninstaller); it offers to associate
-<code>.smacc</code> files itself the first time it runs (see below).</p>
+<code>.smacc</code> files itself the first time it runs (see below). The
+<a href="../eeg-review/">EEG review tool</a> is likewise available portable as
+<code>SMACC-EEG.exe</code> — put it <strong>next to</strong> <code>SMACC.exe</code> and the Launcher's <em>Review
+EEG</em> button lights up (it also runs standalone).</p>
 <div class="admonition note">
 <p class="admonition-title">For IT departments</p>
 <p>The default install is per-user (under <code>%LOCALAPPDATA%\Programs\SMACC</code>, no
