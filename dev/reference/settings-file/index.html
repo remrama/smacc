@@ -1130,8 +1130,8 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <h2 id="on-disk-shape">On-disk shape</h2>
 <div class="highlight"><pre><span></span><code><span class="c1"># SMACC settings — YAML (.smacc). Edit with care.</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">smacc/settings</span>
-<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
-<span class="nt">smacc_version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0.0.7&quot;</span>
+<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="nt">smacc_version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0.0.9&quot;</span>
 <span class="nt">metadata</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">subject</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;001&quot;</span>
 <span class="w">  </span><span class="nt">session</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1&quot;</span>
@@ -1218,7 +1218,7 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <tr>
 <td><code>schema_version</code></td>
 <td>integer</td>
-<td>The settings schema version — currently <strong>3</strong>. Older versions are upgraded on load (see <a href="#version-history">Version history</a>).</td>
+<td>The settings schema version — currently <strong>1</strong>. Only the current version loads; any other is rejected (see <a href="#version-history">Version history</a>).</td>
 </tr>
 <tr>
 <td><code>smacc_version</code></td>
@@ -1576,15 +1576,7 @@ folder stays valid when moved, copied, or zipped.</p>
 <tbody>
 <tr>
 <td>1</td>
-<td>First stable schema. Envelope (<code>kind</code> / <code>schema_version</code> / <code>smacc_version</code> / <code>metadata</code> / <code>settings</code>); panel state; the <code>biocals</code>, <code>devices</code>, <code>event_codes</code> + <code>event_code_safe_max</code>, <code>trigger_output</code>, <code>data_directory</code>, <code>preview_levels</code>, <code>always_on_top</code>, and <code>tool_always_on_top</code> blocks.</td>
-</tr>
-<tr>
-<td>2</td>
-<td>The single visual cue (<code>blink_color</code> / <code>blink_length</code>) became the multi-slot <code>visual_cues</code> list with the shared <code>visual_attack</code> / <code>visual_release</code> fades. A v1 file's blink keys load into the first slot.</td>
-</tr>
-<tr>
-<td>3</td>
-<td>Each <code>event_codes</code> entry routes per transport: the single <code>trigger</code> flag was replaced by independent <code>lsl</code> + <code>ttl</code> booleans. Deliberately unmigrated (pre-release breaking change): an older file's <code>trigger</code> keys are ignored and the routing defaults apply.</td>
+<td>The v0.0.9 baseline (numbering restarted; pre-release schemas were retired without migration). Envelope (<code>kind</code> / <code>schema_version</code> / <code>smacc_version</code> / <code>metadata</code> / <code>settings</code>); panel state; the <code>biocals</code>, <code>devices</code>, <code>event_codes</code> + <code>event_code_safe_max</code>, <code>trigger_output</code>, <code>data_directory</code>, <code>preview_levels</code>, <code>always_on_top</code>, and <code>tool_always_on_top</code> blocks.</td>
 </tr>
 </tbody>
 </table>

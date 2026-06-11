@@ -1167,9 +1167,7 @@ whenever you change the items.</p>
 <h3 id="item-types">Item types</h3>
 <p>A bare-string item is a <strong>Likert</strong> item rated against the survey's shared
 <code>scale</code> — the original shape, and all the builder produces. Definition files can
-also mix in other item types by writing an item as a mapping with a <code>type</code>
-(this requires <code>schema_version: 2</code>; an older SMACC then refuses the file cleanly
-rather than mis-reading it):</p>
+also mix in other item types by writing an item as a mapping with a <code>type</code>:</p>
 <table>
 <thead>
 <tr>
@@ -1213,7 +1211,7 @@ Likert surveys; a survey with typed items is edited as a file (the dialog says s
 and points at the path). For a full worked example, see the bundled
 <a href="https://github.com/remrama/smacc/blob/main/src/smacc/assets/surveys/madre.yaml"><code>madre.yaml</code></a>.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">smacc/survey</span>
-<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
 <span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">intake</span>
 <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Intake</span>
 <span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Session intake</span>
