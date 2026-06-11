@@ -122,7 +122,7 @@ def test_routing_summary_describes_each_shape():
     unrouted_hidden = events.EventDef("A", "A", 69, lsl=False, ttl=False, preview=False)
     assert (
         events.routing_summary(unrouted_hidden)
-        == "log only (no portcode sent) · hidden from the live preview"
+        == "log only (no port code sent) · hidden from the live preview"
     )
 
 
