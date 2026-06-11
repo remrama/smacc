@@ -59,11 +59,18 @@ add or remove cues to match a protocol (one minimum, up to 20).
 No sound file ready? Open **Design cues** from the Launcher to build a simple cue
 inside SMACC — no external audio editor needed. Lay out a sequence of **tone** and
 **silence** segments (each tone has a frequency, duration, and level, with an
-optional bell-like **decay**), add an optional whole-cue fade in/out, **Preview** it
-on your default output, then **Export WAV…** into your study's `cues/` folder. The
-exported file then appears in the Audio cue board like any other cue. The designer is
-a standalone tool: it plays on the default device and ignores the session's device
-routing and volume safety cap.
+optional bell-like **decay**), or start from a **preset** (a single chime, a pip
+train). The whole pattern can **repeat** — ×N with a gap between repeats, the
+classic pip-train shape — and an optional whole-cue fade in/out and normalize
+finish it. A live **waveform** shows the cue as you edit, **Preview** plays it on
+your default output, and **Export WAV…** writes it into your study's `cues/`
+folder, where it appears in the Audio cue board like any other cue.
+
+The WAV is what the cue board plays; the *design* stays editable through **Save
+design… / Open design…** (a small `.json` file, kept alongside the WAVs by
+default) — reopen it tomorrow and nudge a level instead of rebuilding the cue from
+scratch. The designer is a standalone tool: it plays on the default device and
+ignores the session's device routing and volume safety cap.
 
 ### Is the cue reaching the bedroom?
 

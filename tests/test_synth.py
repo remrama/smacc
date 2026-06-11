@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import pytest
 from scipy.io.wavfile import read
@@ -138,3 +140,91 @@ def test_export_wav_writes_a_readable_pcm16_file(tmp_path):
 def test_render_sequence_rejects_bad_rate():
     with pytest.raises(ValueError):
         synth.render_sequence([synth.ToneSegment(440, 0.5)], rate=0)
+
+
+# ----- repeat_segments (#137) -------------------------------------------------
+
+
+def test_repeat_segments_expands_with_gaps():
+    pattern = [synth.ToneSegment(440, 0.1)]
+    out = synth.repeat_segments(pattern, 3, gap=0.05)
+    assert len(out) == 5  # tone, gap, tone, gap, tone
+    assert isinstance(out[0], synth.ToneSegment)
+    assert isinstance(out[1], synth.SilenceSegment)
+    assert out[1].duration == 0.05
+    assert synth.total_duration(out) == pytest.approx(0.4)
+
+
+def test_repeat_segments_count_one_is_the_pattern_itself():
+    pattern = [synth.ToneSegment(440, 0.1), synth.SilenceSegment(0.2)]
+    assert synth.repeat_segments(pattern, 1, gap=0.5) == pattern
+
+
+def test_repeat_segments_zero_gap_inserts_no_silence():
+    out = synth.repeat_segments([synth.ToneSegment(440, 0.1)], 3, gap=0.0)
+    assert len(out) == 3
+    assert all(isinstance(seg, synth.ToneSegment) for seg in out)
+
+
+def test_repeat_segments_rejects_bad_count():
+    with pytest.raises(ValueError):
+        synth.repeat_segments([synth.ToneSegment(440, 0.1)], 0)
+
+
+# ----- CueDesign (#137) ---------------------------------------------------------
+
+
+def _example_design() -> synth.CueDesign:
+    return synth.CueDesign(
+        segments=[
+            synth.ToneSegment(freq=600, duration=0.1, level=0.4, decay=True),
+            synth.SilenceSegment(duration=0.05),
+        ],
+        name="pips",
+        fade_in=0.01,
+        fade_out=0.02,
+        normalize=True,
+        repeat_count=3,
+        repeat_gap=0.2,
+    )
+
+
+def test_cue_design_render_matches_manual_sequence():
+    design = _example_design()
+    rate = 8000
+    manual = synth.render_sequence(
+        synth.repeat_segments(design.segments, 3, gap=0.2),
+        rate=rate,
+        fade_in=design.fade_in,
+        fade_out=design.fade_out,
+        normalize=True,
+    )
+    assert np.array_equal(design.render(rate), manual)
+
+
+def test_cue_design_total_duration_includes_repeats():
+    design = _example_design()
+    # 3 × (0.1 + 0.05) pattern + 2 × 0.2 gaps
+    assert design.total_duration() == pytest.approx(0.85)
+
+
+def test_cue_design_round_trips_through_dict():
+    design = _example_design()
+    data = design.to_dict()
+    json.dumps(data)  # must be JSON-serializable as-is
+    assert synth.CueDesign.from_dict(data) == design
+
+
+def test_cue_design_from_dict_rejects_bad_input():
+    good = _example_design().to_dict()
+    for bad in (
+        "not a dict",
+        {**good, "version": 99},
+        {**good, "segments": []},
+        {**good, "segments": [{"type": "noise", "duration": 1.0}]},
+        {**good, "segments": [{"type": "tone"}]},  # missing freq/duration
+        {**good, "repeat_count": 0},
+        {**good, "fade_in": "loud"},
+    ):
+        with pytest.raises(ValueError):
+            synth.CueDesign.from_dict(bad)

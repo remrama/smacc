@@ -10,11 +10,15 @@ This is deliberately kept separate from the demo-cue synthesis in
 demo WAV assets. The model here is intentionally simple — a monophonic sequence of
 tones and silences with a per-tone decay and a master fade — not a full ADSR
 synthesizer (see #33, closed in favor of this).
+
+A whole design — the segment pattern, its repeat train, and the master settings —
+is captured by :class:`CueDesign`, which (de)serializes to a plain dict so the
+designer can save and reopen editable ``.json`` design files (#137).
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -149,3 +153,137 @@ def export_wav(
 ) -> None:
     """Write ``samples`` (mono float32 in ``[-1, 1]``) to ``path`` as a WAV."""
     sf.write(str(path), samples, int(rate), subtype=subtype)
+
+
+def repeat_segments(
+    segments: list[Segment], count: int, gap: float = 0.0
+) -> list[Segment]:
+    """Expand ``segments`` into ``count`` repeats separated by ``gap`` s of silence.
+
+    The standard cue shape is a *pip train* — one short pattern repeated a few
+    times — so the repeat lives here rather than as N hand-copied rows. Repeats
+    share the original segment objects (rendering never mutates a segment); a
+    non-positive ``gap`` inserts nothing between repeats.
+    """
+    if count < 1:
+        raise ValueError("repeat count must be at least 1")
+    out: list[Segment] = []
+    for i in range(count):
+        if i and gap > 0:
+            out.append(SilenceSegment(duration=gap))
+        out.extend(segments)
+    return out
+
+
+# Version stamp written into saved cue-design files; bump on schema changes.
+DESIGN_VERSION = 1
+
+
+@dataclass
+class CueDesign:
+    """A complete, serializable cue design: segment pattern plus master settings.
+
+    This is the unit the Cue designer saves and reopens as a JSON design file
+    (#137). The exported WAV stays the lab-facing artifact the cue board plays;
+    the design file is what keeps a cue editable. The pattern repeats
+    ``repeat_count`` times with ``repeat_gap`` seconds of silence between repeats,
+    then the whole train is normalized/faded as one cue.
+    """
+
+    segments: list[Segment] = field(default_factory=list)
+    name: str = "cue"
+    fade_in: float = 0.0
+    fade_out: float = 0.0
+    normalize: bool = False
+    repeat_count: int = 1
+    repeat_gap: float = 0.0
+
+    def expanded_segments(self) -> list[Segment]:
+        """The pattern expanded into its repeat train (what actually renders)."""
+        return repeat_segments(self.segments, self.repeat_count, self.repeat_gap)
+
+    def total_duration(self) -> float:
+        """Length of the full rendered cue in seconds, repeats included."""
+        return total_duration(self.expanded_segments())
+
+    def render(self, rate: int = DEFAULT_RATE) -> np.ndarray:
+        """Render the full design to one mono float32 cue in ``[-1, 1]``."""
+        return render_sequence(
+            self.expanded_segments(),
+            rate=rate,
+            fade_in=self.fade_in,
+            fade_out=self.fade_out,
+            normalize=self.normalize,
+        )
+
+    def to_dict(self) -> dict:
+        """Serialize to a JSON-ready dict, stamped with the schema version."""
+        segments: list[dict] = []
+        for seg in self.segments:
+            if isinstance(seg, ToneSegment):
+                segments.append(
+                    {
+                        "type": "tone",
+                        "freq": seg.freq,
+                        "duration": seg.duration,
+                        "level": seg.level,
+                        "decay": seg.decay,
+                    }
+                )
+            else:
+                segments.append({"type": "silence", "duration": seg.duration})
+        return {
+            "version": DESIGN_VERSION,
+            "name": self.name,
+            "fade_in": self.fade_in,
+            "fade_out": self.fade_out,
+            "normalize": self.normalize,
+            "repeat_count": self.repeat_count,
+            "repeat_gap": self.repeat_gap,
+            "segments": segments,
+        }
+
+    @classmethod
+    def from_dict(cls, data: object) -> CueDesign:
+        """Rebuild a design from :meth:`to_dict` output (``ValueError`` if invalid)."""
+        if not isinstance(data, dict):
+            raise ValueError("a cue design must be a JSON object")
+        version = data.get("version")
+        if version != DESIGN_VERSION:
+            raise ValueError(f"unsupported cue-design version: {version!r}")
+        raw_segments = data.get("segments")
+        if not isinstance(raw_segments, list) or not raw_segments:
+            raise ValueError("a cue design needs at least one segment")
+        try:
+            segments: list[Segment] = []
+            for raw in raw_segments:
+                if not isinstance(raw, dict):
+                    raise ValueError("segment entries must be objects")
+                kind = raw.get("type")
+                if kind == "tone":
+                    segments.append(
+                        ToneSegment(
+                            freq=float(raw["freq"]),
+                            duration=float(raw["duration"]),
+                            level=float(raw.get("level", 1.0)),
+                            decay=bool(raw.get("decay", False)),
+                        )
+                    )
+                elif kind == "silence":
+                    segments.append(SilenceSegment(duration=float(raw["duration"])))
+                else:
+                    raise ValueError(f"unknown segment type: {kind!r}")
+            design = cls(
+                segments=segments,
+                name=str(data.get("name", "cue")),
+                fade_in=float(data.get("fade_in", 0.0)),
+                fade_out=float(data.get("fade_out", 0.0)),
+                normalize=bool(data.get("normalize", False)),
+                repeat_count=int(data.get("repeat_count", 1)),
+                repeat_gap=float(data.get("repeat_gap", 0.0)),
+            )
+        except (KeyError, TypeError, ValueError) as err:
+            raise ValueError(f"invalid cue design: {err}") from err
+        if design.repeat_count < 1:
+            raise ValueError("repeat count must be at least 1")
+        return design
