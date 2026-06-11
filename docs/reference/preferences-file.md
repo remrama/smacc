@@ -23,6 +23,7 @@ preferences:
     - C:\Users\you\SMACC\peter.smacc
     - C:\Users\you\SMACC\paul.smacc
   last_settings: C:\Users\you\SMACC\peter.smacc
+  log_preview_max_lines: 1000
 ```
 
 ## Fields
@@ -41,6 +42,7 @@ preferences:
 | `association_prompted` | boolean | Whether the first-run "associate `.smacc` files (Windows)?" prompt has already been shown. |
 | `recent_settings` | list of paths | Recently opened `.smacc` files, most-recent first, de-duplicated and capped at 8. |
 | `last_settings` | path or `null` | The last `.smacc` opened, so the Launcher can preselect it. |
+| `log_preview_max_lines` | integer | How many lines the Session window's live log preview keeps (default **1000**); the oldest lines are dropped first. The log *file* always records everything, so nothing is lost. Very large values cost GUI memory and repaint time over an overnight session. |
 
 !!! note "Partial files are fine"
     Loading merges a file's keys over the defaults, so a file missing some keys still

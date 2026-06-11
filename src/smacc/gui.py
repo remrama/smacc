@@ -509,7 +509,11 @@ class SmaccWindow(ToolWindow):
         self.logviewList = logviewList
 
         # Route log records to the preview pane, filtered by the level toggles.
-        self.preview_handler = QtLogHandler(logviewList)
+        # The preview keeps only the newest N lines (preferences.yaml's
+        # log_preview_max_lines); the log file records everything.
+        self.preview_handler = QtLogHandler(
+            logviewList, max_lines=preferences.log_preview_max_lines(self._prefs)
+        )
         self.preview_handler.setFormatter(
             logging.Formatter(
                 fmt="%(asctime)s  %(levelname)s  %(message)s", datefmt="%H:%M:%S"

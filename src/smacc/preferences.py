@@ -41,6 +41,10 @@ DEFAULTS: dict[str, Any] = {
     # the last one opened, so the launcher can preselect it and offer quick switching.
     "recent_settings": [],
     "last_settings": None,
+    # How many lines the Session window's live log preview keeps (oldest dropped
+    # first; the log file always keeps everything). Large values cost GUI memory
+    # and repaint time over an overnight session.
+    "log_preview_max_lines": 1000,
 }
 
 _logger = logging.getLogger("smacc")
@@ -138,6 +142,18 @@ def update_window_geometry(
         windows = {}
     windows[window_id] = geometry
     update_preferences(path, {"windows": windows})
+
+
+def log_preview_max_lines(prefs: dict[str, Any]) -> int:
+    """Return the log-preview line cap (a positive int), else the default.
+
+    A hand-edited ``preferences.yaml`` may carry anything here; garbage or a
+    non-positive value falls back to the default rather than breaking the window.
+    """
+    value = prefs.get("log_preview_max_lines")
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        return int(DEFAULTS["log_preview_max_lines"])
+    return value
 
 
 def levels_to_names(levels: set[int]) -> list[str]:
