@@ -28,8 +28,8 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from .. import hue, lights
 from ..session import SmaccSession
 from .base import (
-    ModalityWindow,
-    describe_target,
+    PanelWindow,
+    describe_action,
     make_section_title,
     restore_spin_value,
 )
@@ -85,7 +85,7 @@ class LightSlot:
     rgb: lights.RGB = field(default=(255, 0, 0))
 
 
-class VisualWindow(ModalityWindow):
+class VisualWindow(PanelWindow):
     """Multi-slot light board with a shared device + fade and per-slot play/stop."""
 
     TITLE = "Visual cue"
@@ -97,7 +97,7 @@ class VisualWindow(ModalityWindow):
         # Shared brightness fade (attack/release) durations in seconds; 0 == instant.
         self.visual_attack_s = 0.0
         self.visual_release_s = 0.0
-        # Backend resolved from the play_visual_cue role; the one a playing cue is bound
+        # Backend resolved from the play_visual_cue route; the one a playing cue is bound
         # to is held separately, so re-routing applies from the next Play (like an
         # audio cue keeping the stream it opened).
         self._backend: lights.LightBackend | None = None
@@ -205,9 +205,7 @@ class VisualWindow(ModalityWindow):
     def _build(self) -> QtWidgets.QWidget:
         # Shared device (chosen in the Devices window) + fade controls.
         self.deviceLabel = QtWidgets.QLabel(self)
-        self.deviceLabel.setStatusTip(
-            "Set in the Devices window (BlinkStick or Philips Hue role)."
-        )
+        self.deviceLabel.setStatusTip("Set in the Devices window (Play visual cue).")
         self.refresh_device_indicator()
 
         attackSpinBox = QtWidgets.QDoubleSpinBox(self)
@@ -401,18 +399,18 @@ class VisualWindow(ModalityWindow):
     # ----- shared device + fade ---------------------------------------------
 
     def refresh_device_indicator(self) -> None:
-        """Resolve the light backend from the routed role (BlinkStick or Hue).
+        """Resolve the light backend from the routed equipment (BlinkStick or Hue).
 
         A cue already lit keeps the backend it started with; the fresh resolution
         applies from the next Play.
         """
-        role = self.session.devices.role_for("play_visual_cue")
+        equipment = self.session.devices.equipment_for("play_visual_cue")
         binding = self.session.devices.device_for("play_visual_cue")
-        if role == "philips_hue_light":
+        if equipment == "philips_hue_light":
             self._backend = hue.resolve_backend(self.session.hue_config, binding)
         else:
             self._backend = lights.resolve_blinkstick(binding)
-        self.deviceLabel.setText(describe_target(self.session, "play_visual_cue"))
+        self.deviceLabel.setText(describe_action(self.session, "play_visual_cue"))
 
     def update_visual_attack(self, value: float) -> None:
         """Set the shared brightness fade-in (attack) time in seconds."""

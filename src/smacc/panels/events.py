@@ -16,10 +16,10 @@ from PyQt6 import QtCore, QtWidgets
 from .. import events
 from ..dialogs import AddEventDialog
 from ..session import SmaccSession
-from .base import ModalityWindow, make_section_title
+from .base import PanelWindow, make_section_title
 
 
-class EventsWindow(ModalityWindow):
+class EventsWindow(PanelWindow):
     """A rebuildable grid of manual event-marker buttons."""
 
     TITLE = "Event logging"

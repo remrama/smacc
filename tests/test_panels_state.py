@@ -1,4 +1,4 @@
-"""gather_state / apply_state round-trips for every modality panel.
+"""gather_state / apply_state round-trips for every tool panel.
 
 Panels construct headlessly from a design session (no run folder, no hardware);
 streams open only on play/record, not at construction. The Devices panel
@@ -380,7 +380,7 @@ def test_devices_panel_has_no_persisted_state(qtbot, design_session, mock_device
     assert panel.gather_state() == {}
 
 
-# ----- per-window always-on-top (ModalityWindow base) ------------------------
+# ----- per-window always-on-top (PanelWindow base) ------------------------
 
 
 def test_tool_window_always_on_top_toggle(qtbot, design_session):

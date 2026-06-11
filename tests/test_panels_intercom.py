@@ -101,8 +101,8 @@ def _bind_devices(session):
     """Give both intercom directions definite devices (#139: no unbound opens).
 
     Talk needs the control-room mic (#160) and the participant output; Listen
-    needs the participant mic plus the optional return route pointed at a bound
-    role.
+    needs the participant mic plus the optional return route pointed at bound
+    equipment.
     """
     session.devices.bindings["bedroom_speaker"] = "Speakers (Test)"
     session.devices.bindings["bedroom_mic_1"] = "Mic (Test)"

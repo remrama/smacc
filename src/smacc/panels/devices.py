@@ -1,11 +1,11 @@
-"""Devices window: bind physical devices to roles, then route modalities to roles.
+"""Devices window: bind devices to the rig's equipment, then route actions to it.
 
-This is the one place device selection lives (#39): a *Roles* section binds each
-role (bedroom output, control-room output, bedroom mic, BlinkStick) to a device,
-and a *Routing* section points each modality at a role. The modality windows show
-only a read-only indicator of what they resolve to. The edited config lives on
-``session.devices``; :attr:`changed` fires whenever it is edited so the window can
-refresh the modality indicators.
+This is the one place device selection lives (#39): an *Equipment* section binds
+each named piece of the rig (bedroom speaker, control-room mic, …) to a device,
+and an *Actions* section points each thing SMACC does at a piece of equipment.
+The tool windows show only a read-only indicator of what they resolve to. The
+edited config lives on ``session.devices``; :attr:`changed` fires whenever it is
+edited so the window can refresh the indicators everywhere.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from .. import devices, hue
 from ..dialogs import HueBridgeDialog
 from ..session import SmaccSession
 from .base import (
-    ModalityWindow,
+    PanelWindow,
     make_section_title,
     select_saved_device,
 )
@@ -28,7 +28,7 @@ from .base import (
 _NONE_LABEL = "(none)"
 # Sole-row placeholders when enumeration finds nothing (#139): say so, instead of
 # an ambiguous "(none)" (or the old "(system default)", which implied an output
-# exists when none does). The Hue role distinguishes "no bridge paired yet" (the
+# exists when none does). The Hue entry distinguishes "no bridge paired yet" (the
 # Set up… button is the path forward) from a paired bridge with nothing to list.
 _EMPTY_LABELS = {
     devices.OUTPUT: "No output device found",
@@ -37,8 +37,9 @@ _EMPTY_LABELS = {
 }
 _NO_BRIDGE_LABEL = "No bridge paired"
 _NO_LIGHTS_LABEL = "No lights found"
-# Item-data marker for a "(not connected)" row (a bound device with no live row),
-# so a reload can tell it apart from a real match and flag the miss.
+# Item-data marker (a Qt item-data role, unrelated to the old "role" naming) for
+# a "(not connected)" row — a bound device with no live row — so a reload can
+# tell it apart from a real match and flag the miss.
 _MISSING_ROLE = QtCore.Qt.ItemDataRole.UserRole + 1
 
 
@@ -46,8 +47,8 @@ def wasapi_devices(kind: str) -> list[str]:
     """Return the WASAPI ``"output"`` or ``"input"`` device names (best effort).
 
     Only WASAPI devices are listed, so the bare device name is returned (no
-    ", Windows WASAPI" suffix — it added nothing and is what gets persisted as a
-    role binding). A bare name is ambiguous to sounddevice when the same hardware
+    ", Windows WASAPI" suffix — it added nothing and is what gets persisted as
+    an equipment binding). A bare name is ambiguous to sounddevice when the same hardware
     appears under several host APIs, so stream-opening code resolves it back to
     the WASAPI device via :func:`smacc.panels.base.resolve_device`.
     """
@@ -76,7 +77,7 @@ def default_wasapi_device(kind: str) -> str:
 
     PortAudio reports each host API's default device as of its last
     initialization, so this is fresh exactly when SMACC reads it (right after
-    launch or a rescan). Used only to *auto-bind* an unbound role to a concrete
+    launch or a rescan). Used only to *auto-bind* an unbound equipment to a concrete
     device name (#139) — never consulted at stream-open time, so a later change
     of the Windows default cannot re-route a study.
     """
@@ -119,8 +120,8 @@ def hue_devices(cfg: hue.HueConfig) -> list[tuple[str, str]]:
         return []
 
 
-class DevicesWindow(ModalityWindow):
-    """Bind devices to roles and route modalities to roles (edits session.devices)."""
+class DevicesWindow(PanelWindow):
+    """Bind devices to equipment and route actions to equipment (edits session.devices)."""
 
     TITLE = "Devices"
 
@@ -132,50 +133,50 @@ class DevicesWindow(ModalityWindow):
 
     def __init__(self, session: SmaccSession, parent: QtWidgets.QWidget | None = None):
         super().__init__(session, parent)
-        self._role_combos: dict[str, QtWidgets.QComboBox] = {}
-        self._route_combos: dict[str, QtWidgets.QComboBox] = {}
-        self._route_indicators: dict[str, QtWidgets.QLabel] = {}
+        self._equipment_combos: dict[str, QtWidgets.QComboBox] = {}
+        self._action_combos: dict[str, QtWidgets.QComboBox] = {}
+        self._action_indicators: dict[str, QtWidgets.QLabel] = {}
         self.setCentralWidget(self._build())
         self.reload_from_config()
 
     # ----- construction ------------------------------------------------------
 
     def _build(self) -> QtWidgets.QWidget:
-        roles_form = QtWidgets.QFormLayout()
-        roles_form.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-        for role in devices.ROLES:
+        equipment_form = QtWidgets.QFormLayout()
+        equipment_form.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        for equipment in devices.EQUIPMENT:
             combo = QtWidgets.QComboBox(self)
-            combo.setStatusTip(f"Device bound to the {role.label} role.")
-            combo.setToolTip(role.description)
-            combo.currentIndexChanged.connect(partial(self._set_binding, role.key))
-            self._role_combos[role.key] = combo
-            roles_form.addRow(f"{role.label} is:", combo)
-            self._set_row_label_tooltip(roles_form, combo, role.description)
-        self._populate_role_combos()
+            combo.setStatusTip(f"The device serving as {equipment.label}.")
+            combo.setToolTip(equipment.description)
+            combo.currentIndexChanged.connect(partial(self._set_binding, equipment.key))
+            self._equipment_combos[equipment.key] = combo
+            equipment_form.addRow(f"{equipment.label} is:", combo)
+            self._set_row_label_tooltip(equipment_form, combo, equipment.description)
+        self._populate_equipment_combos()
 
         routing_form = QtWidgets.QFormLayout()
         routing_form.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-        for target in devices.TARGETS:
+        for action in devices.ACTIONS:
             combo = QtWidgets.QComboBox(self)
-            combo.setStatusTip(f"Role the '{target.label}' modality is routed to.")
-            combo.setToolTip(target.description)
-            if target.optional:
+            combo.setStatusTip(f"The equipment '{action.label}' uses.")
+            combo.setToolTip(action.description)
+            if action.optional:
                 combo.addItem(_NONE_LABEL, "")
-            for role in devices.ROLES:
-                if role.kind == target.kind:
-                    combo.addItem(role.label, role.key)
-            combo.currentIndexChanged.connect(partial(self._set_routing, target.key))
-            self._route_combos[target.key] = combo
+            for equipment in devices.EQUIPMENT:
+                if equipment.kind == action.kind:
+                    combo.addItem(equipment.label, equipment.key)
+            combo.currentIndexChanged.connect(partial(self._set_routing, action.key))
+            self._action_combos[action.key] = combo
             # Beside each route, show the device it currently resolves to — the
             # live composition of the two sections, so a route on an unbound
-            # role reads "→ no device" instead of looking configured.
+            # equipment reads "→ no device" instead of looking configured.
             indicator = QtWidgets.QLabel(self)
-            self._route_indicators[target.key] = indicator
+            self._action_indicators[action.key] = indicator
             row = QtWidgets.QHBoxLayout()
             row.addWidget(combo)
             row.addWidget(indicator, 1)
-            routing_form.addRow(f"{target.label} using:", row)
-            self._set_row_label_tooltip(routing_form, row, target.description)
+            routing_form.addRow(f"{action.label} using:", row)
+            self._set_row_label_tooltip(routing_form, row, action.description)
 
         refresh_button = QtWidgets.QPushButton("Refresh devices (F5)", self)
         refresh_button.setStatusTip(
@@ -200,8 +201,8 @@ class DevicesWindow(ModalityWindow):
         buttons.addWidget(hue_button)
 
         hint = QtWidgets.QLabel(
-            "Bind each role to a device once, then route each modality to a "
-            "role. Hover any row for what it does."
+            "Tell SMACC what equipment the rig has, then which equipment each "
+            "action uses. Hover any row for what it does."
         )
         hint.setWordWrap(True)
 
@@ -214,19 +215,19 @@ class DevicesWindow(ModalityWindow):
         layout.addSpacing(8)
         layout.addWidget(
             self._subheading(
-                "Roles → devices (the rig's hardware)",
-                "A role names a physical endpoint — a speaker, mic, or light. "
-                "Bind each role to one of this machine's devices, once.",
+                "Equipment → devices (what the rig has)",
+                "Each row names a physical endpoint of the rig — a speaker, mic, "
+                "or light. Bind it to one of this machine's devices, once.",
             )
         )
-        layout.addLayout(roles_form)
+        layout.addLayout(equipment_form)
         layout.addSpacing(8)
         layout.addWidget(
             self._subheading(
-                "Modalities → roles (what SMACC does with them)",
-                "Everything SMACC plays or records routes to a role. Several "
-                "modalities can share one role — the cue, the noise, and your "
-                "voice can all use the bedroom speaker.",
+                "Actions → equipment (what SMACC does with it)",
+                "Everything SMACC plays or records routes to a piece of "
+                "equipment. Several actions can share one — the cue, the noise, "
+                "and your voice can all use the bedroom speaker.",
             )
         )
         layout.addLayout(routing_form)
@@ -255,36 +256,36 @@ class DevicesWindow(ModalityWindow):
 
     # ----- enumeration -------------------------------------------------------
 
-    def _populate_role_combos(self) -> None:
-        """(Re)fill each role's device dropdown from a fresh enumeration.
+    def _populate_equipment_combos(self) -> None:
+        """(Re)fill each equipment dropdown from a fresh enumeration.
 
         The selection is re-derived from ``session.devices`` (every user edit
         writes through to it, so the combo can never hold anything newer): the
-        bound device's row, or the index-0 placeholder when the role is unbound.
+        bound device's row, or the index-0 placeholder when nothing is bound.
         Index 0 reads "(none)" when there are devices to choose from and a
         kind-specific "No … found" when there are none (#139).
         """
-        for role in devices.ROLES:
-            combo = self._role_combos[role.key]
+        for equipment in devices.EQUIPMENT:
+            combo = self._equipment_combos[equipment.key]
             combo.blockSignals(True)
             combo.clear()
-            if role.key == "philips_hue_light":
+            if equipment.key == "philips_hue_light":
                 entries = hue_devices(self.session.hue_config)
                 empty = (
                     _NO_LIGHTS_LABEL
                     if self.session.hue_config.configured
                     else _NO_BRIDGE_LABEL
                 )
-            elif role.kind == devices.VISUAL:
+            elif equipment.kind == devices.VISUAL:
                 entries = blinkstick_devices()
                 empty = _EMPTY_LABELS[devices.VISUAL]
             else:
-                entries = [(name, name) for name in wasapi_devices(role.kind)]
-                empty = _EMPTY_LABELS[role.kind]
+                entries = [(name, name) for name in wasapi_devices(equipment.kind)]
+                empty = _EMPTY_LABELS[equipment.kind]
             combo.addItem(_NONE_LABEL if entries else empty, "")
             for label, key in entries:
                 combo.addItem(label, key)
-            bound = self.session.devices.device_for_role(role.key)
+            bound = self.session.devices.device_for_equipment(equipment.key)
             self._select_device_row(combo, bound)
             combo.blockSignals(False)
 
@@ -294,7 +295,7 @@ class DevicesWindow(ModalityWindow):
         A bound device with no row (not currently connected) is added as an
         explicit "(not connected)" row carrying ``key`` as its data and selected,
         so the combo shows the truth instead of displaying the placeholder while
-        the binding — which is kept (flag, don't swap) — still targets the
+        the binding — which is kept (flag, don't swap) — still points at the
         missing device. Returns False in exactly that case so
         :meth:`reload_from_config` can flag it. A rescan rebuilds the list, so
         the row disappears once the device is back (or another is picked).
@@ -312,26 +313,26 @@ class DevicesWindow(ModalityWindow):
 
     # ----- editing -> session.devices ----------------------------------------
 
-    def _set_binding(self, role_key: str) -> None:
-        """A role's device dropdown changed: write just that role's binding."""
-        key = self._role_combos[role_key].currentData()
+    def _set_binding(self, equipment_key: str) -> None:
+        """An equipment dropdown changed: write just that binding."""
+        key = self._equipment_combos[equipment_key].currentData()
         if key:
-            self.session.devices.bindings[role_key] = key
+            self.session.devices.bindings[equipment_key] = key
         else:  # the "(none)" / "No … found" placeholder rows carry no device key
-            self.session.devices.bindings.pop(role_key, None)
+            self.session.devices.bindings.pop(equipment_key, None)
         self.session.log_interaction(
-            f"{devices.ROLES_BY_KEY[role_key].label} device set"
+            f"{devices.EQUIPMENT_BY_KEY[equipment_key].label} device set"
         )
         self.refresh_device_indicator()
         self.changed.emit()
 
-    def _set_routing(self, target_key: str) -> None:
-        """A modality's role dropdown changed: write just that route."""
-        self.session.devices.routing[target_key] = (
-            self._route_combos[target_key].currentData() or ""
+    def _set_routing(self, action_key: str) -> None:
+        """An action's equipment dropdown changed: write just that route."""
+        self.session.devices.routing[action_key] = (
+            self._action_combos[action_key].currentData() or ""
         )
         self.session.log_interaction(
-            f"{devices.TARGETS_BY_KEY[target_key].label} routing set"
+            f"{devices.ACTIONS_BY_KEY[action_key].label} routing set"
         )
         self.refresh_device_indicator()
         self.changed.emit()
@@ -346,42 +347,42 @@ class DevicesWindow(ModalityWindow):
         kept and shown as a "(not connected)" row, never silently swapped.
         """
         cfg = self.session.devices
-        for role_key, combo in self._role_combos.items():
+        for equipment_key, combo in self._equipment_combos.items():
             combo.blockSignals(True)
-            bound = cfg.device_for_role(role_key)
+            bound = cfg.device_for_equipment(equipment_key)
             if not self._select_device_row(combo, bound):
-                role = devices.ROLES_BY_KEY[role_key]
-                self.session.note_missing_device(role.label, bound)
+                equipment = devices.EQUIPMENT_BY_KEY[equipment_key]
+                self.session.note_missing_device(equipment.label, bound)
             combo.blockSignals(False)
-        for target_key, combo in self._route_combos.items():
+        for action_key, combo in self._action_combos.items():
             combo.blockSignals(True)
-            index = combo.findData(cfg.role_for(target_key))
+            index = combo.findData(cfg.equipment_for(action_key))
             combo.setCurrentIndex(index if index >= 0 else 0)
             combo.blockSignals(False)
         self.refresh_device_indicator()
 
     def refresh_device_lists(self) -> None:
-        """Re-enumerate the role device dropdowns (the Refresh devices hook)."""
-        self._populate_role_combos()
+        """Re-enumerate the equipment device dropdowns (the Refresh devices hook)."""
+        self._populate_equipment_combos()
 
     def refresh_device_indicator(self) -> None:
         """Render each route's resolved device beside its dropdown.
 
-        The routing combo names a role; this shows what the route *actually*
-        uses right now, so a route pointed at an unbound role reads "→ no
+        The routing combo names equipment; this shows what the route *actually*
+        uses right now, so a route pointed at an unbound equipment reads "→ no
         device" instead of looking configured. Refreshed through the same hook
         the other panels use (the session window calls it on every
         binding/routing change, study load, and rescan) and directly from this
         window's own setters, so a standalone window stays honest too.
         """
         cfg = self.session.devices
-        for target_key, indicator in self._route_indicators.items():
-            role_key = cfg.role_for(target_key)
-            if not role_key:
+        for action_key, indicator in self._action_indicators.items():
+            equipment_key = cfg.equipment_for(action_key)
+            if not equipment_key:
                 indicator.setText("")  # the route is off
                 indicator.setStyleSheet("")
                 continue
-            device = cfg.device_for(target_key)
+            device = cfg.device_for(action_key)
             if device:
                 indicator.setText(f"→ {device}")
                 indicator.setStyleSheet("color: gray;")
@@ -390,7 +391,7 @@ class DevicesWindow(ModalityWindow):
                 indicator.setStyleSheet("color: red;")
 
     def autobind_defaults(self) -> None:
-        """Bind unbound required roles to the current Windows default, by name (#139).
+        """Bind unbound required equipment to the current Windows default, by name (#139).
 
         Live sessions only: the editor usually runs on a different machine than
         the rig, so baking *its* devices into a study would be wrong — the rig
@@ -408,13 +409,13 @@ class DevicesWindow(ModalityWindow):
             for kind in (devices.OUTPUT, devices.INPUT)
         }
         filled = devices.autobind(self.session.devices, defaults)
-        for role, device in filled:
-            combo = self._role_combos[role.key]
+        for equipment, device in filled:
+            combo = self._equipment_combos[equipment.key]
             combo.blockSignals(True)
             self._select_device_row(combo, device)
             combo.blockSignals(False)
             self.session.log_info_msg(
-                f"{role.label} auto-selected: {device} (the current Windows default)"
+                f"{equipment.label} auto-selected: {device} (the current Windows default)"
             )
         if filled:
             self.refresh_device_indicator()
@@ -427,5 +428,5 @@ class DevicesWindow(ModalityWindow):
             return
         self.session.hue_config = dialog.get_config()
         self.session.log_interaction("Philips Hue bridge configured")
-        self._populate_role_combos()  # the Hue role now lists the bridge's lights
+        self._populate_equipment_combos()  # the Hue equipment now lists the bridge's lights
         self.changed.emit()

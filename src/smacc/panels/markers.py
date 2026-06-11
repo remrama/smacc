@@ -28,7 +28,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from .. import events, triggers
 from ..dialogs import AddEventDialog
 from ..session import SmaccSession
-from .base import ModalityWindow, make_section_title
+from .base import PanelWindow, make_section_title
 
 # Common serial baud rates offered in the dropdown (it stays editable for any other).
 _COMMON_BAUDS = (9600, 19200, 38400, 57600, 115200, 230400)
@@ -54,7 +54,7 @@ _LEGEND_ROWS = (
 )
 
 
-class MarkersWindow(ModalityWindow):
+class MarkersWindow(PanelWindow):
     """View and edit the whole marker setup: registry, routing, and transport."""
 
     TITLE = "Markers"

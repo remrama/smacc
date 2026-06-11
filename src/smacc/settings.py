@@ -15,7 +15,7 @@ The on-disk shape (a ``.smacc`` file is YAML text with a leading comment header)
     settings: { ...the panel state from SmaccWindow.gather_settings()... }
 
 The ``settings`` mapping carries, besides each panel's state, a few window-level
-blocks: ``devices`` (role/routing config), ``event_codes`` + ``event_code_safe_max``
+blocks: ``devices`` (equipment/routing config), ``event_codes`` + ``event_code_safe_max``
 (the marker registry), ``trigger_output`` (the optional hardware-trigger config; see
 :mod:`smacc.triggers`), ``data_directory``, and the interface choices ``preview_levels``
 (the live-log levels), ``always_on_top`` (the main window's), and ``tool_always_on_top``

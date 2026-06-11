@@ -25,12 +25,12 @@ from .. import audio, devices
 from ..dialogs import ManageChatPresetsDialog
 from ..session import SmaccSession
 from .base import (
-    ModalityWindow,
-    describe_role,
-    describe_target,
+    PanelWindow,
+    describe_action,
+    describe_equipment,
     make_section_title,
     require_device,
-    require_role_device,
+    require_equipment_device,
 )
 from .chat import EXPERIMENTER, ChatPresets, ChatTranscript, post_chat_message
 from .meter import LevelMeter
@@ -130,7 +130,7 @@ class _Bridge:
             outdata.fill(0)
 
 
-class IntercomWindow(ModalityWindow):
+class IntercomWindow(PanelWindow):
     """Talk to the participant (push-to-talk) and listen back, in either direction."""
 
     TITLE = "Intercom"
@@ -332,12 +332,12 @@ class IntercomWindow(ModalityWindow):
         output route plus the source mic ("• mic: …"), the same separator idiom
         the Audio cue window uses for its monitor.
         """
-        talk = describe_target(self.session, "speak_to_participant")
-        talk += f"   •   mic: {describe_role(self.session, devices.TALK_SOURCE_ROLE)}"
+        talk = describe_action(self.session, "speak_to_participant")
+        talk += f"   •   mic: {describe_equipment(self.session, devices.TALK_SOURCE)}"
         self.talkDeviceLabel.setText(talk)
-        listen = describe_target(self.session, "listen_to_participant")
+        listen = describe_action(self.session, "listen_to_participant")
         listen += (
-            f"   •   mic: {describe_role(self.session, devices.LISTEN_SOURCE_ROLE)}"
+            f"   •   mic: {describe_equipment(self.session, devices.LISTEN_SOURCE)}"
         )
         self.listenDeviceLabel.setText(listen)
 
@@ -369,14 +369,14 @@ class IntercomWindow(ModalityWindow):
         """Start/stop piping the experimenter mic to the participant output.
 
         Marked in the EEG record via LSL (the experimenter's voice is a manipulation
-        the participant hears). The mic is the control-room mic role (#160), the
-        output the ``speak_to_participant`` route — both pinned by name, like every other
-        audio path.
+        the participant hears). The mic is the Control-room mic equipment (#160),
+        the output the ``speak_to_participant`` route — both pinned by name,
+        like every other audio path.
         """
         if enabled:
-            mic = require_role_device(
+            mic = require_equipment_device(
                 self.session,
-                devices.TALK_SOURCE_ROLE,
+                devices.TALK_SOURCE,
                 devices.INPUT,
                 failure="Could not start intercom talk.",
                 parent=self,
@@ -414,9 +414,9 @@ class IntercomWindow(ModalityWindow):
         the source, the ``listen_to_participant`` route the destination.
         """
         if enabled:
-            mic = require_role_device(
+            mic = require_equipment_device(
                 self.session,
-                devices.LISTEN_SOURCE_ROLE,
+                devices.LISTEN_SOURCE,
                 devices.INPUT,
                 failure="Could not start intercom listen.",
                 parent=self,

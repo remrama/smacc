@@ -1,4 +1,4 @@
-"""Shared base class and helpers for SMACC's per-modality windows."""
+"""Shared base class and helpers for SMACC's per-tool windows."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from ..session import SmaccSession
 def resolve_device(device: str | None, kind: str) -> int | str | None:
     """Resolve a stored device name to its WASAPI device index for sounddevice.
 
-    Role bindings persist the bare device name. Passing that name straight to
+    Equipment bindings persist the bare device name. Passing that name straight to
     sounddevice matches it against *every* host API, and on Windows the same
     hardware appears once per host API (MME, DirectSound, WASAPI, …). A name
     short enough to escape MME's 31-char truncation is then identical across
@@ -47,50 +47,50 @@ def resolve_device(device: str | None, kind: str) -> int | str | None:
     return device
 
 
-def describe_target(session: SmaccSession, target_key: str) -> str:
-    """A short 'Role → device' description of where a modality target resolves.
+def describe_action(session: SmaccSession, action_key: str) -> str:
+    """A short 'Equipment → device' description of where an action resolves.
 
-    Shown read-only on each modality panel; the actual device is chosen once in
-    the Devices window. An off (optional) route reads as off; a role with no
-    device bound reads as not set — there is no silent system-default fallback
-    (#139).
+    Shown read-only on each tool panel; the actual device is chosen once in
+    the Devices window. An off (optional) route reads as off; equipment with
+    no device bound reads as not set — there is no silent system-default
+    fallback (#139).
     """
     cfg = session.devices
-    role_key = cfg.role_for(target_key)
-    if not role_key:
+    equipment_key = cfg.equipment_for(action_key)
+    if not equipment_key:
         return "off"
-    role = devices.ROLES_BY_KEY.get(role_key)
-    role_label = role.label if role else role_key
-    device = cfg.device_for(target_key)
+    equipment = devices.EQUIPMENT_BY_KEY.get(equipment_key)
+    label = equipment.label if equipment else equipment_key
+    device = cfg.device_for(action_key)
     if device:
-        return f"{role_label} → {device}"
-    return f"{role_label} (not set)"
+        return f"{label} → {device}"
+    return f"{label} (not set)"
 
 
-def describe_role(session: SmaccSession, role_key: str) -> str:
-    """A short 'Role → device' description of a role's binding.
+def describe_equipment(session: SmaccSession, equipment_key: str) -> str:
+    """A short 'Equipment → device' description of an equipment binding.
 
-    Like :func:`describe_target`, but for the source *roles* the intercom reads
-    directly (the talk and listen mics, which deliberately have no routing
-    target — see :data:`smacc.devices.TALK_SOURCE_ROLE`).
+    Like :func:`describe_action`, but for the source mics the intercom reads
+    directly (deliberately not routable actions — see
+    :data:`smacc.devices.TALK_SOURCE`).
     """
-    role = devices.ROLES_BY_KEY.get(role_key)
-    role_label = role.label if role else role_key
-    device = session.devices.device_for_role(role_key)
+    equipment = devices.EQUIPMENT_BY_KEY.get(equipment_key)
+    label = equipment.label if equipment else equipment_key
+    device = session.devices.device_for_equipment(equipment_key)
     if device:
-        return f"{role_label} → {device}"
-    return f"{role_label} (not set)"
+        return f"{label} → {device}"
+    return f"{label} (not set)"
 
 
-def require_role_device(
+def require_equipment_device(
     session: SmaccSession,
-    role_key: str,
+    equipment_key: str,
     kind: str,
     *,
     failure: str,
     parent: QtWidgets.QWidget | None,
 ) -> int | str | None:
-    """Resolve a role's bound device, or show ``failure`` and return ``None``.
+    """Resolve equipment's bound device, or show ``failure`` and return ``None``.
 
     The unbound case used to fall through to PortAudio's default device; after
     #139 nothing opens implicitly — the operator is pointed at the Devices
@@ -98,13 +98,12 @@ def require_role_device(
     name), so opening it fails with the usual "no device matching" error rather
     than being silently re-routed.
     """
-    role = devices.ROLES_BY_KEY[role_key]
-    device = session.devices.device_for_role(role_key)
+    equipment = devices.EQUIPMENT_BY_KEY[equipment_key]
+    device = session.devices.device_for_equipment(equipment_key)
     if not device:
         session.show_error_popup(
             failure,
-            f"No device is bound to the {role.label} role. Bind one in the "
-            "Devices window.",
+            f"No device is bound to {equipment.label}. Bind one in the Devices window.",
             parent=parent,
         )
         return None
@@ -113,29 +112,31 @@ def require_role_device(
 
 def require_device(
     session: SmaccSession,
-    target_key: str,
+    action_key: str,
     kind: str,
     *,
     failure: str,
     parent: QtWidgets.QWidget | None,
 ) -> int | str | None:
-    """Resolve a target's device via its route, or show ``failure`` and return ``None``.
+    """Resolve an action's device via its route, or show ``failure`` and return ``None``.
 
-    Covers both ways a target can have no device: its route is off (no role), or
-    its role has nothing bound. Each error names the missing piece and points at
-    the Devices window.
+    Covers both ways an action can have no device: its route is off (no
+    equipment), or its equipment has nothing bound. Each error names the
+    missing piece and points at the Devices window.
     """
-    target = devices.TARGETS_BY_KEY[target_key]
-    role_key = session.devices.role_for(target_key)
-    if not role_key:
+    action = devices.ACTIONS_BY_KEY[action_key]
+    equipment_key = session.devices.equipment_for(action_key)
+    if not equipment_key:
         session.show_error_popup(
             failure,
-            f"'{target.label}' is not routed to a role. Route it in the "
+            f"'{action.label}' is not routed to any equipment. Route it in the "
             "Devices window.",
             parent=parent,
         )
         return None
-    return require_role_device(session, role_key, kind, failure=failure, parent=parent)
+    return require_equipment_device(
+        session, equipment_key, kind, failure=failure, parent=parent
+    )
 
 
 def current_device_key(combo: QtWidgets.QComboBox) -> str:
@@ -198,8 +199,8 @@ def restore_spin_value(spin: QtWidgets.QDoubleSpinBox, value: object) -> bool:
     return True
 
 
-class ModalityWindow(QtWidgets.QMainWindow):
-    """Base class for a single modality's window.
+class PanelWindow(QtWidgets.QMainWindow):
+    """Base class for a single action's window.
 
     Each panel holds a reference to the shared :class:`SmaccSession` and emits
     markers/log lines through it. Closing the window just hides it (so it can be

@@ -1,21 +1,21 @@
-"""Tests for the pure device-roles model (no Qt, no I/O)."""
+"""Tests for the pure device-equipment model (no Qt, no I/O)."""
 
 from smacc import devices
 
 
 def test_default_config_routes_targets_to_their_defaults():
     cfg = devices.default_config()
-    assert cfg.role_for("play_audio_cue") == "bedroom_speaker"
-    assert cfg.role_for("play_noise") == "bedroom_speaker"
-    assert cfg.role_for("record_dream_report") == "bedroom_mic_1"
-    assert cfg.role_for("play_visual_cue") == "blinkstick_light"
+    assert cfg.equipment_for("play_audio_cue") == "bedroom_speaker"
+    assert cfg.equipment_for("play_noise") == "bedroom_speaker"
+    assert cfg.equipment_for("record_dream_report") == "bedroom_mic_1"
+    assert cfg.equipment_for("play_visual_cue") == "blinkstick_light"
     # The optional monitoring routes start off.
-    assert cfg.role_for("listen_audio_cue") == ""
-    assert cfg.role_for("listen_to_participant") == ""
+    assert cfg.equipment_for("listen_audio_cue") == ""
+    assert cfg.equipment_for("listen_to_participant") == ""
     assert cfg.bindings == {}  # nothing bound yet
 
 
-def test_device_for_resolves_target_through_role():
+def test_device_for_resolves_action_through_equipment():
     cfg = devices.default_config()
     cfg.bindings["bedroom_speaker"] = "Speakers, Windows WASAPI"
     cfg.bindings["bedroom_mic_1"] = "Mic, Windows WASAPI"
@@ -24,9 +24,11 @@ def test_device_for_resolves_target_through_role():
     assert cfg.device_for("record_dream_report") == "Mic, Windows WASAPI"
 
 
-def test_device_for_is_empty_when_role_unbound_or_off():
+def test_device_for_is_empty_when_equipment_unbound_or_off():
     cfg = devices.default_config()
-    assert cfg.device_for("play_audio_cue") == ""  # role routed but no device bound
+    assert (
+        cfg.device_for("play_audio_cue") == ""
+    )  # equipment routed but no device bound
     cfg.bindings["control_speaker"] = "Headphones, Windows WASAPI"
     assert cfg.device_for("listen_audio_cue") == ""  # optional route still off
 
@@ -35,7 +37,7 @@ def test_room_monitor_defaults_to_the_bedroom_mic():
     # Out of the box the room monitor (#37) shares the bedroom mic, so the cue
     # meter works without binding a separate device.
     cfg = devices.default_config()
-    assert cfg.role_for("monitor_bedroom_noise") == "bedroom_mic_1"
+    assert cfg.equipment_for("monitor_bedroom_noise") == "bedroom_mic_1"
     cfg.bindings["bedroom_mic_1"] = "Mic, Windows WASAPI"
     assert cfg.device_for("monitor_bedroom_noise") == "Mic, Windows WASAPI"
 
@@ -79,7 +81,7 @@ def test_from_dict_drops_unknown_and_invalid_entries():
         {
             "bindings": {
                 "bedroom_speaker": "Spk",
-                "bogus_role": "X",
+                "bogus_equipment": "X",
                 "bedroom_mic_1": 5,
             },
             "routing": {
@@ -89,14 +91,22 @@ def test_from_dict_drops_unknown_and_invalid_entries():
             },
         }
     )
-    assert cfg.bindings == {"bedroom_speaker": "Spk"}  # bogus role + non-str dropped
-    assert cfg.role_for("play_audio_cue") == "control_speaker"  # valid override kept
-    assert cfg.role_for("play_noise") == "bedroom_speaker"  # invalid role -> default
+    assert cfg.bindings == {
+        "bedroom_speaker": "Spk"
+    }  # bogus equipment + non-str dropped
+    assert (
+        cfg.equipment_for("play_audio_cue") == "control_speaker"
+    )  # valid override kept
+    assert (
+        cfg.equipment_for("play_noise") == "bedroom_speaker"
+    )  # invalid equipment -> default
 
 
 def test_from_dict_handles_non_mapping():
     cfg = devices.from_dict(None)
-    assert cfg.role_for("play_audio_cue") == "bedroom_speaker"  # falls back to defaults
+    assert (
+        cfg.equipment_for("play_audio_cue") == "bedroom_speaker"
+    )  # falls back to defaults
 
 
 def test_load_reads_devices_block():
@@ -105,19 +115,19 @@ def test_load_reads_devices_block():
 
 
 def test_load_defaults_when_no_devices_block():
-    # No devices block -> the default config (each target on its default role, with no
+    # No devices block -> the default config (each action on its default equipment, with no
     # devices bound). Per-panel device keys are no longer migrated.
     cfg = devices.load({"cue_device": "Spk"})
-    assert cfg.role_for("play_audio_cue") == "bedroom_speaker"  # default role
+    assert cfg.equipment_for("play_audio_cue") == "bedroom_speaker"  # default equipment
     assert cfg.bindings == {}  # nothing bound; the stray key is ignored
 
 
-def test_both_light_technologies_are_visual_roles():
-    # #53: separate BlinkStick and Philips Hue selectors — two roles of the
+def test_both_light_technologies_are_visual_equipment():
+    # #53: separate BlinkStick and Philips Hue selectors — two equipment of the
     # VISUAL kind, with the visual cue routed to whichever is in use.
-    roles = devices.ROLES_BY_KEY
-    assert roles["blinkstick_light"].kind == devices.VISUAL
-    assert roles["philips_hue_light"].kind == devices.VISUAL
+    equipment = devices.EQUIPMENT_BY_KEY
+    assert equipment["blinkstick_light"].kind == devices.VISUAL
+    assert equipment["philips_hue_light"].kind == devices.VISUAL
     cfg = devices.from_dict(
         {
             "bindings": {"philips_hue_light": "light:3"},
@@ -130,22 +140,26 @@ def test_both_light_technologies_are_visual_roles():
 # ----- autobind (#139) ---------------------------------------------------------
 
 
-def test_autobind_roles_are_the_required_audio_defaults():
-    # Derived from TARGETS (the default role of each required audio target) plus
-    # the intercom source roles (#160). Roles only optional routes point at
+def test_autobind_equipment_is_the_required_audio_defaults():
+    # Derived from ACTIONS (the default equipment of each required audio action) plus
+    # the intercom source equipment (#160). Roles only optional routes point at
     # (control-room speakers, monitor mic) are excluded.
-    assert devices.AUTOBIND_ROLES == ("bedroom_speaker", "bedroom_mic_1", "control_mic")
+    assert devices.AUTOBIND_EQUIPMENT == (
+        "bedroom_speaker",
+        "bedroom_mic_1",
+        "control_mic",
+    )
 
 
 def test_talk_source_is_the_control_room_mic():
-    # #160: the intercom talk mic is a bound role, not a routable target (routing
+    # #160: the intercom talk mic is a bound equipment, not a routable action (routing
     # it to a bedroom mic would feed the bedroom's sound back out its speakers).
-    role = devices.ROLES_BY_KEY[devices.TALK_SOURCE_ROLE]
-    assert role.key == "control_mic"
-    assert role.kind == devices.INPUT
+    equipment = devices.EQUIPMENT_BY_KEY[devices.TALK_SOURCE]
+    assert equipment.key == "control_mic"
+    assert equipment.kind == devices.INPUT
 
 
-def test_autobind_fills_only_unbound_roles():
+def test_autobind_fills_only_unbound_equipment():
     cfg = devices.default_config()
     cfg.bindings["bedroom_speaker"] = "Kept (USB)"
     filled = devices.autobind(
@@ -154,7 +168,7 @@ def test_autobind_fills_only_unbound_roles():
     assert cfg.bindings["bedroom_speaker"] == "Kept (USB)"  # never overwritten
     assert cfg.bindings["bedroom_mic_1"] == "Default In"
     assert cfg.bindings["control_mic"] == "Default In"
-    assert [(role.key, device) for role, device in filled] == [
+    assert [(equipment.key, device) for equipment, device in filled] == [
         ("bedroom_mic_1", "Default In"),
         ("control_mic", "Default In"),
     ]
@@ -168,8 +182,8 @@ def test_autobind_skips_kinds_without_a_default():
     assert cfg.bindings == {}
 
 
-def test_every_role_and_target_carries_a_description():
+def test_every_equipment_and_action_carries_a_description():
     # The Devices window's tooltips come from these; an empty one is a hole in
     # the window's self-documentation.
-    assert all(role.description for role in devices.ROLES)
-    assert all(target.description for target in devices.TARGETS)
+    assert all(equipment.description for equipment in devices.EQUIPMENT)
+    assert all(action.description for action in devices.ACTIONS)

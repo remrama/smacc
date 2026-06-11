@@ -13,8 +13,8 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from .. import devices, utils
 from ..session import SmaccSession
 from .base import (
-    ModalityWindow,
-    describe_target,
+    PanelWindow,
+    describe_action,
     make_section_title,
     require_device,
     restore_spin_value,
@@ -28,7 +28,7 @@ NOISE_LOOP_SECONDS = 30
 AUDIO_FILTER = "Audio (*.wav *.mp3 *.flac *.ogg *.oga *.aif *.aiff);;All files (*)"
 
 
-class NoiseWindow(ModalityWindow):
+class NoiseWindow(PanelWindow):
     """Continuous noise generator: built-in colors or a looped user file."""
 
     TITLE = "Noise machine"
@@ -49,7 +49,7 @@ class NoiseWindow(ModalityWindow):
 
         # Device is chosen in the Devices window; show where noise resolves to.
         self.deviceLabel = QtWidgets.QLabel(self)
-        self.deviceLabel.setStatusTip("Set in the Devices window (Noise → role).")
+        self.deviceLabel.setStatusTip("Set in the Devices window (Play noise).")
         self.refresh_device_indicator()
 
         # Source toggle: built-in generated color vs. a loaded file.
@@ -177,7 +177,7 @@ class NoiseWindow(ModalityWindow):
 
     def refresh_device_indicator(self) -> None:
         """Show where noise output resolves (device chosen in the Devices window)."""
-        self.deviceLabel.setText(describe_target(self.session, "play_noise"))
+        self.deviceLabel.setText(describe_action(self.session, "play_noise"))
 
     def is_streaming(self) -> bool:
         """True while noise is playing (an open output stream)."""

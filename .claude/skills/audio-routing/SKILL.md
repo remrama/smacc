@@ -1,6 +1,6 @@
 ---
 name: audio-routing
-description: SMACC's audio and device subsystem — sounddevice/PortAudio over Windows WASAPI, device enumeration and hot-plug, the roles-and-routing model, the Devices window, per-panel output/input streams (cues, noise, intercom, recorder, level meter), and the volume safety cap. Use when touching audio.py, devices.py, winvolume.py, gui.py, or any panels/*.py that opens a stream, or when debugging Windows audio device behavior.
+description: SMACC's audio and device subsystem — sounddevice/PortAudio over Windows WASAPI, device enumeration and hot-plug, the equipment-and-actions routing model, the Devices window, per-panel output/input streams (cues, noise, intercom, recorder, level meter), and the volume safety cap. Use when touching audio.py, devices.py, winvolume.py, gui.py, or any panels/*.py that opens a stream, or when debugging Windows audio device behavior.
 ---
 
 # Audio & device routing
@@ -9,20 +9,32 @@ The user-facing model is documented in `docs/audio.md`; this skill is the
 engineering view — the architecture and the Windows gotchas. Designing here means
 designing for "juggling six audio streams across two rooms, on Windows, at 3 a.m."
 
-## Roles and routing (not per-window pickers)
+## Equipment and actions (not per-window pickers)
 
-Devices are chosen **once** in the **Devices window**, by binding **roles** to
-physical devices and routing **modalities** to roles:
+Devices are chosen **once** in the **Devices window**, by binding **equipment**
+(place-named physical endpoints) to devices and routing **actions** (what SMACC
+does) to equipment:
 
-- Roles (physical endpoints): **Bedroom speakers**, **Control-room speakers**,
-  **Bedroom mic**, **Bedroom lights**.
-- Modalities point at a role: **Present audio cue**, **Present audio noise**,
-  intercom (**Speak through intercom**), **Capture dream report**; plus optional
-  **Monitor audio cue** (fan-out) and **Listen through intercom**.
-- `panels/base.describe_target()` renders the read-only "Role → device" indicator
-  each panel shows; the binding/route live in `session.devices` and are saved in the
+- Equipment (`devices.EQUIPMENT`): **Bedroom speaker**, **Control-room
+  speaker**, **Bedroom mic 1**, **Bedroom mic 2**, **Control-room mic**,
+  **BlinkStick light**, **Philips Hue light**. Keys = snake_case of the label.
+- Actions (`devices.ACTIONS`) are verbs that predict the equipment kind their
+  dropdown offers: **Play audio cue / noise / visual cue**, **Listen to audio
+  cue** (fan-out) and **Listen to participant** (both optional), **Speak to
+  participant**, **Record dream report**, **Monitor bedroom noise**. Every
+  Equipment/Action carries a full-sentence `description` (window tooltips).
+- The intercom source mics are bound equipment, not routable actions
+  (`TALK_SOURCE`/`LISTEN_SOURCE`) — a talk-source dropdown offering a bedroom
+  mic would be a feedback loop.
+- `panels/base.describe_action()` renders the read-only "Equipment → device"
+  indicator each panel shows; `require_device`/`require_equipment_device` guard
+  every stream open (an unbound route errors — **no system-default fallback**).
+  Live sessions auto-bind `AUTOBIND_EQUIPMENT` (bedroom speaker, bedroom mic 1,
+  control mic) to the current Windows default *by name* at construction/load,
+  never on rescans. The binding/route live in `session.devices`, saved in the
   `.smacc`.
-- A bound-but-unplugged device is **flagged**, not silently swapped.
+- A bound-but-unplugged device is **flagged** ("(not connected)" row), not
+  silently swapped.
 
 ## One audio engine: sounddevice over WASAPI
 
@@ -46,12 +58,12 @@ physical devices and routing **modalities** to roles:
 - Manual rescan: the Devices window's **Refresh devices** button / **F5**.
 - **Gotcha:** re-initializing PortAudio invalidates any open stream, so a rescan
   must run only while **nothing is streaming**. Panels report this via
-  `ModalityWindow.is_streaming()`; the refresh coordinator checks it first. Respect
+  `PanelWindow.is_streaming()`; the refresh coordinator checks it first. Respect
   this guard when adding a stream-owning panel.
 
 ## Streams & sample rates
 
-- Each modality panel owns its stream(s): `panels/audio.py`, `noise.py`,
+- Each tool panel owns its stream(s): `panels/audio.py`, `noise.py`,
   `intercom.py`, `recording.py` (and the meter). They open `sd.OutputStream` /
   input streams on the resolved device.
 - Sample rate comes from the device:
