@@ -165,3 +165,13 @@ def test_summary_describes_each_transport():
 def test_list_serial_ports_returns_a_list():
     # No hardware is required; on a port-less CI box this is just empty.
     assert isinstance(triggers.list_serial_ports(), list)
+
+
+def test_parallel_driver_available_reflects_dll_load(monkeypatch):
+    def _no_driver():
+        raise triggers.TriggerError("not installed")
+
+    monkeypatch.setattr(triggers, "_load_inpout", _no_driver)
+    assert triggers.parallel_driver_available() is False
+    monkeypatch.setattr(triggers, "_load_inpout", lambda: object())
+    assert triggers.parallel_driver_available() is True

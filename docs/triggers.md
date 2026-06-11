@@ -121,7 +121,9 @@ neither is log-only).
 !!! note "LSL stays on"
     Enabling a hardware transport does **not** turn LSL off — events routed to both
     (the default) reach the LSL stream and the hardware line together. The hardware
-    path is purely additional.
+    path is purely additional. LSL support ships inside SMACC itself — there is
+    nothing separate to install on the *sending* side (the recorder, e.g.
+    LabRecorder, is its own program).
 
 !!! tip "Why route per event?"
     Most studies leave every event on both transports. Per-event routing earns its

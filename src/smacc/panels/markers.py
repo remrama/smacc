@@ -211,6 +211,15 @@ class MarkersWindow(ModalityWindow):
         portRow = QtWidgets.QHBoxLayout()
         portRow.addWidget(self.portCombo, 1)
         portRow.addWidget(refreshButton)
+        # Detection hint, not a gate: the combo stays editable and the per-event
+        # TTL routing is kept, because studies are usually configured away from
+        # the rig — the hint just says nothing is attached *right now*.
+        self.portStatusLabel = QtWidgets.QLabel(
+            "⚠ No serial ports detected — attach the trigger box and click "
+            "Refresh. A typed/saved port is kept and used once attached.",
+            box,
+        )
+        self.portStatusLabel.setWordWrap(True)
         self.baudCombo = QtWidgets.QComboBox(box)
         self.baudCombo.setEditable(True)
         self.baudCombo.addItems([str(b) for b in _COMMON_BAUDS])
@@ -218,6 +227,7 @@ class MarkersWindow(ModalityWindow):
         serialForm = QtWidgets.QFormLayout(serialPage)
         serialForm.setContentsMargins(0, 0, 0, 0)
         serialForm.addRow("Port", portRow)
+        serialForm.addRow("", self.portStatusLabel)
         serialForm.addRow("Baud", self.baudCombo)
 
         # Parallel page: base address (hex), with help on finding it.
@@ -229,10 +239,19 @@ class MarkersWindow(ModalityWindow):
             "(see the Triggers docs)."
         )
         addressHelp.setWordWrap(True)
+        # Same idea as the serial hint: warn that the driver isn't loadable here
+        # and now, without gating any configuration on it.
+        self.driverStatusLabel = QtWidgets.QLabel(
+            "⚠ InpOut32 driver not detected on this machine — parallel output "
+            "will fail until it is installed (see the Triggers docs).",
+            box,
+        )
+        self.driverStatusLabel.setWordWrap(True)
         parallelPage = QtWidgets.QWidget(box)
         parallelForm = QtWidgets.QFormLayout(parallelPage)
         parallelForm.setContentsMargins(0, 0, 0, 0)
         parallelForm.addRow("Address", self.addressEdit)
+        parallelForm.addRow("", self.driverStatusLabel)
         parallelForm.addRow("", addressHelp)
 
         self.transportStack = QtWidgets.QStackedWidget(box)
@@ -283,7 +302,9 @@ class MarkersWindow(ModalityWindow):
         if selected is None:
             selected = self._current_port()
         self.portCombo.clear()
-        for device, description in triggers.list_serial_ports():
+        ports = triggers.list_serial_ports()
+        self.portStatusLabel.setVisible(not ports)
+        for device, description in ports:
             label = device if description == device else f"{device} — {description}"
             self.portCombo.addItem(label, device)
         if selected:
@@ -372,6 +393,9 @@ class MarkersWindow(ModalityWindow):
         self._select_data(self.transportCombo, config.transport)
         self._select_data(self.modeCombo, config.mode)
         self._refresh_ports(selected=config.port)
+        # Re-probed on every (re)load, so installing the driver and reopening the
+        # window clears the hint without restarting SMACC.
+        self.driverStatusLabel.setVisible(not triggers.parallel_driver_available())
         self.baudCombo.setCurrentText(str(config.baud))
         self.addressEdit.setText(config.address)
         self.pulseSpin.setValue(config.pulse_ms)

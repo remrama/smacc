@@ -275,6 +275,20 @@ def _load_inpout() -> Any:
     )
 
 
+def parallel_driver_available() -> bool:
+    """True if the InpOut32 / inpoutx64 driver DLL loads (Windows, installed).
+
+    The Markers window uses this to *warn* that parallel output would fail — it
+    gates nothing. A study is often configured away from the rig, so a missing
+    driver only becomes an error when an enabled transport actually opens.
+    """
+    try:
+        _load_inpout()
+    except TriggerError:
+        return False
+    return True
+
+
 def open_trigger(config: TriggerConfig) -> TriggerOutput | None:
     """Open the configured transport, or ``None`` when disabled.
 
