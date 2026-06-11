@@ -13,8 +13,8 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.2.0
         with:
           enable-cache: true
       - name: Ruff lint
@@ -42,8 +42,8 @@ jobs:
       # holds even if a future test imports Qt before conftest runs.
       QT_QPA_PLATFORM: offscreen
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.2.0
         with:
           enable-cache: true
       - name: Run tests
@@ -55,7 +55,7 @@ jobs:
         # (see codecov.yaml) stable rather than double-counting across matrix legs.
         # Strict: an upload error fails the build rather than passing silently.
         if: success() && matrix.os == 'windows-2022'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
