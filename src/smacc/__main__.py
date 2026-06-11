@@ -13,6 +13,7 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from . import preferences
+from .config import VERSION
 from .launcher import LauncherWindow, resolve_initial_settings
 from .paths import (
     BUNDLED_CUES_DIR,
@@ -122,7 +123,16 @@ def main() -> None:
     the menu and goes straight to a session for it. Ending a session quits SMACC
     (the other tools return to the launcher). Run folders and logs are created only
     when a session starts, not the instant the app launches.
+
+    ``--version`` exits immediately (code 0) without opening any window. The
+    release workflow smoke-tests the frozen exe with it — reaching this point
+    proves the bundle unpacks and every import resolves. The exe is built
+    ``--noconsole`` (no stdout), so the check is the exit code, not the output.
     """
+    if "--version" in sys.argv[1:]:
+        if sys.stdout is not None:  # absent in a --noconsole build
+            print(f"SMACC {VERSION}")
+        return
     _quiet_qt_multimedia_logging()  # before QApplication: Qt reads the rule at startup
     app = QApplication(sys.argv)
     _install_excepthook()
