@@ -157,8 +157,10 @@ def _schedule_crash_test(mode: str | None) -> None:
             # release smoke test) waiting for a click. 0x8007 =
             # SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX |
             # SEM_NOALIGNMENTFAULTEXCEPT | SEM_NOOPENFILEERRORBOX.
-            ctypes.windll.kernel32.SetErrorMode(0x8007)
-            faulthandler._sigsegv()
+            # type-ignores: CI's mypy runs on Linux, whose stubs lack windll;
+            # _sigsegv is faulthandler's private (unstubbed) test helper.
+            ctypes.windll.kernel32.SetErrorMode(0x8007)  # type: ignore[attr-defined]
+            faulthandler._sigsegv()  # type: ignore[attr-defined]
 
         QTimer.singleShot(0, _segv)
         return
