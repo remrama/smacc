@@ -24,28 +24,34 @@ def _session_with(design_session, bindings, routing=None):
 
 
 def test_describe_target_bound_device_reads_role_arrow_device(design_session):
-    session = _session_with(design_session, {"bedroom_out": "Speakers (USB)"})
-    # cue_out defaults to the bedroom_out role, which is bound above.
+    session = _session_with(design_session, {"bedroom_speaker": "Speakers (USB)"})
+    # play_audio_cue defaults to the bedroom_speaker role, which is bound above.
     assert (
-        base.describe_target(session, "cue_out") == "Bedroom speakers → Speakers (USB)"
+        base.describe_target(session, "play_audio_cue")
+        == "Bedroom speaker → Speakers (USB)"
     )
 
 
 def test_describe_target_unbound_audio_reads_not_set(design_session):
     # No silent system-default fallback (#139): an unbound role reads "(not set)".
     session = _session_with(design_session, {})
-    assert base.describe_target(session, "report_in") == "Bedroom mic (not set)"
+    assert (
+        base.describe_target(session, "record_dream_report")
+        == "Bedroom mic 1 (not set)"
+    )
 
 
 def test_describe_target_unbound_visual_reads_not_set(design_session):
     session = _session_with(design_session, {})
-    assert base.describe_target(session, "visual_out") == "BlinkStick (not set)"
+    assert (
+        base.describe_target(session, "play_visual_cue") == "BlinkStick light (not set)"
+    )
 
 
 def test_describe_target_off_route_reads_off(design_session):
-    # cue_monitor is an optional route whose default role is "" (off).
+    # listen_audio_cue is an optional route whose default role is "" (off).
     session = _session_with(design_session, {})
-    assert base.describe_target(session, "cue_monitor") == "off"
+    assert base.describe_target(session, "listen_audio_cue") == "off"
 
 
 def test_describe_role_bound_and_unbound(design_session):
@@ -57,7 +63,7 @@ def test_describe_role_bound_and_unbound(design_session):
     )
     assert (
         base.describe_role(session, devices.LISTEN_SOURCE_ROLE)
-        == "Bedroom mic (not set)"
+        == "Bedroom mic 1 (not set)"
     )
 
 
@@ -76,21 +82,29 @@ def test_require_device_unbound_role_pops_error_and_returns_none(
     session = _session_with(design_session, {})
     errors = _capture_errors(monkeypatch, session)
     got = base.require_device(
-        session, "cue_out", devices.OUTPUT, failure="Could not play.", parent=None
+        session,
+        "play_audio_cue",
+        devices.OUTPUT,
+        failure="Could not play.",
+        parent=None,
     )
     assert got is None
     assert errors and errors[0][0] == "Could not play."
-    assert "Bedroom speakers" in errors[0][1]  # names the unbound role
+    assert "Bedroom speaker" in errors[0][1]  # names the unbound role
 
 
 def test_require_device_off_route_pops_error_and_returns_none(
     design_session, monkeypatch
 ):
-    # cue_monitor's default route is off — no role to resolve through.
+    # listen_audio_cue's default route is off — no role to resolve through.
     session = _session_with(design_session, {})
     errors = _capture_errors(monkeypatch, session)
     got = base.require_device(
-        session, "cue_monitor", devices.OUTPUT, failure="Could not play.", parent=None
+        session,
+        "listen_audio_cue",
+        devices.OUTPUT,
+        failure="Could not play.",
+        parent=None,
     )
     assert got is None
     assert errors and "not routed" in errors[0][1]
@@ -99,11 +113,15 @@ def test_require_device_off_route_pops_error_and_returns_none(
 def test_require_device_bound_role_resolves_without_error(design_session, monkeypatch):
     _patch_sd(monkeypatch)
     session = _session_with(
-        design_session, {"bedroom_out": "Speakers (Realtek(R) Audio)"}
+        design_session, {"bedroom_speaker": "Speakers (Realtek(R) Audio)"}
     )
     errors = _capture_errors(monkeypatch, session)
     got = base.require_device(
-        session, "cue_out", devices.OUTPUT, failure="Could not play.", parent=None
+        session,
+        "play_audio_cue",
+        devices.OUTPUT,
+        failure="Could not play.",
+        parent=None,
     )
     assert got == 3  # the WASAPI index (see the resolve_device tests below)
     assert errors == []
@@ -122,7 +140,7 @@ def test_require_role_device_unbound_pops_error_and_returns_none(
         parent=None,
     )
     assert got is None
-    assert errors and "Bedroom mic" in errors[0][1]
+    assert errors and "Bedroom mic 1" in errors[0][1]
 
 
 # ----- resolve_device --------------------------------------------------------

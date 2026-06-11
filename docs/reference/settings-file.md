@@ -57,10 +57,10 @@ settings:
   devices:
     bindings: {}
     routing:
-      cue_out: bedroom_out
-      noise_out: bedroom_out
-      report_in: bedroom_mic
-      visual_out: blinkstick
+      play_audio_cue: bedroom_speaker
+      play_noise: bedroom_speaker
+      record_dream_report: bedroom_mic_1
+      play_visual_cue: blinkstick_light
   # --- Event-marker registry -------------------------------------------------
   event_codes:
     - {key: REMDetected, code: 41, lsl: true, ttl: true, preview: true, increment: false}
@@ -174,14 +174,15 @@ and [Devices](../devices.md)).
 
 | Key | Type | Meaning |
 |---|---|---|
-| `bindings` | mapping | Role key → device key. Roles: `bedroom_out`, `control_out`, `bedroom_mic`, `monitor_mic`, `control_mic` (the experimenter's intercom mic), `blinkstick` (a stick's serial), `hue` (a bridge target like `light:3` or `group:1`). |
-| `routing` | mapping | Target key → role key (`""` = off). Targets: `cue_out`, `cue_monitor`, `noise_out`, `intercom_talk`, `intercom_listen`, `report_in`, `monitor_in`, `visual_out`. |
+| `bindings` | mapping | Role key → device key. Roles: `bedroom_speaker`, `control_speaker`, `bedroom_mic_1`, `bedroom_mic_2`, `control_mic` (the experimenter's intercom mic), `blinkstick_light` (a stick's serial), `philips_hue_light` (a bridge target like `light:3` or `group:1`). |
+| `routing` | mapping | Target key → role key (`""` = off). Targets: `play_audio_cue`, `listen_audio_cue`, `play_noise`, `play_visual_cue`, `speak_to_participant`, `listen_to_participant`, `record_dream_report`, `monitor_bedroom_noise`. |
 
 A missing `devices` block loads the defaults (each target on its default role, with
-no devices bound). When a live session starts (or loads a study) with `bedroom_out`,
-`bedroom_mic`, or `control_mic` unbound, SMACC binds the current Windows default
-device explicitly, by name, and logs the choice — there is no "system default"
-pseudo-selection (see [Audio & routing](../audio.md#no-system-default)).
+no devices bound). When a live session starts (or loads a study) with
+`bedroom_speaker`, `bedroom_mic_1`, or `control_mic` unbound, SMACC binds the
+current Windows default device explicitly, by name, and logs the choice — there is
+no "system default" pseudo-selection (see
+[Audio & routing](../audio.md#no-system-default)).
 
 ### `trigger_output`
 

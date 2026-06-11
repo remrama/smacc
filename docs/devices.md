@@ -27,9 +27,9 @@ sleep and lucid-dreaming experiments.
 
 1. Plug the BlinkStick into a USB port, then launch SMACC.
 2. Click **Visual cue** in the *Tools* column.
-3. Bind your BlinkStick to the **BlinkStick** role in the **Devices** window (in
-   the *Tools* column). Plug one in after launch and it's detected automatically,
-   or click **Refresh devices (F5)** in the Devices window to rescan.
+3. Bind your BlinkStick to the **BlinkStick light** role in the **Devices** window
+   (in the *Tools* column). Plug one in after launch and it's detected
+   automatically, or click **Refresh devices (F5)** in the Devices window to rescan.
 4. Configure a light cue — color, brightness, pattern (steady, or a pulse/flash at
    a rate in Hz), and length (or **Loop** until stopped) — and add more cues with
    **+ Add cue** if the protocol needs several. See [Visual cues](visual.md) for
@@ -44,7 +44,7 @@ serial on the next launch (and flagged if it isn't plugged in).
 
 !!! note
     If the visual cue window reports that no light is set, open the **Devices**
-    window and bind one to the **BlinkStick** role (plug it in first; click
+    window and bind one to the **BlinkStick light** role (plug it in first; click
     **Refresh devices (F5)** there if it isn't listed). No restart needed.
 
 ## Philips Hue
@@ -58,8 +58,8 @@ over the local network. Setup is once per bridge:
    bridge settings).
 3. Press the round **link button** on the bridge itself, then click **Pair**
    within 30 seconds. **Test** lists the bridge's lights to confirm.
-4. Bind a light or group to the **Philips Hue** role, and route **Present visual
-   cue** to **Philips Hue**.
+4. Bind a light or group to the **Philips Hue light** role, and route **Play
+   visual cue** to **Philips Hue light**.
 
 The bridge IP and pairing key are stored in the study's `.smacc` (the key is a
 local-network credential — treat the file accordingly). Hue suits ambient,

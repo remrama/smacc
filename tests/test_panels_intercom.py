@@ -104,11 +104,11 @@ def _bind_devices(session):
     needs the participant mic plus the optional return route pointed at a bound
     role.
     """
-    session.devices.bindings["bedroom_out"] = "Speakers (Test)"
-    session.devices.bindings["bedroom_mic"] = "Mic (Test)"
+    session.devices.bindings["bedroom_speaker"] = "Speakers (Test)"
+    session.devices.bindings["bedroom_mic_1"] = "Mic (Test)"
     session.devices.bindings["control_mic"] = "Headset Mic (Test)"
-    session.devices.bindings["control_out"] = "Headphones (Test)"
-    session.devices.routing["intercom_listen"] = "control_out"
+    session.devices.bindings["control_speaker"] = "Headphones (Test)"
+    session.devices.routing["listen_to_participant"] = "control_speaker"
 
 
 def test_toggle_talk_starts_the_bridge_and_marks(qtbot, design_session, monkeypatch):
@@ -169,7 +169,7 @@ def test_listen_with_route_off_errors_and_reverts(qtbot, design_session, monkeyp
     # #139: the listen route is off by default; toggling it must refuse (instead
     # of opening the participant mix on the system default output) and revert.
     calls = _stub_bridges(monkeypatch)
-    design_session.devices.bindings["bedroom_mic"] = "Mic (Test)"
+    design_session.devices.bindings["bedroom_mic_1"] = "Mic (Test)"
     errors = []
     monkeypatch.setattr(
         design_session, "show_error_popup", lambda *a, **k: errors.append(a)
@@ -204,7 +204,7 @@ def test_talk_with_no_bound_output_errors_and_reverts(
     assert not window.talkButton.isChecked()
     assert calls["start"] == 0
     assert emitted == []
-    assert errors and "Bedroom speakers" in errors[0][1]
+    assert errors and "Bedroom speaker" in errors[0][1]
     window.cleanup()
 
 
@@ -212,7 +212,7 @@ def test_talk_with_no_bound_mic_errors_and_reverts(qtbot, design_session, monkey
     # #160: an unbound control-room mic refuses to talk (instead of capturing
     # from the system default input) and the button reverts, unmarked.
     calls = _stub_bridges(monkeypatch)
-    design_session.devices.bindings["bedroom_out"] = "Speakers (Test)"
+    design_session.devices.bindings["bedroom_speaker"] = "Speakers (Test)"
     errors = []
     monkeypatch.setattr(
         design_session, "show_error_popup", lambda *a, **k: errors.append(a)

@@ -121,12 +121,16 @@ class RecordingWindow(ModalityWindow):
     def _selected_input_device(self, failure: str) -> int | str | None:
         """The dream-report mic, or ``None`` (after a ``failure`` popup) if unbound."""
         return require_device(
-            self.session, "report_in", devices.INPUT, failure=failure, parent=self
+            self.session,
+            "record_dream_report",
+            devices.INPUT,
+            failure=failure,
+            parent=self,
         )
 
     def refresh_device_indicator(self) -> None:
         """Show where the mic resolves and switch a live meter over to it."""
-        self.deviceLabel.setText(describe_target(self.session, "report_in"))
+        self.deviceLabel.setText(describe_target(self.session, "record_dream_report"))
         self._restart_meter_if_monitoring()
 
     def is_streaming(self) -> bool:

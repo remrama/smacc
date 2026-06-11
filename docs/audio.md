@@ -15,26 +15,30 @@ Instead of picking a device separately in every window, SMACC has one **Devices
 window** (in the *Tools* column) where you do two things:
 
 1. **Bind each _role_ to a device, once.** The roles are the physical endpoints of a
-   rig: **Bedroom speakers**, **Control-room speakers**, **Bedroom mic**, the
-   **Control-room mic** (the experimenter's intercom voice), plus the light
-   devices (**BlinkStick**, **Philips Hue**).
-2. **Route each modality to a role.** The cue, noise, intercom, and dream-report
-   recorder each point at a role.
+   rig, named by place: **Bedroom speaker**, **Control-room speaker**, **Bedroom
+   mic 1** (and an optional **Bedroom mic 2**), the **Control-room mic** (the
+   experimenter's intercom voice), plus the light devices (**BlinkStick light**,
+   **Philips Hue light**).
+2. **Route each modality to a role.** Every modality is an action verb naming
+   what SMACC does with the device — *Play audio cue*, *Record dream report* —
+   and each points at a role. Hover any row in the window for a full description.
 
-The cue, the noise, and your intercom voice can all share the **Bedroom speakers**
+The cue, the noise, and your intercom voice can all share the **Bedroom speaker**
 role, so swapping the bedroom speaker is one change rather than several. Every other
 window shows a read-only indicator of where it resolves, for example
-`Device: Bedroom speakers → Speakers (USB Audio)`.
+`Device: Bedroom speaker → Speakers (USB Audio)`, and the Devices window shows the
+same resolution beside each route — a route pointed at a role with nothing bound
+reads **→ no device** instead of looking configured.
 
 ```text
-Bedroom speakers      Speakers (USB Audio)
-Control-room speakers Headphones (Realtek)
-Bedroom mic           Microphone (USB Audio)
+Bedroom speaker       Speakers (USB Audio)
+Control-room speaker  Headphones (Realtek)
+Bedroom mic 1         Microphone (USB Audio)
 ──────────────────────────────────────────
-Present audio cue    → Bedroom speakers    (monitor: Control-room speakers)
-Present audio noise  → Bedroom speakers
-Speak through intercom → Bedroom speakers
-Capture dream report → Bedroom mic
+Play audio cue       → Bedroom speaker    (listen: Control-room speaker)
+Play noise           → Bedroom speaker
+Speak to participant → Bedroom speaker
+Record dream report  → Bedroom mic 1
 ```
 
 The whole assignment is saved in your SMACC file, so a rig travels with
@@ -47,8 +51,8 @@ SMACC never routes audio to "whatever the system default is". Windows reassigns
 its default device on its own — plugging in an HDMI monitor or a Bluetooth headset
 is enough — and an overnight study must not follow it. Instead:
 
-* When a session starts (or loads a study) with nothing bound to **Bedroom
-  speakers**, **Bedroom mic**, or the **Control-room mic**, SMACC binds the device
+* When a session starts (or loads a study) with nothing bound to the **Bedroom
+  speaker**, **Bedroom mic 1**, or the **Control-room mic**, SMACC binds the device
   that is *currently* the Windows default — explicitly, by name — and logs which
   one it picked. From then on the binding is pinned: changing the Windows default
   never re-routes a study.
@@ -67,18 +71,19 @@ the rig with its roles unbound, and the rig pins its own defaults on first load.
 
 Three optional routes cover the things you reach for mid-study:
 
-* **Monitor audio cue (fan-out).** Route *Monitor audio cue* to the control-room
-  speakers and the cue plays in the bedroom and the control room at once, so you hear
-  what the participant heard.
-* **Listen through intercom.** The intercom is two-way: **Speak through intercom**
+* **Listen to audio cue (fan-out).** Route *Listen to audio cue* to the
+  control-room speaker and each cue plays in the bedroom and the control room at
+  once, so you hear what the participant hears.
+* **Listen to participant.** The intercom is two-way: **Speak to participant**
   sends your voice — picked up by the **Control-room mic** — to the participant
-  (and is marked in the EEG record), while **Listen through intercom** brings the
-  participant's mic to your control-room speakers. The intercom also has a typed [text-chat mode](usage.md#text-chat)
+  (and is marked in the EEG record), while **Listen to participant** brings the
+  participant's mic to your control-room speaker. The intercom also has a typed [text-chat mode](usage.md#text-chat)
   (no audio device involved) for hearing-impaired participants.
-* **Monitor the bedroom.** A microphone meter in the Audio cue window that confirms a
-  cue is audible in the bedroom (see
-  [below](#is-the-cue-reaching-the-bedroom)). It defaults to the **Bedroom mic**, or
-  bind a dedicated, more sensitive **Monitor mic** and route *Room monitor* to it.
+* **Monitor bedroom noise.** A microphone meter in the Audio cue window that
+  confirms a cue is audible in the bedroom (see
+  [below](#is-the-cue-reaching-the-bedroom)). It defaults to **Bedroom mic 1**, or
+  bind a dedicated, more sensitive **Bedroom mic 2** and route *Monitor bedroom
+  noise* to it.
 
 ## One audio engine
 
@@ -125,12 +130,13 @@ bedroom speaker could be muted, unplugged, or turned down at the hardware. The
   mic's noise floor, the meter also shows the **rise above the room's resting level**
   (the `+N` next to the reading), so even a small bump stands out.
 
-!!! tip "A dedicated monitor mic"
-    The *Bedroom* meter listens on the **Room monitor** route, which defaults to your
-    bedroom mic. For the most reliable check — especially for the very quiet cues a
-    study often starts at — bind a separate, sensitive **Monitor mic** in the Devices
-    window and route *Room monitor* to it. That keeps verification independent of the
-    (often cheaper, voice-activated) dream-report mic.
+!!! tip "A dedicated monitoring mic"
+    The *Bedroom* meter listens on the **Monitor bedroom noise** route, which
+    defaults to **Bedroom mic 1**. For the most reliable check — especially for the
+    very quiet cues a study often starts at — bind a separate, sensitive
+    **Bedroom mic 2** in the Devices window and route *Monitor bedroom noise* to
+    it. That keeps verification independent of the (often cheaper,
+    voice-activated) dream-report mic.
 
 !!! warning "A quiet mic isn't proof of silence"
     A cheap or voice-activated mic may not register a very faint cue even when it is

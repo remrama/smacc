@@ -11,8 +11,8 @@ change.
 The config persists in a settings file's ``devices`` block::
 
     devices:
-      bindings: {bedroom_out: "Speakers (Realtek …)", bedroom_mic: "Microphone …"}
-      routing:  {cue_out: bedroom_out, noise_out: bedroom_out, report_in: bedroom_mic}
+      bindings: {bedroom_speaker: "Speakers (Realtek …)", bedroom_mic_1: "Microphone …"}
+      routing:  {play_audio_cue: bedroom_speaker, record_dream_report: bedroom_mic_1}
 
 A settings dict with no ``devices`` block loads the default config (each target on
 its default role, with no devices bound yet).
@@ -34,56 +34,174 @@ WASAPI_HOST_API = "Windows WASAPI"
 
 @dataclass(frozen=True)
 class Role:
-    """A named physical endpoint a device is bound to (e.g. the bedroom speaker)."""
+    """A named physical endpoint a device is bound to (e.g. the bedroom speaker).
+
+    Roles are named by *place*, never by purpose — purpose lives in the routing
+    (a role called "monitor mic" becomes a lie the moment a lab routes the dream
+    report to it). ``description`` is the full-sentence tooltip shown in the
+    Devices window.
+    """
 
     key: str
     label: str
     kind: str
+    description: str = ""
 
 
-# The fixed role set. Two outputs and three mics cover the issue's rig; the two
+# The fixed role set. Two speakers and three mics cover the issue's rig; the two
 # light technologies are separate visual roles (#53: a BlinkStick binds one USB
-# stick, a Hue binds one bridge light/group — the visual cue routes to whichever is
-# in use). The monitor mic (#37) is a second, optional input so a lab can place a
-# dedicated, sensitive mic for verifying cues without disturbing the (often
-# cheaper) dream-report mic; the control-room mic (#160) picks up the
-# experimenter's voice for the intercom. Kept small on purpose — more can be
-# added later.
+# stick, a Hue binds one bridge light/group — the visual cue routes to whichever
+# is in use). Bedroom mic 2 (#37) is optional, e.g. a dedicated, sensitive mic
+# for verifying cues without relying on the (often cheaper) dream-report mic;
+# the control-room mic (#160) picks up the experimenter's voice for the
+# intercom. Kept small on purpose — more can be added later.
 ROLES: tuple[Role, ...] = (
-    Role("bedroom_out", "Bedroom speakers", OUTPUT),
-    Role("control_out", "Control-room speakers", OUTPUT),
-    Role("bedroom_mic", "Bedroom mic", INPUT),
-    Role("monitor_mic", "Monitor mic", INPUT),
-    Role("control_mic", "Control-room mic", INPUT),
-    Role("blinkstick", "BlinkStick", VISUAL),
-    Role("hue", "Philips Hue", VISUAL),
+    Role(
+        "bedroom_speaker",
+        "Bedroom speaker",
+        OUTPUT,
+        "The speaker in the bedroom: out of the box it plays the cues, the "
+        "noise, and your intercom voice to the participant.",
+    ),
+    Role(
+        "control_speaker",
+        "Control-room speaker",
+        OUTPUT,
+        "A speaker (or headphones) in the control room, so you can hear the "
+        "cues and the participant yourself.",
+    ),
+    Role(
+        "bedroom_mic_1",
+        "Bedroom mic 1",
+        INPUT,
+        "The main microphone in the bedroom: out of the box it records dream "
+        "reports and feeds the intercom's Listen direction.",
+    ),
+    Role(
+        "bedroom_mic_2",
+        "Bedroom mic 2",
+        INPUT,
+        "An optional second microphone in the bedroom — for example a more "
+        "sensitive one for verifying that cues are audible, independent of the "
+        "dream-report mic.",
+    ),
+    Role(
+        "control_mic",
+        "Control-room mic",
+        INPUT,
+        "The microphone in the control room that picks up your voice for the "
+        "intercom's Speak direction.",
+    ),
+    Role(
+        "blinkstick_light",
+        "BlinkStick light",
+        VISUAL,
+        "A BlinkStick USB light — one of the two devices that can play visual cues.",
+    ),
+    Role(
+        "philips_hue_light",
+        "Philips Hue light",
+        VISUAL,
+        "A Philips Hue light or group, reached through its bridge — the "
+        "room-scale alternative for visual cues.",
+    ),
 )
 
 
 @dataclass(frozen=True)
 class Target:
-    """A modality's device need, routed to a role of the matching ``kind``."""
+    """A modality's device need, routed to a role of the matching ``kind``.
+
+    The label is an action verb naming exactly what SMACC *does* with the
+    device, and the verb predicts the role kind the route can offer (Play →
+    speakers/lights, Record/Monitor → mics). ``description`` is the
+    full-sentence tooltip enumerating everything the device will be used for.
+    """
 
     key: str
     label: str
     kind: str
     default_role: str  # role key the target routes to out of the box ("" == off)
     optional: bool = False  # may be routed to "none" (an off-by-default extra route)
+    description: str = ""
 
 
-# Every device a modality needs, with its default role. The optional outputs are
-# the new monitoring routes (the cue fan-out and the intercom return).
+# Every device a modality needs, with its default role, ordered as the Devices
+# window shows them: the participant-facing Play block, the intercom pair, then
+# the mic routes. The optional ones are the monitoring routes (the cue fan-out
+# and the intercom return).
 TARGETS: tuple[Target, ...] = (
-    Target("cue_out", "Present audio cue", OUTPUT, "bedroom_out"),
-    Target("cue_monitor", "Monitor audio cue", OUTPUT, "", optional=True),
-    Target("noise_out", "Present audio noise", OUTPUT, "bedroom_out"),
-    Target("intercom_talk", "Speak through intercom", OUTPUT, "bedroom_out"),
-    Target("intercom_listen", "Listen through intercom", OUTPUT, "", optional=True),
-    Target("report_in", "Capture dream report", INPUT, "bedroom_mic"),
-    # The room monitor (#37) defaults to the bedroom mic so the cue meter works out
-    # of the box; route it to the dedicated monitor mic for a more sensitive check.
-    Target("monitor_in", "Monitor room with", INPUT, "bedroom_mic", optional=True),
-    Target("visual_out", "Present visual cue", VISUAL, "blinkstick"),
+    Target(
+        "play_audio_cue",
+        "Play audio cue",
+        OUTPUT,
+        "bedroom_speaker",
+        description="Plays the audio cues — and the spoken biocal "
+        "instructions — to the participant.",
+    ),
+    Target(
+        "listen_audio_cue",
+        "Listen to audio cue",
+        OUTPUT,
+        "",
+        optional=True,
+        description="Optional: also plays each cue and biocal instruction to "
+        "you, at the same time, so you hear what the participant hears.",
+    ),
+    Target(
+        "play_noise",
+        "Play noise",
+        OUTPUT,
+        "bedroom_speaker",
+        description="Plays the Noise machine's continuous background noise in "
+        "the bedroom.",
+    ),
+    Target(
+        "play_visual_cue",
+        "Play visual cue",
+        VISUAL,
+        "blinkstick_light",
+        description="Plays the visual cues — a light turning on, pulsing, or flashing.",
+    ),
+    Target(
+        "speak_to_participant",
+        "Speak to participant",
+        OUTPUT,
+        "bedroom_speaker",
+        description="Plays your voice in the bedroom while the intercom's Talk "
+        "is held; your voice is picked up by the Control-room mic. Marked in "
+        "the EEG record.",
+    ),
+    Target(
+        "listen_to_participant",
+        "Listen to participant",
+        OUTPUT,
+        "",
+        optional=True,
+        description="Optional: relays the participant's voice (from Bedroom "
+        "mic 1) to you while the intercom's Listen is on. Not marked.",
+    ),
+    Target(
+        "record_dream_report",
+        "Record dream report",
+        INPUT,
+        "bedroom_mic_1",
+        description="Records the participant's spoken dream reports to WAV "
+        "files, and drives the input-level meter in the Dream recording "
+        "window.",
+    ),
+    # The room monitor (#37) defaults to bedroom mic 1 so the cue meter works
+    # out of the box; route it to bedroom mic 2 for a more sensitive check.
+    Target(
+        "monitor_bedroom_noise",
+        "Monitor bedroom noise",
+        INPUT,
+        "bedroom_mic_1",
+        optional=True,
+        description="Shows a live level meter in the Audio cue window — with "
+        "the rise over the room's resting level — so you can confirm cues are "
+        "actually audible in the bedroom.",
+    ),
 )
 
 ROLES_BY_KEY: dict[str, Role] = {r.key: r for r in ROLES}
@@ -91,7 +209,7 @@ TARGETS_BY_KEY: dict[str, Target] = {t.key: t for t in TARGETS}
 
 # Source role for the intercom "listen" path (participant mic -> control room) and
 # any other input monitor: the same mic the dream report uses.
-LISTEN_SOURCE_ROLE = "bedroom_mic"
+LISTEN_SOURCE_ROLE = "bedroom_mic_1"
 # Source role for the intercom "talk" path (#160): the mic that picks up the
 # experimenter's voice. A role (not a routable target) on purpose — routing the
 # talk source to a bedroom mic would loop the bedroom's own sound back out its

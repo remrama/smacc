@@ -44,7 +44,7 @@ def _stub_output(monkeypatch, stream_cls=_FakeOutput, rate=8000.0):
 
 def _bind_output(session):
     """Give the noise route a definite device (#139: nothing opens unbound)."""
-    session.devices.bindings["bedroom_out"] = "Speakers (Test)"
+    session.devices.bindings["bedroom_speaker"] = "Speakers (Test)"
 
 
 def test_play_then_stop_builds_buffer_and_updates_status(
@@ -159,7 +159,7 @@ def test_play_with_no_bound_device_errors_and_keeps_quiet(
     window.on_play_noise_clicked()
     assert not window.is_streaming()
     assert window._noise_buffer is None
-    assert errors and "Bedroom speakers" in errors[0][1]
+    assert errors and "Bedroom speaker" in errors[0][1]
 
 
 @pytest.mark.parametrize("color", ["white", "pink", "brown"])

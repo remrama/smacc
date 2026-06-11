@@ -54,7 +54,7 @@ def test_record_start_to_stop_writes_the_report_wav(
     qtbot, live_session, monkeypatch, silence_dialogs
 ):
     _stub_recorder(monkeypatch)
-    live_session.devices.bindings["bedroom_mic"] = "Mic (Test)"
+    live_session.devices.bindings["bedroom_mic_1"] = "Mic (Test)"
     window = RecordingWindow(live_session)
     qtbot.addWidget(window)
 
@@ -86,7 +86,7 @@ def test_failed_start_reverts_button_and_leaves_no_numbering_gap(
         raise RuntimeError("device busy")
 
     _stub_recorder(monkeypatch, stream_cls=boom)
-    live_session.devices.bindings["bedroom_mic"] = "Mic (Test)"
+    live_session.devices.bindings["bedroom_mic_1"] = "Mic (Test)"
     window = RecordingWindow(live_session)
     qtbot.addWidget(window)
 
@@ -122,7 +122,7 @@ def test_record_with_no_bound_mic_errors_and_reverts(qtbot, live_session, monkey
     assert not window.micrecordButton.isChecked()
     assert window.n_report_counter == 0
     assert not window.is_streaming()
-    assert errors and "Bedroom mic" in errors[0][1]
+    assert errors and "Bedroom mic 1" in errors[0][1]
     window.cleanup()
 
 

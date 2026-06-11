@@ -134,6 +134,7 @@ class DevicesWindow(ModalityWindow):
         super().__init__(session, parent)
         self._role_combos: dict[str, QtWidgets.QComboBox] = {}
         self._route_combos: dict[str, QtWidgets.QComboBox] = {}
+        self._route_indicators: dict[str, QtWidgets.QLabel] = {}
         self.setCentralWidget(self._build())
         self.reload_from_config()
 
@@ -145,9 +146,11 @@ class DevicesWindow(ModalityWindow):
         for role in devices.ROLES:
             combo = QtWidgets.QComboBox(self)
             combo.setStatusTip(f"Device bound to the {role.label} role.")
+            combo.setToolTip(role.description)
             combo.currentIndexChanged.connect(partial(self._set_binding, role.key))
             self._role_combos[role.key] = combo
             roles_form.addRow(f"{role.label} is:", combo)
+            self._set_row_label_tooltip(roles_form, combo, role.description)
         self._populate_role_combos()
 
         routing_form = QtWidgets.QFormLayout()
@@ -155,6 +158,7 @@ class DevicesWindow(ModalityWindow):
         for target in devices.TARGETS:
             combo = QtWidgets.QComboBox(self)
             combo.setStatusTip(f"Role the '{target.label}' modality is routed to.")
+            combo.setToolTip(target.description)
             if target.optional:
                 combo.addItem(_NONE_LABEL, "")
             for role in devices.ROLES:
@@ -162,7 +166,16 @@ class DevicesWindow(ModalityWindow):
                     combo.addItem(role.label, role.key)
             combo.currentIndexChanged.connect(partial(self._set_routing, target.key))
             self._route_combos[target.key] = combo
-            routing_form.addRow(f"{target.label} using:", combo)
+            # Beside each route, show the device it currently resolves to — the
+            # live composition of the two sections, so a route on an unbound
+            # role reads "→ no device" instead of looking configured.
+            indicator = QtWidgets.QLabel(self)
+            self._route_indicators[target.key] = indicator
+            row = QtWidgets.QHBoxLayout()
+            row.addWidget(combo)
+            row.addWidget(indicator, 1)
+            routing_form.addRow(f"{target.label} using:", row)
+            self._set_row_label_tooltip(routing_form, row, target.description)
 
         refresh_button = QtWidgets.QPushButton("Refresh devices (F5)", self)
         refresh_button.setStatusTip(
@@ -187,7 +200,8 @@ class DevicesWindow(ModalityWindow):
         buttons.addWidget(hue_button)
 
         hint = QtWidgets.QLabel(
-            "Bind each role to a device once, then route each modality to a role."
+            "Bind each role to a device once, then route each modality to a "
+            "role. Hover any row for what it does."
         )
         hint.setWordWrap(True)
 
@@ -198,20 +212,46 @@ class DevicesWindow(ModalityWindow):
         layout.addWidget(hint)
         layout.addLayout(buttons)
         layout.addSpacing(8)
-        layout.addWidget(self._subheading("Roles → devices"))
+        layout.addWidget(
+            self._subheading(
+                "Roles → devices (the rig's hardware)",
+                "A role names a physical endpoint — a speaker, mic, or light. "
+                "Bind each role to one of this machine's devices, once.",
+            )
+        )
         layout.addLayout(roles_form)
         layout.addSpacing(8)
-        layout.addWidget(self._subheading("Modalities → roles"))
+        layout.addWidget(
+            self._subheading(
+                "Modalities → roles (what SMACC does with them)",
+                "Everything SMACC plays or records routes to a role. Several "
+                "modalities can share one role — the cue, the noise, and your "
+                "voice can all use the bedroom speaker.",
+            )
+        )
         layout.addLayout(routing_form)
         layout.addStretch(1)
         central = QtWidgets.QWidget()
         central.setLayout(layout)
         return central
 
-    def _subheading(self, text: str) -> QtWidgets.QLabel:
+    def _subheading(self, text: str, tooltip: str = "") -> QtWidgets.QLabel:
         label = QtWidgets.QLabel(text, self)
         label.setStyleSheet("font-weight: bold;")
+        if tooltip:
+            label.setToolTip(tooltip)
         return label
+
+    @staticmethod
+    def _set_row_label_tooltip(
+        form: QtWidgets.QFormLayout,
+        field: QtWidgets.QWidget | QtWidgets.QLayout,
+        tooltip: str,
+    ) -> None:
+        """Put ``tooltip`` on a form row's text label (hovering the words works too)."""
+        label = form.labelForField(field)  # type: ignore[call-overload]
+        if label is not None and tooltip:
+            label.setToolTip(tooltip)
 
     # ----- enumeration -------------------------------------------------------
 
@@ -228,7 +268,7 @@ class DevicesWindow(ModalityWindow):
             combo = self._role_combos[role.key]
             combo.blockSignals(True)
             combo.clear()
-            if role.key == "hue":
+            if role.key == "philips_hue_light":
                 entries = hue_devices(self.session.hue_config)
                 empty = (
                     _NO_LIGHTS_LABEL
@@ -282,6 +322,7 @@ class DevicesWindow(ModalityWindow):
         self.session.log_interaction(
             f"{devices.ROLES_BY_KEY[role_key].label} device set"
         )
+        self.refresh_device_indicator()
         self.changed.emit()
 
     def _set_routing(self, target_key: str) -> None:
@@ -292,6 +333,7 @@ class DevicesWindow(ModalityWindow):
         self.session.log_interaction(
             f"{devices.TARGETS_BY_KEY[target_key].label} routing set"
         )
+        self.refresh_device_indicator()
         self.changed.emit()
 
     # ----- config <-> widgets ------------------------------------------------
@@ -316,10 +358,36 @@ class DevicesWindow(ModalityWindow):
             index = combo.findData(cfg.role_for(target_key))
             combo.setCurrentIndex(index if index >= 0 else 0)
             combo.blockSignals(False)
+        self.refresh_device_indicator()
 
     def refresh_device_lists(self) -> None:
         """Re-enumerate the role device dropdowns (the Refresh devices hook)."""
         self._populate_role_combos()
+
+    def refresh_device_indicator(self) -> None:
+        """Render each route's resolved device beside its dropdown.
+
+        The routing combo names a role; this shows what the route *actually*
+        uses right now, so a route pointed at an unbound role reads "→ no
+        device" instead of looking configured. Refreshed through the same hook
+        the other panels use (the session window calls it on every
+        binding/routing change, study load, and rescan) and directly from this
+        window's own setters, so a standalone window stays honest too.
+        """
+        cfg = self.session.devices
+        for target_key, indicator in self._route_indicators.items():
+            role_key = cfg.role_for(target_key)
+            if not role_key:
+                indicator.setText("")  # the route is off
+                indicator.setStyleSheet("")
+                continue
+            device = cfg.device_for(target_key)
+            if device:
+                indicator.setText(f"→ {device}")
+                indicator.setStyleSheet("color: gray;")
+            else:
+                indicator.setText("→ no device")
+                indicator.setStyleSheet("color: red;")
 
     def autobind_defaults(self) -> None:
         """Bind unbound required roles to the current Windows default, by name (#139).
@@ -349,6 +417,7 @@ class DevicesWindow(ModalityWindow):
                 f"{role.label} auto-selected: {device} (the current Windows default)"
             )
         if filled:
+            self.refresh_device_indicator()
             self.changed.emit()
 
     def setup_hue_bridge(self) -> None:

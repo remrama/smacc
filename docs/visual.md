@@ -94,7 +94,7 @@ over a sleeping participant.
 Rules of thumb: for **time-locked cueing** (EEG-aligned onsets, flicker at a
 defined Hz) use the **BlinkStick**. For **ambient light** — dawn simulation,
 whole-room color, slow breathing pulses — **Hue** is the better lamp. A rig can
-bind both and switch by re-routing *Present visual cue* in the Devices window.
+bind both and switch by re-routing *Play visual cue* in the Devices window.
 
 !!! note "Hue on a university network"
     The bridge and the control PC must reach each other on the same network, and
@@ -149,7 +149,7 @@ point.
 * **The BlinkStick isn't listed** — replug it and press `F5` (or click **Refresh
   devices** in the Devices window). The driver ships inside SMACC; nothing to install.
 * **"No light is set."** — bind the device in the **Devices** window *and* check
-  that *Present visual cue* is routed to that role.
+  that *Play visual cue* is routed to that role.
 * **The Hue bridge stopped responding** — its IP probably changed; re-enter it in
   **Set up Philips Hue…** (and give the bridge a DHCP reservation so it stays
   put). If pairing fails from lab Wi-Fi, see the network note above.
