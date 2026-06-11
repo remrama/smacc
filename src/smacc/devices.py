@@ -41,17 +41,20 @@ class Role:
     kind: str
 
 
-# The fixed role set. Two outputs and one mic cover the issue's rig; the two light
-# technologies are separate visual roles (#53: a BlinkStick binds one USB stick, a
-# Hue binds one bridge light/group — the visual cue routes to whichever is in use).
-# The monitor mic (#37) is a second, optional input so a lab can place a dedicated,
-# sensitive mic for verifying cues without disturbing the (often cheaper)
-# dream-report mic. Kept small on purpose — more can be added later.
+# The fixed role set. Two outputs and three mics cover the issue's rig; the two
+# light technologies are separate visual roles (#53: a BlinkStick binds one USB
+# stick, a Hue binds one bridge light/group — the visual cue routes to whichever is
+# in use). The monitor mic (#37) is a second, optional input so a lab can place a
+# dedicated, sensitive mic for verifying cues without disturbing the (often
+# cheaper) dream-report mic; the control-room mic (#160) picks up the
+# experimenter's voice for the intercom. Kept small on purpose — more can be
+# added later.
 ROLES: tuple[Role, ...] = (
     Role("bedroom_out", "Bedroom speakers", OUTPUT),
     Role("control_out", "Control-room speakers", OUTPUT),
     Role("bedroom_mic", "Bedroom mic", INPUT),
     Role("monitor_mic", "Monitor mic", INPUT),
+    Role("control_mic", "Control-room mic", INPUT),
     Role("blinkstick", "BlinkStick", VISUAL),
     Role("hue", "Philips Hue", VISUAL),
 )
@@ -89,17 +92,26 @@ TARGETS_BY_KEY: dict[str, Target] = {t.key: t for t in TARGETS}
 # Source role for the intercom "listen" path (participant mic -> control room) and
 # any other input monitor: the same mic the dream report uses.
 LISTEN_SOURCE_ROLE = "bedroom_mic"
+# Source role for the intercom "talk" path (#160): the mic that picks up the
+# experimenter's voice. A role (not a routable target) on purpose — routing the
+# talk source to a bedroom mic would loop the bedroom's own sound back out its
+# speakers at a sleeping participant.
+TALK_SOURCE_ROLE = "control_mic"
 
 # Roles SMACC binds automatically when left unbound (live sessions only): the
-# default role of every required audio target, so a fresh study has a definite
-# device for the paths that play/record out of the box. Roles only optional
-# routes point at (control-room speakers, the dedicated monitor mic) imply
-# hardware a rig may not have, so they are never auto-bound.
+# default role of every required audio target, plus the intercom source roles,
+# so a fresh study has a definite device for the paths that play/record out of
+# the box. Roles only optional routes point at (control-room speakers, the
+# dedicated monitor mic) imply hardware a rig may not have, so they are never
+# auto-bound.
 AUTOBIND_ROLES: tuple[str, ...] = tuple(
     dict.fromkeys(
-        t.default_role
-        for t in TARGETS
-        if not t.optional and t.kind in (OUTPUT, INPUT) and t.default_role
+        [
+            t.default_role
+            for t in TARGETS
+            if not t.optional and t.kind in (OUTPUT, INPUT) and t.default_role
+        ]
+        + [LISTEN_SOURCE_ROLE, TALK_SOURCE_ROLE]
     )
 )
 

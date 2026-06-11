@@ -100,11 +100,13 @@ def _stub_bridges(monkeypatch, fail=False):
 def _bind_devices(session):
     """Give both intercom directions definite devices (#139: no unbound opens).
 
-    Talk needs the participant output (bedroom speakers); Listen needs the
-    participant mic plus the optional return route pointed at a bound role.
+    Talk needs the control-room mic (#160) and the participant output; Listen
+    needs the participant mic plus the optional return route pointed at a bound
+    role.
     """
     session.devices.bindings["bedroom_out"] = "Speakers (Test)"
     session.devices.bindings["bedroom_mic"] = "Mic (Test)"
+    session.devices.bindings["control_mic"] = "Headset Mic (Test)"
     session.devices.bindings["control_out"] = "Headphones (Test)"
     session.devices.routing["intercom_listen"] = "control_out"
 
@@ -187,6 +189,7 @@ def test_talk_with_no_bound_output_errors_and_reverts(
     # #139: an unbound participant output refuses to talk (instead of speaking
     # through the system default device) and the button reverts, unmarked.
     calls = _stub_bridges(monkeypatch)
+    design_session.devices.bindings["control_mic"] = "Headset Mic (Test)"
     errors = []
     monkeypatch.setattr(
         design_session, "show_error_popup", lambda *a, **k: errors.append(a)
@@ -202,6 +205,29 @@ def test_talk_with_no_bound_output_errors_and_reverts(
     assert calls["start"] == 0
     assert emitted == []
     assert errors and "Bedroom speakers" in errors[0][1]
+    window.cleanup()
+
+
+def test_talk_with_no_bound_mic_errors_and_reverts(qtbot, design_session, monkeypatch):
+    # #160: an unbound control-room mic refuses to talk (instead of capturing
+    # from the system default input) and the button reverts, unmarked.
+    calls = _stub_bridges(monkeypatch)
+    design_session.devices.bindings["bedroom_out"] = "Speakers (Test)"
+    errors = []
+    monkeypatch.setattr(
+        design_session, "show_error_popup", lambda *a, **k: errors.append(a)
+    )
+    emitted = []
+    monkeypatch.setattr(
+        design_session, "emit_event", lambda key, **k: emitted.append(key)
+    )
+    window = IntercomWindow(design_session)
+    qtbot.addWidget(window)
+    window.talkButton.setChecked(True)
+    assert not window.talkButton.isChecked()
+    assert calls["start"] == 0
+    assert emitted == []
+    assert errors and "Control-room mic" in errors[0][1]
     window.cleanup()
 
 

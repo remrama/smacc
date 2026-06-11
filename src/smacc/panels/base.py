@@ -67,6 +67,21 @@ def describe_target(session: SmaccSession, target_key: str) -> str:
     return f"{role_label} (not set)"
 
 
+def describe_role(session: SmaccSession, role_key: str) -> str:
+    """A short 'Role → device' description of a role's binding.
+
+    Like :func:`describe_target`, but for the source *roles* the intercom reads
+    directly (the talk and listen mics, which deliberately have no routing
+    target — see :data:`smacc.devices.TALK_SOURCE_ROLE`).
+    """
+    role = devices.ROLES_BY_KEY.get(role_key)
+    role_label = role.label if role else role_key
+    device = session.devices.device_for_role(role_key)
+    if device:
+        return f"{role_label} → {device}"
+    return f"{role_label} (not set)"
+
+
 def require_role_device(
     session: SmaccSession,
     role_key: str,
