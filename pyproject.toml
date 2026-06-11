@@ -6,9 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "smacc"
 description = "Sleep manipulation and communication clickything"
 readme = "README.md"
-# Build/runtime Python is pinned to 3.12 via .python-version. The minimum OS is
+# Build/runtime Python is pinned to 3.13 via .python-version. The minimum OS is
 # Windows 10, set by Qt 6 (see the PyQt6 dependency note below).
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 license = { text = "GPL-3.0-or-later" }
 authors = [{ name = "Remington Mallett", email = "mallett.remy@gmail.com" }]
 dynamic = ["version"]
@@ -19,7 +19,7 @@ classifiers = [
     "Operating System :: Microsoft :: Windows :: Windows 11",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Intended Audience :: Science/Research",
 ]
 dependencies = [
@@ -94,7 +94,7 @@ where = ["src"]
 smacc = ["assets/*", "assets/biocals/*", "assets/cues/*", "assets/surveys/*"]
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py313"
 line-length = 88
 src = ["src", "tests"]
 
@@ -110,7 +110,7 @@ line-ending = "lf"
 quote-style = "double"
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.13"
 ignore_missing_imports = true
 files = ["src"]
 

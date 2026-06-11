@@ -29,7 +29,7 @@ jobs:
 
   test:
     # windows-2022 mirrors the release build (release.yaml) — same OS, Python
-    # (3.12, via .python-version), and locked deps — so CI exercises exactly what
+    # (3.13, via .python-version), and locked deps — so CI exercises exactly what
     # gets frozen into SMACC.exe. windows-latest runs alongside as a
     # forward-compatibility canary (it tracks the newest hosted image, e.g. the
     # VS-2026 line), so toolchain/runtime drift is caught here rather than at
