@@ -24,8 +24,8 @@ from .. import audio, devices, utils
 from ..session import SmaccSession
 from ..utils import pick_random_demo_cue
 from .base import (
-    ModalityWindow,
-    describe_target,
+    PanelWindow,
+    describe_action,
     make_section_title,
     require_device,
     resolve_device,
@@ -75,7 +75,7 @@ class CueOutput:
     stream: sd.OutputStream
 
 
-class AudioCueWindow(ModalityWindow):
+class AudioCueWindow(PanelWindow):
     """Multi-slot cue board with a shared device + fade and per-slot play/stop."""
 
     TITLE = "Audio cue"
@@ -164,7 +164,7 @@ class AudioCueWindow(ModalityWindow):
     def _build(self) -> QtWidgets.QWidget:
         # Shared output device (chosen in the Devices window) + fade controls.
         self.deviceLabel = QtWidgets.QLabel(self)
-        self.deviceLabel.setStatusTip("Set in the Devices window (Audio cue → role).")
+        self.deviceLabel.setStatusTip("Set in the Devices window (Play audio cue).")
         self.refresh_device_indicator()
 
         attackSpinBox = QtWidgets.QDoubleSpinBox(self)
@@ -310,14 +310,14 @@ class AudioCueWindow(ModalityWindow):
 
     def refresh_device_indicator(self) -> None:
         """Show where cue output resolves, plus the monitor route when enabled."""
-        text = describe_target(self.session, "play_audio_cue")
-        if self.session.devices.role_for("listen_audio_cue"):
+        text = describe_action(self.session, "play_audio_cue")
+        if self.session.devices.equipment_for("listen_audio_cue"):
             text += (
-                f"   •   monitor: {describe_target(self.session, 'listen_audio_cue')}"
+                f"   •   monitor: {describe_action(self.session, 'listen_audio_cue')}"
             )
         self.deviceLabel.setText(text)
         self.monitorDeviceLabel.setText(
-            describe_target(self.session, "monitor_bedroom_noise")
+            describe_action(self.session, "monitor_bedroom_noise")
         )
         self._restart_room_monitor_if_active()
 
@@ -558,7 +558,7 @@ class AudioCueWindow(ModalityWindow):
         self.monitorCheckBox.setToolTip("Listen on the bedroom monitor mic")
         self.monitorCheckBox.toggled.connect(self.toggle_room_monitor)
         self.monitorDeviceLabel.setStatusTip(
-            "Set in the Devices window (Room monitor → role)."
+            "Set in the Devices window (Monitor bedroom noise)."
         )
 
         roomRow = QtWidgets.QHBoxLayout()

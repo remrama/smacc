@@ -100,7 +100,7 @@ def test_play_without_a_device_pops_an_error_and_marks_nothing(
     panel = VisualWindow(design_session)
     qtbot.addWidget(panel)
     events, popups = _spies(panel, monkeypatch)
-    assert panel._backend is None  # the default role has no device bound
+    assert panel._backend is None  # the default equipment has no device bound
     panel.play_slot(panel.slots[0])
     assert popups and not events
     assert not panel._timer.isActive()

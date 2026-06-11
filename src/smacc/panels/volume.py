@@ -13,10 +13,10 @@ from PyQt6 import QtCore, QtWidgets
 
 from .. import winvolume
 from ..session import SmaccSession
-from .base import ModalityWindow, make_section_title, restore_spin_value
+from .base import PanelWindow, make_section_title, restore_spin_value
 
 
-class VolumeWindow(ModalityWindow):
+class VolumeWindow(PanelWindow):
     """Set the master output cap + latency mode, and view the Windows volume stages."""
 
     TITLE = "Volume"

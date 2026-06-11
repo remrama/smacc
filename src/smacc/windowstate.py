@@ -7,7 +7,7 @@ small Qt helpers are the bridge between that pure data and a live ``QWidget``.
 
 Kept separate from :mod:`smacc.preferences` (which stays Qt-free and unit-testable
 without a display) and from any one window class, since windows of different base
-classes (``QMainWindow``, ``ToolWindow``, ``ModalityWindow``) all need it.
+classes (``QMainWindow``, ``ToolWindow``, ``PanelWindow``) all need it.
 """
 
 from __future__ import annotations

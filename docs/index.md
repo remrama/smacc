@@ -28,7 +28,7 @@ download, or for downloading older versions.
 * [Installation](installation.md) — download and run SMACC.
 * [Usage](usage.md) — trigger cues, record dream reports, send port codes, and more.
 * [SMACC files](smacc-files.md) — create and reuse a study's configuration (`.smacc`).
-* [Audio & routing](audio.md) — assign devices to roles, route cues/noise/intercom, and set volume.
+* [Audio & routing](audio.md) — bind the rig's equipment to devices, route cues/noise/intercom, and set volume.
 * [Visual cues](visual.md) — light cues on a BlinkStick or Philips Hue: patterns, timing, and safety.
 * [Devices](devices.md) — connect compatible hardware such as a BlinkStick or a Hue bridge.
 * [Contributing](contributing.md) — develop SMACC and build these docs locally.

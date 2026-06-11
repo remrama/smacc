@@ -1,6 +1,6 @@
 """Tests for the pure helpers in panels.base (need a QApplication, no hardware).
 
-``describe_target`` is pure logic over a DeviceConfig; the combo helpers and
+``describe_action`` is pure logic over a DeviceConfig; the combo helpers and
 ``make_section_title`` build throwaway widgets, so they take the pytest-qt
 ``qtbot`` fixture (which guarantees a QApplication) and register widgets for
 cleanup.
@@ -13,7 +13,7 @@ from PyQt6 import QtCore, QtWidgets
 from smacc import devices
 from smacc.panels import base
 
-# ----- describe_target -------------------------------------------------------
+# ----- describe_action -------------------------------------------------------
 
 
 def _session_with(design_session, bindings, routing=None):
@@ -25,18 +25,18 @@ def _session_with(design_session, bindings, routing=None):
 
 def test_describe_target_bound_device_reads_role_arrow_device(design_session):
     session = _session_with(design_session, {"bedroom_speaker": "Speakers (USB)"})
-    # play_audio_cue defaults to the bedroom_speaker role, which is bound above.
+    # play_audio_cue defaults to the bedroom_speaker equipment, which is bound above.
     assert (
-        base.describe_target(session, "play_audio_cue")
+        base.describe_action(session, "play_audio_cue")
         == "Bedroom speaker → Speakers (USB)"
     )
 
 
 def test_describe_target_unbound_audio_reads_not_set(design_session):
-    # No silent system-default fallback (#139): an unbound role reads "(not set)".
+    # No silent system-default fallback (#139): an unbound equipment reads "(not set)".
     session = _session_with(design_session, {})
     assert (
-        base.describe_target(session, "record_dream_report")
+        base.describe_action(session, "record_dream_report")
         == "Bedroom mic 1 (not set)"
     )
 
@@ -44,30 +44,30 @@ def test_describe_target_unbound_audio_reads_not_set(design_session):
 def test_describe_target_unbound_visual_reads_not_set(design_session):
     session = _session_with(design_session, {})
     assert (
-        base.describe_target(session, "play_visual_cue") == "BlinkStick light (not set)"
+        base.describe_action(session, "play_visual_cue") == "BlinkStick light (not set)"
     )
 
 
 def test_describe_target_off_route_reads_off(design_session):
-    # listen_audio_cue is an optional route whose default role is "" (off).
+    # listen_audio_cue is an optional route whose default equipment is "" (off).
     session = _session_with(design_session, {})
-    assert base.describe_target(session, "listen_audio_cue") == "off"
+    assert base.describe_action(session, "listen_audio_cue") == "off"
 
 
 def test_describe_role_bound_and_unbound(design_session):
-    # The intercom source roles (#160) are described directly, without a target.
+    # The intercom source mics (#160) are described directly, without an action.
     session = _session_with(design_session, {"control_mic": "Headset Mic"})
     assert (
-        base.describe_role(session, devices.TALK_SOURCE_ROLE)
+        base.describe_equipment(session, devices.TALK_SOURCE)
         == "Control-room mic → Headset Mic"
     )
     assert (
-        base.describe_role(session, devices.LISTEN_SOURCE_ROLE)
+        base.describe_equipment(session, devices.LISTEN_SOURCE)
         == "Bedroom mic 1 (not set)"
     )
 
 
-# ----- require_device / require_role_device (#139) ----------------------------
+# ----- require_device / require_equipment_device (#139) ----------------------------
 
 
 def _capture_errors(monkeypatch, session) -> list[tuple]:
@@ -90,13 +90,13 @@ def test_require_device_unbound_role_pops_error_and_returns_none(
     )
     assert got is None
     assert errors and errors[0][0] == "Could not play."
-    assert "Bedroom speaker" in errors[0][1]  # names the unbound role
+    assert "Bedroom speaker" in errors[0][1]  # names the unbound equipment
 
 
 def test_require_device_off_route_pops_error_and_returns_none(
     design_session, monkeypatch
 ):
-    # listen_audio_cue's default route is off — no role to resolve through.
+    # listen_audio_cue's default route is off — no equipment to resolve through.
     session = _session_with(design_session, {})
     errors = _capture_errors(monkeypatch, session)
     got = base.require_device(
@@ -132,9 +132,9 @@ def test_require_role_device_unbound_pops_error_and_returns_none(
 ):
     session = _session_with(design_session, {})
     errors = _capture_errors(monkeypatch, session)
-    got = base.require_role_device(
+    got = base.require_equipment_device(
         session,
-        devices.LISTEN_SOURCE_ROLE,
+        devices.LISTEN_SOURCE,
         devices.INPUT,
         failure="Could not listen.",
         parent=None,

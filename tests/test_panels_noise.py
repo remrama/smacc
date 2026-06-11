@@ -147,7 +147,7 @@ def test_failed_stream_start_clears_the_buffer(
 def test_play_with_no_bound_device_errors_and_keeps_quiet(
     qtbot, design_session, monkeypatch
 ):
-    # #139: an unbound role refuses to play (with an error pointing at the
+    # #139: unbound equipment refuses to play (with an error pointing at the
     # Devices window) instead of falling back to the system default device.
     _stub_output(monkeypatch)
     errors = []

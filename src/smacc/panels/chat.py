@@ -35,7 +35,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import config
 from ..session import SmaccSession
-from .base import ModalityWindow
+from .base import PanelWindow
 
 # Sender keys for transcript entries (and their registry/log identities below).
 EXPERIMENTER = "experimenter"
@@ -216,7 +216,7 @@ def _stylesheet(pal: dict[str, str]) -> str:
     )
 
 
-class ParticipantChatWindow(ModalityWindow):
+class ParticipantChatWindow(PanelWindow):
     """The bedroom-facing chat window: always dark, big text, keyboard-only.
 
     Opened (and given keyboard focus) from the Intercom panel's *Pass keyboard*

@@ -30,7 +30,7 @@ class _FakeInput:
 def test_monitor_device_label_shows_the_room_monitor_route(qtbot, design_session):
     panel = AudioCueWindow(design_session)
     qtbot.addWidget(panel)
-    # monitor_bedroom_noise defaults to the bedroom-mic role (reads "(not set)" until bound).
+    # monitor_bedroom_noise defaults to Bedroom mic 1 (reads "(not set)" until bound).
     assert "Bedroom mic 1" in panel.monitorDeviceLabel.text()
 
 
@@ -77,7 +77,7 @@ def test_room_monitor_start_failure_reverts_the_checkbox(
 def test_room_monitor_with_no_bound_mic_errors_and_reverts(
     qtbot, design_session, monkeypatch
 ):
-    # #139: an unbound monitor role refuses to open (instead of listening on the
+    # #139: unbound monitor equipment refuses to open (instead of listening on the
     # system default input) and the checkbox reverts.
     monkeypatch.setattr(meter.sd, "InputStream", _FakeInput)
     errors = []

@@ -9,26 +9,26 @@ of several controls spread across the OS.
 
 This page describes how SMACC handles devices, routing, and volume.
 
-## Roles, not per-window device pickers
+## Equipment, not per-window device pickers
 
 Instead of picking a device separately in every window, SMACC has one **Devices
 window** (in the *Tools* column) where you do two things:
 
-1. **Bind each _role_ to a device, once.** The roles are the physical endpoints of a
-   rig, named by place: **Bedroom speaker**, **Control-room speaker**, **Bedroom
+1. **Bind each piece of _equipment_ to a device, once.** Equipment entries are
+   the physical endpoints of a rig, named by place: **Bedroom speaker**, **Control-room speaker**, **Bedroom
    mic 1** (and an optional **Bedroom mic 2**), the **Control-room mic** (the
    experimenter's intercom voice), plus the light devices (**BlinkStick light**,
    **Philips Hue light**).
-2. **Route each modality to a role.** Every modality is an action verb naming
-   what SMACC does with the device — *Play audio cue*, *Record dream report* —
-   and each points at a role. Hover any row in the window for a full description.
+2. **Route each _action_ to equipment.** Every action names what SMACC does
+   with a device — *Play audio cue*, *Record dream report* — and each points
+   at a piece of equipment. Hover any row in the window for a full description.
 
-The cue, the noise, and your intercom voice can all share the **Bedroom speaker**
-role, so swapping the bedroom speaker is one change rather than several. Every other
+The cue, the noise, and your intercom voice can all share the **Bedroom
+speaker**, so swapping it is one change rather than several. Every other
 window shows a read-only indicator of where it resolves, for example
 `Device: Bedroom speaker → Speakers (USB Audio)`, and the Devices window shows the
-same resolution beside each route — a route pointed at a role with nothing bound
-reads **→ no device** instead of looking configured.
+same resolution beside each route — a route pointed at equipment with nothing
+bound reads **→ no device** instead of looking configured.
 
 ```text
 Bedroom speaker       Speakers (USB Audio)
@@ -56,8 +56,8 @@ is enough — and an overnight study must not follow it. Instead:
   that is *currently* the Windows default — explicitly, by name — and logs which
   one it picked. From then on the binding is pinned: changing the Windows default
   never re-routes a study.
-* A role with nothing bound reads **(none)**, and anything routed to it reports a
-  clear error instead of quietly playing somewhere else.
+* Equipment with nothing bound reads **(none)**, and anything routed to it
+  reports a clear error instead of quietly playing somewhere else.
 * If no device is connected at all, the dropdown says so (e.g. **No output device
   found**) rather than offering an empty choice.
 * A bound device that isn't currently connected shows as **(not connected)** and
@@ -65,7 +65,8 @@ is enough — and an overnight study must not follow it. Instead:
   in (then **Refresh devices (F5)**).
 
 The study editor never auto-binds: a study built on an office machine arrives at
-the rig with its roles unbound, and the rig pins its own defaults on first load.
+the rig with its equipment unbound, and the rig pins its own defaults on first
+load.
 
 ### Monitoring routes
 

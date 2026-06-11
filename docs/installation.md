@@ -114,5 +114,5 @@ automatically when recording starts, or open any survey on its own from
 
 ### Recording device
 
-If you plan to record dreams, bind your mic to the **Bedroom mic 1** role in the
+If you plan to record dreams, bind your mic to **Bedroom mic 1** in the
 **Devices** window (in the *Tools* column); the dream-report recorder uses it.

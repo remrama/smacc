@@ -94,7 +94,7 @@ BlinkStick-vs-Hue comparison, marker timing, and the photosensitivity notes.
 ## Dream reports
 
 Use the **Record Dream Report** button to record from the mic bound to the
-**Bedroom mic 1** role in the **Devices** window.
+**Bedroom mic 1** equipment in the **Devices** window.
 Recordings are saved into the current session folder. Each report is also stamped
 with the time elapsed since you pressed **Start recording** (in the Event logging
 panel), so it is easy to locate in the EEG file; if recording has not been marked
@@ -166,7 +166,7 @@ bedroom. **Talk** pipes the control-room mic to the participant's output (click 
 latch, or hold the **spacebar** anywhere in SMACC as push-to-talk) and is marked in
 the EEG record; **Listen** brings the bedroom mic to your control-room speakers,
 unmarked.
-The two directions route through roles set once in the **Devices** window (see
+The two directions route through equipment set once in the **Devices** window (see
 [Audio &amp; routing](audio.md)). A **level meter** beside each button shows the
 live input level while that direction is on — signal on the bar means audio is
 actually flowing (your mic for Talk, the participant's mic for Listen), not just

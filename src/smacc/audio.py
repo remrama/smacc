@@ -2,7 +2,7 @@
 
 Pure functions and small state machines only — separated from the GUI so they are
 unit-testable without audio hardware. The sounddevice streams that call these live
-in the modality panels (``panels/*.py``).
+in the tool panels (``panels/*.py``).
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 """Per-session shared state: a run folder, logging, and the LSL marker outlet.
 
-The launcher and every modality window hold a reference to one ``SmaccSession``
+The launcher and every tool window hold a reference to one ``SmaccSession``
 so they all emit event markers and log lines through a single place. Each run
 gets its own folder under the settings file's data directory (named by a
 launch-timestamp stem) that holds the log, dream reports, and any exports together.
@@ -98,8 +98,8 @@ class SmaccSession:
         # time; collected by the panels during apply and surfaced once by the window
         # so the operator knows to plug them in (or pick another) before recording.
         self.missing_devices: list[str] = []
-        # Device roles + routing (which physical device each modality uses). The
-        # Devices window edits this; modality panels resolve their device from it.
+        # Device equipment + routing (which physical device each action uses). The
+        # Devices window edits this; the tool panels resolve their device from it.
         # A loaded study replaces it via devices.load().
         self.devices = devices.default_config()
         # Master output safety cap (0-1): a single ceiling multiplied into every

@@ -53,7 +53,7 @@ settings:
   # --- Output cap + latency --------------------------------------------------
   volume_cap: 1.0
   output_latency: high
-  # --- Device roles + routing ------------------------------------------------
+  # --- Device equipment + routing --------------------------------------------
   devices:
     bindings: {}
     routing:
@@ -169,15 +169,15 @@ for TTL-routed codes (LSL carries any code).
 
 ### `devices`
 
-Role → device bindings plus target → role routing (see [Audio & routing](../audio.md)
+Equipment → device bindings plus action → equipment routing (see [Audio & routing](../audio.md)
 and [Devices](../devices.md)).
 
 | Key | Type | Meaning |
 |---|---|---|
-| `bindings` | mapping | Role key → device key. Roles: `bedroom_speaker`, `control_speaker`, `bedroom_mic_1`, `bedroom_mic_2`, `control_mic` (the experimenter's intercom mic), `blinkstick_light` (a stick's serial), `philips_hue_light` (a bridge target like `light:3` or `group:1`). |
-| `routing` | mapping | Target key → role key (`""` = off). Targets: `play_audio_cue`, `listen_audio_cue`, `play_noise`, `play_visual_cue`, `speak_to_participant`, `listen_to_participant`, `record_dream_report`, `monitor_bedroom_noise`. |
+| `bindings` | mapping | Equipment key → device key. Equipment: `bedroom_speaker`, `control_speaker`, `bedroom_mic_1`, `bedroom_mic_2`, `control_mic` (the experimenter's intercom mic), `blinkstick_light` (a stick's serial), `philips_hue_light` (a bridge target like `light:3` or `group:1`). |
+| `routing` | mapping | Action key → equipment key (`""` = off). Actions: `play_audio_cue`, `listen_audio_cue`, `play_noise`, `play_visual_cue`, `speak_to_participant`, `listen_to_participant`, `record_dream_report`, `monitor_bedroom_noise`. |
 
-A missing `devices` block loads the defaults (each target on its default role, with
+A missing `devices` block loads the defaults (each action on its default equipment, with
 no devices bound). When a live session starts (or loads a study) with
 `bedroom_speaker`, `bedroom_mic_1`, or `control_mic` unbound, SMACC binds the
 current Windows default device explicitly, by name, and logs the choice — there is

@@ -28,7 +28,7 @@ from .dialogs import (
     ask_initial_or_final,
 )
 from .panels.audio import AudioCueWindow
-from .panels.base import ModalityWindow
+from .panels.base import PanelWindow
 from .panels.biocals import BiocalsWindow
 from .panels.chat import ChatPresets, ChatTranscript, ParticipantChatWindow
 from .panels.devices import DevicesWindow
@@ -85,7 +85,7 @@ class SmaccWindow(ToolWindow):
         # pane, so it preserves this value verbatim instead of clobbering it.
         self._preview_levels: list[str] = ["INFO", "WARNING", "ERROR", "CRITICAL"]
 
-        # Modality windows, constructed up front (hidden) and opened on demand from
+        # Tool windows, constructed up front (hidden) and opened on demand from
         # the launcher buttons. The Devices window owns all device selection; the
         # others show a read-only indicator and resolve their device from
         # session.devices, refreshed whenever the Devices window emits ``changed``.
@@ -96,7 +96,7 @@ class SmaccWindow(ToolWindow):
         # persists them with the study.
         chat_transcript = ChatTranscript(self)
         chat_presets = ChatPresets(self)
-        self.panels: dict[str, ModalityWindow] = {
+        self.panels: dict[str, PanelWindow] = {
             "events": EventsWindow(self.session),
             "biocals": BiocalsWindow(self.session),
             "visual": VisualWindow(self.session),
@@ -141,7 +141,7 @@ class SmaccWindow(ToolWindow):
         self._hotplug_timer.timeout.connect(self._on_devices_hotplug)
         self._media_devices.audioOutputsChanged.connect(self._hotplug_timer.start)
         self._media_devices.audioInputsChanged.connect(self._hotplug_timer.start)
-        # Pin any unbound required role to the current Windows default, explicitly
+        # Pin any unbound required equipment to the current Windows default,
         # by name (#139), so a session always knows which physical device it will
         # use. No-op in the editor; a study loaded below re-runs it on its own
         # (freshly loaded) config via apply_settings.
@@ -233,7 +233,7 @@ class SmaccWindow(ToolWindow):
         label.setFont(font)
         return label
 
-    # Modality windows openable from the launcher (key -> button label). Panels
+    # Tool windows openable from the launcher (key -> button label). Panels
     # absent from this map get no button ("chat" opens from the Intercom panel)
     # but keep the rest of the machinery: state, geometry, always-on-top, cleanup.
     PANEL_LABELS = {
@@ -259,7 +259,7 @@ class SmaccWindow(ToolWindow):
         "noise": "Stream continuous background noise (colored noise or a file).",
         "recording": "Record a spoken dream report, monitor input level, open surveys.",
         "intercom": "Talk, listen, or text-chat with the participant over the intercom.",
-        "devices": "Bind devices to roles and route each modality to a role.",
+        "devices": "Bind the rig's equipment to devices and route each action.",
         "markers": "Configure every event marker: port codes, LSL/TTL routing, "
         "preview, and the hardware trigger output.",
         "volume": "Set a master output volume safety cap.",
@@ -314,7 +314,7 @@ class SmaccWindow(ToolWindow):
         return layout
 
     def _open_panel(self, key: str) -> None:
-        """Show and focus the modality window for ``key`` (placing it on first open).
+        """Show and focus the tool window for ``key`` (placing it on first open).
 
         On a tool's first open this session, restore the position/size it was last
         left at (machine-local, per window); with none saved (or off-screen now) it
@@ -399,9 +399,9 @@ class SmaccWindow(ToolWindow):
         # Always-on-top is a per-window interface choice that travels with the study
         # (applied by _apply_always_on_top_settings). Built in both modes so settings
         # can set its state, but only surfaced in a session's menu (tool windows carry
-        # their own toggle on the ModalityWindow base).
+        # their own toggle on the PanelWindow base).
         alwaysOnTopAction = QtGui.QAction("Always on &top", self)
-        # The same Ctrl+T every tool window carries (see ModalityWindow); the
+        # The same Ctrl+T every tool window carries (see PanelWindow); the
         # default WindowShortcut context pins whichever window is active.
         alwaysOnTopAction.setShortcut("Ctrl+T")
         alwaysOnTopAction.setStatusTip(
@@ -684,14 +684,14 @@ class SmaccWindow(ToolWindow):
     def gather_settings(self) -> dict:
         """Collect each panel's parameters into one serializable settings dict.
 
-        Device roles + routing travel with the settings in a ``devices`` block (see
+        Device equipment + routing travel with the settings in a ``devices`` block (see
         :mod:`smacc.devices`), so a rig's whole device setup is restored on the next
         load; an unplugged bound device is flagged rather than silently dropped.
         """
         state: dict = {}
         for panel in self.panels.values():
             state.update(panel.gather_state())
-        # Device roles/routing live on the session, not a panel; persist the block.
+        # Device equipment/routing live on the session, not a panel; persist the block.
         state["devices"] = self.session.devices.to_dict()
         # The event-code registry isn't a panel; persist it at the window level.
         state["event_codes"] = self.session.event_codes_as_list()
@@ -737,7 +737,7 @@ class SmaccWindow(ToolWindow):
         was_logging = self.session.log_interactions
         self.session.log_interactions = False
         self.session.missing_devices = []  # filled by the Devices reload below
-        # Device roles/routing first, so panels resolve their device against them.
+        # Device equipment/routing first, so panels resolve their device against it.
         self.session.devices = devices.load(state)
         trigger_error: str | None = None
         try:
@@ -752,11 +752,11 @@ class SmaccWindow(ToolWindow):
             # Open the transport now so a bad port/driver is reported at load.
             self.session.trigger_config = triggers.load(state)
             trigger_error = self.session.set_trigger_output(self.session.trigger_config)
-            # Hue bridge config before the Devices reload: the Hue role's dropdown
+            # Hue bridge config before the Devices reload: the Hue equipment dropdown
             # enumerates from the (newly loaded) bridge, so a bound light matches.
             self.session.hue_config = hue.load(state)
             self.devices_window.refresh_device_lists()
-            # A study with unbound required roles (e.g. one authored in the
+            # A study with unbound required equipment (e.g. one authored in the
             # editor on another machine) gets *this* rig's current defaults
             # pinned, by name (#139).
             self.devices_window.autobind_defaults()
@@ -1162,7 +1162,7 @@ class SmaccWindow(ToolWindow):
             self.session.log_info_msg("Updated session metadata")
 
     def _teardown_panels(self) -> None:
-        """Stop and close every modality window (called when this window closes).
+        """Stop and close every tool window (called when this window closes).
 
         Each panel that the operator opened this session records its geometry under
         its panel key, so it reopens where it was left next time. The editor reuses

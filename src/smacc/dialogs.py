@@ -846,7 +846,7 @@ class HueBridgeDialog(QtWidgets.QDialog):
         n_groups = len(found) - n_lights
         self._set_status(
             f"Bridge OK: {n_lights} light(s), {n_groups} group(s). Bind one to "
-            "the Philips Hue role after closing this dialog."
+            "Philips Hue light after closing this dialog."
         )
 
     def _set_status(self, text: str) -> None:

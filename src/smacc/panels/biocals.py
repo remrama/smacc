@@ -34,8 +34,8 @@ from ..session import SmaccSession
 from ..utils import format_elapsed
 from .audio import CueOutput
 from .base import (
-    ModalityWindow,
-    describe_target,
+    PanelWindow,
+    describe_action,
     make_section_title,
     require_device,
     resolve_device,
@@ -75,7 +75,7 @@ class BiocalRowWidgets:
     removeButton: QtWidgets.QPushButton
 
 
-class BiocalsWindow(ModalityWindow):
+class BiocalsWindow(PanelWindow):
     """A reorderable biocal stack with per-row toggle buttons and a sequence."""
 
     TITLE = "Biocals"
@@ -107,7 +107,7 @@ class BiocalsWindow(ModalityWindow):
         # instruction reaches the participant's speakers — and the control-room
         # monitor fan-out — exactly like a cue would.
         self.deviceLabel = QtWidgets.QLabel(self)
-        self.deviceLabel.setStatusTip("Set in the Devices window (Audio cue → role).")
+        self.deviceLabel.setStatusTip("Set in the Devices window (Play audio cue).")
         self.refresh_device_indicator()
 
         voiceVolumeSpin = QtWidgets.QDoubleSpinBox(self)
@@ -698,10 +698,10 @@ class BiocalsWindow(ModalityWindow):
 
     def refresh_device_indicator(self) -> None:
         """Show where the voice resolves (the cue route + its monitor fan-out)."""
-        text = describe_target(self.session, "play_audio_cue")
-        if self.session.devices.role_for("listen_audio_cue"):
+        text = describe_action(self.session, "play_audio_cue")
+        if self.session.devices.equipment_for("listen_audio_cue"):
             text += (
-                f"   •   monitor: {describe_target(self.session, 'listen_audio_cue')}"
+                f"   •   monitor: {describe_action(self.session, 'listen_audio_cue')}"
             )
         self.deviceLabel.setText(text)
 

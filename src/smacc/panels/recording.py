@@ -15,12 +15,12 @@ from ..dialogs import ManageSurveysDialog
 from ..paths import BUNDLED_SURVEYS_DIR, SURVEYS_DIR
 from ..session import SmaccSession
 from ..utils import format_elapsed
-from .base import ModalityWindow, describe_target, make_section_title, require_device
+from .base import PanelWindow, describe_action, make_section_title, require_device
 from .meter import InputLevelMeter
 from .survey import SurveyWindow
 
 
-class RecordingWindow(ModalityWindow):
+class RecordingWindow(PanelWindow):
     """Record a spoken dream report, monitor input level, and open a survey.
 
     Capture and the level meter both run on sounddevice (PortAudio), so the
@@ -130,7 +130,7 @@ class RecordingWindow(ModalityWindow):
 
     def refresh_device_indicator(self) -> None:
         """Show where the mic resolves and switch a live meter over to it."""
-        self.deviceLabel.setText(describe_target(self.session, "record_dream_report"))
+        self.deviceLabel.setText(describe_action(self.session, "record_dream_report"))
         self._restart_meter_if_monitoring()
 
     def is_streaming(self) -> bool:
