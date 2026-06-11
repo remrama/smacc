@@ -19,7 +19,7 @@ from pathlib import Path
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from . import preferences, settings, winassoc, windowstate
+from . import preferences, settings, updates, winassoc, windowstate
 from .analyze import AnalyzeWindow
 from .config import VERSION
 from .cuedesigner import CueDesignerWindow
@@ -175,6 +175,14 @@ class LauncherWindow(QtWidgets.QMainWindow):
             )
             associateAction.triggered.connect(self.associate_files)
             fileMenu.addSeparator()
+        updateAction = fileMenu.addAction("Check for &updates…")
+        assert updateAction is not None
+        updateAction.setStatusTip(
+            "Check GitHub for a newer SMACC release (manual only; SMACC never "
+            "checks on its own)."
+        )
+        updateAction.triggered.connect(self.check_for_updates)
+        self._updateAction = updateAction
         aboutAction = fileMenu.addAction(
             style.standardIcon(
                 QtWidgets.QStyle.StandardPixmap.SP_MessageBoxInformation
@@ -341,6 +349,52 @@ class LauncherWindow(QtWidgets.QMainWindow):
             "File association",
             "SMACC now handles .smacc files — double-click a SMACC file to open it.",
         )
+
+    def check_for_updates(self) -> None:
+        """Ask GitHub for a newer release (manual only — never runs on its own).
+
+        The query runs off the GUI thread (:class:`smacc.updates.UpdateChecker`);
+        the action is disabled until the result lands so a double-click can't
+        stack two checks/dialogs. The checker is kept on ``self`` so it outlives
+        this call.
+        """
+        self._updateAction.setEnabled(False)
+        bar = self.statusBar()
+        if bar is not None:
+            bar.showMessage("Checking for updates…")
+        self._update_checker = updates.UpdateChecker(self)
+        self._update_checker.finished.connect(self._on_update_result)
+        self._update_checker.check()
+
+    def _on_update_result(self, result: updates.UpdateResult) -> None:
+        """Show the outcome of a finished update check (GUI thread)."""
+        self._updateAction.setEnabled(True)
+        bar = self.statusBar()
+        if bar is not None:
+            bar.clearMessage()
+        if result.latest is None:
+            QtWidgets.QMessageBox.information(
+                self,
+                "Check for updates",
+                "Could not reach GitHub to check for updates (no internet "
+                f"connection?).\n\nReleases are listed at:\n{updates.RELEASES_URL}",
+            )
+            return
+        if not result.newer:
+            QtWidgets.QMessageBox.information(
+                self,
+                "Check for updates",
+                f"You are running the latest version of SMACC (v{VERSION}).",
+            )
+            return
+        reply = QtWidgets.QMessageBox.question(
+            self,
+            "Update available",
+            f"SMACC {result.latest} is available (you are running v{VERSION}).\n\n"
+            "Open the download page in your browser?",
+        )
+        if reply == QtWidgets.QMessageBox.StandardButton.Yes:
+            QtGui.QDesktopServices.openUrl(QtCore.QUrl(result.url))
 
     def show_about_popup(self) -> None:
         """Show SMACC's About dialog (version and links)."""
