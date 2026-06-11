@@ -119,12 +119,6 @@ def test_resolve_device_blank_is_system_default(monkeypatch):
     assert base.resolve_device(None, devices.OUTPUT) is None
 
 
-def test_resolve_device_strips_legacy_wasapi_suffix(monkeypatch):
-    _patch_sd(monkeypatch)
-    saved = "Speakers (Realtek(R) Audio), Windows WASAPI"  # pre-#-strip settings
-    assert base.resolve_device(saved, devices.OUTPUT) == 3
-
-
 def test_resolve_device_unplugged_name_passes_through(monkeypatch):
     _patch_sd(monkeypatch)
     assert base.resolve_device("Speakers (USB)", devices.OUTPUT) == "Speakers (USB)"

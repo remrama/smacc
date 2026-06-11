@@ -32,8 +32,7 @@ the *docs* only — older copies of SMACC itself come from the releases page.)
 
 By default SMACC stores everything under `~/SMACC`. To use a different location,
 set an environment variable called `SMACC_DIRECTORY` to whatever directory you
-want (the older `SMACC_DATA_DIRECTORY` is still honored as a fallback). SMACC
-will create it and all of the subfolders (if not already present).
+want. SMACC will create it and all of the subfolders (if not already present).
 
 Your reusable setup lives in a **SMACC file** (`.smacc`): cue files, volumes,
 event codes, and the **data directory** where its runs are written. SMACC seeds a

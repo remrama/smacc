@@ -11,7 +11,7 @@ The on-disk shape (a survey file is YAML with a ``kind`` discriminator, like the
 ``.smacc`` settings format)::
 
     kind: smacc/survey
-    schema_version: 2
+    schema_version: 1
     key: dlq                # stable id; also names response files
     name: DLQ               # short label (dropdown, File menu)
     title: Dream Lucidity Questionnaire (DLQ)
@@ -21,7 +21,7 @@ The on-disk shape (a survey file is YAML with a ``kind`` discriminator, like the
     scale: {min: 0, max: 4, anchors: [..., one per scale point, ...]}
     items:
       - a bare string               # a Likert item on the shared scale (above)
-      - text: Age                   # or a typed item (schema_version 2+):
+      - text: Age                   # or a typed item:
         type: number                #   likert | select | number | text | heading
         min: 0
         max: 99
@@ -31,11 +31,9 @@ The on-disk shape (a survey file is YAML with a ``kind`` discriminator, like the
         help: "shown under the item"
         levels: {0: never, 1: rarely, 2: often}
 
-A plain-string item is a Likert item on the survey's shared scale — the original
-(and still most common) shape, so the bundled single-scale instruments need no
-``type`` and stay ``schema_version: 1``. Typed items (anything but a bare-string
-Likert) require ``schema_version: 2``; an older SMACC then rejects the file with a
-clear version error instead of mis-reading it. Responses are written as one JSON
+A plain-string item is a Likert item on the survey's shared scale — the most
+common shape, so a single-scale instrument needs no ``type``; typed items mix
+freely with it. Responses are written as one JSON
 file per administration (see :func:`response_payload` / :func:`response_filename`),
 carrying the survey key *and* content version so an analysis can always tell which
 wording a given night used.
@@ -64,7 +62,7 @@ from .utils import format_elapsed
 # Discriminators for the two YAML/JSON shapes this module owns.
 KIND = "smacc/survey"
 RESPONSE_KIND = "smacc/survey-response"
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 1
 
 # Pseudo-URL scheme addressing an in-app survey in the dropdown / File menu /
 # saved ``survey_url``; anything else is a web URL for the browser.
@@ -297,10 +295,10 @@ def parse_survey_mapping(
     version = payload.get("schema_version")
     if isinstance(version, bool) or not isinstance(version, int):
         raise ValueError(f"Unsupported survey schema version {version!r}.")
-    if not (1 <= version <= SCHEMA_VERSION):
+    if version != SCHEMA_VERSION:
         raise ValueError(
             f"Unsupported survey schema version {version!r} "
-            f"(expected 1..{SCHEMA_VERSION})."
+            f"(expected {SCHEMA_VERSION})."
         )
     key = _require_str(payload, "key").lower()
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", key):
@@ -319,10 +317,6 @@ def parse_survey_mapping(
     items_raw = payload.get("items")
     if not isinstance(items_raw, list) or not items_raw:
         raise ValueError("Survey needs a non-empty 'items' list.")
-    # Typed items (anything but a bare-string Likert) are a v2 feature; reject them
-    # in a v1 file so the version cleanly signals the capability a reader needs.
-    if version < 2 and any(not isinstance(item, str) for item in items_raw):
-        raise ValueError("Typed survey items require schema_version 2.")
     items = tuple(_parse_item(item) for item in items_raw)
     if not any(it.collects_response for it in items):
         raise ValueError("Survey needs at least one item that collects a response.")
@@ -464,13 +458,12 @@ def _item_to_mapping(item: SurveyItem) -> str | dict[str, Any]:
 def survey_to_mapping(survey: SurveyDef) -> dict[str, Any]:
     """Serialize a definition for saving as a survey YAML (builder dialog).
 
-    Writes the lowest schema version that fits: a survey of plain Likert items
-    stays ``schema_version: 1`` (and emits bare-string items); anything with
-    typed items, help, or headings is ``schema_version: 2``.
+    A plain Likert item emits its bare-string shorthand; everything else emits
+    the typed-item mapping.
     """
     mapping: dict[str, Any] = {
         "kind": KIND,
-        "schema_version": 1 if survey.is_simple_likert else 2,
+        "schema_version": SCHEMA_VERSION,
         "key": survey.key,
         "name": survey.name,
         "title": survey.title,

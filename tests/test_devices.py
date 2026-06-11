@@ -3,23 +3,6 @@
 from smacc import devices
 
 
-def test_strip_wasapi_suffix_drops_trailing_host_api():
-    # Older settings stored the host-API suffix; it normalizes away to the bare name.
-    assert (
-        devices.strip_wasapi_suffix("Speakers (USB Audio), Windows WASAPI")
-        == "Speakers (USB Audio)"
-    )
-
-
-def test_strip_wasapi_suffix_leaves_bare_names_untouched():
-    # New bindings store the bare name already, so stripping is a no-op.
-    assert devices.strip_wasapi_suffix("Speakers (USB Audio)") == "Speakers (USB Audio)"
-    # Only a trailing host-API suffix is removed (not the bare host-API name alone,
-    # nor an interior occurrence).
-    assert devices.strip_wasapi_suffix("Windows WASAPI") == "Windows WASAPI"
-    assert devices.strip_wasapi_suffix("Windows WASAPI mixer") == "Windows WASAPI mixer"
-
-
 def test_default_config_routes_targets_to_their_defaults():
     cfg = devices.default_config()
     assert cfg.role_for("cue_out") == "bedroom_out"

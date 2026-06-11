@@ -21,11 +21,18 @@ class QtLogHandler(logging.Handler):
     handler still receives every record regardless. The widget update is marshalled
     to the GUI thread via a Qt signal, so logging from a non-GUI thread (e.g. the
     audio callback) is safe.
+
+    The preview keeps only the newest ``max_lines`` items (the log *file* keeps
+    everything) — an overnight session logs thousands of lines, and an unbounded
+    list would grow the GUI's memory and repaint cost all night.
     """
 
-    def __init__(self, list_widget: QtWidgets.QListWidget) -> None:
+    def __init__(
+        self, list_widget: QtWidgets.QListWidget, max_lines: int = 1000
+    ) -> None:
         super().__init__()
         self._list = list_widget
+        self.max_lines = max(int(max_lines), 1)
         self.enabled_levels: set[int] = {
             logging.INFO,
             logging.WARNING,
@@ -50,5 +57,6 @@ class QtLogHandler(logging.Handler):
 
     def _append(self, msg: str) -> None:
         self._list.addItem(msg)
+        while self._list.count() > self.max_lines:
+            self._list.takeItem(0)
         self._list.scrollToBottom()
-        self._list.repaint()
