@@ -179,14 +179,15 @@ pushes to `main`, and publishes a numbered version (updating the `latest` alias)
 on each `v*` release tag.
 
 Markdown is formatted with [mdformat](https://mdformat.readthedocs.io/) — the
-docs counterpart to ruff. It applies to the published docs and the two root
-guides (`README.md`, `AGENTS.md`); the CI `quality` job and the pre-commit hook
-both enforce it, and the plugin set and options live in `[tool.mdformat]` in
-`pyproject.toml`.
+docs counterpart to ruff. It applies to every tracked Markdown file except the
+AI-assistant configs under `.claude/`. The *how* (plugins and options) lives in
+`[tool.mdformat]` in `pyproject.toml`; the *what* (which files) is the scope of
+the `mdformat` hook in `.pre-commit-config.yaml`. The CI `quality` job runs that
+same hook, so nothing can drift between local, pre-commit, and CI.
 
 ```sh
-uv run --extra docs mdformat docs README.md AGENTS.md          # format
-uv run --extra docs mdformat --check docs README.md AGENTS.md  # the check CI runs
+uv run --extra docs mdformat <path>…                  # format specific files
+uv run --extra dev pre-commit run mdformat --all-files  # format every file in scope (the check CI runs)
 ```
 
 ## Project notes
