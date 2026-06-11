@@ -121,7 +121,15 @@ the driver, add `--hidden-import pywinusb`.
 
 Releases are built automatically: pushing a `v*` tag (e.g. `v0.0.7`) triggers the
 [release workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/release.yaml),
-which builds `SMACC.exe` and attaches it to the GitHub Release.
+which checks the tag against `smacc.__version__`, builds `SMACC.exe` (stamped with
+version metadata from `tools/make_versionfile.py`), wraps it in an Inno Setup
+installer (`tools/smacc.iss` → `SMACC-Setup.exe`), smoke-tests both, and attaches
+the two artifacts to the GitHub Release. The installer's asset name is a stable
+contract — the docs' download button links
+`releases/latest/download/SMACC-Setup.exe` — so don't rename it. The installer's
+`[Registry]` section must mirror `winassoc.association_entries()` exactly (so an
+installed build sees the association as already registered);
+`tests/test_winassoc.py` cross-checks them.
 
 ## Building the docs
 
