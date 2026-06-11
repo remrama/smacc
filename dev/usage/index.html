@@ -489,15 +489,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#eeg-portcodes" class="md-nav__link">
+  <a href="#eeg-port-codes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        EEG portcodes
+        EEG port codes
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="EEG portcodes">
+    <nav class="md-nav" aria-label="EEG port codes">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1127,15 +1127,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#eeg-portcodes" class="md-nav__link">
+  <a href="#eeg-port-codes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        EEG portcodes
+        EEG port codes
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="EEG portcodes">
+    <nav class="md-nav" aria-label="EEG port codes">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1409,14 +1409,14 @@ contains digits still works. A sent preset is logged and marked exactly like a t
 message.</p>
 <p><strong>What's recorded.</strong> Every message is written verbatim to the session log as a
 DEBUG line (tick <em>Debug</em> above the log preview to watch the exchange live). By
-default no portcodes fire and nothing reaches the BIDS events export — a typed
+default no port codes fire and nothing reaches the BIDS events export — a typed
 exchange is rapid and conversational, and would flood the marker channel. If a
 study needs marker timestamps, route <code>Chat to participant</code> (code 69) and/or
 <code>Chat from participant</code> (code 70) to LSL/TTL in the <strong>Markers</strong> window;
 the markers stay bare (no message text) so the trigger channel remains legible.</p>
-<h2 id="eeg-portcodes">EEG portcodes</h2>
+<h2 id="eeg-port-codes">EEG port codes</h2>
 <p>SMACC marks experiment events — a cue played, a dream report, observed REM, the
-lights toggled — by sending a numeric <strong>portcode</strong> to its marker stream and writing a
+lights toggled — by sending a numeric <strong>port code</strong> to its marker stream and writing a
 matching line to the session log, keeping cue delivery and your neural data in sync.</p>
 <h3 id="configuring-codes">Configuring codes</h3>
 <p>Open the <strong>Markers</strong> window from the <strong>Tools</strong> column (in a Session or in the
@@ -1428,7 +1428,7 @@ biocals, chat, system) — and the
 <a href="../triggers/#configuring-trigger-output-in-smacc">hardware TTL transport</a>.
 For each event you can set:</p>
 <ul>
-<li><strong>Code</strong> — the 8-bit portcode (1–255) sent when the event triggers.</li>
+<li><strong>Code</strong> — the 8-bit port code (1–255) sent when the event triggers.</li>
 <li><strong>LSL</strong> — whether a firing sends the code over the LSL marker stream.</li>
 <li><strong>TTL</strong> — whether a firing sends the code over the hardware TTL trigger. The
   column is grayed out until a transport is enabled in the window's <strong>Hardware
@@ -1454,8 +1454,8 @@ or renamed.</p>
 re-reads the session's current setup. The window stays available throughout a
 session. If you change a code mid-session, the change is written to the log with a
 timestamp, so the code-to-event mapping for that session is always recoverable.</p>
-<p>Beyond portcodes, SMACC logs the important interactions too — volume, color, device,
-and fade changes — as plain log lines (no portcode), so the session record is complete.</p>
+<p>Beyond port codes, SMACC logs the important interactions too — volume, color, device,
+and fade changes — as plain log lines (no port code), so the session record is complete.</p>
 <h3 id="event-logging-panel">Event logging panel</h3>
 <p>The manual event buttons (the sleep-stage family, Signal observed, Sleep onset, Note,
 your custom events, …) live in the <strong>Event logging</strong> panel — open it from the session
