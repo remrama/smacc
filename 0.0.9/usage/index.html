@@ -1,0 +1,1561 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Sleep Manipulation And Communication Clickything — a clickable interface for running sleep-related experiments.">
+      
+      
+      
+        <link rel="canonical" href="https://remrama.github.io/smacc/0.0.9/usage/">
+      
+      
+        <link rel="prev" href="../installation/">
+      
+      
+        <link rel="next" href="../smacc-files/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/icon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Usage - SMACC</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#usage" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="SMACC" class="md-header__button md-logo" aria-label="SMACC" data-md-component="logo">
+      
+  <img src="../assets/icon.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SMACC
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Usage
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/remrama/smacc" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    remrama/smacc
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="SMACC" class="md-nav__button md-logo" aria-label="SMACC" data-md-component="logo">
+      
+  <img src="../assets/icon.png" alt="logo">
+
+    </a>
+    SMACC
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/remrama/smacc" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    remrama/smacc
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Usage
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#opening-smacc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Opening SMACC
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audio-cues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audio cues
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Audio cues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#designing-a-cue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Designing a cue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#is-the-cue-reaching-the-bedroom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Is the cue reaching the bedroom?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#visual-cues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visual cues
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dream-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dream reports
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#biocals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Biocals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#intercom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Intercom
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Intercom">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#text-chat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text chat
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#eeg-port-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EEG port codes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="EEG port codes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configuring-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuring codes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-logging-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event logging panel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-codes-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where codes live
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event log
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#smacc-files-smacc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SMACC files (.smacc)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#display-preferences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Display preferences
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../smacc-files/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMACC files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../audio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audio & routing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../visual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visual cues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../latency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Latency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Devices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../surveys/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Surveys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../triggers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Triggers & port codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/settings-file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMACC file (.smacc)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/preferences-file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preferences file
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/session-log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Session log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/bids-export/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BIDS export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#opening-smacc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Opening SMACC
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audio-cues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audio cues
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Audio cues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#designing-a-cue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Designing a cue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#is-the-cue-reaching-the-bedroom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Is the cue reaching the bedroom?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#visual-cues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visual cues
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dream-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dream reports
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#biocals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Biocals
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#intercom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Intercom
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Intercom">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#text-chat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text chat
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#eeg-port-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EEG port codes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="EEG port codes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configuring-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuring codes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-logging-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event logging panel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-codes-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where codes live
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event log
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#smacc-files-smacc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SMACC files (.smacc)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#display-preferences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Display preferences
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="usage">Usage</h1>
+<p>SMACC opens to its <strong>Launcher</strong>, where you pick a <strong>SMACC file</strong> and choose what
+to do; from there you run a live <strong>Session</strong> for collecting data. This page walks
+through the main features.</p>
+<p>SMACC has three main windows, named consistently throughout these docs:</p>
+<ul>
+<li>the <strong>SMACC Launcher</strong> (<em>Launcher</em> for short) — the small hub that opens when
+  you start the app;</li>
+<li>the <strong>SMACC Session</strong> window (<em>Session</em>) — the live interface for running a
+  night and collecting data;</li>
+<li>the <strong>SMACC Editor</strong> window (<em>Editor</em>) — where you create or edit a
+  <a href="../smacc-files/">SMACC file</a> without recording anything.</li>
+</ul>
+<!-- Add an annotated screenshot of the Launcher + Session window here once
+available, e.g.: ![SMACC Session window](assets/screenshot-session.png) -->
+
+<h2 id="opening-smacc">Opening SMACC</h2>
+<p>Open the app itself to get the Launcher — SMACC never drops straight into a
+session (the one exception: double-clicking a <code>.smacc</code> file, which starts a
+Session for it directly). In the Launcher you:</p>
+<ul>
+<li><strong>pick a SMACC file</strong> — the dropdown lists the seeded <code>default.smacc</code>, your
+  recent files, and <strong>Browse…</strong> to find any other. With none chosen, SMACC uses
+  built-in defaults, so it works out of the box. (See
+  <a href="../smacc-files/">SMACC files</a> for what one holds.)</li>
+<li><strong>Start</strong> — open a live Session using the selected SMACC file, writing runs to
+  that file's <strong>data directory</strong>. The run folder and log are created only now,
+  when the session starts.</li>
+<li><strong>Create</strong> — build a new SMACC file in the Editor: configure the tools (cues,
+  noise, visual, event codes, surveys), choose a data directory, and save it
+  anywhere.</li>
+<li><strong>Edit</strong> — reopen the selected SMACC file in the Editor.</li>
+<li><strong>Design cues</strong> — open the standalone <strong>Cue designer</strong> to build a simple tone cue
+  and export it as a WAV into a study's <code>cues/</code> folder, ready to use from the Audio
+  cue board (see <a href="#designing-a-cue">Designing a cue</a>).</li>
+<li><strong>Analyze</strong> — open a past session (a <code>.log</code>, a session folder, or a
+  zipped session) to see a summary (events, duration, subject/session, dream
+  reports), export its events to a BIDS <code>events.tsv</code>, or recover its settings to a
+  <code>.smacc</code> — all without starting a new session.</li>
+</ul>
+<p>Closing the Editor or a standalone tool returns you to the Launcher. Ending a
+Session quits SMACC entirely — the night is over. Closing the Launcher also
+quits SMACC.</p>
+<h2 id="audio-cues">Audio cues</h2>
+<p>Place sound files where your settings expect them — by default the data directory's
+<code>cues/</code> folder (e.g. <code>~/SMACC/data/cues/</code>; <code>.wav</code>, <code>.mp3</code>, <code>.flac</code>, <code>.ogg</code>, and
+<code>.aiff</code> are supported) — and trigger them from the cue controls. SMACC seeds a few
+<code>demo-*</code> cues there so there is always something to test with. You start with one
+cue — prefilled with a random demo — and use <strong>+ Add cue</strong> and each row's <strong>✕</strong> to
+add or remove cues to match a protocol (one minimum, up to 20).</p>
+<h3 id="designing-a-cue">Designing a cue</h3>
+<p>No sound file ready? Open <strong>Design cues</strong> from the Launcher to build a simple cue
+inside SMACC — no external audio editor needed. Lay out a sequence of <strong>tone</strong> and
+<strong>silence</strong> segments (each tone has a frequency, duration, and level, with an
+optional bell-like <strong>decay</strong>), or start from a <strong>preset</strong> (a single chime, a pip
+train). The whole pattern can <strong>repeat</strong> — ×N with a gap between repeats, the
+classic pip-train shape — and an optional whole-cue fade in/out and normalize
+finish it. A live <strong>waveform</strong> shows the cue as you edit, <strong>Preview</strong> plays it on
+your default output, and <strong>Export WAV…</strong> writes it into your study's <code>cues/</code>
+folder, where it appears in the Audio cue board like any other cue.</p>
+<p>The WAV is what the cue board plays; the <em>design</em> stays editable through <strong>Save
+design… / Open design…</strong> (a small <code>.json</code> file, kept alongside the WAVs by
+default) — reopen it tomorrow and nudge a level instead of rebuilding the cue from
+scratch. The designer is a standalone tool: it plays on the default device and
+ignores the session's device routing and volume safety cap.</p>
+<h3 id="is-the-cue-reaching-the-bedroom">Is the cue reaching the bedroom?</h3>
+<p>The Audio cue window has a <strong>Monitoring</strong> section — a <em>Sending</em> meter (what SMACC is
+emitting) beside a <em>Bedroom</em> meter (what a mic actually picks up in the room) — so you
+can confirm a cue is audible to the participant, not just leaving SMACC. See
+<a href="../audio/#is-the-cue-reaching-the-bedroom">Audio &amp; routing</a> for how to read them
+and how to set up a dedicated monitor mic.</p>
+<h2 id="visual-cues">Visual cues</h2>
+<p>Light cues live in the <strong>Visual cue</strong> window: one row per cue — color, brightness,
+pattern (steady, a smooth pulse, or a flash at a rate in Hz), length, and loop —
+with a shared fade-in/out, fired on a USB BlinkStick or a Philips Hue light. You
+start with a single red steady cue and use <strong>+ Add cue</strong> / <strong>✕</strong> to match a
+protocol (one minimum, up to 10). Every play and stop is marked in the EEG record,
+every stop path turns the light off, and a <em>Sending</em> swatch mirrors exactly what
+SMACC is emitting. See <a href="../visual/">Visual cues</a> for the patterns, the
+BlinkStick-vs-Hue comparison, marker timing, and the photosensitivity notes.</p>
+<h2 id="dream-reports">Dream reports</h2>
+<p>Use the <strong>Record Dream Report</strong> button to record from the mic bound to the
+<strong>Bedroom mic</strong> role in the <strong>Devices</strong> window.
+Recordings are saved into the current session folder. Each report is also stamped
+with the time elapsed since you pressed <strong>Start recording</strong> (in the Event logging
+panel), so it is easy to locate in the EEG file; if recording has not been marked
+yet, the report is still logged and SMACC reminds you to mark it.</p>
+<p>Surveys can follow a report two ways: <strong>in-app surveys</strong> (the bundled LuCiD, DLQ,
+and LUSK instruments, plus any you build) open in a SMACC window and save their
+responses into the run folder next to the report; <strong>web surveys</strong> (e.g. a
+questionnaire on Qualtrics or REDCap, added by URL) open in your browser. Manage
+both with the <strong>Manage…</strong> button next to the survey dropdown. Select a survey in
+the dropdown to open it automatically when recording starts, or open any survey
+on its own from <strong>File &rsaquo; Surveys</strong> (each open is logged as a
+<code>SurveyOpened</code> event). See <a href="../surveys/">Surveys</a> for the bundled instruments,
+the response-file format, and building your own.</p>
+<h2 id="biocals">Biocals</h2>
+<p>Sleep studies open with <strong>biocalibrations</strong> — scripted participant actions (eyes
+open, eyes closed, look left/right, …) whose known physiological signatures verify
+the recording channels. The <strong>Biocals</strong> window runs them as timed, marked events:
+every standard biocal plus the common lucid-dreaming signal practices (LRLR
+variants, fist clenches, sniffs), each on its own row.</p>
+<p>Each row has a toggle button plus two checkboxes and a duration:</p>
+<ul>
+<li><strong>Press the biocal's button</strong> to run it. The button stays depressed while it
+  runs and the countdown at the top shows the time remaining in its task window;
+  press it again to cancel early (no waiting out a botched 30-second window).</li>
+<li><strong>Voice</strong> — speak the pre-recorded instruction (e.g. <em>"Please close your eyes
+  and relax for thirty seconds."</em>) over the cue output when the biocal starts.
+  Leave it unchecked if you prefer to give instructions yourself.</li>
+<li><strong>Seq</strong> — include this row when <strong>Play sequence</strong> runs the whole stack in
+  order. Standard biocals start checked; the lucid-dreaming ones start unchecked.</li>
+<li><strong>Duration</strong> — the task window in seconds. With the voice on, the window (and
+  its countdown) starts when the instruction <em>ends</em>, so a 10-second breath hold
+  is a full 10 seconds — matching the manual practice of speaking first and
+  marking when the participant complies.</li>
+</ul>
+<p><strong>Markers.</strong> Each biocal's <em>start</em> code fires when its task window opens; a shared
+<strong>completed</strong> code fires when the window runs out and a shared <strong>cancelled</strong> code
+fires on an early stop (the preceding start code identifies which biocal). A played
+sequence is bracketed by its own start/stop codes and otherwise fires the identical
+per-biocal markers. Defaults: sequence start/stop <strong>105</strong>/<strong>106</strong>, cancelled
+<strong>107</strong>, completed <strong>108</strong>, and one start code per biocal in the <strong>110–126</strong> band —
+all retunable in the <strong>Markers</strong> window like any built-in event.</p>
+<p><strong>Sequences.</strong> <strong>Play sequence</strong> runs every Seq-checked row top to bottom,
+depressing each button as it goes. Pressing the <em>active biocal's</em> button skips just
+that item (cancel marker, then on to the next); pressing the sequence button again
+aborts the rest. Rows can <strong>repeat</strong> a biocal (eyes-closed twice, extra LRLRs —
+use <strong>+ Add</strong> to add another instance), be reordered with <strong>▲/▼</strong>, and removed
+with <strong>✕</strong>; the stack is locked while something is running. Need a biocal SMACC
+doesn't ship? Use a custom event button in the Event logging panel instead.</p>
+<p><strong>Voice recordings</strong> ship inside SMACC (generated with
+<a href="https://elevenlabs.io">ElevenLabs</a> text-to-speech) and are read straight from
+the bundle, so they stay current when you upgrade. Prefer another voice or
+language? Drop your own recording under the same name in your SMACC directory's
+<code>biocals/</code> folder (e.g. <code>~/SMACC/biocals/</code>) — a file there overrides the bundled
+one. (A biocal with no recording in either place still runs, just unvoiced;
+session start warns if that happens.) The shared <strong>Voice volume</strong> rides the cue
+route, so the master output cap and the control-room monitor fan-out apply to
+instructions exactly as they do to cues.</p>
+<h2 id="intercom">Intercom</h2>
+<p>The <strong>Intercom</strong> window is the live channel between the control room and the
+bedroom. <strong>Talk</strong> pipes your mic to the participant's output (click to latch, or
+hold the <strong>spacebar</strong> anywhere in SMACC as push-to-talk) and is marked in the EEG
+record; <strong>Listen</strong> brings the bedroom mic to your control-room speakers, unmarked.
+The two directions route through roles set once in the <strong>Devices</strong> window (see
+<a href="../audio/">Audio &amp; routing</a>). A <strong>level meter</strong> beside each button shows the
+live input level while that direction is on — signal on the bar means audio is
+actually flowing (your mic for Talk, the participant's mic for Listen), not just
+a latched button.</p>
+<h3 id="text-chat">Text chat</h3>
+<p>Below the voice controls is a <strong>typed channel</strong> — for hearing-impaired
+participants, or whenever audio would intrude or you want the exchange in writing.
+You type in the Intercom panel; the participant reads and replies in a separate
+<strong>Participant chat</strong> window made for a dark bedroom: always dark regardless of the
+lights toggle, large text (default 18 pt, resize with <code>Ctrl+=</code> / <code>Ctrl+-</code>), and an
+optional <strong>red night text</strong> mode (<strong>Display</strong> menu), with no flashing and no
+sounds.</p>
+<p><strong>Setup.</strong> The first cut assumes one computer: extend the desktop onto a
+bedroom-facing monitor and plug in a second keyboard for the participant. Click
+<strong>Pass keyboard to participant</strong> to open the participant window, drag it onto the
+bedroom display once, and it reopens there next session.</p>
+<p><strong>One keyboard at a time.</strong> Windows gives the machine a single input focus, so the
+two keyboards type into whichever window is active — text chat is half-duplex,
+like push-to-talk. <strong>Pass keyboard to participant</strong> (or <code>Ctrl+Enter</code>, which sends
+your message first) activates the participant window so their keystrokes land
+there; clicking back into SMACC takes the focus back. The participant window shows
+a banner — <em>"● The keyboard is yours"</em> / <em>"○ Waiting"</em> — so a drowsy participant
+always knows whether typing will land.</p>
+<p><strong>Quick replies.</strong> Canned messages save both sides from typing a full sentence at
+3 a.m.; they travel with the study. Click <strong>Manage quick messages…</strong> on the Intercom
+panel to edit two lists — <em>experimenter prompts</em> (one click sends a standardized
+prompt, e.g. the lab's dream-report question or <em>"Are you awake?"</em>) and <em>participant
+replies</em> mapped to the number keys <strong>1–9</strong> (e.g. <em>"Got it"</em>, <em>"I'm awake"</em>, <em>"Yes"</em>,
+<em>"No"</em>). The participant's replies appear as large numbered chips; pressing a number
+sends that reply, but only while their entry box is empty, so a typed reply that
+contains digits still works. A sent preset is logged and marked exactly like a typed
+message.</p>
+<p><strong>What's recorded.</strong> Every message is written verbatim to the session log as a
+DEBUG line (tick <em>Debug</em> above the log preview to watch the exchange live). By
+default no port codes fire and nothing reaches the BIDS events export — a typed
+exchange is rapid and conversational, and would flood the marker channel. If a
+study needs marker timestamps, route <code>Chat to participant</code> (code 69) and/or
+<code>Chat from participant</code> (code 70) to LSL/TTL in the <strong>Markers</strong> window;
+the markers stay bare (no message text) so the trigger channel remains legible.</p>
+<h2 id="eeg-port-codes">EEG port codes</h2>
+<p>SMACC marks experiment events — a cue played, a dream report, observed REM, the
+lights toggled — by sending a numeric <strong>port code</strong> to its marker stream and writing a
+matching line to the session log, keeping cue delivery and your neural data in sync.</p>
+<h3 id="configuring-codes">Configuring codes</h3>
+<p>Open the <strong>Markers</strong> window from the <strong>Tools</strong> column (in a Session or in the
+Editor). It is the definitive home for everything about event signaling: a
+<strong>routing legend</strong> (what the log file, the live preview, LSL, and TTL each
+receive, and which switch governs it), the full event registry grouped by
+category — including the events with no grid button (lights, panel controls,
+biocals, chat, system) — and the
+<a href="../triggers/#configuring-trigger-output-in-smacc">hardware TTL transport</a>.
+For each event you can set:</p>
+<ul>
+<li><strong>Code</strong> — the 8-bit port code (1–255) sent when the event triggers.</li>
+<li><strong>LSL</strong> — whether a firing sends the code over the LSL marker stream.</li>
+<li><strong>TTL</strong> — whether a firing sends the code over the hardware TTL trigger. The
+  column is grayed out until a transport is enabled in the window's <strong>Hardware
+  TTL transport</strong> section (the ticks are kept and re-arm with it). An event with
+  neither LSL nor TTL ticked is log-only.</li>
+<li><strong>Preview</strong> — whether the event shows in the live log preview. The session log
+  <em>file</em> always records every event regardless; this only controls the on-screen
+  preview.</li>
+<li><strong>Increment</strong> — give an event a unique, increasing code on each firing (e.g. <strong>dream
+  reports</strong>: 201, 202, 203, …) so individual occurrences are findable in the trigger
+  channel. Off uses one fixed code each time.</li>
+</ul>
+<p><strong>TTL safe max code</strong> raises a soft warning for TTL-routed codes above it — handy
+when your trigger hardware only accepts a limited range (some older systems do; LSL
+carries any code). Codes must be unique among routed events and within 1–255; the
+window blocks anything else.</p>
+<p><strong>Custom events.</strong> Use <strong>Add event…</strong> — in the <strong>Event logging</strong> panel itself, or in
+the Markers window — to create your own button events (a label and a code); they
+appear in the Event logging panel alongside the built-ins and can be removed again
+with the Markers window's <strong>Remove</strong>. Built-in events can be retuned but not removed
+or renamed.</p>
+<p>Edits are staged until you press <strong>Apply</strong> (which validates them first); <strong>Revert</strong>
+re-reads the session's current setup. The window stays available throughout a
+session. If you change a code mid-session, the change is written to the log with a
+timestamp, so the code-to-event mapping for that session is always recoverable.</p>
+<p>Beyond port codes, SMACC logs the important interactions too — volume, color, device,
+and fade changes — as plain log lines (no port code), so the session record is complete.</p>
+<h3 id="event-logging-panel">Event logging panel</h3>
+<p>The manual event buttons (the sleep-stage family, Signal observed, Sleep onset, Note,
+your custom events, …) live in the <strong>Event logging</strong> panel — open it from the session
+window's <strong>Tools</strong> column. The sleep-stage buttons take a fixed keypad — <strong>0</strong> Wake,
+<strong>1</strong> N1, <strong>2</strong> N2, <strong>3</strong> N3, <strong>4</strong> REM — and the remaining buttons take <strong>5</strong>–<strong>9</strong> in
+order; the shortcuts are active while the panel is focused. The <strong>Lights</strong> toggle stays
+on the main window (it also flips the dark theme).</p>
+<p><strong>Signal observed.</strong> One button covers every lucidity/communication signal a study uses
+(LRLR, sniff, facial, …), so you don't need a separate button per signal. Pick the
+<strong>signal</strong> type (the box is editable — type your own and it's remembered for the rest of
+the session) and a <strong>confidence</strong> (certain / probable / possible) beside the button;
+pressing it fires the marker immediately and logs your selection as the detail, so the
+marker's timing tracks the observation. Confidence is recorded as a comment — it never
+changes whether the marker reaches the EEG.</p>
+<h3 id="where-codes-live">Where codes live</h3>
+<p>Your codes are saved in the SMACC file (so they travel with it) and
+written into every session <code>.log</code> (both the initial and final settings blocks), so any
+session is self-documenting: you can decode its markers later even if the codes changed
+mid-session.</p>
+<h2 id="event-log">Event log</h2>
+<p>Every run writes a detailed <code>.log</code> to its own timestamped folder under the SMACC
+file's <strong>data directory</strong> (e.g. <code>~/SMACC/data/</code>), capturing the events and settings
+for that session. Open one later from the Launcher's <strong>Analyze</strong> to see a
+summary, export its events to BIDS, or recover its settings.</p>
+<h2 id="smacc-files-smacc">SMACC files (<code>.smacc</code>)</h2>
+<p>A <strong>SMACC file</strong> captures your study's whole configuration — cue files, volumes,
+noise, visual cues, survey presets, event codes, display choices, and the <strong>data
+directory</strong> where runs are written — in a single portable <code>.smacc</code>. Create one in
+the Editor (the Launcher's <strong>Create</strong>/<strong>Edit</strong> buttons) or snapshot a running
+Session with <strong>File &rsaquo; Save SMACC file as…</strong>. Opening one starts a new
+session with that configuration. See <a href="../smacc-files/">SMACC files</a> for the full
+story (creating, the data directory, opening by double-click), and the
+<a href="../reference/settings-file/">SMACC file reference</a> for the exact on-disk format.</p>
+<h2 id="display-preferences">Display preferences</h2>
+<p>Some display choices apply to a session and travel with the study in the SMACC
+file: <strong>always-on-top</strong> (toggled per window — the Session window's <strong>File</strong>
+menu, or each tool window's <strong>View</strong> menu, or <strong>Ctrl+T</strong> in whichever window is
+active) and which <strong>log levels</strong> show in the preview (the checkboxes above the
+log preview). Save them with the rest of the configuration from the Editor or
+with <strong>File &rsaquo; Save SMACC file as…</strong> in a Session.</p>
+<p>Tool windows close with <strong>Ctrl+W</strong> (or <strong>File &rsaquo; Close window</strong>) — that
+only hides the window, with its state intact; the session keeps running and the
+Session window's Tools column reopens it.</p>
+<p>Separately, the machine remembers window positions and sizes and your recent files in
+<code>~/SMACC/preferences.yaml</code>, restored on the next launch.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
