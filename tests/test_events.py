@@ -102,6 +102,30 @@ def test_runtime_code_clamps_at_255():
     assert events.runtime_code(e, 3) == 255  # clamped; never exceeds the 8-bit max
 
 
+def test_routing_summary_describes_each_shape():
+    # The one-liner shown in button tooltips: code + destinations, or log-only.
+    assert (
+        events.routing_summary(events.EventDef("A", "A", 41)) == "code 41 → LSL + TTL"
+    )
+    assert (
+        events.routing_summary(events.EventDef("A", "A", 41, ttl=False))
+        == "code 41 → LSL only"
+    )
+    assert (
+        events.routing_summary(events.EventDef("A", "A", 41, lsl=False))
+        == "code 41 → TTL only"
+    )
+    assert (
+        events.routing_summary(events.EventDef("A", "A", 201, increment=True))
+        == "codes 201+ → LSL + TTL"
+    )
+    unrouted_hidden = events.EventDef("A", "A", 69, lsl=False, ttl=False, preview=False)
+    assert (
+        events.routing_summary(unrouted_hidden)
+        == "log only (no portcode sent) · hidden from the live preview"
+    )
+
+
 def test_merge_event_codes_none_yields_defaults():
     merged = events.merge_event_codes(None)
     assert [e.key for e in merged] == [e.key for e in events.default_events()]

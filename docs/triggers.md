@@ -39,7 +39,7 @@ session log:
 
 These are SMACC's built-in event markers and their default port codes — the
 out-of-the-box [`event_codes`](reference/settings-file.md#event_codes) registry. A
-study can retune any code in the **Event codes** editor; the change travels in its
+study can retune any code in the **Markers** window; the change travels in its
 [`.smacc`](reference/settings-file.md) and is written into every session log.
 
 <!-- BEGIN auto:event-codes (kept in lockstep with smacc.events.default_events by tests/test_docs_schema.py) -->
@@ -174,12 +174,12 @@ register cleanly.
 
 ## Configuring trigger output in SMACC
 
-1. Open **File ▸ Trigger output…** (available both in a live Session and in the
-   Editor).
+1. Open the **Markers** window from the Tools column (available both in a live
+   Session and in the Editor) and find its **Hardware TTL transport** section.
 2. Tick **Enable hardware trigger output**.
 3. Choose a **Transport**:
     * **Serial** — pick your box's **Port** from the dropdown (click **Refresh** if
-      you plugged it in after opening the dialog) and set the **Baud** rate to match
+      you plugged it in after opening the window) and set the **Baud** rate to match
       your box (see [What is the baud rate?](#what-is-the-baud-rate); SMACC defaults to
       115200). If the rig isn't attached right now, you can type the port name (e.g.
       `COM3`) directly.
@@ -188,13 +188,13 @@ register cleanly.
 4. Choose a **Mode** (pulsed or set-and-hold) and, for pulsed, a **Pulse width**.
 5. Click **Test** to send one pulse and confirm the amplifier sees it. The result
    appears next to the button; an error explains what went wrong.
-6. Click **OK**.
+6. Click **Apply**.
 
 The whole configuration is saved in your
 [SMACC file](smacc-files.md), so it travels with the rest of your
 setup. Because a COM port name or LPT address is specific to one computer, SMACC
 reports a clear error if the saved port can't be opened on the machine you load it on
-— re-pick it in the dialog and save again.
+— re-pick it in the Markers window and save again.
 
 !!! warning "Always validate on the real hardware"
     A successful **Test** confirms SMACC could open the port and write to it. It does
@@ -237,8 +237,8 @@ falls back to LSL only — it never crashes a session over a missing driver.
 
 ## Verifying
 
-* Use the **Test** button in the Trigger output dialog for a quick "can SMACC drive
-  the line?" check.
+* Use the **Test** button in the Markers window's transport section for a quick
+  "can SMACC drive the line?" check.
 * Then confirm end-to-end on the amplifier: record a short block, fire a few events
   from the **Event logging** window, and check that the codes land on the EEG trigger
   channel. Only the real recording proves the path works.

@@ -80,7 +80,7 @@ class BiocalDef:
 
 # The app-defined biocal table (#78). Start codes occupy the contiguous 110-126
 # band, clear of every other default event code; a study can retune any of them
-# via File ▸ Event codes like any built-in event.
+# via the Markers window like any built-in event.
 _BIOCALS: tuple[BiocalDef, ...] = (
     BiocalDef(
         "eyes_open",

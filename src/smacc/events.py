@@ -509,6 +509,29 @@ def validate_events(
     return errors, warnings
 
 
+def routing_summary(event: EventDef) -> str:
+    """A short human description of where this event's marker goes.
+
+    Shown in the Event logging grid's button tooltips (and anywhere else a
+    one-liner is wanted) so an operator can tell, without opening the Markers
+    window, whether pressing a button sends a portcode and where.
+    """
+    if event.triggered:
+        code = f"codes {event.code}+" if event.increment else f"code {event.code}"
+        if event.lsl and event.ttl:
+            where = "LSL + TTL"
+        elif event.lsl:
+            where = "LSL only"
+        else:
+            where = "TTL only"
+        summary = f"{code} → {where}"
+    else:
+        summary = "log only (no portcode sent)"
+    if not event.preview:
+        summary += " · hidden from the live preview"
+    return summary
+
+
 def runtime_code(event: EventDef, ordinal: int | None = None) -> int:
     """Return the code to send for this firing.
 
