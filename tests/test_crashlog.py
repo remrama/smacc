@@ -7,10 +7,17 @@ import sys
 import threading
 
 import pytest
-from PyQt6 import QtCore
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from smacc import crashlog
-from smacc.__main__ import _install_excepthook, pick_crash_test
+from smacc.__main__ import (
+    _crash_details_path,
+    _crash_dialog,
+    _install_excepthook,
+    _show_crash_dialog,
+    pick_crash_test,
+)
+from smacc.paths import CRASH_LOG_PATH
 
 
 @pytest.fixture
@@ -166,6 +173,70 @@ def test_qt_warnings_stay_out_of_crash_log(crash_log, smacc_records):
     assert crash_log.read_text(encoding="utf-8") == before
     levels = [(r.levelno, r.getMessage()) for r in smacc_records]
     assert (logging.DEBUG, "Qt: connect spam") in levels
+
+
+# ----- the crash dialog (#154) --------------------------------------------------
+
+
+def test_crash_details_path_prefers_run_log_then_crash_log(tmp_path):
+    logger = logging.getLogger("smacc")
+    # Recreate the launcher phase: the shared logger holds no run-log handler
+    # (other suite tests may have left one; strip them for this check).
+    file_handlers = [h for h in logger.handlers if isinstance(h, logging.FileHandler)]
+    for handler in file_handlers:
+        logger.removeHandler(handler)
+    try:
+        assert _crash_details_path() == CRASH_LOG_PATH
+        run_handler = logging.FileHandler(tmp_path / "run.log", encoding="utf-8")
+        logger.addHandler(run_handler)
+        try:
+            assert _crash_details_path() == tmp_path / "run.log"
+        finally:
+            logger.removeHandler(run_handler)
+            run_handler.close()
+    finally:
+        for handler in file_handlers:
+            logger.addHandler(handler)
+
+
+def test_crash_dialog_names_the_log_and_offers_open_button(qapp, tmp_path):
+    details = tmp_path / "logs" / "crash.log"
+    box, open_button = _crash_dialog("RuntimeError: boom", details)
+    assert str(details) in box.text()
+    assert "RuntimeError: boom" in box.text()
+    assert open_button.text() == "Open logs folder"
+    assert box.buttonRole(open_button) == box.ButtonRole.ActionRole
+
+
+def test_show_crash_dialog_opens_the_logs_folder(qapp, monkeypatch):
+    opened = []
+    monkeypatch.setattr(
+        QtGui.QDesktopServices, "openUrl", lambda url: opened.append(url) or True
+    )
+    # Simulate the operator clicking "Open logs folder" (the ActionRole button).
+    monkeypatch.setattr(QtWidgets.QMessageBox, "exec", lambda self: 0)
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox,
+        "clickedButton",
+        lambda self: next(
+            b
+            for b in self.buttons()
+            if self.buttonRole(b) == self.ButtonRole.ActionRole
+        ),
+    )
+    _show_crash_dialog("RuntimeError: boom")
+    assert [url.toLocalFile() for url in opened] == [CRASH_LOG_PATH.parent.as_posix()]
+
+
+def test_show_crash_dialog_close_does_not_open_anything(qapp, monkeypatch):
+    opened = []
+    monkeypatch.setattr(
+        QtGui.QDesktopServices, "openUrl", lambda url: opened.append(url) or True
+    )
+    monkeypatch.setattr(QtWidgets.QMessageBox, "exec", lambda self: 0)
+    monkeypatch.setattr(QtWidgets.QMessageBox, "clickedButton", lambda self: None)
+    _show_crash_dialog("RuntimeError: boom")
+    assert opened == []
 
 
 # ----- the hidden --crash-test flag --------------------------------------------
