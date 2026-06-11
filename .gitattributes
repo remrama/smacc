@@ -1,0 +1,13 @@
+# Normalize line endings. Without this, files committed from Windows drift to
+# CRLF while others stay LF, producing whole-file "every line changed" diffs and
+# unresolvable merge conflicts (the docs/*.md tangle that motivated this). Store
+# and check out every text file with LF on all platforms; let git auto-detect
+# which files are text. Binary assets are marked explicitly so git never touches
+# them.
+
+* text=auto eol=lf
+
+*.png  binary
+*.ico  binary
+*.wav  binary
+*.mp3  binary
