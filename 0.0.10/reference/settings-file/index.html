@@ -1,0 +1,1699 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Sleep Manipulation And Communication Clickything — a clickable interface for running sleep-related experiments.">
+      
+      
+      
+        <link rel="canonical" href="https://remrama.github.io/smacc/0.0.10/reference/settings-file/">
+      
+      
+        <link rel="prev" href="../">
+      
+      
+        <link rel="next" href="../preferences-file/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/icon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>SMACC file (.smacc) - SMACC</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#smacc-file-smacc" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="SMACC" class="md-header__button md-logo" aria-label="SMACC" data-md-component="logo">
+      
+  <img src="../../assets/icon.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SMACC
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              SMACC file (.smacc)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/remrama/smacc" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    remrama/smacc
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="SMACC" class="md-nav__button md-logo" aria-label="SMACC" data-md-component="logo">
+      
+  <img src="../../assets/icon.png" alt="logo">
+
+    </a>
+    SMACC
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/remrama/smacc" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    remrama/smacc
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../smacc-files/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMACC files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audio & routing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visual cues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../latency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Latency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../devices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Devices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../surveys/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Surveys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../triggers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Triggers & port codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../eeg-review/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EEG review
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_12" id="__nav_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMACC file (.smacc)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMACC file (.smacc)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#on-disk-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        On-disk shape
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#envelope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Envelope
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        settings
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="settings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#audio-noise-visual-survey-chat-volume" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audio, noise, visual, survey, chat, volume
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#biocals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        biocals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#window-level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Window-level
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event_codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        event_codes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#devices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        devices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trigger_output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        trigger_output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hue
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#paths-and-portability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Paths and portability
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version history
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../preferences-file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preferences file
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../session-log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Session log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bids-export/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BIDS export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../annotations-file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotations sidecar
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#on-disk-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        On-disk shape
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#envelope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Envelope
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        settings
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="settings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#audio-noise-visual-survey-chat-volume" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audio, noise, visual, survey, chat, volume
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#biocals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        biocals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#window-level" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Window-level
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event_codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        event_codes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#devices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        devices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trigger_output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        trigger_output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hue
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#paths-and-portability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Paths and portability
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version history
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="smacc-file-smacc">SMACC file (<code>.smacc</code>)</h1>
+<p>A <strong>SMACC file</strong> is a <strong>portable study configuration</strong>: it lets a researcher set
+SMACC up once — cue sounds and volumes, noise, the visual cue, surveys, event codes,
+device routing, optional hardware triggers — and reload it each session so the setup
+stays consistent across nights and researchers. It is plain YAML you can read and
+edit. The user-facing extension is <code>.smacc</code>, but the <code>kind</code> stays <code>smacc/settings</code>.</p>
+<p>See <a href="../../smacc-files/">SMACC files</a> for the task-level
+guide (creating, editing, sharing). This page is the field reference.</p>
+<h2 id="on-disk-shape">On-disk shape</h2>
+<div class="highlight"><pre><span></span><code><span class="c1"># SMACC settings — YAML (.smacc). Edit with care.</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">smacc/settings</span>
+<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="nt">smacc_version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0.0.9&quot;</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">subject</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;001&quot;</span>
+<span class="w">  </span><span class="nt">session</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1&quot;</span>
+<span class="w">  </span><span class="nt">notes</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
+<span class="w">  </span><span class="nt">created</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2026-06-09T22:14:00&quot;</span>
+<span class="nt">settings</span><span class="p">:</span>
+<span class="w">  </span><span class="c1"># --- Audio cues ------------------------------------------------------------</span>
+<span class="w">  </span><span class="nt">cues</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Piano</span><span class="nv"> </span><span class="s">cue&quot;</span><span class="p p-Indicator">,</span><span class="nt"> file</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;cues/piano.wav&quot;</span><span class="p p-Indicator">,</span><span class="nt"> volume</span><span class="p">:</span><span class="w"> </span><span class="nv">0.4</span><span class="p p-Indicator">,</span><span class="nt"> loop</span><span class="p">:</span><span class="w"> </span><span class="nv">false</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">cue_attack</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+<span class="w">  </span><span class="nt">cue_release</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+<span class="w">  </span><span class="c1"># --- Background noise ------------------------------------------------------</span>
+<span class="w">  </span><span class="nt">noise_volume</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.2</span>
+<span class="w">  </span><span class="nt">noise_color</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">white</span>
+<span class="w">  </span><span class="nt">noise_source</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">builtin</span>
+<span class="w">  </span><span class="nt">noise_file</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
+<span class="w">  </span><span class="c1"># --- Visual cues (BlinkStick) ------------------------------------------------</span>
+<span class="w">  </span><span class="nt">visual_cues</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Light</span><span class="nv"> </span><span class="s">1&quot;</span><span class="p p-Indicator">,</span><span class="nt"> color</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;#ff0000&quot;</span><span class="p p-Indicator">,</span><span class="nt"> brightness</span><span class="p">:</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="nt"> pattern</span><span class="p">:</span><span class="w"> </span><span class="nv">steady</span><span class="p p-Indicator">,</span><span class="nt"> rate</span><span class="p">:</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="nt"> length</span><span class="p">:</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="nt"> loop</span><span class="p">:</span><span class="w"> </span><span class="nv">false</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">visual_attack</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+<span class="w">  </span><span class="nt">visual_release</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+<span class="w">  </span><span class="c1"># --- Survey ----------------------------------------------------------------</span>
+<span class="w">  </span><span class="nt">survey_url</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
+<span class="w">  </span><span class="nt">survey_options</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<span class="w">  </span><span class="c1"># --- Participant text chat ---------------------------------------------------</span>
+<span class="w">  </span><span class="nt">chat_font_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">18</span>
+<span class="w">  </span><span class="nt">chat_red_text</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">  </span><span class="nt">chat_experimenter_presets</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;Are</span><span class="nv"> </span><span class="s">you</span><span class="nv"> </span><span class="s">awake?&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;Going</span><span class="nv"> </span><span class="s">back</span><span class="nv"> </span><span class="s">to</span><span class="nv"> </span><span class="s">sleep</span><span class="nv"> </span><span class="s">now.&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">chat_participant_presets</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;Got</span><span class="nv"> </span><span class="s">it&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;I&#39;m</span><span class="nv"> </span><span class="s">awake&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;Yes&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;No&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="c1"># --- Biocals ---------------------------------------------------------------</span>
+<span class="w">  </span><span class="nt">biocals</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">voice_volume</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.5</span>
+<span class="w">    </span><span class="nt">rows</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">biocal</span><span class="p">:</span><span class="w"> </span><span class="nv">eyes_open</span><span class="p p-Indicator">,</span><span class="nt"> sequence</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> voice</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> duration</span><span class="p">:</span><span class="w"> </span><span class="nv">30</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="c1"># --- Output cap + latency --------------------------------------------------</span>
+<span class="w">  </span><span class="nt">volume_cap</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<span class="w">  </span><span class="nt">output_latency</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">high</span>
+<span class="w">  </span><span class="c1"># --- Device equipment + routing --------------------------------------------</span>
+<span class="w">  </span><span class="nt">devices</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">bindings</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<span class="w">    </span><span class="nt">routing</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">play_audio_cue</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bedroom_speaker</span>
+<span class="w">      </span><span class="nt">play_noise</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bedroom_speaker</span>
+<span class="w">      </span><span class="nt">record_dream_report</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bedroom_mic_1</span>
+<span class="w">      </span><span class="nt">play_visual_cue</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">blinkstick_light</span>
+<span class="w">  </span><span class="c1"># --- Event-marker registry -------------------------------------------------</span>
+<span class="w">  </span><span class="nt">event_codes</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="nv">REMDetected</span><span class="p p-Indicator">,</span><span class="nt"> code</span><span class="p">:</span><span class="w"> </span><span class="nv">41</span><span class="p p-Indicator">,</span><span class="nt"> lsl</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> ttl</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> preview</span><span class="p">:</span><span class="w"> </span><span class="nv">true</span><span class="p p-Indicator">,</span><span class="nt"> increment</span><span class="p">:</span><span class="w"> </span><span class="nv">false</span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">event_code_safe_max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">255</span>
+<span class="w">  </span><span class="c1"># --- Optional hardware trigger output --------------------------------------</span>
+<span class="w">  </span><span class="nt">trigger_output</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">    </span><span class="nt">transport</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">serial</span>
+<span class="w">    </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
+<span class="w">    </span><span class="nt">baud</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">115200</span>
+<span class="w">    </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0x378&quot;</span>
+<span class="w">    </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pulsed</span>
+<span class="w">    </span><span class="nt">pulse_ms</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+<span class="w">  </span><span class="c1"># --- Philips Hue bridge (visual cues) ---------------------------------------</span>
+<span class="w">  </span><span class="nt">hue</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">bridge_ip</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
+<span class="w">    </span><span class="nt">app_key</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
+<span class="w">  </span><span class="c1"># --- Data directory + interface --------------------------------------------</span>
+<span class="w">  </span><span class="nt">data_directory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">data</span>
+<span class="w">  </span><span class="nt">preview_levels</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">INFO</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">WARNING</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">ERROR</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">CRITICAL</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">always_on_top</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">  </span><span class="nt">tool_always_on_top</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+</code></pre></div>
+<h2 id="envelope">Envelope</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kind</code></td>
+<td>string</td>
+<td>Always <code>smacc/settings</code>; a file with a different <code>kind</code> is rejected.</td>
+</tr>
+<tr>
+<td><code>schema_version</code></td>
+<td>integer</td>
+<td>The settings schema version — currently <strong>1</strong>. Only the current version loads; any other is rejected (see <a href="#version-history">Version history</a>).</td>
+</tr>
+<tr>
+<td><code>smacc_version</code></td>
+<td>string</td>
+<td>The SMACC version that wrote the file (informational).</td>
+</tr>
+<tr>
+<td><code>metadata</code></td>
+<td>mapping</td>
+<td>Optional run metadata: <code>subject</code>, <code>session</code>, <code>notes</code>, and <code>created</code> (ISO timestamp). Blank by default; recorded in the log, not baked into filenames.</td>
+</tr>
+<tr>
+<td><code>settings</code></td>
+<td>mapping</td>
+<td>The configuration itself (below).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="settings"><code>settings</code></h2>
+<p>Every panel contributes its own keys; a few window-level blocks travel alongside.
+Any key may be omitted — each falls back to its default.</p>
+<h3 id="audio-noise-visual-survey-chat-volume">Audio, noise, visual, survey, chat, volume</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cues</code></td>
+<td>list</td>
+<td>One entry per cue slot: <code>name</code> (string), <code>file</code> (WAV path), <code>volume</code> (0–1), <code>loop</code> (bool).</td>
+</tr>
+<tr>
+<td><code>cue_attack</code></td>
+<td>seconds</td>
+<td>Fade-in applied to a starting cue.</td>
+</tr>
+<tr>
+<td><code>cue_release</code></td>
+<td>seconds</td>
+<td>Fade-out applied to a stopping cue.</td>
+</tr>
+<tr>
+<td><code>noise_volume</code></td>
+<td>0–1</td>
+<td>Background-noise level.</td>
+</tr>
+<tr>
+<td><code>noise_color</code></td>
+<td>string</td>
+<td>Selected noise colour (as offered in the Noise panel, e.g. <code>white</code>).</td>
+</tr>
+<tr>
+<td><code>noise_source</code></td>
+<td><code>builtin</code> | <code>file</code></td>
+<td>Generated noise, or a WAV file.</td>
+</tr>
+<tr>
+<td><code>noise_file</code></td>
+<td>path</td>
+<td>The noise WAV when <code>noise_source: file</code>.</td>
+</tr>
+<tr>
+<td><code>visual_cues</code></td>
+<td>list</td>
+<td>One entry per light slot: <code>name</code> (string), <code>color</code> (<code>#rrggbb</code>), <code>brightness</code> (0–1), <code>pattern</code> (<code>steady</code> | <code>pulse</code> | <code>flash</code>), <code>rate</code> (Hz, the pulse/flash speed), <code>length</code> (seconds; ignored while <code>loop</code>), <code>loop</code> (bool).</td>
+</tr>
+<tr>
+<td><code>visual_attack</code></td>
+<td>seconds</td>
+<td>Brightness fade-in applied to a starting visual cue.</td>
+</tr>
+<tr>
+<td><code>visual_release</code></td>
+<td>seconds</td>
+<td>Brightness fade-out applied to a stopping visual cue.</td>
+</tr>
+<tr>
+<td><code>survey_url</code></td>
+<td>string</td>
+<td>The selected survey: a web URL, or <code>smacc://survey/&lt;key&gt;</code> for an in-app survey.</td>
+</tr>
+<tr>
+<td><code>survey_options</code></td>
+<td>mapping</td>
+<td>Named <em>web</em> survey presets: label → URL. In-app surveys (built-in or custom) are not persisted here — they come from survey definition files (see <a href="../../surveys/">Surveys</a>).</td>
+</tr>
+<tr>
+<td><code>chat_font_size</code></td>
+<td>integer</td>
+<td>Participant chat window text size, in points (8–72).</td>
+</tr>
+<tr>
+<td><code>chat_red_text</code></td>
+<td>boolean</td>
+<td>Red-shifted night text in the participant chat window.</td>
+</tr>
+<tr>
+<td><code>chat_experimenter_presets</code></td>
+<td>list</td>
+<td>Intercom quick-reply prompts the experimenter sends with one click (verbatim, like a typed message). Omitted → seeded defaults; an empty list is respected.</td>
+</tr>
+<tr>
+<td><code>chat_participant_presets</code></td>
+<td>list</td>
+<td>Participant quick replies, shown as numbered chips and sent with the number keys 1–9 (max 9). Omitted → seeded defaults; an empty list is respected.</td>
+</tr>
+<tr>
+<td><code>volume_cap</code></td>
+<td>0–1</td>
+<td>Master output safety cap multiplied into every stimulus (<code>1.0</code> = no cap).</td>
+</tr>
+<tr>
+<td><code>output_latency</code></td>
+<td><code>high</code> | <code>low</code></td>
+<td>Output buffer for the cue + noise streams: <code>high</code> is robust (default), <code>low</code> trims marker-to-sound delay where the device allows it (often unchanged on shared-mode WASAPI). See <a href="../../latency/">Latency</a>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="biocals"><code>biocals</code></h3>
+<p>The Biocals window's stack (see <a href="../../usage/#biocals">Usage › Biocals</a>):
+<code>voice_volume</code> (0–1, the shared instruction volume) plus one <code>rows</code> entry per
+stack row, in display order. Rows may repeat a biocal (e.g. eyes-closed twice in
+the played sequence). A missing block — or a block without <code>rows</code> — loads the
+default stack; an empty <code>rows</code> list is respected as a deliberately cleared one.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>biocal</code></td>
+<td>string</td>
+<td>Stable biocal id (e.g. <code>eyes_open</code>); unknown ids are dropped.</td>
+</tr>
+<tr>
+<td><code>sequence</code></td>
+<td>boolean</td>
+<td>Include this row when the sequence is played.</td>
+</tr>
+<tr>
+<td><code>voice</code></td>
+<td>boolean</td>
+<td>Speak the pre-recorded instruction when the biocal starts.</td>
+</tr>
+<tr>
+<td><code>duration</code></td>
+<td>integer</td>
+<td>Task-window length in seconds (1–600); the countdown and the completion marker run on it.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="window-level">Window-level</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data_directory</code></td>
+<td>path</td>
+<td>Where this study's runs are written (relative to the <code>.smacc</code>, or absolute).</td>
+</tr>
+<tr>
+<td><code>preview_levels</code></td>
+<td>list</td>
+<td>Log levels shown in the live preview, e.g. <code>[INFO, WARNING, ERROR, CRITICAL]</code>.</td>
+</tr>
+<tr>
+<td><code>always_on_top</code></td>
+<td>boolean</td>
+<td>Whether the main session window floats on top.</td>
+</tr>
+<tr>
+<td><code>tool_always_on_top</code></td>
+<td>mapping</td>
+<td>Per-tool always-on-top, keyed by panel key.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="event_codes"><code>event_codes</code></h3>
+<p>The editable event-marker registry: a list of overrides applied over the
+<a href="../../triggers/#default-event-codes">built-in registry</a>. A study that omits it uses
+the built-ins; one that overrides a few codes keeps the rest.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>key</code></td>
+<td>string</td>
+<td>Stable event id (e.g. <code>REMDetected</code>).</td>
+</tr>
+<tr>
+<td><code>code</code></td>
+<td>integer</td>
+<td>Port code, 1–255.</td>
+</tr>
+<tr>
+<td><code>lsl</code></td>
+<td>boolean</td>
+<td>Whether a firing pushes the code over the LSL marker stream.</td>
+</tr>
+<tr>
+<td><code>ttl</code></td>
+<td>boolean</td>
+<td>Whether a firing pushes the code over the hardware TTL trigger (when one is configured).</td>
+</tr>
+<tr>
+<td><code>preview</code></td>
+<td>boolean</td>
+<td>Whether it shows in the live preview (the file always records it).</td>
+</tr>
+<tr>
+<td><code>increment</code></td>
+<td>boolean</td>
+<td>Whether successive firings advance the code (e.g. dream reports).</td>
+</tr>
+</tbody>
+</table>
+<p>A built-in entry persists only those fields. A <strong>custom</strong> event also carries
+<code>label</code>, <code>category</code>, <code>tooltip</code>, and <code>builtin: false</code> so it can be reconstructed on
+load. <code>event_code_safe_max</code> (integer, default 255) sets the soft upper-bound warning
+for TTL-routed codes (LSL carries any code).</p>
+<h3 id="devices"><code>devices</code></h3>
+<p>Equipment → device bindings plus action → equipment routing (see <a href="../../audio/">Audio &amp; routing</a>
+and <a href="../../devices/">Devices</a>).</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bindings</code></td>
+<td>mapping</td>
+<td>Equipment key → device key. Equipment: <code>bedroom_speaker</code>, <code>control_speaker</code>, <code>bedroom_mic_1</code>, <code>bedroom_mic_2</code>, <code>control_mic</code> (the experimenter's intercom mic), <code>blinkstick_light</code> (a stick's serial), <code>philips_hue_light</code> (a bridge target like <code>light:3</code> or <code>group:1</code>).</td>
+</tr>
+<tr>
+<td><code>routing</code></td>
+<td>mapping</td>
+<td>Action key → equipment key (<code>""</code> = off). Actions: <code>play_audio_cue</code>, <code>listen_audio_cue</code>, <code>play_noise</code>, <code>play_visual_cue</code>, <code>speak_to_participant</code>, <code>listen_to_participant</code>, <code>record_dream_report</code>, <code>monitor_bedroom_noise</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>A missing <code>devices</code> block loads the defaults (each action on its default equipment, with
+no devices bound). When a live session starts (or loads a study) with
+<code>bedroom_speaker</code>, <code>bedroom_mic_1</code>, or <code>control_mic</code> unbound, SMACC binds the
+current Windows default device explicitly, by name, and logs the choice — there is
+no "system default" pseudo-selection (see
+<a href="../../audio/#no-system-default">Audio &amp; routing</a>).</p>
+<h3 id="trigger_output"><code>trigger_output</code></h3>
+<p>Optional hardware TTL trigger output, mirrored alongside the always-on LSL stream
+(see <a href="../../triggers/">Triggers &amp; port codes</a>).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>boolean</td>
+<td>Whether the hardware path is on (LSL is always on regardless).</td>
+</tr>
+<tr>
+<td><code>transport</code></td>
+<td><code>serial</code> | <code>parallel</code></td>
+<td>USB trigger box, or parallel (LPT) port.</td>
+</tr>
+<tr>
+<td><code>port</code></td>
+<td>string</td>
+<td>Serial COM port, e.g. <code>COM3</code>.</td>
+</tr>
+<tr>
+<td><code>baud</code></td>
+<td>integer</td>
+<td>Serial baud rate (default 115200).</td>
+</tr>
+<tr>
+<td><code>address</code></td>
+<td>string</td>
+<td>Parallel-port base address as hex, e.g. <code>0x378</code>.</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td><code>pulsed</code> | <code>hold</code></td>
+<td>Pulse the code then drop, or set-and-hold until the next event.</td>
+</tr>
+<tr>
+<td><code>pulse_ms</code></td>
+<td>integer</td>
+<td>Pulse width in ms when <code>mode: pulsed</code> (default 10).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="hue"><code>hue</code></h3>
+<p>The Philips Hue bridge used for visual cues (see <a href="../../devices/#philips-hue">Devices › Philips Hue</a>),
+paired once in the Devices window. Like the device bindings, this is rig state
+that travels with the study — note that <code>app_key</code> is the bridge credential minted
+by pairing, stored in plain text.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bridge_ip</code></td>
+<td>string</td>
+<td>The bridge's IP on the rig's network.</td>
+</tr>
+<tr>
+<td><code>app_key</code></td>
+<td>string</td>
+<td>The app key minted by press-button pairing (blank = not set up).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="paths-and-portability">Paths and portability</h2>
+<p>Cue/noise WAVs and <code>data_directory</code> are stored <strong>relative</strong> to the <code>.smacc</code> when they
+sit beside it (POSIX separators) and <strong>absolute</strong> otherwise, so a self-contained study
+folder stays valid when moved, copied, or zipped.</p>
+<h2 id="version-history">Version history</h2>
+<table>
+<thead>
+<tr>
+<th>Version</th>
+<th>Changes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>The v0.0.9 baseline (numbering restarted; pre-release schemas were retired without migration). Envelope (<code>kind</code> / <code>schema_version</code> / <code>smacc_version</code> / <code>metadata</code> / <code>settings</code>); panel state; the <code>biocals</code>, <code>devices</code>, <code>event_codes</code> + <code>event_code_safe_max</code>, <code>trigger_output</code>, <code>data_directory</code>, <code>preview_levels</code>, <code>always_on_top</code>, and <code>tool_always_on_top</code> blocks.</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.top", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
