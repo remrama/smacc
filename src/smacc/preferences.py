@@ -45,6 +45,13 @@ DEFAULTS: dict[str, Any] = {
     # first; the log file always keeps everything). Large values cost GUI memory
     # and repaint time over an overnight session.
     "log_preview_max_lines": 1000,
+    # EEG review tool (#136): recently used annotation labels (most-recent
+    # first, seeding the label dialog's dropdown) and the last folder a
+    # recording was opened from. Note loading only round-trips keys present
+    # here, so the EEG window's keys must stay in DEFAULTS even though the
+    # tool is an optional component.
+    "eeg_recent_labels": [],
+    "eeg_last_dir": None,
 }
 
 _logger = logging.getLogger("smacc")
