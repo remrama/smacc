@@ -18,7 +18,6 @@ preferences:
   windows:
     launcher: {x: 100, y: 100, w: 340, h: 360}
     main: {x: 120, y: 80, w: 900, h: 700}
-  association_prompted: true
   recent_settings:
     - C:\Users\you\SMACC\peter.smacc
     - C:\Users\you\SMACC\paul.smacc
@@ -39,7 +38,6 @@ preferences:
 | Key                     | Type           | Meaning                                                                                                                                                                                                                                                        |
 | ----------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `windows`               | mapping        | Per-window geometry, keyed by a stable window id → `{x, y, w, h}`. Ids include `launcher`, `main` (the Session window), the analyze window, and each tool window. An absent/`null` `x`/`y` means "no saved position — open at a default".                      |
-| `association_prompted`  | boolean        | Whether the first-run "associate `.smacc` files (Windows)?" prompt has already been shown.                                                                                                                                                                     |
 | `recent_settings`       | list of paths  | Recently opened `.smacc` files, most-recent first, de-duplicated and capped at 8.                                                                                                                                                                              |
 | `last_settings`         | path or `null` | The last `.smacc` opened, so the Launcher can preselect it.                                                                                                                                                                                                    |
 | `log_preview_max_lines` | integer        | How many lines the Session window's live log preview keeps (default **1000**); the oldest lines are dropped first. The log *file* always records everything, so nothing is lost. Very large values cost GUI memory and repaint time over an overnight session. |
@@ -52,6 +50,6 @@ preferences:
 
 ## Version history
 
-| Version | Changes                                                                                     |
-| ------- | ------------------------------------------------------------------------------------------- |
-| 1       | First stable schema: `windows`, `association_prompted`, `recent_settings`, `last_settings`. |
+| Version | Changes                                                                                                                                                                                                                                                      |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1       | First stable schema: `windows`, `recent_settings`, `last_settings`. (The pre-release `association_prompted` key was dropped along with the first-run association prompt — the installer owns the association now; a leftover key in an old file is ignored.) |

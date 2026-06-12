@@ -198,8 +198,10 @@ class LauncherWindow(QtWidgets.QMainWindow):
         assert menu_bar is not None
         fileMenu = menu_bar.addMenu("&File")
         assert fileMenu is not None
-        # Only the packaged Windows build can register the .smacc handler; hide the
-        # action entirely on dev runs / other platforms (a dev run is python.exe).
+        # The installer owns the .smacc association (#187); this action is the
+        # portable-SMACC.exe / repair affordance. Only a packaged Windows build
+        # can register the handler; hide the action entirely on dev runs / other
+        # platforms (a dev run is python.exe).
         if winassoc.is_associatable():
             associateAction = fileMenu.addAction("&Associate .smacc files (Windows)")
             assert associateAction is not None

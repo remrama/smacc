@@ -85,10 +85,11 @@ Name: "{autoprograms}\SMACC EEG review"; Filename: "{app}\SMACC-EEG.exe"; Compon
 Name: "{autodesktop}\SMACC"; Filename: "{app}\SMACC.exe"; Tasks: desktopicon
 
 [Registry]
-; The .smacc file association — these entries mirror winassoc.association_entries()
-; exactly (tests/test_winassoc.py cross-checks them), so an installed build passes
-; winassoc.is_registered() and the in-app first-run prompt skips itself. HKA is
-; HKCU for the default per-user install and HKLM for an /ALLUSERS install.
+; The .smacc file association — the installer is the primary owner (#187); the
+; portable exe can opt in via the Launcher's File menu (smacc.winassoc). These
+; entries mirror winassoc.association_entries() exactly (tests/test_winassoc.py
+; cross-checks them), so an installed build passes winassoc.is_registered(). HKA
+; is HKCU for the default per-user install and HKLM for an /ALLUSERS install.
 Root: HKA; Subkey: "Software\Classes\.smacc"; ValueType: string; ValueName: ""; ValueData: "SMACC.Study"; Flags: uninsdeletekey
 Root: HKA; Subkey: "Software\Classes\.smacc"; ValueType: string; ValueName: "Content Type"; ValueData: "application/x-smacc"; Flags: uninsdeletekey
 Root: HKA; Subkey: "Software\Classes\SMACC.Study"; ValueType: string; ValueName: ""; ValueData: "SMACC study configuration"; Flags: uninsdeletekey

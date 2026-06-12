@@ -36,7 +36,7 @@ def test_partial_file_merges_over_defaults(tmp_path):
     prefs = preferences.load_preferences(path)
     assert prefs["last_settings"] == "/x"  # from file
     assert prefs["windows"] == {}  # default
-    assert "association_prompted" in prefs  # every default key present
+    assert "log_preview_max_lines" in prefs  # every default key present
 
 
 def test_log_preview_max_lines_reads_a_positive_int():
