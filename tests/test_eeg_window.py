@@ -463,6 +463,80 @@ def test_event_filter_routes_keys_only_when_active(
     assert window.view.window_start == pytest.approx(30.0)
 
 
+# ----- save safety (#175) ----------------------------------------------------------
+
+
+def test_save_button_states_the_no_modify_contract(window):
+    assert "never modified" in window.saveButton.toolTip()
+
+
+def test_fresh_save_with_no_existing_sidecar_does_not_prompt(
+    window, recording_path, monkeypatch
+):
+    window._load(recording_path)  # fresh review, no sidecar on disk yet
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._on_region_drawn(10.0, 14.0)
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox,
+        "question",
+        lambda *a, **k: pytest.fail("no prompt when nothing is overwritten"),
+    )
+    window.save_annotations()
+    assert not window._dirty
+
+
+def test_resuming_a_sidecar_saves_without_a_prompt(window, recording_path, monkeypatch):
+    tsv_path, _ = sidecar_paths(recording_path)
+    write_annotations_tsv([Annotation(5.0, 2.0, "REM period")], tsv_path)
+    window._load(recording_path)  # loaded from it → we own it
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._on_region_drawn(10.0, 14.0)
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox,
+        "question",
+        lambda *a, **k: pytest.fail("no overwrite prompt when resuming our own sidecar"),
+    )
+    window.save_annotations()
+    assert not window._dirty
+
+
+def test_save_prompts_before_overwriting_a_foreign_sidecar(
+    window, recording_path, monkeypatch
+):
+    window._load(recording_path)  # fresh review (we do not own a sidecar)
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._on_region_drawn(10.0, 14.0)
+    tsv_path, _ = sidecar_paths(recording_path)
+    foreign = [Annotation(1.0, 0.0, "other rater")]
+    write_annotations_tsv(foreign, tsv_path)  # a sidecar appeared meanwhile
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox,
+        "question",
+        lambda *a, **k: QtWidgets.QMessageBox.StandardButton.No,
+    )
+    window.save_annotations()
+    assert read_annotations_tsv(tsv_path) == foreign  # declined: left untouched
+    assert window._dirty  # still unsaved
+
+
+def test_save_overwrites_a_foreign_sidecar_once_confirmed(
+    window, recording_path, monkeypatch
+):
+    window._load(recording_path)
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._on_region_drawn(10.0, 14.0)
+    tsv_path, _ = sidecar_paths(recording_path)
+    write_annotations_tsv([Annotation(1.0, 0.0, "other rater")], tsv_path)
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox,
+        "question",
+        lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes,
+    )
+    window.save_annotations()
+    assert read_annotations_tsv(tsv_path) == [Annotation(10.0, 4.0, "LRLR")]
+    assert not window._dirty
+
+
 # ----- label dialog / entry point -----------------------------------------------------
 
 

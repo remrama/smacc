@@ -193,6 +193,9 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._annotations: list[Annotation] = []
         self._dirty = False
         self._cursor_seconds: float | None = None  # last mouse time over the traces
+        # True once this review's annotations live in the canonical sidecar (we
+        # loaded it, or we have saved at least once); gates the overwrite prompt.
+        self._owns_sidecar = False
         self.setWindowTitle("SMACC — EEG review")
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
@@ -216,6 +219,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         layout.setContentsMargins(12, 8, 12, 8)
         layout.setSpacing(8)
         layout.addWidget(_section_title("EEG review"))
+        layout.addWidget(self._build_contract_caption())
         layout.addLayout(self._build_controls_row())
         layout.addLayout(self._build_epoch_row())
 
@@ -329,7 +333,13 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         row.addStretch(1)
         self.saveButton = QtWidgets.QPushButton("Save annotations", self)
         self.saveButton.setStatusTip(
-            "Write the annotations TSV/JSON sidecar next to the recording."
+            "Write the annotation sidecar next to the recording; the recording "
+            "itself is never modified."
+        )
+        self.saveButton.setToolTip(
+            "Saves the annotation sidecar (TSV/JSON) next to the recording.\n"
+            "The recording is never modified; filters, scaling, channel selection "
+            "and the epoch grid are view-only."
         )
         self.saveButton.clicked.connect(self.save_annotations)
         row.addWidget(self.saveButton)
@@ -389,6 +399,16 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         row.addWidget(self.axisModeCombo)
         row.addStretch(1)
         return row
+
+    def _build_contract_caption(self) -> QtWidgets.QLabel:
+        """A quiet, always-visible reminder of the tool's safety contract (#175)."""
+        caption = QtWidgets.QLabel(
+            "Saves annotations to a sidecar — your recording is never modified.",
+            self,
+        )
+        caption.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        caption.setEnabled(False)  # renders dimmed, following the palette
+        return caption
 
     def _build_annotation_panel(self) -> QtWidgets.QLayout:
         panel = QtWidgets.QVBoxLayout()
@@ -482,6 +502,9 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._recording = recording
         self._annotations = annotations
         self._dirty = False
+        # We own the sidecar when we loaded from it; a fresh review does not yet,
+        # so its first save guards against overwriting one that appeared meanwhile.
+        self._owns_sidecar = tsv_path.is_file()
         self.view.set_provider(recording)
         self.view.set_annotations(annotations)
         # Hand the view the localized recording start so the time axis can label
@@ -584,6 +607,12 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         if self._recording is None:
             return
         tsv_path, json_path = sidecar_paths(self._recording.path)
+        # Guard the one case where a save would silently clobber someone else's
+        # work: a sidecar we did not open (a fresh review, or one that appeared
+        # while we worked). A sidecar we loaded — or already saved — is ours.
+        if not self._owns_sidecar and tsv_path.is_file():
+            if not self._confirm_overwrite(tsv_path):
+                return
         try:
             write_annotations_tsv(self._annotations, tsv_path)
             write_annotations_json(
@@ -595,12 +624,25 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             self._error("Could not save the annotations.", str(exc))
             return
         self._dirty = False
+        self._owns_sidecar = True  # ours now; later saves don't re-prompt
         self._refresh_title()
         status_bar = self.statusBar()
         assert status_bar is not None
         status_bar.showMessage(
             f"Saved {len(self._annotations)} annotations to {tsv_path.name}", 5000
         )
+
+    def _confirm_overwrite(self, tsv_path: Path) -> bool:
+        """Ask before overwriting a sidecar this review did not open."""
+        button = QtWidgets.QMessageBox.question(
+            self,
+            "Overwrite annotations?",
+            f"{tsv_path.name} already exists and was not opened in this review.\n\n"
+            "Overwrite it with the current annotations?",
+            QtWidgets.QMessageBox.StandardButton.Yes
+            | QtWidgets.QMessageBox.StandardButton.No,
+        )
+        return button == QtWidgets.QMessageBox.StandardButton.Yes
 
     # ----- annotation bookkeeping ----------------------------------------------------
 
