@@ -16,8 +16,8 @@ YYYY-MM-DD HH:MM:SS.mmm, LEVEL, message
 
 - **timestamp** — local wall-clock, millisecond precision.
 - **LEVEL** — a Python logging level: `DEBUG`, `INFO`, `WARNING`, `ERROR`, or
-  `CRITICAL`. The file records every level; the live on-screen preview shows only a
-  configurable subset.
+    `CRITICAL`. The file records every level; the live on-screen preview shows only a
+    configurable subset.
 - **message** — the log text. An **event-marker** line ends in `" - portcode N"`:
 
 ```text
@@ -38,13 +38,13 @@ The file records **every** level — a level never decides whether something is
 written, only whether it shows in the live preview (whose default gate starts at
 `INFO`). SMACC assigns levels by one convention:
 
-| Level | What it carries |
-|---|---|
-| `DEBUG` | Housekeeping and high-frequency detail: settings loads/saves, device rescans, live volume edits, raw trigger instants, chat text. In the file for the record; out of the preview by default. |
-| `INFO` | **Event markers** and meaningful operator actions — the session's scientific narrative. |
-| `WARNING` | Mid-session configuration changes (a port code or trigger transport edited during a run — loud so the code map stays traceable) and recoverable faults (a saved device not connected). |
-| `ERROR` | Faults that cost something: a hardware trigger write failing, a stream that couldn't open. |
-| `CRITICAL` | Uncaught exceptions — the app is in an unknown state. |
+| Level      | What it carries                                                                                                                                                                              |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DEBUG`    | Housekeeping and high-frequency detail: settings loads/saves, device rescans, live volume edits, raw trigger instants, chat text. In the file for the record; out of the preview by default. |
+| `INFO`     | **Event markers** and meaningful operator actions — the session's scientific narrative.                                                                                                      |
+| `WARNING`  | Mid-session configuration changes (a port code or trigger transport edited during a run — loud so the code map stays traceable) and recoverable faults (a saved device not connected).       |
+| `ERROR`    | Faults that cost something: a hardware trigger write failing, a stream that couldn't open.                                                                                                   |
+| `CRITICAL` | Uncaught exceptions — the app is in an unknown state.                                                                                                                                        |
 
 ### Stimulus marker timing
 
@@ -103,5 +103,6 @@ quit). The `final` block may be absent if a session crashed before quitting. Ana
 can recover a `.smacc` from either block.
 
 !!! note "No separate version"
+
     The log itself isn't versioned; its embedded blocks carry the
     [settings `schema_version`](settings-file.md#version-history).

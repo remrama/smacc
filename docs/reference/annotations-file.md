@@ -25,11 +25,11 @@ onset	duration	description
 80.500	22.000	Arousal
 ```
 
-| Column | Meaning |
-|---|---|
-| `onset` | Seconds from the start of the recording's **data** (not clock time), millisecond precision |
-| `duration` | Seconds; `0.000` marks an instantaneous event |
-| `description` | The label as entered by the reviewer |
+| Column        | Meaning                                                                                    |
+| ------------- | ------------------------------------------------------------------------------------------ |
+| `onset`       | Seconds from the start of the recording's **data** (not clock time), millisecond precision |
+| `duration`    | Seconds; `0.000` marks an instantaneous event                                              |
+| `description` | The label as entered by the reviewer                                                       |
 
 Overlapping annotations are allowed (an arousal inside a REM period is two
 rows). A label containing a double quote is csv-quoted (`"saw a ""light"""`);

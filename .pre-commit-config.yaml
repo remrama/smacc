@@ -13,3 +13,13 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+      # Crawls the tree (pass_filenames: false) so it reads the .mdformat.toml
+      # exclude — the same single scope source CI uses — rather than being handed
+      # an explicit file list that would bypass it. --extra docs supplies mdformat
+      # and its plugins. Mirrors the mypy hook above.
+      - id: mdformat
+        name: mdformat
+        entry: uv run --extra docs mdformat .
+        language: system
+        types: [markdown]
+        pass_filenames: false

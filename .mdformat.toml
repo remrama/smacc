@@ -1,0 +1,14 @@
+# Markdown formatter config (the docs counterpart to ruff). mdformat reads only
+# .mdformat.toml, not pyproject.toml's [tool.mdformat], so the config lives here.
+#
+# wrap = "keep" leaves prose line breaks alone (the docs hand-wrap at ~80 cols);
+# end_of_line = "lf" matches ruff. exclude needs Python 3.13 (glob.translate) —
+# the reason this waited on #168 — and is the single scope source: CI runs
+# `mdformat --check .` and the pre-commit hook crawls the same way, both reading
+# these globs. .claude/ holds the tool-managed AI-assistant configs (out of
+# scope); .venv/ and .pytest_cache/ are not gitignore-aware to mdformat, so the
+# in-tree venv that `uv run` creates must be excluded or the check drowns in
+# site-packages READMEs.
+wrap = "keep"
+end_of_line = "lf"
+exclude = [".claude/**", ".venv/**", ".pytest_cache/**"]

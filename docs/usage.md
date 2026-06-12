@@ -7,11 +7,11 @@ through the main features.
 SMACC has three main windows, named consistently throughout these docs:
 
 - the **SMACC Launcher** (*Launcher* for short) — the small hub that opens when
-  you start the app;
+    you start the app;
 - the **SMACC Session** window (*Session*) — the live interface for running a
-  night and collecting data;
+    night and collecting data;
 - the **SMACC Editor** window (*Editor*) — where you create or edit a
-  [SMACC file](smacc-files.md) without recording anything.
+    [SMACC file](smacc-files.md) without recording anything.
 
 <!-- Add an annotated screenshot of the Launcher + Session window here once
 available, e.g.: ![SMACC Session window](assets/screenshot-session.png) -->
@@ -23,23 +23,23 @@ session (the one exception: double-clicking a `.smacc` file, which starts a
 Session for it directly). In the Launcher you:
 
 - **pick a SMACC file** — the dropdown lists the seeded `default.smacc`, your
-  recent files, and **Browse…** to find any other. With none chosen, SMACC uses
-  built-in defaults, so it works out of the box. (See
-  [SMACC files](smacc-files.md) for what one holds.)
+    recent files, and **Browse…** to find any other. With none chosen, SMACC uses
+    built-in defaults, so it works out of the box. (See
+    [SMACC files](smacc-files.md) for what one holds.)
 - **Start** — open a live Session using the selected SMACC file, writing runs to
-  that file's **data directory**. The run folder and log are created only now,
-  when the session starts.
+    that file's **data directory**. The run folder and log are created only now,
+    when the session starts.
 - **Create** — build a new SMACC file in the Editor: configure the tools (cues,
-  noise, visual, event codes, surveys), choose a data directory, and save it
-  anywhere.
+    noise, visual, event codes, surveys), choose a data directory, and save it
+    anywhere.
 - **Edit** — reopen the selected SMACC file in the Editor.
 - **Design cues** — open the standalone **Cue designer** to build a simple tone cue
-  and export it as a WAV into a study's `cues/` folder, ready to use from the Audio
-  cue board (see [Designing a cue](#designing-a-cue)).
+    and export it as a WAV into a study's `cues/` folder, ready to use from the Audio
+    cue board (see [Designing a cue](#designing-a-cue)).
 - **Analyze** — open a past session (a `.log`, a session folder, or a
-  zipped session) to see a summary (events, duration, subject/session, dream
-  reports), export its events to a BIDS `events.tsv`, or recover its settings to a
-  `.smacc` — all without starting a new session.
+    zipped session) to see a summary (events, duration, subject/session, dream
+    reports), export its events to a BIDS `events.tsv`, or recover its settings to a
+    `.smacc` — all without starting a new session.
 
 Closing the Editor or a standalone tool returns you to the Launcher. Ending a
 Session quits SMACC entirely — the night is over. Closing the Launcher also
@@ -77,7 +77,7 @@ ignores the session's device routing and volume safety cap.
 The Audio cue window has a **Monitoring** section — a *Sending* meter (what SMACC is
 emitting) beside a *Bedroom* meter (what a mic actually picks up in the room) — so you
 can confirm a cue is audible to the participant, not just leaving SMACC. See
-[Audio &amp; routing](audio.md#is-the-cue-reaching-the-bedroom) for how to read them
+[Audio & routing](audio.md#is-the-cue-reaching-the-bedroom) for how to read them
 and how to set up a second bedroom mic dedicated to monitoring.
 
 ## Visual cues
@@ -106,7 +106,7 @@ responses into the run folder next to the report; **web surveys** (e.g. a
 questionnaire on Qualtrics or REDCap, added by URL) open in your browser. Manage
 both with the **Manage…** button next to the survey dropdown. Select a survey in
 the dropdown to open it automatically when recording starts, or open any survey
-on its own from **File &rsaquo; Surveys** (each open is logged as a
+on its own from **File › Surveys** (each open is logged as a
 `SurveyOpened` event). See [Surveys](surveys.md) for the bundled instruments,
 the response-file format, and building your own.
 
@@ -121,17 +121,17 @@ variants, fist clenches, sniffs), each on its own row.
 Each row has a toggle button plus two checkboxes and a duration:
 
 - **Press the biocal's button** to run it. The button stays depressed while it
-  runs and the countdown at the top shows the time remaining in its task window;
-  press it again to cancel early (no waiting out a botched 30-second window).
+    runs and the countdown at the top shows the time remaining in its task window;
+    press it again to cancel early (no waiting out a botched 30-second window).
 - **Voice** — speak the pre-recorded instruction (e.g. *"Please close your eyes
-  and relax for thirty seconds."*) over the cue output when the biocal starts.
-  Leave it unchecked if you prefer to give instructions yourself.
+    and relax for thirty seconds."*) over the cue output when the biocal starts.
+    Leave it unchecked if you prefer to give instructions yourself.
 - **Seq** — include this row when **Play sequence** runs the whole stack in
-  order. Standard biocals start checked; the lucid-dreaming ones start unchecked.
+    order. Standard biocals start checked; the lucid-dreaming ones start unchecked.
 - **Duration** — the task window in seconds. With the voice on, the window (and
-  its countdown) starts when the instruction *ends*, so a 10-second breath hold
-  is a full 10 seconds — matching the manual practice of speaking first and
-  marking when the participant complies.
+    its countdown) starts when the instruction *ends*, so a 10-second breath hold
+    is a full 10 seconds — matching the manual practice of speaking first and
+    marking when the participant complies.
 
 **Markers.** Each biocal's *start* code fires when its task window opens; a shared
 **completed** code fires when the window runs out and a shared **cancelled** code
@@ -167,7 +167,7 @@ latch, or hold the **spacebar** anywhere in SMACC as push-to-talk) and is marked
 the EEG record; **Listen** brings the bedroom mic to your control-room speakers,
 unmarked.
 The two directions route through equipment set once in the **Devices** window (see
-[Audio &amp; routing](audio.md)). A **level meter** beside each button shows the
+[Audio & routing](audio.md)). A **level meter** beside each button shows the
 live input level while that direction is on — signal on the bar means audio is
 actually flowing (your mic for Talk, the participant's mic for Listen), not just
 a latched button.
@@ -233,15 +233,15 @@ For each event you can set:
 - **Code** — the 8-bit port code (1–255) sent when the event triggers.
 - **LSL** — whether a firing sends the code over the LSL marker stream.
 - **TTL** — whether a firing sends the code over the hardware TTL trigger. The
-  column is grayed out until a transport is enabled in the window's **Hardware
-  TTL transport** section (the ticks are kept and re-arm with it). An event with
-  neither LSL nor TTL ticked is log-only.
+    column is grayed out until a transport is enabled in the window's **Hardware
+    TTL transport** section (the ticks are kept and re-arm with it). An event with
+    neither LSL nor TTL ticked is log-only.
 - **Preview** — whether the event shows in the live log preview. The session log
-  *file* always records every event regardless; this only controls the on-screen
-  preview.
+    *file* always records every event regardless; this only controls the on-screen
+    preview.
 - **Increment** — give an event a unique, increasing code on each firing (e.g. **dream
-  reports**: 201, 202, 203, …) so individual occurrences are findable in the trigger
-  channel. Off uses one fixed code each time.
+    reports**: 201, 202, 203, …) so individual occurrences are findable in the trigger
+    channel. Off uses one fixed code each time.
 
 **TTL safe max code** raises a soft warning for TTL-routed codes above it — handy
 when your trigger hardware only accepts a limited range (some older systems do; LSL
@@ -312,7 +312,7 @@ A **SMACC file** captures your study's whole configuration — cue files, volume
 noise, visual cues, survey presets, event codes, display choices, and the **data
 directory** where runs are written — in a single portable `.smacc`. Create one in
 the Editor (the Launcher's **Create**/**Edit** buttons) or snapshot a running
-Session with **File &rsaquo; Save SMACC file as…**. Opening one starts a new
+Session with **File › Save SMACC file as…**. Opening one starts a new
 session with that configuration. See [SMACC files](smacc-files.md) for the full
 story (creating, the data directory, opening by double-click), and the
 [SMACC file reference](reference/settings-file.md) for the exact on-disk format.
@@ -324,9 +324,9 @@ file: **always-on-top** (toggled per window — the Session window's **File**
 menu, or each tool window's **View** menu, or **Ctrl+T** in whichever window is
 active) and which **log levels** show in the preview (the checkboxes above the
 log preview). Save them with the rest of the configuration from the Editor or
-with **File &rsaquo; Save SMACC file as…** in a Session.
+with **File › Save SMACC file as…** in a Session.
 
-Tool windows close with **Ctrl+W** (or **File &rsaquo; Close window**) — that
+Tool windows close with **Ctrl+W** (or **File › Close window**) — that
 only hides the window, with its state intact; the session keeps running and the
 Session window's Tools column reopens it.
 

@@ -28,29 +28,30 @@ preferences:
 
 ## Fields
 
-| Key | Type | Meaning |
-|---|---|---|
-| `kind` | string | Always `smacc/preferences`; a file with a different `kind` is ignored (defaults are used). |
-| `schema_version` | integer | The preferences schema version (currently **1**). |
-| `preferences` | mapping | The preferences themselves (below). |
+| Key              | Type    | Meaning                                                                                    |
+| ---------------- | ------- | ------------------------------------------------------------------------------------------ |
+| `kind`           | string  | Always `smacc/preferences`; a file with a different `kind` is ignored (defaults are used). |
+| `schema_version` | integer | The preferences schema version (currently **1**).                                          |
+| `preferences`    | mapping | The preferences themselves (below).                                                        |
 
 ### `preferences`
 
-| Key | Type | Meaning |
-|---|---|---|
-| `windows` | mapping | Per-window geometry, keyed by a stable window id → `{x, y, w, h}`. Ids include `launcher`, `main` (the Session window), the analyze window, and each tool window. An absent/`null` `x`/`y` means "no saved position — open at a default". |
-| `association_prompted` | boolean | Whether the first-run "associate `.smacc` files (Windows)?" prompt has already been shown. |
-| `recent_settings` | list of paths | Recently opened `.smacc` files, most-recent first, de-duplicated and capped at 8. |
-| `last_settings` | path or `null` | The last `.smacc` opened, so the Launcher can preselect it. |
-| `log_preview_max_lines` | integer | How many lines the Session window's live log preview keeps (default **1000**); the oldest lines are dropped first. The log *file* always records everything, so nothing is lost. Very large values cost GUI memory and repaint time over an overnight session. |
+| Key                     | Type           | Meaning                                                                                                                                                                                                                                                        |
+| ----------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `windows`               | mapping        | Per-window geometry, keyed by a stable window id → `{x, y, w, h}`. Ids include `launcher`, `main` (the Session window), the analyze window, and each tool window. An absent/`null` `x`/`y` means "no saved position — open at a default".                      |
+| `association_prompted`  | boolean        | Whether the first-run "associate `.smacc` files (Windows)?" prompt has already been shown.                                                                                                                                                                     |
+| `recent_settings`       | list of paths  | Recently opened `.smacc` files, most-recent first, de-duplicated and capped at 8.                                                                                                                                                                              |
+| `last_settings`         | path or `null` | The last `.smacc` opened, so the Launcher can preselect it.                                                                                                                                                                                                    |
+| `log_preview_max_lines` | integer        | How many lines the Session window's live log preview keeps (default **1000**); the oldest lines are dropped first. The log *file* always records everything, so nothing is lost. Very large values cost GUI memory and repaint time over an overnight session. |
 
 !!! note "Partial files are fine"
+
     Loading merges a file's keys over the defaults, so a file missing some keys still
     yields every key. There is no cross-version migration; only `schema_version: 1`
     is current.
 
 ## Version history
 
-| Version | Changes |
-|---|---|
-| 1 | First stable schema: `windows`, `association_prompted`, `recent_settings`, `last_settings`. |
+| Version | Changes                                                                                     |
+| ------- | ------------------------------------------------------------------------------------------- |
+| 1       | First stable schema: `windows`, `association_prompted`, `recent_settings`, `last_settings`. |
