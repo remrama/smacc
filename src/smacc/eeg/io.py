@@ -26,16 +26,24 @@ from .annotations import Annotation
 if TYPE_CHECKING:  # only for annotations; mne itself is imported lazily
     import mne
 
-# Suffix → the mne.io reader that opens it. BrainVision recordings are a
-# triplet (.vhdr/.eeg/.vmrk) opened via the header file.
+# Suffix → the mne.io reader that opens it; the single source of truth for what
+# the tool can open, so adding a format is a one-line change (the dialog filter
+# and the unsupported-type error both derive from it). BrainVision recordings
+# are a triplet (.vhdr/.eeg/.vmrk) opened via the header file; EEGLAB .set may
+# store its data in a sibling .fdt, and only *continuous* .set files are
+# supported — an epoched .set raises in MNE, surfaced verbatim by open_recording.
 _READERS = {
     ".edf": "read_raw_edf",
     ".vhdr": "read_raw_brainvision",
     ".fif": "read_raw_fif",
+    ".cnt": "read_raw_cnt",
+    ".set": "read_raw_eeglab",
 }
 
-# Qt file-dialog filter for the open dialog.
-FILE_FILTER = "EEG recordings (*.edf *.vhdr *.fif);;All files (*)"
+# Qt file-dialog filter, built from the reader table so it never drifts from it.
+FILE_FILTER = (
+    "EEG recordings (" + " ".join(f"*{ext}" for ext in _READERS) + ");;All files (*)"
+)
 
 # Label for embedded events that arrive without one (rare, but EDF+ allows it);
 # the Annotation model rejects empty descriptions, and inventing nothing is

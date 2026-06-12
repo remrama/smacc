@@ -70,11 +70,18 @@ def test_open_recording_rejects_unknown_suffixes(tmp_path):
 
 
 def test_reader_table_matches_real_mne_readers():
-    # The EDF/BrainVision branches can't be round-tripped without their writers;
-    # at minimum every name in the dispatch table must be a real mne.io reader.
-    assert set(io._READERS) == {".edf", ".vhdr", ".fif"}
+    # The non-FIF branches can't be round-tripped without their writers; at
+    # minimum every name in the dispatch table must be a real mne.io reader.
+    assert set(io._READERS) == {".edf", ".vhdr", ".fif", ".cnt", ".set"}
     for reader_name in io._READERS.values():
         assert callable(getattr(mne.io, reader_name))
+
+
+def test_file_filter_lists_every_supported_extension():
+    # FILE_FILTER is derived from _READERS, so a new format never needs a second
+    # edit here; guard that the derivation actually covers the whole table.
+    for ext in io._READERS:
+        assert f"*{ext}" in io.FILE_FILTER
 
 
 # ----- slicing ------------------------------------------------------------------

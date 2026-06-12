@@ -9,6 +9,7 @@ touches the machine's real ``preferences.yaml``.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
@@ -17,7 +18,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from PyQt6 import QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from smacc import preferences
 from smacc.config import VERSION
@@ -26,6 +27,7 @@ from smacc.eeg import window as window_mod
 from smacc.eeg.__main__ import pick_recording_path
 from smacc.eeg.annotations import (
     Annotation,
+    autosave_path,
     read_annotations_tsv,
     sidecar_paths,
     write_annotations_tsv,
@@ -204,6 +206,31 @@ def test_go_to_selected_jumps_the_view(window, recording_path, monkeypatch):
     assert window.view.window_start == pytest.approx(50.0 - 7.5)
 
 
+def test_ctrl_click_path_adds_a_point_mark(window, recording_path, monkeypatch):
+    window._load(recording_path)
+    _answer_label(monkeypatch, ("LRLR", False))
+    window.view.pointMarkRequested.emit(42.0)  # the ctrl-click signal
+    assert window._annotations == [Annotation(42.0, 0.0, "LRLR")]
+    assert window._dirty
+
+
+def test_mark_key_marks_at_the_last_cursor_position(
+    window, recording_path, monkeypatch
+):
+    window._load(recording_path)
+    window._on_cursor_moved(33.0)  # remember where the cursor is
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._mark_at_cursor()
+    assert window._annotations == [Annotation(33.0, 0.0, "LRLR")]
+
+
+def test_mark_key_falls_back_to_the_view_center(window, recording_path, monkeypatch):
+    window._load(recording_path)  # cursor never moved; window 0–30 → center 15
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._mark_at_cursor()
+    assert window._annotations == [Annotation(15.0, 0.0, "LRLR")]
+
+
 # ----- saving and closing -----------------------------------------------------------
 
 
@@ -293,6 +320,291 @@ def test_cursor_readout_shows_data_and_clock_time(window, recording_path):
     message = status_bar.currentMessage()
     assert "t = 90.000 s" in message
     assert "22:01:30" in message  # 22:00:00 meas_date + 90 s, amp wall clock
+
+
+# ----- epoch model (#173) ----------------------------------------------------------
+
+
+def test_epoch_spin_sets_the_epoch_length(window, recording_path):
+    window._load(recording_path)
+    window.epochSpin.setValue(20)
+    assert window.view.epoch_seconds == 20.0
+
+
+def test_time_axis_defaults_to_clock_when_the_file_has_a_start(window, recording_path):
+    window._load(recording_path)  # FakeRecording carries a meas_date
+    assert window.axisModeCombo.currentData() == "clock"
+    assert window.view._time_axis._mode == "clock"
+
+
+def test_time_axis_defaults_to_elapsed_without_a_start(
+    window, recording_path, monkeypatch
+):
+    def no_date(path):
+        rec = FakeRecording(path)
+        rec.meas_date = None  # anonymized: only elapsed/epoch time is meaningful
+        return rec
+
+    monkeypatch.setattr(window_mod.io, "open_recording", no_date)
+    window._load(recording_path)
+    assert window.axisModeCombo.currentData() == "elapsed"
+    assert window.view._time_axis._mode == "elapsed"
+
+
+def test_anchor_button_anchors_epochs_to_the_view(window, recording_path):
+    window._load(recording_path)
+    window.scrollBar.setValue(450)  # 45.0 s
+    assert window.view.window_start == pytest.approx(45.0)
+    window.anchorButton.click()
+    assert window.view.epoch_anchor == pytest.approx(45.0)
+    window.resetAnchorButton.click()  # back to the start of the recording
+    assert window.view.epoch_anchor == 0.0
+
+
+# ----- keyboard navigation (#174) --------------------------------------------------
+
+
+def _key(key, *, shift=False):
+    mods = (
+        QtCore.Qt.KeyboardModifier.ShiftModifier
+        if shift
+        else QtCore.Qt.KeyboardModifier.NoModifier
+    )
+    return QtGui.QKeyEvent(QtCore.QEvent.Type.KeyPress, key, mods)
+
+
+@pytest.fixture
+def nav_window(window, recording_path, monkeypatch):
+    """A loaded window with focus pinned to nothing, so the key filter acts."""
+    window._load(recording_path)
+    monkeypatch.setattr(
+        QtWidgets.QApplication, "focusWidget", staticmethod(lambda: None)
+    )
+    return window
+
+
+def test_left_right_arrows_page_by_one_epoch(nav_window):
+    window = nav_window  # 30 s epochs by default
+    assert window._handle_nav_key(_key(QtCore.Qt.Key.Key_Right)) is True
+    assert window.view.window_start == pytest.approx(30.0)
+    window._handle_nav_key(_key(QtCore.Qt.Key.Key_Left))
+    assert window.view.window_start == pytest.approx(0.0)
+
+
+def test_shift_arrows_nudge_finely(nav_window):
+    nav_window._handle_nav_key(_key(QtCore.Qt.Key.Key_Right, shift=True))
+    assert nav_window.view.window_start == pytest.approx(1.0)  # a 1 s fine nudge
+
+
+def test_up_down_arrows_step_the_amplitude(nav_window):
+    window = nav_window
+    window.scaleSpin.setValue(100)
+    window._handle_nav_key(_key(QtCore.Qt.Key.Key_Up))  # louder → smaller µV/lane
+    assert window.scaleSpin.value() == 80  # 100 / 1.25
+    window._handle_nav_key(_key(QtCore.Qt.Key.Key_Down))
+    assert window.scaleSpin.value() == 100  # 80 * 1.25
+
+
+def test_shift_up_down_step_the_amplitude_finely(nav_window):
+    window = nav_window
+    window.scaleSpin.setValue(100)
+    window._handle_nav_key(_key(QtCore.Qt.Key.Key_Up, shift=True))
+    assert window.scaleSpin.value() == 91  # round(100 / 1.1)
+
+
+def test_home_and_end_jump_to_the_edges(nav_window):
+    window = nav_window
+    window._handle_nav_key(_key(QtCore.Qt.Key.Key_End))
+    span = DURATION - window.view.window_seconds
+    assert window.view.window_start == pytest.approx(span)
+    window._handle_nav_key(_key(QtCore.Qt.Key.Key_Home))
+    assert window.view.window_start == 0.0
+
+
+def test_epoch_readout_tracks_the_current_epoch(nav_window):
+    window = nav_window
+    assert window.epochLabel.text() == "Epoch 1"
+    window._handle_nav_key(_key(QtCore.Qt.Key.Key_Right))  # to 30 s → epoch 2
+    assert window.epochLabel.text() == "Epoch 2"
+
+
+def test_a_focused_spinbox_keeps_its_arrow_keys(window, recording_path, monkeypatch):
+    window._load(recording_path)
+    monkeypatch.setattr(
+        QtWidgets.QApplication, "focusWidget", staticmethod(lambda: window.scaleSpin)
+    )
+    assert window._handle_nav_key(_key(QtCore.Qt.Key.Key_Right)) is False
+    assert window.view.window_start == 0.0  # the spin box kept the key
+
+
+def test_a_focused_list_keeps_up_down_but_yields_left_right(
+    window, recording_path, monkeypatch
+):
+    window._load(recording_path)
+    monkeypatch.setattr(
+        QtWidgets.QApplication,
+        "focusWidget",
+        staticmethod(lambda: window.annotationList),
+    )
+    assert window._handle_nav_key(_key(QtCore.Qt.Key.Key_Down)) is False  # row nav
+    assert window._handle_nav_key(_key(QtCore.Qt.Key.Key_Right)) is True  # still pages
+
+
+def test_event_filter_routes_keys_only_when_active(window, recording_path, monkeypatch):
+    window._load(recording_path)
+    monkeypatch.setattr(
+        QtWidgets.QApplication, "focusWidget", staticmethod(lambda: None)
+    )
+    monkeypatch.setattr(window, "isActiveWindow", lambda: False)
+    assert window.eventFilter(window, _key(QtCore.Qt.Key.Key_Right)) is False
+    assert window.view.window_start == 0.0  # inactive: the key is left alone
+    monkeypatch.setattr(window, "isActiveWindow", lambda: True)
+    assert window.eventFilter(window, _key(QtCore.Qt.Key.Key_Right)) is True
+    assert window.view.window_start == pytest.approx(30.0)
+
+
+# ----- save safety (#175) ----------------------------------------------------------
+
+
+def test_save_button_states_the_no_modify_contract(window):
+    assert "never modified" in window.saveButton.toolTip()
+
+
+def test_fresh_save_with_no_existing_sidecar_does_not_prompt(
+    window, recording_path, monkeypatch
+):
+    window._load(recording_path)  # fresh review, no sidecar on disk yet
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._on_region_drawn(10.0, 14.0)
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox,
+        "question",
+        lambda *a, **k: pytest.fail("no prompt when nothing is overwritten"),
+    )
+    window.save_annotations()
+    assert not window._dirty
+
+
+def test_resuming_a_sidecar_saves_without_a_prompt(window, recording_path, monkeypatch):
+    tsv_path, _ = sidecar_paths(recording_path)
+    write_annotations_tsv([Annotation(5.0, 2.0, "REM period")], tsv_path)
+    window._load(recording_path)  # loaded from it → we own it
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._on_region_drawn(10.0, 14.0)
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox,
+        "question",
+        lambda *a, **k: pytest.fail(
+            "no overwrite prompt when resuming our own sidecar"
+        ),
+    )
+    window.save_annotations()
+    assert not window._dirty
+
+
+def test_save_prompts_before_overwriting_a_foreign_sidecar(
+    window, recording_path, monkeypatch
+):
+    window._load(recording_path)  # fresh review (we do not own a sidecar)
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._on_region_drawn(10.0, 14.0)
+    tsv_path, _ = sidecar_paths(recording_path)
+    foreign = [Annotation(1.0, 0.0, "other rater")]
+    write_annotations_tsv(foreign, tsv_path)  # a sidecar appeared meanwhile
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox,
+        "question",
+        lambda *a, **k: QtWidgets.QMessageBox.StandardButton.No,
+    )
+    window.save_annotations()
+    assert read_annotations_tsv(tsv_path) == foreign  # declined: left untouched
+    assert window._dirty  # still unsaved
+
+
+def test_save_overwrites_a_foreign_sidecar_once_confirmed(
+    window, recording_path, monkeypatch
+):
+    window._load(recording_path)
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._on_region_drawn(10.0, 14.0)
+    tsv_path, _ = sidecar_paths(recording_path)
+    write_annotations_tsv([Annotation(1.0, 0.0, "other rater")], tsv_path)
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox,
+        "question",
+        lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes,
+    )
+    window.save_annotations()
+    assert read_annotations_tsv(tsv_path) == [Annotation(10.0, 4.0, "LRLR")]
+    assert not window._dirty
+
+
+# ----- autosave / crash recovery (#176) --------------------------------------------
+
+
+def test_autosave_writes_a_recovery_file(window, recording_path, monkeypatch):
+    window._load(recording_path)
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._on_region_drawn(10.0, 14.0)
+    window._write_autosave()  # fire the debounced write directly
+    recovery = autosave_path(recording_path)
+    assert recovery.is_file()
+    assert read_annotations_tsv(recovery) == [Annotation(10.0, 4.0, "LRLR")]
+    # The recovery file must be distinct from the canonical sidecar.
+    tsv_path, _ = sidecar_paths(recording_path)
+    assert recovery != tsv_path and not tsv_path.is_file()
+
+
+def test_clean_save_removes_the_recovery_file(window, recording_path, monkeypatch):
+    window._load(recording_path)
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._on_region_drawn(10.0, 14.0)
+    window._write_autosave()
+    assert autosave_path(recording_path).is_file()
+    window.save_annotations()
+    assert not autosave_path(recording_path).is_file()
+
+
+def test_recovery_is_offered_and_can_be_restored(window, recording_path):
+    recovery = autosave_path(recording_path)
+    write_annotations_tsv([Annotation(7.0, 0.0, "LRLR")], recovery)  # a crashed session
+    window._load(recording_path)
+    assert window.recoveryBanner.isVisible()
+    window._restore_autosave()
+    assert window._annotations == [Annotation(7.0, 0.0, "LRLR")]
+    assert window._dirty  # restored but not yet saved
+    assert not window.recoveryBanner.isVisible()
+
+
+def test_recovery_can_be_dismissed_and_is_deleted(window, recording_path):
+    recovery = autosave_path(recording_path)
+    write_annotations_tsv([Annotation(7.0, 0.0, "LRLR")], recovery)
+    window._load(recording_path)
+    assert window.recoveryBanner.isVisible()
+    window._dismiss_autosave()
+    assert not window.recoveryBanner.isVisible()
+    assert not recovery.is_file()
+
+
+def test_stale_autosave_older_than_the_sidecar_is_ignored(window, recording_path):
+    tsv_path, _ = sidecar_paths(recording_path)
+    write_annotations_tsv([Annotation(5.0, 2.0, "saved")], tsv_path)  # a clean save
+    recovery = autosave_path(recording_path)
+    write_annotations_tsv([Annotation(7.0, 0.0, "old")], recovery)
+    os.utime(recovery, (1000, 1000))  # force the autosave to look old
+    window._load(recording_path)
+    assert not window.recoveryBanner.isVisible()
+    assert not recovery.is_file()  # stale autosave is cleaned on open
+
+
+def test_clean_close_removes_the_recovery_file(window, recording_path, monkeypatch):
+    window._load(recording_path)
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._on_region_drawn(10.0, 14.0)
+    window._write_autosave()
+    assert autosave_path(recording_path).is_file()
+    assert window.close()  # the fixture answers the dirty prompt with Discard
+    assert not autosave_path(recording_path).is_file()
 
 
 # ----- label dialog / entry point -----------------------------------------------------

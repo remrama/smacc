@@ -7,6 +7,8 @@ offsets can then be asserted exactly.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import numpy as np
 import pyqtgraph as pg
 import pytest
@@ -14,7 +16,7 @@ from PyQt6 import QtCore, QtGui
 
 from smacc.eeg import dsp
 from smacc.eeg.annotations import Annotation
-from smacc.eeg.view import TYPE_GAINS, TraceView
+from smacc.eeg.view import TYPE_GAINS, TimeAxis, TraceView
 
 SFREQ = 100.0
 DURATION = 60.0
@@ -196,6 +198,15 @@ def test_drawn_region_is_clamped_and_empty_drags_dropped(loaded):
     assert len(drawn) == 1
 
 
+def test_point_mark_request_is_clamped_to_the_recording(loaded):
+    view, _ = loaded
+    marks: list[float] = []
+    view.pointMarkRequested.connect(marks.append)
+    view._on_mark_requested(-3.0)
+    view._on_mark_requested(80.0)  # past the 60 s duration
+    assert marks == [pytest.approx(0.0), pytest.approx(60.0)]
+
+
 # ----- non-bioelectric channels ----------------------------------------------------
 
 
@@ -234,16 +245,29 @@ class _FakeMouseEvent:
     item coordinates with mapFromView — the frame the real events deliver.
     """
 
-    def __init__(self, viewbox, down_x: float, x: float, *, finish=True, button=None):
+    def __init__(
+        self,
+        viewbox,
+        down_x: float,
+        x: float,
+        *,
+        finish=True,
+        button=None,
+        modifiers=None,
+    ):
         self._button = button or QtCore.Qt.MouseButton.LeftButton
         self._down = viewbox.mapFromView(pg.Point(down_x, 0.0))
         self._pos = viewbox.mapFromView(pg.Point(x, 0.0))
         self._finish = finish
+        self._modifiers = modifiers or QtCore.Qt.KeyboardModifier.NoModifier
         self.accepted = False
         self.ignored = False
 
     def button(self):
         return self._button
+
+    def modifiers(self):
+        return self._modifiers
 
     def buttonDownPos(self):
         return self._down
@@ -316,6 +340,24 @@ def test_click_event_maps_to_data_seconds(exposed):
     assert selections == [0]
 
 
+def test_ctrl_click_requests_a_point_mark_instead_of_selecting(exposed):
+    view, _ = exposed
+    view.set_annotations([Annotation(5.0, 2.0, "region")])
+    marks: list[float] = []
+    selections: list[int] = []
+    view.pointMarkRequested.connect(marks.append)
+    view.annotationSelected.connect(selections.append)
+    ev = _FakeMouseEvent(
+        view._viewbox,
+        6.0,
+        6.0,
+        modifiers=QtCore.Qt.KeyboardModifier.ControlModifier,
+    )
+    view._viewbox.mouseClickEvent(ev)
+    assert marks == [pytest.approx(6.0, abs=0.05)]
+    assert selections == []  # ctrl-click marks; it must never also select
+
+
 # ----- wheel and keyboard navigation -------------------------------------------------
 
 
@@ -344,19 +386,107 @@ def test_wheel_down_scrolls_forward(loaded):
     assert view.window_start == pytest.approx(0.0)
 
 
-def _key_event(key) -> QtGui.QKeyEvent:
-    return QtGui.QKeyEvent(
-        QtCore.QEvent.Type.KeyPress, key, QtCore.Qt.KeyboardModifier.NoModifier
-    )
-
-
-def test_arrow_and_home_end_keys_navigate(loaded):
+def test_step_epochs_moves_by_one_epoch_length(loaded):
+    # The window's Left/Right arrows drive this (keyboard routing lives in the
+    # window now); the view just exposes the epoch-sized step and reports it.
     view, _ = loaded
-    view.keyPressEvent(_key_event(QtCore.Qt.Key.Key_Right))
+    view.set_epoch_seconds(10.0)
+    moves: list[float] = []
+    view.windowChanged.connect(moves.append)
+    view.step_epochs(2)
+    assert view.window_start == pytest.approx(20.0)
+    assert moves == [20.0]
+
+
+def test_nudge_seconds_scrolls_a_fixed_amount(loaded):
+    view, _ = loaded
+    moves: list[float] = []
+    view.windowChanged.connect(moves.append)
+    view.nudge_seconds(3.0)
     assert view.window_start == pytest.approx(3.0)
-    view.keyPressEvent(_key_event(QtCore.Qt.Key.Key_Left))
-    assert view.window_start == pytest.approx(0.0)
-    view.keyPressEvent(_key_event(QtCore.Qt.Key.Key_End))
-    assert view.window_start == pytest.approx(DURATION - view.window_seconds)
-    view.keyPressEvent(_key_event(QtCore.Qt.Key.Key_Home))
-    assert view.window_start == pytest.approx(0.0)
+    assert moves == [3.0]
+
+
+# ----- epoch model (#173) ---------------------------------------------------------
+
+
+def _epoch_boundaries(view) -> list[float]:
+    return sorted(line.value() for line in view._epoch_items)
+
+
+def _epoch_numbers(view) -> list[str]:
+    # InfiniteLine stores the label text on its InfLineLabel's ``format``.
+    return [
+        line.label.format for line in sorted(view._epoch_items, key=lambda i: i.value())
+    ]
+
+
+def test_epoch_grid_draws_numbered_boundaries_in_window(loaded):
+    # Default: 30 s epochs anchored at 0, 30 s window → boundaries at 0 and 30,
+    # starting epochs 1 and 2.
+    view, _ = loaded
+    assert _epoch_boundaries(view) == pytest.approx([0.0, 30.0])
+    assert _epoch_numbers(view) == ["1", "2"]
+
+
+def test_epoch_length_is_independent_of_window_length(loaded):
+    view, _ = loaded
+    view.set_epoch_seconds(10.0)  # 10 s epochs in the same 30 s window
+    assert _epoch_boundaries(view) == pytest.approx([0.0, 10.0, 20.0, 30.0])
+    assert view.window_seconds == 30.0  # window unchanged
+
+
+def test_epoch_seconds_clamp_to_at_least_one(loaded):
+    view, _ = loaded
+    view.set_epoch_seconds(0.0)
+    assert view.epoch_seconds == 1.0
+
+
+def test_anchor_back_and_front_fills_the_grid(loaded):
+    # Anchoring at 12 s puts a boundary there and fills outward by ±epoch; the
+    # boundary at the anchor starts epoch 1, the next one epoch 2.
+    view, _ = loaded
+    view.set_epoch_anchor(12.0)
+    assert view.epoch_anchor == 12.0
+    assert _epoch_boundaries(view) == pytest.approx([12.0])  # only 12 lands in 0–30
+    view.set_window_start(20.0)  # window 20–50 now spans 12+30=42
+    assert _epoch_boundaries(view) == pytest.approx([42.0])
+    assert _epoch_numbers(view) == ["2"]
+
+
+def test_epoch_grid_can_be_hidden(loaded):
+    view, _ = loaded
+    view.set_epochs_visible(False)
+    assert view._epoch_items == []
+    view.set_epochs_visible(True)
+    assert len(view._epoch_items) == 2
+
+
+def test_new_recording_resets_the_anchor(loaded):
+    view, provider = loaded
+    view.set_epoch_anchor(12.0)
+    view.set_provider(provider)  # reopening must start epoch 1 at the start
+    assert view.epoch_anchor == 0.0
+
+
+def test_grid_follows_the_scroll(loaded):
+    view, _ = loaded
+    view.set_window_start(45.0)  # 60 s file, 30 s window → clamps to 30 (30–60)
+    assert _epoch_boundaries(view) == pytest.approx([30.0, 60.0])
+
+
+# ----- time axis ------------------------------------------------------------------
+
+
+def test_time_axis_formats_clock_strings_from_an_origin(qtbot):
+    axis = TimeAxis(orientation="bottom")
+    axis.set_origin(datetime(2026, 6, 5, 22, 0, 0))
+    axis.set_mode("clock")
+    assert axis.tickStrings([0.0, 90.0], 1.0, 1.0) == ["22:00:00", "22:01:30"]
+
+
+def test_time_axis_falls_back_to_elapsed_without_an_origin(qtbot):
+    axis = TimeAxis(orientation="bottom")
+    axis.set_mode("clock")  # asked for clock, but no origin is known
+    strings = axis.tickStrings([0.0, 30.0], 1.0, 1.0)
+    assert all(":" not in s for s in strings)  # plain seconds, not HH:MM:SS

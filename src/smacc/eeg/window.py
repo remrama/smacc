@@ -23,6 +23,7 @@ must never share a process with a running night).
 
 from __future__ import annotations
 
+import math
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -33,6 +34,7 @@ from ..paths import LOGO_PATH, preferences_path
 from . import dsp, io
 from .annotations import (
     Annotation,
+    autosave_path,
     insert,
     read_annotations_tsv,
     remove,
@@ -41,7 +43,7 @@ from .annotations import (
     write_annotations_json,
     write_annotations_tsv,
 )
-from .view import TraceView
+from .view import DEFAULT_EPOCH_SECONDS, TraceView
 
 # Stable id for this window's geometry entry in the per-window prefs map.
 _EEG_WINDOW_ID = "eeg-review"
@@ -60,6 +62,37 @@ DEFAULT_WINDOW_LENGTH = 30
 # The scrollbar works in tenths of a second: fine enough to land anywhere,
 # coarse enough that an 8 h night stays within QScrollBar's int range.
 _SCROLL_TICKS_PER_SECOND = 10
+
+# Autosave (#176) is debounced: each annotation change restarts this timer, so a
+# burst of edits writes the recovery file once, shortly after the last of them.
+_AUTOSAVE_DEBOUNCE_MS = 2000
+
+# Keyboard navigation (#174). Plain Left/Right page by one epoch; Shift nudges a
+# second to peek across a boundary. Up/Down step the amplitude multiplicatively
+# (Shift = a gentler factor) — louder means a smaller µV/lane, i.e. bigger traces.
+_FINE_NUDGE_SECONDS = 1.0
+_SCALE_KEY_FACTOR = 1.25
+_SCALE_KEY_FACTOR_FINE = 1.1
+_NAV_KEYS = frozenset(
+    {
+        QtCore.Qt.Key.Key_Left,
+        QtCore.Qt.Key.Key_Right,
+        QtCore.Qt.Key.Key_Up,
+        QtCore.Qt.Key.Key_Down,
+        QtCore.Qt.Key.Key_Home,
+        QtCore.Qt.Key.Key_End,
+    }
+)
+# Keys a focused combo box, list, or spin box uses for its own up/down selection;
+# the filter yields these to such widgets but still claims Left/Right for paging.
+_VERTICAL_NAV_KEYS = frozenset(
+    {
+        QtCore.Qt.Key.Key_Up,
+        QtCore.Qt.Key.Key_Down,
+        QtCore.Qt.Key.Key_Home,
+        QtCore.Qt.Key.Key_End,
+    }
+)
 
 
 def _section_title(text: str) -> QtWidgets.QLabel:
@@ -164,11 +197,28 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._recording: io.Recording | None = None
         self._annotations: list[Annotation] = []
         self._dirty = False
+        self._cursor_seconds: float | None = None  # last mouse time over the traces
+        # True once this review's annotations live in the canonical sidecar (we
+        # loaded it, or we have saved at least once); gates the overwrite prompt.
+        self._owns_sidecar = False
+        # Annotations recovered from an autosave, held until the user restores or
+        # dismisses them (#176).
+        self._recovery_annotations: list[Annotation] | None = None
+        # Debounced crash-recovery autosave (#176): restarted on every change.
+        self._autosave_timer = QtCore.QTimer(self)
+        self._autosave_timer.setSingleShot(True)
+        self._autosave_timer.setInterval(_AUTOSAVE_DEBOUNCE_MS)
+        self._autosave_timer.timeout.connect(self._write_autosave)
         self.setWindowTitle("SMACC — EEG review")
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
         self._build()
         self._set_loaded(False)
+        # An application-level filter so epoch/amplitude keys work from anywhere in
+        # the window, not only after clicking the traces (#174); removed on close.
+        app = QtWidgets.QApplication.instance()
+        if app is not None:
+            app.installEventFilter(self)
         if file_path is not None:
             # After the event loop starts, so the window is up before any
             # open-error dialog (and a long load doesn't block the first paint).
@@ -182,7 +232,10 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         layout.setContentsMargins(12, 8, 12, 8)
         layout.setSpacing(8)
         layout.addWidget(_section_title("EEG review"))
+        layout.addWidget(self._build_contract_caption())
+        layout.addWidget(self._build_recovery_banner())
         layout.addLayout(self._build_controls_row())
+        layout.addLayout(self._build_epoch_row())
 
         body = QtWidgets.QHBoxLayout()
         viewColumn = QtWidgets.QVBoxLayout()
@@ -191,6 +244,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self.view.annotationSelected.connect(self._on_view_selection)
         self.view.windowChanged.connect(self._sync_scrollbar)
         self.view.cursorMoved.connect(self._on_cursor_moved)
+        self.view.pointMarkRequested.connect(self._add_point_mark)
         viewColumn.addWidget(self.view, 1)
         self.scrollBar = QtWidgets.QScrollBar(QtCore.Qt.Orientation.Horizontal, self)
         self.scrollBar.setStatusTip("Scroll through the recording.")
@@ -201,11 +255,15 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         layout.addLayout(body, 1)
 
         self.statusBar()
-        # Permanent (right-aligned) recording summary; transient messages and
-        # the cursor clock use the normal message area.
+        # Permanent (right-aligned) state: the epoch at the left edge of the view
+        # and the recording summary. Transient messages and the cursor clock use
+        # the normal message area.
+        self.epochLabel = QtWidgets.QLabel("", self)
+        self.epochLabel.setStatusTip("The epoch at the left edge of the view.")
         self.fileInfoLabel = QtWidgets.QLabel("", self)
         status_bar = self.statusBar()
         assert status_bar is not None
+        status_bar.addPermanentWidget(self.epochLabel)
         status_bar.addPermanentWidget(self.fileInfoLabel)
 
         self._build_shortcuts()
@@ -217,7 +275,9 @@ class EegReviewWindow(QtWidgets.QMainWindow):
     def _build_controls_row(self) -> QtWidgets.QLayout:
         row = QtWidgets.QHBoxLayout()
         openButton = QtWidgets.QPushButton("Open recording…", self)
-        openButton.setStatusTip("Open an EEG recording (EDF, BrainVision, or FIF).")
+        openButton.setStatusTip(
+            "Open an EEG recording (EDF, BrainVision, FIF, Neuroscan .cnt, EEGLAB .set)."
+        )
         openButton.clicked.connect(self.open_file)
         row.addWidget(openButton)
         row.addSpacing(12)
@@ -287,11 +347,106 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         row.addStretch(1)
         self.saveButton = QtWidgets.QPushButton("Save annotations", self)
         self.saveButton.setStatusTip(
-            "Write the annotations TSV/JSON sidecar next to the recording."
+            "Write the annotation sidecar next to the recording; the recording "
+            "itself is never modified."
+        )
+        self.saveButton.setToolTip(
+            "Saves the annotation sidecar (TSV/JSON) next to the recording.\n"
+            "The recording is never modified; filters, scaling, channel selection "
+            "and the epoch grid are view-only."
         )
         self.saveButton.clicked.connect(self.save_annotations)
         row.addWidget(self.saveButton)
         return row
+
+    def _build_epoch_row(self) -> QtWidgets.QLayout:
+        """The epoch model controls (#173): length, grid, anchor, time-axis mode.
+
+        A second row so the busy filter/window/scale row above stays legible. The
+        epoch length is deliberately *separate* from the on-screen window length —
+        a 30 s scoring epoch can be inspected inside a 60 s window.
+        """
+        row = QtWidgets.QHBoxLayout()
+        row.addWidget(QtWidgets.QLabel("Epoch:", self))
+        self.epochSpin = QtWidgets.QSpinBox(self)
+        self.epochSpin.setRange(1, 300)
+        self.epochSpin.setValue(int(DEFAULT_EPOCH_SECONDS))
+        self.epochSpin.setSuffix(" s")
+        self.epochSpin.setStatusTip(
+            "Scoring-epoch length (30 s is standard) — independent of the window."
+        )
+        self.epochSpin.valueChanged.connect(self._on_epoch_seconds_changed)
+        row.addWidget(self.epochSpin)
+
+        self.epochGridCheck = QtWidgets.QCheckBox("Epoch grid", self)
+        self.epochGridCheck.setChecked(True)
+        self.epochGridCheck.setStatusTip("Show faint, numbered epoch boundaries.")
+        self.epochGridCheck.toggled.connect(
+            lambda checked: self.view.set_epochs_visible(checked)
+        )
+        row.addWidget(self.epochGridCheck)
+
+        self.anchorButton = QtWidgets.QPushButton("Anchor epochs to view", self)
+        self.anchorButton.setStatusTip(
+            "Start an epoch at the left edge of the view (back/front-fills the grid)."
+        )
+        self.anchorButton.clicked.connect(self._anchor_epochs_to_view)
+        row.addWidget(self.anchorButton)
+        self.resetAnchorButton = QtWidgets.QPushButton("Reset anchor", self)
+        self.resetAnchorButton.setStatusTip(
+            "Put epoch 1 back at the start of the recording."
+        )
+        self.resetAnchorButton.clicked.connect(self._reset_epoch_anchor)
+        row.addWidget(self.resetAnchorButton)
+
+        row.addSpacing(12)
+        row.addWidget(QtWidgets.QLabel("Time axis:", self))
+        self.axisModeCombo = QtWidgets.QComboBox(self)
+        self.axisModeCombo.addItem("Clock", "clock")
+        self.axisModeCombo.addItem("Elapsed", "elapsed")
+        self.axisModeCombo.setStatusTip(
+            "Label the time axis with wall-clock time or seconds from the start."
+        )
+        self.axisModeCombo.currentIndexChanged.connect(
+            lambda: self.view.set_time_axis_mode(self.axisModeCombo.currentData())
+        )
+        row.addWidget(self.axisModeCombo)
+        row.addStretch(1)
+        return row
+
+    def _build_contract_caption(self) -> QtWidgets.QLabel:
+        """A quiet, always-visible reminder of the tool's safety contract (#175)."""
+        caption = QtWidgets.QLabel(
+            "Saves annotations to a sidecar — your recording is never modified.",
+            self,
+        )
+        caption.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        caption.setEnabled(False)  # renders dimmed, following the palette
+        return caption
+
+    def _build_recovery_banner(self) -> QtWidgets.QWidget:
+        """A non-modal bar offering to restore autosaved annotations (#176).
+
+        Hidden until a recovery file is found on open; restoring is always an
+        explicit choice, never applied silently.
+        """
+        banner = QtWidgets.QFrame(self)
+        banner.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
+        banner.setVisible(False)
+        row = QtWidgets.QHBoxLayout(banner)
+        row.setContentsMargins(8, 4, 8, 4)
+        self.recoveryLabel = QtWidgets.QLabel("", banner)
+        row.addWidget(self.recoveryLabel, 1)
+        restoreButton = QtWidgets.QPushButton("Restore", banner)
+        restoreButton.setStatusTip("Load the autosaved annotations into this review.")
+        restoreButton.clicked.connect(self._restore_autosave)
+        row.addWidget(restoreButton)
+        dismissButton = QtWidgets.QPushButton("Dismiss", banner)
+        dismissButton.setStatusTip("Discard the autosaved annotations and delete them.")
+        dismissButton.clicked.connect(self._dismiss_autosave)
+        row.addWidget(dismissButton)
+        self.recoveryBanner = banner
+        return banner
 
     def _build_annotation_panel(self) -> QtWidgets.QLayout:
         panel = QtWidgets.QVBoxLayout()
@@ -319,12 +474,12 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         return panel
 
     def _build_shortcuts(self) -> None:
-        """Window-wide paging on PageUp/PageDown only.
+        """Window-wide paging on PageUp/PageDown, plus M to drop a point mark.
 
-        Arrows and Home/End live on the TraceView itself (click the traces,
-        then navigate): as window shortcuts they would be consumed by whichever
-        spin box or list last had focus. No text widget steals PageUp/Down, so
-        paging works from anywhere.
+        Arrow/Home/End navigation and amplitude are handled by the application
+        event filter (see :meth:`eventFilter`), which works regardless of focus;
+        no text widget steals PageUp/Down or a bare M, so those stay plain
+        QShortcuts here.
         """
         for keys, fraction in (
             (QtCore.Qt.Key.Key_PageDown, 1.0),
@@ -332,6 +487,8 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         ):
             shortcut = QtGui.QShortcut(QtGui.QKeySequence(keys), self)
             shortcut.activated.connect(lambda f=fraction: self.view.scroll_by(f))
+        mark = QtGui.QShortcut(QtGui.QKeySequence(QtCore.Qt.Key.Key_M), self)
+        mark.activated.connect(self._mark_at_cursor)
 
     def _set_loaded(self, loaded: bool) -> None:
         for widget in (
@@ -361,6 +518,10 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         except (ValueError, OSError, RuntimeError) as exc:
             self._error("Could not open the recording.", str(exc))
             return
+        # Opened cleanly: stop autosaving the recording we're leaving and drop its
+        # recovery file (the user already saved or discarded it via open_file).
+        self._autosave_timer.stop()
+        self._clear_autosave()
         tsv_path, _ = sidecar_paths(path)
         if tsv_path.is_file():
             # Resume a previous review. A sidecar that exists but won't parse
@@ -383,21 +544,33 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._recording = recording
         self._annotations = annotations
         self._dirty = False
+        # We own the sidecar when we loaded from it; a fresh review does not yet,
+        # so its first save guards against overwriting one that appeared meanwhile.
+        self._owns_sidecar = tsv_path.is_file()
         self.view.set_provider(recording)
         self.view.set_annotations(annotations)
+        # Hand the view the localized recording start so the time axis can label
+        # clock time; default to clock when the file carries one, else elapsed.
+        started = wall_time(recording, 0.0)
+        self.view.set_time_origin(started)
+        self.axisModeCombo.blockSignals(True)
+        self.axisModeCombo.setCurrentIndex(0 if started is not None else 1)
+        self.axisModeCombo.blockSignals(False)
+        self.view.set_time_axis_mode(self.axisModeCombo.currentData())
         self._refresh_list()
         self._refresh_title()
         self._configure_scrollbar()
+        self._update_epoch_readout()
         self._set_loaded(True)
         preferences.update_preferences(
             preferences_path, {"eeg_last_dir": str(path.parent)}
         )
-        started = wall_time(recording, 0.0)
         clock = f" · started {started.strftime('%H:%M:%S')}" if started else ""
         self.fileInfoLabel.setText(
             f"{path.name} — {len(recording.ch_names)} ch · "
             f"{recording.sfreq:g} Hz · {recording.duration:.0f} s{clock}"
         )
+        self._check_for_recovery(tsv_path)
 
     # ----- annotation editing -----------------------------------------------------
 
@@ -411,6 +584,34 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._remember_label(label)
         self._mark_dirty()
         self._select(self._annotations.index(annotation))
+
+    def _add_point_mark(self, seconds: float) -> None:
+        """Drop a zero-duration mark at ``seconds`` (ctrl-click or the M key).
+
+        Goes straight to the label picker with no span to draw and no instant
+        checkbox to tick — the mark is already a point.
+        """
+        if self._recording is None:
+            return
+        seconds = min(max(0.0, seconds), self._recording.duration)
+        result = LabelDialog.get_label(self, self._recent_labels(), offer_instant=False)
+        if result is None:
+            return
+        label, _ = result
+        annotation = Annotation(seconds, 0.0, label)
+        self._annotations = insert(self._annotations, annotation)
+        self._remember_label(label)
+        self._mark_dirty()
+        self._select(self._annotations.index(annotation))
+
+    def _mark_at_cursor(self) -> None:
+        """Mark at the last cursor position, or the view's center if unknown."""
+        if self._recording is None:
+            return
+        seconds = self._cursor_seconds
+        if seconds is None:  # the mouse never entered the traces
+            seconds = self.view.window_start + self.view.window_seconds / 2
+        self._add_point_mark(seconds)
 
     def edit_selected(self) -> None:
         index = self.annotationList.currentRow()
@@ -449,6 +650,12 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         if self._recording is None:
             return
         tsv_path, json_path = sidecar_paths(self._recording.path)
+        # Guard the one case where a save would silently clobber someone else's
+        # work: a sidecar we did not open (a fresh review, or one that appeared
+        # while we worked). A sidecar we loaded — or already saved — is ours.
+        if not self._owns_sidecar and tsv_path.is_file():
+            if not self._confirm_overwrite(tsv_path):
+                return
         try:
             write_annotations_tsv(self._annotations, tsv_path)
             write_annotations_json(
@@ -460,6 +667,9 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             self._error("Could not save the annotations.", str(exc))
             return
         self._dirty = False
+        self._owns_sidecar = True  # ours now; later saves don't re-prompt
+        self._autosave_timer.stop()
+        self._clear_autosave()  # the work is persisted; no recovery needed
         self._refresh_title()
         status_bar = self.statusBar()
         assert status_bar is not None
@@ -467,10 +677,23 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             f"Saved {len(self._annotations)} annotations to {tsv_path.name}", 5000
         )
 
+    def _confirm_overwrite(self, tsv_path: Path) -> bool:
+        """Ask before overwriting a sidecar this review did not open."""
+        button = QtWidgets.QMessageBox.question(
+            self,
+            "Overwrite annotations?",
+            f"{tsv_path.name} already exists and was not opened in this review.\n\n"
+            "Overwrite it with the current annotations?",
+            QtWidgets.QMessageBox.StandardButton.Yes
+            | QtWidgets.QMessageBox.StandardButton.No,
+        )
+        return button == QtWidgets.QMessageBox.StandardButton.Yes
+
     # ----- annotation bookkeeping ----------------------------------------------------
 
     def _mark_dirty(self) -> None:
         self._dirty = True
+        self._autosave_timer.start()  # (re)arm the debounced recovery write
         self._refresh_title()
 
     def _select(self, index: int) -> None:
@@ -512,6 +735,68 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         )
         preferences.update_preferences(preferences_path, {"eeg_recent_labels": recents})
 
+    # ----- autosave / crash recovery (#176) ----------------------------------------
+
+    def _write_autosave(self) -> None:
+        """Write the recovery file (best-effort, atomic); fired by the debounce timer."""
+        if self._recording is None or not self._dirty:
+            return
+        path = autosave_path(self._recording.path)
+        tmp = path.with_suffix(".tmp")  # write-then-rename so a crash never half-writes
+        try:
+            write_annotations_tsv(self._annotations, tmp)
+            tmp.replace(path)
+        except OSError:
+            pass  # autosave must never interrupt the review
+
+    def _clear_autosave(self) -> None:
+        """Delete the current recording's recovery file, if any."""
+        if self._recording is not None:
+            autosave_path(self._recording.path).unlink(missing_ok=True)
+
+    def _check_for_recovery(self, tsv_path: Path) -> None:
+        """On open, offer to restore a recovery file newer than the saved sidecar."""
+        self.recoveryBanner.setVisible(False)
+        self._recovery_annotations = None
+        if self._recording is None:
+            return
+        recovery = autosave_path(self._recording.path)
+        if not recovery.is_file():
+            return
+        # A recovery file with a clean save strictly newer than it is stale — the
+        # save happened after the autosave, so there is nothing left to recover.
+        # Strict so a same-second tie errs toward offering recovery, never losing it.
+        stale = (
+            tsv_path.is_file() and tsv_path.stat().st_mtime > recovery.stat().st_mtime
+        )
+        if stale:
+            recovery.unlink(missing_ok=True)
+            return
+        try:
+            recovered = read_annotations_tsv(recovery)
+        except (OSError, ValueError):
+            return  # an unreadable recovery file must not block the open
+        self._recovery_annotations = recovered
+        self.recoveryLabel.setText(
+            f"Recovered {len(recovered)} unsaved annotation(s) from a previous session."
+        )
+        self.recoveryBanner.setVisible(True)
+
+    def _restore_autosave(self) -> None:
+        if self._recovery_annotations is None:
+            return
+        self._annotations = self._recovery_annotations
+        self._recovery_annotations = None
+        self.recoveryBanner.setVisible(False)
+        self.view.set_annotations(self._annotations)
+        self._refresh_list()
+        self._mark_dirty()  # restored but not yet saved — keep the recovery alive
+
+    def _dismiss_autosave(self) -> None:
+        self._recovery_annotations = None
+        self.recoveryBanner.setVisible(False)
+        self._clear_autosave()  # the user declined the recovery; drop it
+
     # ----- selection sync ---------------------------------------------------------
 
     def _on_view_selection(self, index: int) -> None:
@@ -541,15 +826,111 @@ class EegReviewWindow(QtWidgets.QMainWindow):
 
     def _on_scrollbar(self, value: int) -> None:
         self.view.set_window_start(value / _SCROLL_TICKS_PER_SECOND)
+        self._update_epoch_readout()
 
     def _sync_scrollbar(self, window_start: float) -> None:
         self.scrollBar.blockSignals(True)
         self.scrollBar.setValue(int(window_start * _SCROLL_TICKS_PER_SECOND))
         self.scrollBar.blockSignals(False)
+        self._update_epoch_readout()
 
     def _on_window_length_changed(self) -> None:
         self.view.set_window_seconds(float(self.windowCombo.currentData()))
         self._configure_scrollbar()
+        self._update_epoch_readout()
+
+    # ----- epoch model + keyboard navigation (#173, #174) -----------------------------
+
+    def _on_epoch_seconds_changed(self, value: int) -> None:
+        self.view.set_epoch_seconds(float(value))
+        self._update_epoch_readout()
+
+    def _anchor_epochs_to_view(self) -> None:
+        self.view.set_epoch_anchor(self.view.window_start)
+        self._update_epoch_readout()
+
+    def _reset_epoch_anchor(self) -> None:
+        self.view.set_epoch_anchor(0.0)
+        self._update_epoch_readout()
+
+    def _update_epoch_readout(self) -> None:
+        """Show the epoch number at the left edge of the view in the status bar."""
+        if self._recording is None:
+            self.epochLabel.clear()
+            return
+        number = (
+            math.floor(
+                (self.view.window_start - self.view.epoch_anchor)
+                / self.view.epoch_seconds
+            )
+            + 1
+        )
+        self.epochLabel.setText(f"Epoch {number}")
+
+    def eventFilter(
+        self, obj: QtCore.QObject | None, event: QtCore.QEvent | None
+    ) -> bool:
+        """Route epoch/amplitude keys to the view regardless of which child has focus.
+
+        Installed on the application so the keys work without first clicking the
+        traces; scoped to this window being active (so a modal dialog keeps them)
+        and to a recording being loaded.
+        """
+        if (
+            isinstance(event, QtGui.QKeyEvent)
+            and event.type() == QtCore.QEvent.Type.KeyPress
+            and self.isActiveWindow()
+            and self._recording is not None
+            and self._handle_nav_key(event)
+        ):
+            return True
+        return super().eventFilter(obj, event)
+
+    def _focus_wants(self, key: int) -> bool:
+        """True if the focused widget should keep ``key`` for its own editing/nav.
+
+        Text/number entry (spin box, line edit) keeps every navigation key; a
+        combo box or the annotation list keeps only the vertical keys, so
+        Left/Right still page epochs while the list has focus.
+        """
+        focus = QtWidgets.QApplication.focusWidget()
+        if isinstance(focus, QtWidgets.QAbstractSpinBox | QtWidgets.QLineEdit):
+            return True
+        if isinstance(focus, QtWidgets.QComboBox | QtWidgets.QAbstractItemView):
+            return key in _VERTICAL_NAV_KEYS
+        return False
+
+    def _handle_nav_key(self, event: QtGui.QKeyEvent) -> bool:
+        """Apply one navigation/amplitude key; return whether it was consumed."""
+        key = event.key()
+        if key not in _NAV_KEYS or self._focus_wants(key):
+            return False
+        shift = bool(event.modifiers() & QtCore.Qt.KeyboardModifier.ShiftModifier)
+        if key in (QtCore.Qt.Key.Key_Left, QtCore.Qt.Key.Key_Right):
+            sign = 1 if key == QtCore.Qt.Key.Key_Right else -1
+            if shift:
+                self.view.nudge_seconds(sign * _FINE_NUDGE_SECONDS)
+            else:
+                self.view.step_epochs(sign)
+        elif key == QtCore.Qt.Key.Key_Up:
+            self._nudge_scale(louder=True, fine=shift)
+        elif key == QtCore.Qt.Key.Key_Down:
+            self._nudge_scale(louder=False, fine=shift)
+        elif key == QtCore.Qt.Key.Key_Home:
+            self._jump_to(0.0)
+        elif key == QtCore.Qt.Key.Key_End:
+            self._jump_to(float("inf"))
+        return True
+
+    def _nudge_scale(self, *, louder: bool, fine: bool) -> None:
+        """Step the amplitude through the scale spin box (louder → smaller µV/lane)."""
+        factor = _SCALE_KEY_FACTOR_FINE if fine else _SCALE_KEY_FACTOR
+        current = self.scaleSpin.value()
+        target = current / factor if louder else current * factor
+        clamped = max(self.scaleSpin.minimum(), min(self.scaleSpin.maximum(), target))
+        self.scaleSpin.setValue(
+            round(clamped)
+        )  # drives view.set_scale, shows the value
 
     def _on_filters_changed(self) -> None:
         highpass = self.highpassSpin.value() or None  # 0.0 displays as "Off"
@@ -581,6 +962,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
     def _on_cursor_moved(self, seconds: float) -> None:
         if self._recording is None:
             return
+        self._cursor_seconds = seconds  # remembered for the M (mark) shortcut
         text = f"t = {seconds:.3f} s"
         clock = wall_time(self._recording, seconds) if seconds >= 0 else None
         if clock is not None:
@@ -622,6 +1004,15 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             if event is not None:
                 event.ignore()
             return
+        # Closing cleanly (saved or discarded): there is no unsaved work to
+        # recover, so drop the recovery file and stop the autosave timer.
+        self._autosave_timer.stop()
+        self._clear_autosave()
+        # Drop the app-level key filter before this window goes away, so a stray
+        # late event can never reach a half-deleted window.
+        app = QtWidgets.QApplication.instance()
+        if app is not None:
+            app.removeEventFilter(self)
         # Remember where this window sat for next launch (best-effort, never raises).
         preferences.update_window_geometry(
             preferences_path, _EEG_WINDOW_ID, windowstate.geometry_of(self)
