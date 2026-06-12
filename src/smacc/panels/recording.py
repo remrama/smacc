@@ -151,14 +151,17 @@ class RecordingWindow(PanelWindow):
                     self.surveyComboBox.currentText(),
                     report_number=self.n_report_counter,
                 )
-            # Stamp the report with the time since the "Start recording" marker so
-            # it can be found in the EEG file later (#60). With no marker yet, still
-            # log the report right away, then tell the user it's untimed. When the
-            # registry's increment flag is on, each start also advances its code
-            # (201, 202, …) automatically, so reports stay individually findable.
+            # Stamp the report with its file name (report-NN) and the time since
+            # the "Start recording" marker, so a later reviewer can tie the log
+            # entry to both its WAV and its place in the EEG (#60, #125). The
+            # number is the WAV's (set in _start_recording just above); naming it
+            # in the line lets the annotator resolve report-NN.wav even when the
+            # increment band saturates or an entry is dropped. With no marker yet,
+            # still log the report right away, then tell the user it's untimed.
+            report = f"report-{self.n_report_counter:02d}"
             elapsed = self.session.elapsed_since_recording()
             if elapsed is None:
-                self.session.emit_event("DreamReportStarted")
+                self.session.emit_event("DreamReportStarted", detail=report)
                 self.session.show_info_popup(
                     "Recording start not marked.",
                     "This dream report was logged, but the “Start recording” "
@@ -168,7 +171,8 @@ class RecordingWindow(PanelWindow):
                 )
             else:
                 self.session.emit_event(
-                    "DreamReportStarted", detail=f"t+{format_elapsed(elapsed)}"
+                    "DreamReportStarted",
+                    detail=f"{report}, t+{format_elapsed(elapsed)}",
                 )
         else:
             self._stop_recording()

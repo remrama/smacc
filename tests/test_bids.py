@@ -1,6 +1,7 @@
 """Tests for the BIDS events exporter (no GUI required)."""
 
 import csv
+from datetime import datetime, timedelta, timezone
 
 from smacc import bids, settings
 
@@ -9,6 +10,48 @@ SAMPLE_LOG = """2026-06-05 22:00:00.000, INFO, Opened SMACC v0.0.7
 2026-06-05 22:30:10.250, INFO, Note [saw a light] - portcode 201
 2026-06-05 22:45:00.000, INFO, Program closed
 """
+
+# The same session as SAMPLE_LOG, written by a newer SMACC that stamps each
+# line with the machine's UTC offset (#215).
+AWARE_LOG = """2026-06-05 22:00:00.000-0500, INFO, Opened SMACC v0.0.7
+2026-06-05 22:00:05.500-0500, INFO, Lights off - portcode 47
+2026-06-05 22:30:10.250-0500, INFO, Note [saw a light] - portcode 201
+2026-06-05 22:45:00.000-0500, INFO, Program closed
+"""
+
+
+def test_parse_timestamp_reads_naive_and_offset_aware():
+    naive = bids.parse_timestamp("2026-06-05 22:00:00.000")
+    assert naive == datetime(2026, 6, 5, 22, 0, 0)
+    assert naive.tzinfo is None
+    aware = bids.parse_timestamp("2026-06-05 22:00:00.000-0500")
+    assert aware.tzinfo is not None
+    assert aware.utcoffset() == timedelta(hours=-5)
+    assert aware == datetime(2026, 6, 5, 22, 0, 0, tzinfo=timezone(timedelta(hours=-5)))
+
+
+def test_parse_timestamp_rejects_non_timestamps():
+    assert bids.parse_timestamp("Program closed") is None
+    assert bids.parse_timestamp("") is None
+
+
+def test_parse_marker_splits_label_and_code():
+    assert bids.parse_marker("Lights off - portcode 47") == ("Lights off", 47)
+    assert bids.parse_marker("Cue started: Piano - portcode 60") == (
+        "Cue started: Piano",
+        60,
+    )
+
+
+def test_parse_marker_rejects_non_marker_lines():
+    assert bids.parse_marker("Opened SMACC v0.0.7") is None
+    assert bids.parse_marker("Cue volume set to 0.40") is None
+
+
+def test_log_to_events_handles_offset_aware_timestamps():
+    # A new offset-aware log yields the same data-relative onsets as the old
+    # naive one: onsets are deltas within one log, so the offset cancels out.
+    assert bids.log_to_events(AWARE_LOG) == bids.log_to_events(SAMPLE_LOG)
 
 
 def test_log_to_events_extracts_only_portcode_lines():

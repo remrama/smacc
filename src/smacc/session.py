@@ -38,6 +38,33 @@ def make_session_dir(base: Path, now: datetime) -> Path:
     return session_dir
 
 
+class _LogFormatter(logging.Formatter):
+    """Format a log line as ``YYYY-MM-DD HH:MM:SS.mmm±HHMM, LEVEL, message``.
+
+    The timezone offset (#215) stamps each line with the machine's local UTC
+    offset, so a later reader can place the night on an absolute timeline —
+    notably when overlaying the log onto an EEG recording whose clock may sit in
+    a different zone (#125). Older logs are timezone-naive;
+    :func:`smacc.bids.parse_log` reads both forms.
+
+    The whole timestamp (date, time, milliseconds, offset) is built in
+    :meth:`formatTime` rather than split across ``datefmt`` + a ``%(msecs)03d``
+    field, because the offset has to land after the milliseconds and ``asctime``
+    would otherwise emit it in the middle. ``record.created``/``record.msecs``
+    stay the source of truth, so an onset-corrected marker (which sets both by
+    hand in ``_log_marker``) still stamps at its estimated onset. Only the time
+    field is overridden, so the base formatter still appends an ``exc_info``
+    traceback to a CRITICAL line.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(fmt="%(asctime)s, %(levelname)s, %(message)s")
+
+    def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
+        when = datetime.fromtimestamp(record.created).astimezone()
+        return f"{when:%Y-%m-%d %H:%M:%S}.{int(record.msecs):03d}{when:%z}"
+
+
 class SmaccSession:
     """Shared session context: run folder, optional metadata, logger, LSL outlet.
 
@@ -153,11 +180,7 @@ class SmaccSession:
         # Per-run folders are unique, so a plain "w" never clobbers another run.
         fh = logging.FileHandler(log_path, mode="w", encoding="utf-8")
         fh.setLevel(logging.DEBUG)  # the file always records every level
-        formatter = logging.Formatter(
-            fmt="%(asctime)s.%(msecs)03d, %(levelname)s, %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-        fh.setFormatter(formatter)
+        fh.setFormatter(_LogFormatter())
         self.logger.addHandler(fh)
         self._file_handler = fh
 

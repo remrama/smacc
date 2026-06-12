@@ -17,10 +17,38 @@ from typing import Any
 
 import yaml
 
-_LOG_DATETIME_FMT = "%Y-%m-%d %H:%M:%S.%f"
 _PORTCODE_RE = re.compile(r"^(?P<label>.*) - portcode (?P<code>\d+)$")
 
 EVENT_COLUMNS = ["onset", "duration", "trial_type", "value"]
+
+
+def parse_timestamp(text: str) -> datetime | None:
+    """Parse a SMACC log timestamp, or ``None`` if it isn't one.
+
+    Accepts both the timezone-naive form older logs use
+    (``2026-06-05 22:00:00.000``) and the offset-aware form new logs write
+    (``2026-06-05 22:00:00.000-0500``, #215). ``datetime.fromisoformat`` reads
+    either, returning a naive or an aware datetime accordingly; a caller mixing
+    the two normalizes before subtracting (see :mod:`smacc.eeg.sessionlog`).
+    """
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError:
+        return None
+
+
+def parse_marker(message: str) -> tuple[str, int] | None:
+    """Return ``(label, code)`` for an event-marker line, or ``None``.
+
+    A marker line ends in ``" - portcode N"``; the label is everything before
+    it. Shared by :func:`log_to_events` and the annotator's log overlay (#125)
+    so both recognize markers — and split off the label — identically.
+    """
+    match = _PORTCODE_RE.match(message)
+    if not match:
+        return None
+    return match.group("label"), int(match.group("code"))
+
 
 # Sentinels fencing a settings front-matter block embedded in the log. The block
 # records the config a session ran with so it can be recovered later. Every line
@@ -39,9 +67,8 @@ def parse_log(log_text: str) -> list[tuple[datetime, str, str]]:
         if len(parts) != 3:
             continue
         timestamp, level, message = parts
-        try:
-            when = datetime.strptime(timestamp, _LOG_DATETIME_FMT)
-        except ValueError:
+        when = parse_timestamp(timestamp)
+        if when is None:
             continue
         rows.append((when, level, message))
     return rows
@@ -59,15 +86,16 @@ def log_to_events(log_text: str) -> list[dict[str, Any]]:
     t0 = rows[0][0]
     events: list[dict[str, Any]] = []
     for when, _level, message in rows:
-        match = _PORTCODE_RE.match(message)
-        if not match:
+        marker = parse_marker(message)
+        if marker is None:
             continue
+        label, code = marker
         events.append(
             {
                 "onset": round((when - t0).total_seconds(), 3),
                 "duration": "n/a",
-                "trial_type": match.group("label"),
-                "value": int(match.group("code")),
+                "trial_type": label,
+                "value": code,
             }
         )
     return events
