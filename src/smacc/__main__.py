@@ -259,8 +259,15 @@ def main() -> None:
     if file_arg:
         # A double-clicked / CLI .smacc opens straight into a session for it;
         # ending that session quits SMACC (see LauncherWindow._on_tool_closed).
+        # The launcher validates the file on construction (#186): an incompatible
+        # one is reported and rejected there, so show the launcher (with the
+        # built-in defaults selected) instead of starting a session it never
+        # asked for.
         launcher = LauncherWindow(file_arg)
-        launcher.start_session()
+        if launcher.settings_path:
+            launcher.start_session()
+        else:
+            launcher.show()
     else:
         prefs = preferences.load_preferences(preferences_path)
         launcher = LauncherWindow(resolve_initial_settings(prefs))
