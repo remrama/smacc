@@ -58,6 +58,11 @@ night opens in seconds and scrolling stays smooth regardless of file size.
     `night1.edf` → `night1.annotations.tsv` (+ a small `.json` describing it).
     Unsaved changes star the title and prompt before closing.
 
+For fast signal scoring, the **Quick marks** row drops a labeled point mark at
+the cursor in one click — or press **1–9** for the first nine. Use **Edit
+palette…** to set the buttons; the palette defaults to the lucid eye-signal
+vocabulary (LRLR, LRLRx2, LRLRx3, IEIE).
+
 Events already stored **inside** the recording — amp markers, SMACC's own
 trigger codes — are imported automatically the *first* time a file is
 reviewed, so your cues appear on the traces alongside your new marks. Once a

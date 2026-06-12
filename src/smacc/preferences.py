@@ -59,6 +59,10 @@ DEFAULTS: dict[str, Any] = {
     # save to a per-rater sidecar (night1.annotations.<id>.tsv); None means an
     # ordinary single-rater review writing the plain sidecar.
     "eeg_rater_id": None,
+    # The EEG review tool's quick-mark palette (#181): one-click buttons that drop
+    # a labeled point mark at the cursor. Defaults to the lucid eye-signal
+    # vocabulary; editable in the tool, and the first nine get number keys 1–9.
+    "eeg_palette_labels": ["LRLR", "LRLRx2", "LRLRx3", "IEIE"],
 }
 
 _logger = logging.getLogger("smacc")
