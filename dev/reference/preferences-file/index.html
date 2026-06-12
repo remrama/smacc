@@ -1013,7 +1013,6 @@ or corrupt file falls back to the built-in defaults, and saving swallows errors.
 <span class="w">  </span><span class="nt">windows</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">launcher</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">x</span><span class="p">:</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">,</span><span class="nt"> y</span><span class="p">:</span><span class="w"> </span><span class="nv">100</span><span class="p p-Indicator">,</span><span class="nt"> w</span><span class="p">:</span><span class="w"> </span><span class="nv">340</span><span class="p p-Indicator">,</span><span class="nt"> h</span><span class="p">:</span><span class="w"> </span><span class="nv">360</span><span class="p p-Indicator">}</span>
 <span class="w">    </span><span class="nt">main</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt">x</span><span class="p">:</span><span class="w"> </span><span class="nv">120</span><span class="p p-Indicator">,</span><span class="nt"> y</span><span class="p">:</span><span class="w"> </span><span class="nv">80</span><span class="p p-Indicator">,</span><span class="nt"> w</span><span class="p">:</span><span class="w"> </span><span class="nv">900</span><span class="p p-Indicator">,</span><span class="nt"> h</span><span class="p">:</span><span class="w"> </span><span class="nv">700</span><span class="p p-Indicator">}</span>
-<span class="w">  </span><span class="nt">association_prompted</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="w">  </span><span class="nt">recent_settings</span><span class="p">:</span>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">C:\Users\you\SMACC\peter.smacc</span>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">C:\Users\you\SMACC\paul.smacc</span>
@@ -1063,11 +1062,6 @@ or corrupt file falls back to the built-in defaults, and saving swallows errors.
 <td>Per-window geometry, keyed by a stable window id → <code>{x, y, w, h}</code>. Ids include <code>launcher</code>, <code>main</code> (the Session window), the analyze window, and each tool window. An absent/<code>null</code> <code>x</code>/<code>y</code> means "no saved position — open at a default".</td>
 </tr>
 <tr>
-<td><code>association_prompted</code></td>
-<td>boolean</td>
-<td>Whether the first-run "associate <code>.smacc</code> files (Windows)?" prompt has already been shown.</td>
-</tr>
-<tr>
 <td><code>recent_settings</code></td>
 <td>list of paths</td>
 <td>Recently opened <code>.smacc</code> files, most-recent first, de-duplicated and capped at 8.</td>
@@ -1101,7 +1095,7 @@ is current.</p>
 <tbody>
 <tr>
 <td>1</td>
-<td>First stable schema: <code>windows</code>, <code>association_prompted</code>, <code>recent_settings</code>, <code>last_settings</code>.</td>
+<td>First stable schema: <code>windows</code>, <code>recent_settings</code>, <code>last_settings</code>. (The pre-release <code>association_prompted</code> key was dropped along with the first-run association prompt — the installer owns the association now; a leftover key in an old file is ignored.)</td>
 </tr>
 </tbody>
 </table>
