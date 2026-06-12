@@ -49,6 +49,14 @@ dependencies = [
 docs = [
     "mkdocs-material",
     "mike",
+    # Markdown formatter (the docs counterpart to ruff). The mkdocs plugin is
+    # required so mkdocs-material syntax — admonitions, content tabs, four-space
+    # list nesting — is understood rather than mangled; gfm covers tables/
+    # autolinks and frontmatter leaves the docs' YAML front matter untouched.
+    "mdformat",
+    "mdformat-gfm",
+    "mdformat-mkdocs",
+    "mdformat-frontmatter",
 ]
 # The optional EEG review tool (#136). MNE is far too heavy for the base install,
 # so the viewer ships as a separate frozen exe / installer component; this extra

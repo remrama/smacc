@@ -4,11 +4,11 @@ After an awakening, a dream report is often followed by a questionnaire — how
 lucid was the dream, what did it contain, how confident is the participant. SMACC
 handles these two ways:
 
-* **In-app surveys** render in a SMACC window and save their responses straight
-  into the run folder, next to the dream-report WAV they accompany. SMACC ships
-  the standard lucid-dreaming instruments, and you can build your own.
-* **Web surveys** (e.g. a questionnaire hosted on Qualtrics or REDCap) open in
-  the browser, exactly as before — add them by URL.
+- **In-app surveys** render in a SMACC window and save their responses straight
+    into the run folder, next to the dream-report WAV they accompany. SMACC ships
+    the standard lucid-dreaming instruments, and you can build your own.
+- **Web surveys** (e.g. a questionnaire hosted on Qualtrics or REDCap) open in
+    the browser, exactly as before — add them by URL.
 
 In-app surveys exist because the night shift is a bad place for a hosted form:
 sleep labs are often offline, response data belongs with the night's recording
@@ -26,19 +26,19 @@ window):
 
 **Dreaming & lucidity**
 
-| Survey | Full name |
-|---|---|
-| **DLQ** | Dream Lucidity Questionnaire |
-| **LuCiD** | Lucidity and Consciousness in Dreams scale |
-| **LUSK** | Lucid Dreaming Skills Questionnaire |
-| **MUSK** | Morning Lucid Dreaming Skills Questionnaire |
-| **BLA** | Baseline Lucidity Assessment |
-| **MLA** | Morning Lucidity Assessment |
+| Survey    | Full name                                   |
+| --------- | ------------------------------------------- |
+| **DLQ**   | Dream Lucidity Questionnaire                |
+| **LuCiD** | Lucidity and Consciousness in Dreams scale  |
+| **LUSK**  | Lucid Dreaming Skills Questionnaire         |
+| **MUSK**  | Morning Lucid Dreaming Skills Questionnaire |
+| **BLA**   | Baseline Lucidity Assessment                |
+| **MLA**   | Morning Lucidity Assessment                 |
 
 **Dream traits / intake**
 
-| Survey | Full name |
-|---|---|
+| Survey    | Full name                    |
+| --------- | ---------------------------- |
 | **MADRE** | Mannheim Dream Questionnaire |
 
 MADRE is a trait/intake questionnaire (dream-recall habits, attitudes, age,
@@ -49,18 +49,18 @@ items described under [Building your own](#building-your-own).
 
 **Mindfulness**
 
-| Survey | Full name |
-|---|---|
-| **CAMSR** | Cognitive and Affective Mindfulness Scale - Revised |
-| **FFMQ** | Five Facet Mindfulness Questionnaire |
-| **FMI** | Freiburg Mindfulness Inventory |
-| **KIMS** | Kentucky Inventory of Mindfulness Skills |
-| **MAAS** | Mindfulness Attention Awareness Scale |
-| **MACE** | Metacognition, Affect, Cognitive Experiences Questionnaire |
-| **PHLMS** | Philadelphia Mindfulness Scale |
-| **SMAAS** | State Mindfulness Attention Awareness Scale |
-| **SMS** | State Mindfulness Scale |
-| **TMS** | Toronto Mindfulness Scale |
+| Survey    | Full name                                                  |
+| --------- | ---------------------------------------------------------- |
+| **CAMSR** | Cognitive and Affective Mindfulness Scale - Revised        |
+| **FFMQ**  | Five Facet Mindfulness Questionnaire                       |
+| **FMI**   | Freiburg Mindfulness Inventory                             |
+| **KIMS**  | Kentucky Inventory of Mindfulness Skills                   |
+| **MAAS**  | Mindfulness Attention Awareness Scale                      |
+| **MACE**  | Metacognition, Affect, Cognitive Experiences Questionnaire |
+| **PHLMS** | Philadelphia Mindfulness Scale                             |
+| **SMAAS** | State Mindfulness Attention Awareness Scale                |
+| **SMS**   | State Mindfulness Scale                                    |
+| **TMS**   | Toronto Mindfulness Scale                                  |
 
 Built-ins ship with SMACC itself (they are not stored in your `.smacc` study
 file), so updates reach every install. Each survey definition carries a content
@@ -88,10 +88,10 @@ renders but cannot be submitted — there is no run folder to save into.
 
 One JSON file per administration, in the run folder:
 
-* `report-02-survey-dlq.json` — auto-opened with dream report 2 (sorts beside
-  `report-02.wav`).
-* `survey-01-lusk.json` — opened standalone; standalone administrations are
-  numbered in their own sequence.
+- `report-02-survey-dlq.json` — auto-opened with dream report 2 (sorts beside
+    `report-02.wav`).
+- `survey-01-lusk.json` — opened standalone; standalone administrations are
+    numbered in their own sequence.
 
 The payload records the survey's key, title, and content version, the optional
 subject/session metadata, opened/submitted timestamps, the time since the
@@ -157,13 +157,13 @@ A bare-string item is a **Likert** item rated against the survey's shared
 `scale` — the original shape, and all the builder produces. Definition files can
 also mix in other item types by writing an item as a mapping with a `type`:
 
-| `type` | Renders as | Extra fields |
-|---|---|---|
-| `likert` (default) | radio matrix on the shared `scale` | — |
-| `select` | dropdown | `levels` (a `value: label` mapping) |
-| `number` | number entry (blank = unanswered) | `min`, `max`, `unit` (all optional) |
-| `text` | single-line text entry | — |
-| `heading` | a bold section title (collects no response) | — |
+| `type`             | Renders as                                  | Extra fields                        |
+| ------------------ | ------------------------------------------- | ----------------------------------- |
+| `likert` (default) | radio matrix on the shared `scale`          | —                                   |
+| `select`           | dropdown                                    | `levels` (a `value: label` mapping) |
+| `number`           | number entry (blank = unanswered)           | `min`, `max`, `unit` (all optional) |
+| `text`             | single-line text entry                      | —                                   |
+| `heading`          | a bold section title (collects no response) | —                                   |
 
 Any item may carry a `help:` line, shown under it (used for the definitions in
 MADRE). Consecutive Likert items collapse into one shared matrix; other types

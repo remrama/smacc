@@ -10,11 +10,11 @@ bug reports before starting work.
 ## Conventions
 
 - Always use `uv` when running Python scripts or installing dependencies. Never
-  `pip install` or run naked `python`.
+    `pip install` or run naked `python`.
 - One-line commits with a [Conventional Commits](https://www.conventionalcommits.org)
-  prefix (`feat:`, `fix:`, `docs:`, …); no commit body and no AI attribution. Pull
-  request bodies stay brief. Full guide:
-  [Commit and pull-request style](./docs/contributing.md#commit-and-pull-request-style).
+    prefix (`feat:`, `fix:`, `docs:`, …); no commit body and no AI attribution. Pull
+    request bodies stay brief. Full guide:
+    [Commit and pull-request style](./docs/contributing.md#commit-and-pull-request-style).
 
 ## Architecture at a glance
 

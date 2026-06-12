@@ -11,6 +11,7 @@ entry (**SMACC EEG review**), and always runs as its own window and process —
 you can keep reviewing last night's file while tonight's session runs.
 
 !!! note "An optional component"
+
     The viewer ships as the installer's **EEG Review Tools** component, off by
     default (it carries the MNE library, which would triple the install for
     labs that only run sessions). To add it later, re-run the
@@ -21,11 +22,11 @@ you can keep reviewing last night's file while tonight's session runs.
 
 ## Supported recordings
 
-| Format | Open via |
-|---|---|
-| European Data Format | `.edf` |
-| BrainVision | `.vhdr` (of the `.vhdr`/`.eeg`/`.vmrk` triplet) |
-| FIF (MNE / Elekta) | `.fif` |
+| Format               | Open via                                        |
+| -------------------- | ----------------------------------------------- |
+| European Data Format | `.edf`                                          |
+| BrainVision          | `.vhdr` (of the `.vhdr`/`.eeg`/`.vmrk` triplet) |
+| FIF (MNE / Elekta)   | `.fif`                                          |
 
 Recordings are memory-mapped, never loaded whole: an 8-hour high-density
 night opens in seconds and scrolling stays smooth regardless of file size.
@@ -33,29 +34,29 @@ night opens in seconds and scrolling stays smooth regardless of file size.
 ## Viewing
 
 - **Window length** — 10/30/60/120 s pages; **30 s** (one scoring epoch) is
-  the default. PageUp/PageDown page; the mouse wheel and scrollbar scroll;
-  click the traces and the arrow keys nudge, Home/End jump.
+    the default. PageUp/PageDown page; the mouse wheel and scrollbar scroll;
+    click the traces and the arrow keys nudge, Home/End jump.
 - **Filters** — high-pass, low-pass, and a 50/60 Hz notch, applied to the
-  *display only* (zero-phase, so nothing shifts in time). Recordings open
-  **unfiltered** — the usual sleep view is two clicks away (HP 0.3 Hz, LP
-  35 Hz).
+    *display only* (zero-phase, so nothing shifts in time). Recordings open
+    **unfiltered** — the usual sleep view is two clicks away (HP 0.3 Hz, LP
+    35 Hz).
 - **Scale** — microvolts per channel lane; smaller numbers mean bigger
-  traces. Trigger/stim channels are auto-fit to their lane.
+    traces. Trigger/stim channels are auto-fit to their lane.
 - The status bar shows the cursor's time from recording start **and the
-  wall-clock time**, so events line up with the night's session log.
+    wall-clock time**, so events line up with the night's session log.
 
 ## Annotating
 
 1. **Drag** across the traces to mark a span (drag never pans — the time
-   axis only moves when you ask it to).
-2. Name it in the label dialog — recent labels and common marks (LRLR,
-   arousal, artifact, cue response) are one click; free text always works.
-   Tick **instantaneous** to keep just the moment instead of the dragged span.
-3. **Click** an annotation to select it; use the side list to rename,
-   delete, or jump to one (double-click).
-4. **Save annotations** writes the sidecar next to the recording:
-   `night1.edf` → `night1.annotations.tsv` (+ a small `.json` describing it).
-   Unsaved changes star the title and prompt before closing.
+    axis only moves when you ask it to).
+1. Name it in the label dialog — recent labels and common marks (LRLR,
+    arousal, artifact, cue response) are one click; free text always works.
+    Tick **instantaneous** to keep just the moment instead of the dragged span.
+1. **Click** an annotation to select it; use the side list to rename,
+    delete, or jump to one (double-click).
+1. **Save annotations** writes the sidecar next to the recording:
+    `night1.edf` → `night1.annotations.tsv` (+ a small `.json` describing it).
+    Unsaved changes star the title and prompt before closing.
 
 Events already stored **inside** the recording — amp markers, SMACC's own
 trigger codes — are imported automatically the *first* time a file is

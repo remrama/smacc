@@ -21,6 +21,12 @@ jobs:
         run: uv run --extra dev ruff check .
       - name: Ruff format check
         run: uv run --extra dev ruff format --check .
+      # Markdown formatter (the docs counterpart to ruff). `mdformat .` crawls the
+      # tree; the .mdformat.toml exclude scopes it (incl. the in-tree .venv this
+      # step creates). The exclude needs Python 3.13, which is why this waited on
+      # #168. --extra docs is where mdformat + its mkdocs/gfm/frontmatter plugins live.
+      - name: Markdown format check
+        run: uv run --extra docs mdformat --check .
       # mypy doesn't need the eeg extra: neither mne nor pyqtgraph ships
       # py.typed, so installing them adds no type information (and
       # ignore_missing_imports already covers their absence).
