@@ -15,7 +15,10 @@ double-click `SMACC-Setup.exe` and click through. The installer:
     re-run the installer later to add it;
 - registers an uninstaller — remove SMACC from **Settings › Apps** like any other
     program. Uninstalling never touches your data: SMACC files, recordings, and
-    logs under `~/SMACC` (or your data directories) all stay put.
+    logs under `~/SMACC` (or your data directories) all stay put. The
+    uninstaller reminds you of this (and of the folder's location) when it
+    finishes, so finding the folder afterwards is expected — delete it manually
+    if you no longer need the data.
 
 Installing a newer version over an existing one upgrades it in place, keeping
 whichever components you had chosen.
