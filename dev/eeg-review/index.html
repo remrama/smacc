@@ -627,6 +627,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#multiple-raters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multiple raters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#for-developers" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -954,6 +965,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#multiple-raters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multiple raters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#for-developers" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1062,6 +1084,15 @@ sidecar exists it is the single source of truth (nothing is re-imported or
 duplicated).</p>
 <p>The sidecar format is documented in the
 <a href="../reference/annotations-file/">annotations file reference</a>.</p>
+<h2 id="multiple-raters">Multiple raters</h2>
+<p>For blind, multi-rater scoring, give each reviewer a <strong>rater id</strong> — click the
+<strong>Rater</strong> button, or launch with <code>--rater &lt;id&gt;</code>. Their annotations then save to
+a per-rater sidecar (<code>night1.annotations.alice.tsv</code>) instead of the plain one,
+so several raters can score the same recording without overwriting each other.
+The active id shows in the window title and on the Rater button, and the first
+save under an id confirms it (so a forgotten id is caught). Leave it blank for
+an ordinary single-rater review. See the
+<a href="../reference/annotations-file/#multiple-raters">annotations file reference</a>.</p>
 <h2 id="for-developers">For developers</h2>
 <p>Run it from a source checkout with the <code>eeg</code> extra:</p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>dev<span class="w"> </span>--extra<span class="w"> </span>eeg
