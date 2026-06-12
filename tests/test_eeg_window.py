@@ -1422,3 +1422,58 @@ def test_bad_blind_spec_opens_unblinded(make_window, silence_dialogs):
     win = make_window(blind_spec="not-a-preset")
     assert win._blind is None
     assert win._blind_error is not None
+
+
+# ----- other-rater overlays (#181) ------------------------------------------
+
+
+def _write_rater(recording_path, rater_id, marks):
+    tsv, _ = rater_sidecar_paths(recording_path, rater_id)
+    write_annotations_tsv(marks, tsv)
+
+
+def test_overlays_load_peers_excluding_own(make_window, recording_path):
+    _write_rater(recording_path, "alice", [Annotation(5.0, 0.0, "x")])
+    _write_rater(recording_path, "bob", [Annotation(6.0, 0.0, "y")])
+    _write_rater(recording_path, "carol", [Annotation(7.0, 0.0, "z")])
+    win = make_window("alice")
+    win._load(recording_path)
+    assert [rid for rid, _, _ in win._rater_layers] == ["bob", "carol"]  # own excluded
+    assert win.ratersGroup.isVisible()
+    assert len(win._rater_checks) == 2
+
+
+def test_single_rater_coordinator_sees_all_peers(make_window, recording_path):
+    _write_rater(recording_path, "alice", [Annotation(5.0, 0.0, "x")])
+    _write_rater(recording_path, "bob", [Annotation(6.0, 0.0, "y")])
+    win = make_window()  # no rater id — editing the plain truth file
+    win._load(recording_path)
+    assert [rid for rid, _, _ in win._rater_layers] == ["alice", "bob"]
+
+
+def test_overlays_are_hidden_in_blind_mode(make_window, recording_path):
+    _write_rater(recording_path, "bob", [Annotation(6.0, 0.0, "y")])
+    win = make_window("alice")
+    win._blind = blind.preset_config(blind.PRESET_NAIVE)
+    win._load(recording_path)
+    assert win._rater_layers == []  # a blind rater must not see peers
+    assert not win.ratersGroup.isVisible()
+
+
+def test_toggling_a_rater_hides_its_overlay(make_window, recording_path):
+    _write_rater(recording_path, "bob", [Annotation(6.0, 0.0, "y")])
+    win = make_window("alice")
+    win._load(recording_path)
+    assert any(o.rater_id == "bob" and o.visible for o in win.view._overlays)
+    win._toggle_rater("bob", False)
+    assert "bob" in win._hidden_raters
+    assert all(not o.visible for o in win.view._overlays if o.rater_id == "bob")
+
+
+def test_corrupt_peer_sidecar_is_skipped(make_window, recording_path):
+    _write_rater(recording_path, "bob", [Annotation(6.0, 0.0, "y")])
+    carol_tsv, _ = rater_sidecar_paths(recording_path, "carol")
+    carol_tsv.write_text("not\ta\tsidecar\n", encoding="utf-8")
+    win = make_window("alice")
+    win._load(recording_path)
+    assert [rid for rid, _, _ in win._rater_layers] == ["bob"]  # carol skipped

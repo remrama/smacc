@@ -169,6 +169,42 @@ def rater_autosave_path(source: str | Path, rater_id: str) -> Path:
     return Path(source).with_suffix(f".annotations.{rater}.autosave.tsv")
 
 
+def rater_id_from_sidecar(source: str | Path, path: str | Path) -> str | None:
+    """Return the rater id ``path`` encodes for ``source``, or ``None``.
+
+    Recognizes only a canonical per-rater sidecar
+    (``night1.annotations.<id>.tsv``); the plain sidecar, an autosave
+    (``…<id>.autosave.tsv``), and unrelated files all read as ``None``. A real
+    rater id never contains a dot (see :func:`sanitize_rater_id`), so a dotted
+    middle segment marks a compound/autosave name and is rejected.
+    """
+    stem = Path(source).stem
+    name = Path(path).name
+    prefix = f"{stem}.annotations."
+    if not name.startswith(prefix) or not name.endswith(".tsv"):
+        return None
+    middle = name[len(prefix) : -len(".tsv")]
+    if not middle or "." in middle:  # plain sidecar, or an autosave/compound name
+        return None
+    return middle
+
+
+def discover_rater_sidecars(source: str | Path) -> dict[str, Path]:
+    """Return ``{rater_id: sidecar path}`` for every per-rater sidecar of ``source``.
+
+    Scans the recording's folder for ``night1.annotations.<id>.tsv`` files
+    (skipping autosaves and the plain sidecar), sorted by rater id — the input
+    to the show/hide-by-rater overlay. Missing folder yields an empty mapping.
+    """
+    src = Path(source)
+    out: dict[str, Path] = {}
+    for path in sorted(src.parent.glob(f"{src.stem}.annotations.*.tsv")):
+        rater_id = rater_id_from_sidecar(src, path)
+        if rater_id is not None:
+            out[rater_id] = path
+    return out
+
+
 def write_annotations_tsv(annotations: list[Annotation], path: str | Path) -> None:
     """Write ``annotations`` (sorted) to ``path`` as a tab-separated values file."""
     with Path(path).open("w", encoding="utf-8", newline="") as stream:

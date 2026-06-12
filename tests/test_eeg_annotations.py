@@ -133,6 +133,43 @@ def test_rater_autosave_path_is_distinct_from_the_sidecar():
     assert auto != tsv
 
 
+def test_rater_id_from_sidecar_reads_the_id():
+    src = Path("/data/night1.edf")
+    assert ann.rater_id_from_sidecar(
+        src, Path("/data/night1.annotations.alice.tsv")
+    ) == ("alice")
+
+
+def test_rater_id_from_sidecar_rejects_non_rater_files():
+    src = Path("/data/night1.edf")
+    cases = [
+        "/data/night1.annotations.tsv",  # the plain sidecar (no id)
+        "/data/night1.annotations.alice.autosave.tsv",  # an autosave (dotted middle)
+        "/data/night1.annotations.alice.json",  # not a TSV
+        "/data/other.annotations.alice.tsv",  # a different recording
+    ]
+    assert all(ann.rater_id_from_sidecar(src, Path(c)) is None for c in cases)
+
+
+def test_discover_rater_sidecars_finds_only_rater_tsvs(tmp_path):
+    src = tmp_path / "night1.edf"
+    for name in (
+        "night1.annotations.alice.tsv",
+        "night1.annotations.bob.tsv",
+        "night1.annotations.tsv",  # plain sidecar — excluded
+        "night1.annotations.alice.autosave.tsv",  # autosave — excluded
+        "night1.annotations.bob.json",  # JSON — excluded
+    ):
+        (tmp_path / name).write_text("onset\tduration\tdescription\n", encoding="utf-8")
+    found = ann.discover_rater_sidecars(src)
+    assert sorted(found) == ["alice", "bob"]
+    assert found["alice"].name == "night1.annotations.alice.tsv"
+
+
+def test_discover_rater_sidecars_empty_when_none(tmp_path):
+    assert ann.discover_rater_sidecars(tmp_path / "night1.edf") == {}
+
+
 # ----- TSV round-trip -------------------------------------------------------
 
 

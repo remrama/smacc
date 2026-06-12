@@ -83,6 +83,13 @@ save under an id confirms it (so a forgotten id is caught). Leave it blank for
 an ordinary single-rater review. See the
 [annotations file reference](reference/annotations-file.md#multiple-raters).
 
+Once several raters have scored a recording, opening it shows the **other
+raters** as a read-only overlay — each rater's marks in their own colour behind
+your editable ones — with a show/hide checkbox per rater in the **Other raters**
+list. Only your own marks are clickable and editable; the overlay is for
+comparison. (Overlays are off during a blind review, so a blind rater never sees
+their peers.)
+
 ## Blind-rater mode
 
 Objective scoring asks raters to judge the EEG without seeing what was already

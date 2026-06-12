@@ -64,12 +64,40 @@ _REGION_PEN = (70, 130, 180, 160)
 _LINE_PEN = (178, 34, 34, 160)  # firebrick for instantaneous marks
 _LINE_PEN_SELECTED = (178, 34, 34, 255)
 
+# Other raters' marks (#181d) are drawn read-only *behind* the editable layer,
+# one distinct colour per rater (Okabe–Ito, chosen to avoid the steel-blue/
+# firebrick of the operator's own marks and to stay colourblind-distinguishable).
+OVERLAY_COLORS: tuple[tuple[int, int, int], ...] = (
+    (230, 159, 0),  # orange
+    (0, 158, 115),  # bluish green
+    (204, 121, 167),  # reddish purple
+    (213, 94, 0),  # vermillion
+    (86, 180, 233),  # sky blue
+    (240, 228, 66),  # yellow
+)
+# Read-only overlay marks sit above the curves/epochs but below the editable
+# layer (z 10), so a rater's own marks always render on top of their peers'.
+_OVERLAY_Z = 5
+
 # Epoch gridlines: a faint dashed grey so the boundaries read as background
 # scaffolding behind the traces, never competing with the firebrick marks.
 _EPOCH_PEN = pg.mkPen((128, 128, 128, 110), width=1, style=QtCore.Qt.PenStyle.DashLine)
 _EPOCH_LABEL_COLOR = (128, 128, 128, 200)
 # The standard polysomnography scoring epoch; the sleep default everywhere.
 DEFAULT_EPOCH_SECONDS = 30.0
+
+
+class RaterOverlay(NamedTuple):
+    """One other rater's marks drawn read-only behind the editable layer (#181d).
+
+    ``color`` is the rater's legend colour (RGB); ``visible`` lets the window
+    show/hide a rater without rebuilding the data.
+    """
+
+    rater_id: str
+    annotations: list[Annotation]
+    color: tuple[int, int, int]
+    visible: bool = True
 
 
 class TimeAxis(pg.AxisItem):
@@ -256,6 +284,9 @@ class TraceView(pg.PlotWidget):
         self._annotations: list[Annotation] = []
         self._selected = -1
         self._annotation_items: list[pg.LinearRegionItem | pg.InfiniteLine] = []
+        # Other raters' read-only marks, drawn behind the editable layer (#181d).
+        self._overlays: list[RaterOverlay] = []
+        self._overlay_items: list[pg.LinearRegionItem | pg.InfiniteLine] = []
         self._curves: list[pg.PlotDataItem] = []
 
         self._viewbox.dragFinished.connect(self._on_drag_finished)
@@ -306,6 +337,7 @@ class TraceView(pg.PlotWidget):
         self._provider = provider
         self._window_start = 0.0
         self._epoch_anchor = 0.0  # a new recording starts epoch 1 at its start
+        self._overlays = []  # peers belong to the previous recording; window reloads
         # Show every channel in file order by default; a profile may narrow this.
         self._visible = list(range(len(provider.ch_names))) if provider else []
         self._build_curves()
@@ -540,6 +572,15 @@ class TraceView(pg.PlotWidget):
         self._selected = selected
         self._refresh_annotations()
 
+    def set_overlays(self, overlays: list[RaterOverlay]) -> None:
+        """Replace the other-rater overlays drawn behind the editable layer (#181d).
+
+        Read-only and never selectable — clicks only ever hit the editable
+        annotations — so a peer rater's marks are visible context, not editable.
+        """
+        self._overlays = list(overlays)
+        self._refresh_overlays()
+
     # ----- interaction ---------------------------------------------------------
 
     def _on_drag_finished(self, lo: float, hi: float) -> None:
@@ -727,6 +768,48 @@ class TraceView(pg.PlotWidget):
             item.setZValue(10)
             plot_item.addItem(item)
             self._annotation_items.append(item)
+        self._refresh_overlays()  # peers redraw with the editable layer on scroll
+
+    def _refresh_overlays(self) -> None:
+        """Redraw the read-only other-rater overlays for the visible window (#181d).
+
+        Each visible rater's marks paint in that rater's colour, below the
+        editable layer and with no selection styling — visible context only.
+        """
+        plot_item = self.getPlotItem()
+        assert plot_item is not None
+        for old in self._overlay_items:
+            plot_item.removeItem(old)
+        self._overlay_items = []
+        if self._provider is None:
+            return
+        lo = self._window_start
+        hi = self._window_start + self._window_seconds
+        for overlay in self._overlays:
+            if not overlay.visible:
+                continue
+            red, green, blue = overlay.color
+            brush = (red, green, blue, 45)
+            pen = (red, green, blue, 200)
+            for a in overlay.annotations:
+                if a.onset + a.duration < lo or a.onset > hi:
+                    continue
+                item: pg.LinearRegionItem | pg.InfiniteLine
+                if a.duration > 0:
+                    item = pg.LinearRegionItem(
+                        values=(a.onset, a.onset + a.duration),
+                        movable=False,
+                        brush=brush,
+                        pen=pen,
+                    )
+                else:
+                    item = pg.InfiniteLine(
+                        pos=a.onset, angle=90, movable=False, pen=pg.mkPen(pen, width=1)
+                    )
+                item.setToolTip(f"{overlay.rater_id}: {a.description}")
+                item.setZValue(_OVERLAY_Z)
+                plot_item.addItem(item)
+                self._overlay_items.append(item)
 
     def _refresh_epochs(self) -> None:
         """Redraw the epoch boundary gridlines for the visible window.
