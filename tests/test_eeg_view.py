@@ -16,7 +16,7 @@ from PyQt6 import QtCore, QtGui
 
 from smacc.eeg import dsp
 from smacc.eeg.annotations import Annotation
-from smacc.eeg.view import DEFAULT_TYPE_SCALES, TimeAxis, TraceView
+from smacc.eeg.view import DEFAULT_TYPE_SCALES, RaterOverlay, TimeAxis, TraceView
 
 SFREQ = 100.0
 DURATION = 60.0
@@ -175,6 +175,58 @@ def test_point_annotations_get_click_tolerance(loaded):
     tolerance = view.window_seconds * 0.005
     assert view._annotation_at(10.0 + tolerance / 2) == 0
     assert view._annotation_at(10.0 + tolerance * 3) == -1
+
+
+# ----- other-rater overlays (#181d) -----------------------------------------
+
+
+def test_overlays_draw_only_visible_layers_in_window(loaded):
+    view, _ = loaded
+    view.set_overlays(
+        [
+            RaterOverlay(
+                "alice",
+                [Annotation(5.0, 2.0, "a"), Annotation(55.0, 0.0, "offscreen")],
+                (230, 159, 0),
+                True,
+            ),
+            RaterOverlay("bob", [Annotation(8.0, 0.0, "b")], (0, 158, 115), False),
+        ]
+    )
+    # Only alice's in-window region: her offscreen mark and hidden bob are skipped.
+    assert len(view._overlay_items) == 1
+    assert isinstance(view._overlay_items[0], pg.LinearRegionItem)
+
+
+def test_overlays_are_not_click_selectable(loaded):
+    view, _ = loaded
+    view.set_annotations([Annotation(20.0, 0.0, "mine")])
+    view.set_overlays(
+        [RaterOverlay("alice", [Annotation(10.0, 0.0, "theirs")], (230, 159, 0), True)]
+    )
+    assert view._annotation_at(10.0) == -1  # a peer's mark selects nothing
+    assert view._annotation_at(20.0) == 0  # the editable mark still selectable
+
+
+def test_overlays_redraw_on_scroll(loaded):
+    view, _ = loaded
+    view.set_overlays(
+        [RaterOverlay("alice", [Annotation(40.0, 0.0, "late")], (230, 159, 0), True)]
+    )
+    assert view._overlay_items == []  # 40 s mark is outside the 0–30 s window
+    view.set_window_start(35.0)
+    assert len(view._overlay_items) == 1  # now in view
+
+
+def test_set_provider_clears_overlays(loaded):
+    view, _ = loaded
+    view.set_overlays(
+        [RaterOverlay("alice", [Annotation(5.0, 0.0, "x")], (230, 159, 0), True)]
+    )
+    assert view._overlay_items
+    view.set_provider(FakeProvider())
+    assert view._overlays == []
+    assert view._overlay_items == []
 
 
 def test_click_selects_and_signals(loaded):

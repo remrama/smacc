@@ -36,6 +36,7 @@ from . import blind, dsp, io
 from .annotations import (
     Annotation,
     autosave_path,
+    discover_rater_sidecars,
     insert,
     rater_autosave_path,
     rater_sidecar_paths,
@@ -49,7 +50,7 @@ from .annotations import (
 )
 from .profiles import FILE_FILTER as PROFILE_FILE_FILTER
 from .profiles import PROFILE_SUFFIX, ViewProfile, read_view_profile, write_view_profile
-from .view import DEFAULT_EPOCH_SECONDS, TraceView
+from .view import DEFAULT_EPOCH_SECONDS, OVERLAY_COLORS, RaterOverlay, TraceView
 
 if TYPE_CHECKING:  # matplotlib is heavy: import the export module only on demand
     from .export import ExportOptions
@@ -598,6 +599,13 @@ class EegReviewWindow(QtWidgets.QMainWindow):
                 self._blind = blind.resolve_blind(blind_spec)
             except (OSError, ValueError) as exc:
                 self._blind_error = str(exc)
+        # Other raters' sidecars overlaid read-only for comparison (#181d): the
+        # discovered (rater_id, marks, colour) layers and which are hidden. Only
+        # ever populated in a non-blind review (a blind rater sees no peers).
+        self._rater_layers: list[
+            tuple[str, list[Annotation], tuple[int, int, int]]
+        ] = []
+        self._hidden_raters: set[str] = set()
         # Annotations recovered from an autosave, held until the user restores or
         # dismisses them (#176).
         self._recovery_annotations: list[Annotation] | None = None
@@ -1058,6 +1066,13 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         buttons.addWidget(self.editButton)
         buttons.addWidget(self.deleteButton)
         panel.addLayout(buttons)
+        # Other raters (#181d): a legend of show/hide toggles for the read-only
+        # overlays. Hidden until peer sidecars are found (and never in blind mode).
+        self.ratersGroup = QtWidgets.QGroupBox("Other raters", self)
+        self.ratersLayout = QtWidgets.QVBoxLayout(self.ratersGroup)
+        self.ratersGroup.setVisible(False)
+        self._rater_checks: list[QtWidgets.QCheckBox] = []
+        panel.addWidget(self.ratersGroup)
         return panel
 
     def _build_shortcuts(self) -> None:
@@ -1213,6 +1228,76 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         )
         self._set_blind(config)
 
+    # ----- other-rater overlays (#181) -------------------------------------------
+
+    def _load_overlays(self) -> None:
+        """Discover peer rater sidecars and overlay them read-only (#181d).
+
+        Never in a blind review — a blind rater must not see their peers — and
+        the rater's own file is excluded (it is the editable layer). A peer file
+        that won't parse is skipped, not fatal.
+        """
+        self._clear_rater_toggles()
+        self._rater_layers = []
+        self._hidden_raters = set()
+        if self._recording is None or self._blind is not None:
+            self.ratersGroup.setVisible(False)
+            self.view.set_overlays([])
+            return
+        siblings = discover_rater_sidecars(self._recording.path)
+        siblings.pop(self._rater_id or "", None)  # never overlay our own file
+        for index, (rater_id, sidecar) in enumerate(siblings.items()):
+            try:
+                marks = read_annotations_tsv(sidecar)
+            except (OSError, ValueError):
+                continue
+            color = OVERLAY_COLORS[index % len(OVERLAY_COLORS)]
+            self._rater_layers.append((rater_id, marks, color))
+        self._build_rater_toggles()
+        self._apply_overlays()
+
+    def _apply_overlays(self) -> None:
+        """Push the current (visible) overlay layers to the view."""
+        self.view.set_overlays(
+            [
+                RaterOverlay(
+                    rater_id, marks, color, rater_id not in self._hidden_raters
+                )
+                for rater_id, marks, color in self._rater_layers
+            ]
+        )
+
+    def _build_rater_toggles(self) -> None:
+        """Rebuild the legend of colored show/hide checkboxes, one per peer rater."""
+        self._clear_rater_toggles()
+        for rater_id, marks, color in self._rater_layers:
+            check = QtWidgets.QCheckBox(f"{rater_id} ({len(marks)})", self)
+            check.setChecked(rater_id not in self._hidden_raters)
+            check.setStatusTip(f"Show or hide rater {rater_id}'s marks.")
+            red, green, blue = color
+            check.setStyleSheet(f"color: rgb({red}, {green}, {blue});")
+            check.toggled.connect(
+                lambda on, name=rater_id: self._toggle_rater(name, on)
+            )
+            self.ratersLayout.addWidget(check)
+            self._rater_checks.append(check)
+        self.ratersGroup.setVisible(bool(self._rater_layers))
+
+    def _clear_rater_toggles(self) -> None:
+        while self.ratersLayout.count():
+            item = self.ratersLayout.takeAt(0)
+            widget = item.widget() if item is not None else None
+            if widget is not None:
+                widget.deleteLater()
+        self._rater_checks = []
+
+    def _toggle_rater(self, rater_id: str, visible: bool) -> None:
+        if visible:
+            self._hidden_raters.discard(rater_id)
+        else:
+            self._hidden_raters.add(rater_id)
+        self._apply_overlays()
+
     # ----- opening a recording ---------------------------------------------------
 
     def open_file(self) -> None:
@@ -1300,6 +1385,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             f"{path.name} — {len(recording.ch_names)} ch · "
             f"{recording.sfreq:g} Hz · {recording.duration:.0f} s{clock}"
         )
+        self._load_overlays()
         self._check_for_recovery(tsv_path)
 
     def _fresh_annotations(
