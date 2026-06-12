@@ -207,7 +207,7 @@ class PanelWindow(QtWidgets.QMainWindow):
     reopened with its state intact); real teardown happens when the launcher
     quits, which sets ``_quitting`` and calls :meth:`cleanup` on every panel.
 
-    Every tool window carries its own *always-on-top* toggle (a checkable View-menu
+    Every tool window carries its own *always-on-top* toggle (a checkable File-menu
     action) so an operator can pin just the tools they need above other apps. The
     per-window state travels with the study (collected/applied by the main window in
     a ``tool_always_on_top`` map); the launcher deliberately has no such toggle.
@@ -223,11 +223,12 @@ class PanelWindow(QtWidgets.QMainWindow):
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
         self._build_file_menu()
-        self._build_view_menu()
 
     def _build_file_menu(self) -> None:
-        """Add a minimal File menu carrying this window's close action.
+        """Add the single flat File menu: Close window + Always on top (#185).
 
+        These used to be two one-item menus (File > Close window, View > Always
+        on top) — a lot of chrome for two actions, so one File menu carries both.
         Closing a tool window only hides it (see :meth:`closeEvent`) — the
         session keeps running — so Ctrl+W is safe to reach for, unlike the
         session window's Ctrl+Q, which ends the whole session.
@@ -244,13 +245,7 @@ class PanelWindow(QtWidgets.QMainWindow):
         )
         closeAction.triggered.connect(self.close)
         fileMenu.addAction(closeAction)
-
-    def _build_view_menu(self) -> None:
-        """Add a minimal View menu carrying this window's always-on-top toggle."""
-        menu_bar = self.menuBar()
-        assert menu_bar is not None
-        viewMenu = menu_bar.addMenu("&View")
-        assert viewMenu is not None
+        fileMenu.addSeparator()
         action = QtGui.QAction("Always on &top", self)
         # Every window carries the same shortcut; the default WindowShortcut
         # context scopes each to its own window, so Ctrl+T pins whichever
@@ -259,7 +254,7 @@ class PanelWindow(QtWidgets.QMainWindow):
         action.setStatusTip(f"Keep the {self.TITLE} window above other applications.")
         action.setCheckable(True)
         action.toggled.connect(self.toggle_always_on_top)
-        viewMenu.addAction(action)
+        fileMenu.addAction(action)
         self._always_on_top_action = action
 
     def is_always_on_top(self) -> bool:

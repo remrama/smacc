@@ -443,3 +443,14 @@ def test_tool_window_file_menu_close_hides_the_window(qtbot, design_session):
     assert not panel.isVisible()
     panel.show()  # reopens with its state intact, like the launcher buttons do
     assert panel.isVisible()
+
+
+def test_tool_window_has_a_single_file_menu(qtbot, design_session):
+    # One flat File menu carries Close window and Always on top (#185) — the
+    # old two one-item menus (File, View) were a lot of chrome for two actions.
+    panel = NoiseWindow(design_session)
+    qtbot.addWidget(panel)
+    menus = [a for a in panel.menuBar().actions() if a.menu() is not None]
+    assert [m.text() for m in menus] == ["&File"]
+    actions = [a.text() for a in menus[0].menu().actions() if not a.isSeparator()]
+    assert actions == ["&Close window", "Always on &top"]
