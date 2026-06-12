@@ -34,10 +34,39 @@ def pick_recording_path(args: list[str]) -> str | None:
 
     The last non-flag argument wins, mirroring the base app's settings-file
     handling; existence and format errors are left to the window so the user
-    sees a dialog, not a vanishing process.
+    sees a dialog, not a vanishing process. The value of ``--rater <id>`` is
+    skipped so a coordinator's ``--rater alice night1.edf`` opens the recording,
+    not the rater id.
     """
-    candidates = [arg for arg in args[1:] if not arg.startswith("-")]
+    candidates: list[str] = []
+    skip = False
+    for arg in args[1:]:
+        if skip:  # the value consumed by a preceding "--rater"
+            skip = False
+            continue
+        if arg == "--rater":
+            skip = True
+            continue
+        if arg.startswith("-"):  # any flag, incl. "--rater=alice"
+            continue
+        candidates.append(arg)
     return candidates[-1] if candidates else None
+
+
+def pick_rater_id(args: list[str]) -> str | None:
+    """Return the ``--rater`` value from CLI args, or ``None``.
+
+    Accepts both ``--rater alice`` and ``--rater=alice`` so a coordinator can
+    hand out a one-click command (``SMACC-EEG.exe --rater alice night1.edf``).
+    Sanitizing/validation is the window's job — an empty or unusable id falls
+    back to single-rater there rather than failing the launch.
+    """
+    for index, arg in enumerate(args):
+        if arg == "--rater" and index + 1 < len(args):
+            return args[index + 1]
+        if arg.startswith("--rater="):
+            return arg.split("=", 1)[1]
+    return None
 
 
 def selftest() -> int:
@@ -104,7 +133,9 @@ def main() -> None:
         sys.exit(selftest())
     app = QApplication(sys.argv)
     app.setApplicationName("SMACC EEG review")
-    window = EegReviewWindow(pick_recording_path(sys.argv))
+    window = EegReviewWindow(
+        pick_recording_path(sys.argv), rater_id=pick_rater_id(sys.argv)
+    )
     window.show()
     sys.exit(app.exec())
 

@@ -51,13 +51,35 @@ Documents each column (BIDS-style) and records provenance:
   "description": {"Description": "Annotation label as entered by the reviewer."},
   "SourceFile": "night1.edf",
   "MeasurementDate": "2026-06-05T22:00:00+00:00",
+  "Rater": null,
   "GeneratedBy": {"Name": "SMACC", "Version": "1.0.0"}
 }
 ```
 
 `MeasurementDate` is the recording's start as stored in the file — combined
 with the data-relative onsets it reconstructs clock time. It is `null` when
-the format or anonymization dropped it.
+the format or anonymization dropped it. `Rater` names the reviewer for a
+per-rater sidecar (see below) and is `null` for an ordinary single-rater review.
+
+## Multiple raters
+
+Objective signal scoring often uses several reviewers. Give each a **rater id**
+— from the Rater button, or by launching with `--rater <id>` — and that
+reviewer's annotations save to a sidecar keyed by the id, so several raters can
+score one recording without overwriting each other:
+
+```
+night1.annotations.tsv          ← single-rater review (no id)
+night1.annotations.alice.tsv    ← rater "alice"
+night1.annotations.bob.tsv      ← rater "bob"
+```
+
+Each rater writes a different path, so cross-rater clobbering is impossible and
+the coordinator's marks in the plain `night1.annotations.tsv` stay untouched.
+The id is reduced to a filesystem-safe token (letters, digits, dash,
+underscore), and each rater gets their own crash-recovery autosave
+(`night1.annotations.alice.autosave.tsv`). Downstream analysis attributes and
+compares marks by reading the JSON `Rater` field.
 
 ## Precedence
 

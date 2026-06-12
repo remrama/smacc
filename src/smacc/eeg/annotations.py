@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -39,6 +40,11 @@ JSON_SUFFIX = ".annotations.json"
 # Crash-recovery autosave, kept distinct from the canonical sidecar so autosave
 # can never clobber a deliberate save ("night1.edf" → the .autosave.tsv).
 AUTOSAVE_SUFFIX = ".annotations.autosave.tsv"
+
+# A rater id becomes part of a sidecar's filename ("night1.annotations.<id>.tsv"),
+# so it is reduced to a filesystem-safe token: anything outside this class
+# collapses to a single underscore (see sanitize_rater_id).
+_RATER_ID_UNSAFE = re.compile(r"[^A-Za-z0-9_-]+")
 
 # Onsets/durations are written with millisecond precision: finer than any human
 # click on a plot, and exact for every sample at the rates sleep labs record.
@@ -121,6 +127,48 @@ def autosave_path(source: str | Path) -> Path:
     return Path(source).with_suffix(AUTOSAVE_SUFFIX)
 
 
+def sanitize_rater_id(raw: str) -> str:
+    """Reduce a rater id to a filesystem-safe token (alnum, dash, underscore).
+
+    The rater id *is* the sidecar's path selector
+    (``night1.annotations.<id>.tsv``), so any run of other characters collapses
+    to a single underscore and the ends are trimmed. Raises ``ValueError`` when
+    nothing usable remains — silently yielding an empty token would route a
+    rater's marks to the plain single-rater sidecar and mix two reviewers' work.
+    """
+    token = _RATER_ID_UNSAFE.sub("_", str(raw).strip()).strip("_-")
+    if not token:
+        raise ValueError(f"Rater id {raw!r} has no filename-safe characters")
+    return token
+
+
+def rater_sidecar_paths(source: str | Path, rater_id: str) -> tuple[Path, Path]:
+    """Return the (TSV, JSON) sidecar paths for one rater's review.
+
+    Mirrors :func:`sidecar_paths` with the rater id woven into the stem
+    (``night1.edf`` → ``night1.annotations.alice.tsv``), so each rater of one
+    recording writes a different path and cross-rater clobbering is structurally
+    impossible. The id is sanitized to a safe filename token first.
+    """
+    rater = sanitize_rater_id(rater_id)
+    src = Path(source)
+    return (
+        src.with_suffix(f".annotations.{rater}.tsv"),
+        src.with_suffix(f".annotations.{rater}.json"),
+    )
+
+
+def rater_autosave_path(source: str | Path, rater_id: str) -> Path:
+    """Return the crash-recovery autosave path for one rater's review.
+
+    The rater-keyed counterpart of :func:`autosave_path` (``night1.edf`` →
+    ``night1.annotations.alice.autosave.tsv``), so a rater's recovery file is
+    kept apart both from the canonical per-rater sidecar and from other raters.
+    """
+    rater = sanitize_rater_id(rater_id)
+    return Path(source).with_suffix(f".annotations.{rater}.autosave.tsv")
+
+
 def write_annotations_tsv(annotations: list[Annotation], path: str | Path) -> None:
     """Write ``annotations`` (sorted) to ``path`` as a tab-separated values file."""
     with Path(path).open("w", encoding="utf-8", newline="") as stream:
@@ -175,12 +223,17 @@ def read_annotations_tsv(path: str | Path) -> list[Annotation]:
     return sorted(annotations)
 
 
-def annotations_sidecar(source_name: str, meas_date: datetime | None) -> dict[str, Any]:
+def annotations_sidecar(
+    source_name: str, meas_date: datetime | None, rater_id: str | None = None
+) -> dict[str, Any]:
     """Return the JSON sidecar payload documenting the TSV columns and provenance.
 
     ``MeasurementDate`` (the recording's absolute start, when the file carries
     one) is what lets a reader reconstruct clock time from the data-relative
-    onsets; ``null`` when the format/anonymization dropped it.
+    onsets; ``null`` when the format/anonymization dropped it. ``Rater`` names
+    the reviewer when this is a per-rater sidecar, and is ``null`` for an
+    ordinary single-rater review — so downstream analysis can attribute and
+    compare marks across raters by reading one stable field.
     """
     return {
         "onset": {
@@ -195,13 +248,18 @@ def annotations_sidecar(source_name: str, meas_date: datetime | None) -> dict[st
         "description": {"Description": "Annotation label as entered by the reviewer."},
         "SourceFile": source_name,
         "MeasurementDate": meas_date.isoformat() if meas_date else None,
+        "Rater": rater_id,
         "GeneratedBy": {"Name": "SMACC", "Version": VERSION},
     }
 
 
 def write_annotations_json(
-    path: str | Path, *, source_name: str, meas_date: datetime | None
+    path: str | Path,
+    *,
+    source_name: str,
+    meas_date: datetime | None,
+    rater_id: str | None = None,
 ) -> None:
     """Write the JSON sidecar to ``path``."""
-    payload = annotations_sidecar(source_name, meas_date)
+    payload = annotations_sidecar(source_name, meas_date, rater_id)
     Path(path).write_text(json.dumps(payload, indent=2), encoding="utf-8")
