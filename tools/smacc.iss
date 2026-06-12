@@ -98,3 +98,27 @@ Root: HKA; Subkey: "Software\Classes\SMACC.Study\shell\open\command"; ValueType:
 
 [Run]
 Filename: "{app}\SMACC.exe"; Description: "{cm:LaunchProgram,SMACC}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+{ Uninstalling never deletes the SMACC data folder (#189): it holds real study
+  data (recordings, logs, SMACC files) mixed with app-managed seeds, so an
+  automatic delete is never safe. Instead, say so at the end of uninstall —
+  whoever uninstalls and finds the folder later shouldn't be left wondering
+  whether removal failed. Skipped on a silent uninstall (no popups to hang an
+  unattended run). }
+function SmaccDataDir(): String;
+begin
+  { Mirrors smacc.utils.get_smacc_directory: $SMACC_DIRECTORY, else ~/SMACC. }
+  Result := GetEnv('SMACC_DIRECTORY');
+  if Result = '' then
+    Result := ExpandConstant('{%USERPROFILE}\SMACC');
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if (CurUninstallStep = usPostUninstall) and not UninstallSilent() then
+    MsgBox('SMACC was removed, but your SMACC data folder was kept:'#13#10#13#10
+      + SmaccDataDir() + #13#10#13#10
+      + 'It holds your SMACC files, recordings, and logs. If you no longer '
+      + 'need them, delete the folder manually.', mbInformation, MB_OK);
+end;
