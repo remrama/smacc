@@ -71,6 +71,20 @@ def test_launch_frozen_runs_the_component_exe(spawned, tmp_path, monkeypatch):
     assert spawned == [(str(tmp_path / eeg.EXE_NAME), [])]
 
 
+def test_launch_forwards_extra_args_in_development(spawned):
+    # The Analyze "open in annotator" handoff passes --log; it must reach the
+    # module after the -m smacc.eeg invocation.
+    assert eeg.launch(["--log", "night1.log"])
+    assert spawned == [(sys.executable, ["-m", "smacc.eeg", "--log", "night1.log"])]
+
+
+def test_launch_forwards_extra_args_when_frozen(spawned, tmp_path, monkeypatch):
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "SMACC.exe"))
+    assert eeg.launch(["--log", "night1.log"])
+    assert spawned == [(str(tmp_path / eeg.EXE_NAME), ["--log", "night1.log"])]
+
+
 # ----- the launcher button ----------------------------------------------------------
 
 

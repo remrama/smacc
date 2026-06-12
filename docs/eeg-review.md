@@ -77,12 +77,18 @@ The sidecar format is documented in the
 Load the night's SMACC session [`.log`](reference/session-log.md) onto the
 timeline as a **read-only reference track** — every marker, cue, dream report,
 and survey shown where it happened, so you see what SMACC *did* alongside the
-EEG. Click **Load session log…** in the **Session log** panel (a recording must
-be open; the log aligns to *its* clock). Ticks appear in a thin lane across the
-top, coloured by log level, with the full message on hover. The per-level
-checkboxes show or hide levels just like the live preview — `DEBUG` (raw-trigger
-and volume-edit noise) is off by default. The log is reference context only: it
-is never editable and never saved into your annotations.
+EEG. Click **Load session log…** in the **Session log** panel. Ticks appear in a
+thin lane across the top, coloured by log level, with the full message on hover.
+The per-level checkboxes show or hide levels just like the live preview —
+`DEBUG` (raw-trigger and volume-edit noise) is off by default. The log is
+reference context only: it is never editable and never saved into your
+annotations.
+
+You can load a log **with or without a recording open**. With one, it overlays
+and aligns to *that* recording's clock. With none, it opens **standalone** on a
+bare time axis — for inspecting a log on its own (the **Analyze** window's *Open
+log in EEG annotator* hands a session off this way). Opening a recording while a
+standalone log is shown switches to the overlaid view.
 
 **Aligning the log.** The log's timestamps come from the recording PC while the
 EEG's clock comes from the amplifier, so the two can differ by seconds or more.

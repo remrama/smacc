@@ -390,6 +390,9 @@ class TraceView(pg.PlotWidget):
         # Pick mode: a click reports its time (to pair a log entry to an EEG
         # feature) instead of selecting an annotation.
         self._pick_mode = False
+        # Whether the log lane may be slid to align — off in standalone mode,
+        # which has no recording clock to reconcile against (#125d).
+        self._log_alignable = True
         self._curves: list[pg.PlotDataItem] = []
 
         self._viewbox.dragFinished.connect(self._on_drag_finished)
@@ -421,6 +424,21 @@ class TraceView(pg.PlotWidget):
     @property
     def window_seconds(self) -> float:
         return self._window_seconds
+
+    @property
+    def has_provider(self) -> bool:
+        """Whether something is loaded to scroll — a recording or a log timeline."""
+        return self._provider is not None
+
+    @property
+    def duration(self) -> float:
+        """The loaded provider's length in seconds (0 when nothing is loaded).
+
+        Lets the window size its scrollbar from whatever is shown — a recording
+        or the standalone log timeline (#125) — without reaching into a recording
+        it may not have.
+        """
+        return self._provider.duration if self._provider is not None else 0.0
 
     @property
     def annotations(self) -> list[Annotation]:
@@ -698,12 +716,23 @@ class TraceView(pg.PlotWidget):
 
         Marks are kept sorted by time so each scroll redraws only the handful in
         view (an overnight log has thousands of entries). A non-empty list arms
-        the top-lane slide, so a drag up there aligns the log instead of drawing
-        a span; an empty list disarms it.
+        the top-lane slide (so a drag up there aligns the log) *when alignment is
+        enabled* — standalone log mode has no second clock to correct, so it
+        disables it; an empty list always disarms.
         """
         self._log_marks = sorted(marks, key=lambda m: m.seconds)
-        self._viewbox.set_log_lane_active(bool(self._log_marks))
+        self._viewbox.set_log_lane_active(bool(self._log_marks) and self._log_alignable)
         self._refresh_log_marks()
+
+    def set_log_alignable(self, enabled: bool) -> None:
+        """Allow (or forbid) sliding the log lane — off when there is no recording.
+
+        Aligning reconciles the log clock with the recording's; with no recording
+        loaded (standalone mode) there is only one clock, so a slide would only
+        push the ticks off their own axis labels. The window disables it there.
+        """
+        self._log_alignable = enabled
+        self._viewbox.set_log_lane_active(bool(self._log_marks) and enabled)
 
     def set_pick_mode(self, enabled: bool) -> None:
         """In pick mode a click reports its time via ``timePicked`` (for pairing).

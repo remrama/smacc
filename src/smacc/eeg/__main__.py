@@ -29,7 +29,7 @@ from ..config import VERSION
 from .window import EegReviewWindow
 
 # Flags that take a following value, so the recording-path scan skips that value.
-_VALUE_FLAGS = ("--rater", "--blind")
+_VALUE_FLAGS = ("--rater", "--blind", "--log")
 
 
 def pick_recording_path(args: list[str]) -> str | None:
@@ -85,6 +85,17 @@ def pick_blind_spec(args: list[str]) -> str | None:
     surfaced as a dialog after the window opens, not as a vanishing process.
     """
     return _flag_value(args, "--blind")
+
+
+def pick_log_path(args: list[str]) -> str | None:
+    """Return the ``--log`` value (a SMACC session log to overlay/show), or ``None``.
+
+    Lets the Analyze window hand a session off to the annotator
+    (``SMACC-EEG.exe --log night1.log``): with no recording the log opens
+    standalone, with one it overlays. Read/parse errors surface as a dialog after
+    the window opens, not as a vanishing process.
+    """
+    return _flag_value(args, "--log")
 
 
 def selftest() -> int:
@@ -170,6 +181,7 @@ def main() -> None:
         pick_recording_path(sys.argv),
         rater_id=pick_rater_id(sys.argv),
         blind_spec=pick_blind_spec(sys.argv),
+        log_path=pick_log_path(sys.argv),
     )
     window.show()
     sys.exit(app.exec())

@@ -16,7 +16,7 @@ from pathlib import Path
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from . import bids, preferences, settings, windowstate
+from . import bids, eeg, preferences, settings, windowstate
 from .dialogs import ask_initial_or_final
 from .panels.base import make_section_title
 from .paths import DEFAULT_DATA_DIR, LOGO_PATH, preferences_path
@@ -137,7 +137,20 @@ class AnalyzeWindow(ToolWindow):
         self.revealButton = QtWidgets.QPushButton("Open session folder", self)
         self.revealButton.setStatusTip("Open the session's folder in the file browser.")
         self.revealButton.clicked.connect(self.reveal_folder)
-        for button in (self.exportButton, self.recoverButton, self.revealButton):
+        # Hand the session to the EEG annotator, which overlays this log on the
+        # timeline (#125). Shown only where the annotator component is available.
+        self.annotateButton = QtWidgets.QPushButton("Open log in EEG annotator", self)
+        self.annotateButton.setStatusTip(
+            "Open this session log in the EEG annotator (overlaid on a recording, "
+            "or on its own time axis)."
+        )
+        self.annotateButton.clicked.connect(self.open_in_annotator)
+        for button in (
+            self.exportButton,
+            self.recoverButton,
+            self.revealButton,
+            self.annotateButton,
+        ):
             layout.addWidget(button)
 
         self.statusBar()
@@ -151,6 +164,8 @@ class AnalyzeWindow(ToolWindow):
         """Enable the action buttons only once a session has been loaded."""
         for button in (self.exportButton, self.recoverButton, self.revealButton):
             button.setEnabled(loaded)
+        # The annotator handoff also needs the optional EEG component installed.
+        self.annotateButton.setEnabled(loaded and eeg.available())
 
     # ----- opening a session ------------------------------------------------
 
@@ -296,6 +311,40 @@ class AnalyzeWindow(ToolWindow):
             QtGui.QDesktopServices.openUrl(
                 QtCore.QUrl.fromLocalFile(str(self._base_dir))
             )
+
+    def open_in_annotator(self) -> None:
+        """Hand this session's log to the EEG annotator as its own process (#125).
+
+        Analyze stays the no-EEG summary/BIDS tool; the annotator is where the log
+        is seen on a timeline (overlaid on a recording, or standalone). Launched
+        detached, like the launcher's Review-EEG button.
+        """
+        if self._log_path is None:
+            return
+        if not eeg.launch(["--log", str(self._log_for_handoff())]):
+            self._error(
+                "Could not start the EEG annotator.",
+                "Re-running the SMACC installer and selecting the EEG Review "
+                "Tools component may fix this.",
+            )
+
+    def _log_for_handoff(self) -> Path:
+        """A log path that outlives this window — copied out of a zip extraction.
+
+        The annotator reads the file later, in its own detached process; a
+        zip-extracted log lives under a temp dir this window deletes on close
+        (``closeEvent``), so it is copied to a directory the cleanup never
+        touches. A log opened directly (its own ``.log`` or a folder) is passed
+        through unchanged.
+        """
+        assert self._log_path is not None
+        in_temp = any(tmp in self._log_path.parents for tmp in self._temp_dirs)
+        if not in_temp:
+            return self._log_path
+        # A fresh temp dir deliberately *not* tracked in _temp_dirs, so closeEvent
+        # leaves it for the annotator (and the OS) to own.
+        keep = Path(tempfile.mkdtemp(prefix="smacc-handoff-"))
+        return Path(shutil.copy(self._log_path, keep / self._log_path.name))
 
     # ----- helpers / lifecycle ----------------------------------------------
 
