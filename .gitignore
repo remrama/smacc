@@ -9,5 +9,4 @@ version_info.txt
 .coverage
 coverage.xml
 htmlcov/
-NOTES.txt
 site/

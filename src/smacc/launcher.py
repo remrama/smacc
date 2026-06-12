@@ -54,15 +54,24 @@ class LauncherWindow(QtWidgets.QMainWindow):
 
     def __init__(self, settings_path: str | None) -> None:
         super().__init__()
-        self._settings_path = settings_path  # current .smacc, or None for defaults
+        self._settings_path: str | None = None  # current .smacc, or None for defaults
         self._tool: ToolWindow | None = None
         self.setWindowTitle("SMACC Launcher")
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
         self._build()
+        # A file given at launch (double-clicked .smacc, or the last-used one) must
+        # load before it becomes the selection — an incompatible file is reported
+        # and stays out of recents (#186), leaving the built-in defaults selected.
         if settings_path:
-            self._remember(settings_path)
-        self._populate_settings_combo()
+            self._set_settings(settings_path)
+        else:
+            self._populate_settings_combo()
+
+    @property
+    def settings_path(self) -> str | None:
+        """The currently selected .smacc file (None = SMACC's built-in defaults)."""
+        return self._settings_path
 
     # ----- current-settings helpers ----------------------------------------
 
@@ -305,16 +314,52 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self._set_settings(data)
 
     def _set_settings(self, path: str | None) -> None:
+        """Make ``path`` the current SMACC file — only if it actually loads (#186).
+
+        An incompatible file is reported and the previous selection stays; only a
+        successfully loading file is remembered in recents.
+        """
+        if path is not None and not self._check_loadable(path):
+            self._populate_settings_combo()  # re-sync the dropdown to the selection
+            return
         self._settings_path = path
         if path:
             self._remember(path)
         self._populate_settings_combo()
+
+    def _check_loadable(self, path: str) -> bool:
+        """True if ``path`` loads as a compatible SMACC file; report it otherwise.
+
+        A file that fails is also dropped from recents, so a stale or corrupted
+        entry doesn't keep resurfacing in the dropdown.
+        """
+        try:
+            settings.load_settings(path)
+        except (OSError, ValueError) as exc:
+            self._forget(path)
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Open SMACC file",
+                f"Could not open {Path(path).name}.\n\n{exc}",
+            )
+            return False
+        return True
 
     def _remember(self, path: str) -> None:
         """Push ``path`` onto the persisted recent-settings list (most-recent first)."""
         prefs = preferences.load_preferences(preferences_path)
         recents = [r for r in prefs.get("recent_settings", []) if isinstance(r, str)]
         recents = preferences.push_recent(recents, str(path))
+        preferences.update_preferences(preferences_path, {"recent_settings": recents})
+
+    def _forget(self, path: str) -> None:
+        """Drop ``path`` from the persisted recent-settings list (it failed to load)."""
+        prefs = preferences.load_preferences(preferences_path)
+        recents = [
+            r
+            for r in prefs.get("recent_settings", [])
+            if isinstance(r, str) and r != str(path)
+        ]
         preferences.update_preferences(preferences_path, {"recent_settings": recents})
 
     def open_settings(self) -> None:
@@ -332,6 +377,12 @@ class LauncherWindow(QtWidgets.QMainWindow):
 
     def start_session(self) -> None:
         """Run a session using the current settings (writing to its data directory)."""
+        # Re-check right before committing: the file may have changed on disk since
+        # it was selected, and an incompatible file must never get a session window.
+        if self._settings_path and not self._check_loadable(self._settings_path):
+            self._set_settings(None)  # fall back to the built-in defaults
+            self.show()  # the double-click flow starts before the launcher is shown
+            return
         session = SmaccSession(self._data_dir())
         window = SmaccWindow(session, settings_path=self._settings_path)
         if self._settings_path:
@@ -347,6 +398,9 @@ class LauncherWindow(QtWidgets.QMainWindow):
 
     def edit_settings(self) -> None:
         """Open the editor on the current settings file."""
+        if self._settings_path and not self._check_loadable(self._settings_path):
+            self._set_settings(None)  # fall back to the built-in defaults
+            return
         session = SmaccSession(self._data_dir(), design=True)
         self._open_tool(SmaccWindow(session, settings_path=self._settings_path))
 
