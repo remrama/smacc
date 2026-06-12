@@ -20,7 +20,6 @@ from smacc import (
     preferences,
     settings,
     triggers,
-    winassoc,
     windowstate,
 )
 
@@ -159,14 +158,13 @@ class SmaccWindow(ToolWindow):
             self._saved_snapshot = self._design_snapshot()
         self.show()  # single show, after window flags + geometry are applied
 
-        # The designer records no run, so it skips the log header, the file
-        # association prompt, and interaction logging — it only edits config.
+        # The designer records no run, so it skips the log header and
+        # interaction logging — it only edits config.
         if not self.design:
             # Panels (and any launch-file overrides) are in place, so capture the
             # initial state into the log header (also emits the "Opened SMACC" line).
             self.session.begin_log(self.gather_settings())
             self._notify_missing_biocal_voices()
-            self._maybe_prompt_association()
             # Startup widget setup is done; from here on, log soft interactions.
             self.session.log_interactions = True
 
@@ -996,39 +994,6 @@ class SmaccWindow(ToolWindow):
             return
         self._apply_loaded_settings(state, metadata)
         self.session.log_debug_msg(f"Loaded settings from {settings_path}")
-
-    def _maybe_prompt_association(self) -> None:
-        """Once, on the first packaged-build launch, offer to associate .smacc files."""
-        if not winassoc.is_associatable() or self._prefs.get("association_prompted"):
-            return
-        # If .smacc is already associated with this build (e.g. from a prior install,
-        # or a launch whose preferences didn't persist), there is nothing to ask —
-        # just record that the prompt is done so we don't keep re-asking.
-        if winassoc.is_registered():
-            self._remember_association_prompted()
-            return
-        self._remember_association_prompted()  # one-time, whatever they choose
-        reply = QtWidgets.QMessageBox.question(
-            self,
-            "Associate .smacc files?",
-            "Associate .smacc files with SMACC so double-clicking one opens "
-            "the app already configured?",
-        )
-        if reply == QtWidgets.QMessageBox.StandardButton.Yes:
-            try:
-                winassoc.register_smacc()
-            except OSError as exc:
-                self.show_error_popup("Could not associate .smacc files.", str(exc))
-
-    def _remember_association_prompted(self) -> None:
-        """Record (in memory and on disk) that the one-time association prompt is done.
-
-        Persisted immediately so it survives even if several windows write preferences
-        this run (the launcher also writes recents). The association itself is a
-        machine/registry action, not session data, so it is deliberately not logged.
-        """
-        self._prefs["association_prompted"] = True
-        preferences.update_preferences(preferences_path, {"association_prompted": True})
 
     def save_settings_in_place(self) -> bool:
         """Save to the current .smacc without prompting; fall back to Save-As if new.

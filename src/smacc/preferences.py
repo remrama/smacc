@@ -36,7 +36,6 @@ DEFAULTS: dict[str, Any] = {
     # window classes). Each entry is {x, y, w, h}; an absent/None x or y means
     # "no saved position yet" (open at a sensible default). Empty out of the box.
     "windows": {},
-    "association_prompted": False,
     # Launcher state: recently used settings files (paths, most-recent first) and
     # the last one opened, so the launcher can preselect it and offer quick switching.
     "recent_settings": [],

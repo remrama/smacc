@@ -51,8 +51,9 @@ itself come from the releases page.)
 Every release also ships the same app as a single portable `SMACC.exe` — download
 it, double-click it, no installation. This suits USB-stick deployment, machines
 where nothing may be installed, and quick tests. The portable build skips the
-installer's conveniences (Start menu entry, uninstaller); it offers to associate
-`.smacc` files itself the first time it runs (see below). The
+installer's conveniences (Start menu entry, uninstaller, the `.smacc`
+file association) — you can associate `.smacc` files from the Launcher's File
+menu instead (see below). The
 [EEG review tool](eeg-review.md) is likewise available portable as
 `SMACC-EEG.exe` — put it **next to** `SMACC.exe` and the Launcher's *Review
 EEG* button lights up (it also runs standalone).
@@ -101,10 +102,9 @@ itself remembers window positions and sizes and your recent files in
 
 Your reusable setup is saved to a portable SMACC file (see
 [SMACC files](smacc-files.md)). The installer associates `.smacc` files so you can
-**double-click one to open SMACC and run a session with it**. The portable
-`SMACC.exe` offers the same association the first time it runs; you can also
-(re)enable it any time from **File › Associate .smacc files (Windows)** in
-the Launcher.
+**double-click one to open SMACC and run a session with it**. With the portable
+`SMACC.exe`, enable (or repair) the association any time from
+**File › Associate .smacc files (Windows)** in the Launcher.
 
 ### Audio cues
 
