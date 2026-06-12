@@ -204,6 +204,31 @@ def test_go_to_selected_jumps_the_view(window, recording_path, monkeypatch):
     assert window.view.window_start == pytest.approx(50.0 - 7.5)
 
 
+def test_ctrl_click_path_adds_a_point_mark(window, recording_path, monkeypatch):
+    window._load(recording_path)
+    _answer_label(monkeypatch, ("LRLR", False))
+    window.view.pointMarkRequested.emit(42.0)  # the ctrl-click signal
+    assert window._annotations == [Annotation(42.0, 0.0, "LRLR")]
+    assert window._dirty
+
+
+def test_mark_key_marks_at_the_last_cursor_position(
+    window, recording_path, monkeypatch
+):
+    window._load(recording_path)
+    window._on_cursor_moved(33.0)  # remember where the cursor is
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._mark_at_cursor()
+    assert window._annotations == [Annotation(33.0, 0.0, "LRLR")]
+
+
+def test_mark_key_falls_back_to_the_view_center(window, recording_path, monkeypatch):
+    window._load(recording_path)  # cursor never moved; window 0–30 → center 15
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._mark_at_cursor()
+    assert window._annotations == [Annotation(15.0, 0.0, "LRLR")]
+
+
 # ----- saving and closing -----------------------------------------------------------
 
 

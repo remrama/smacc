@@ -88,6 +88,7 @@ class _AnnotateViewBox(pg.ViewBox):
 
     dragFinished = QtCore.pyqtSignal(float, float)  # span in data seconds
     clicked = QtCore.pyqtSignal(float)  # click time in data seconds
+    markRequested = QtCore.pyqtSignal(float)  # ctrl-click: drop a point mark here
 
     def __init__(self) -> None:
         super().__init__(enableMouse=False, enableMenu=False)
@@ -118,7 +119,13 @@ class _AnnotateViewBox(pg.ViewBox):
             ev.ignore()
             return
         ev.accept()
-        self.clicked.emit(float(self.mapToView(ev.pos()).x()))
+        seconds = float(self.mapToView(ev.pos()).x())
+        # Ctrl+click drops a point mark; a plain click selects. The modifier
+        # keeps the frequent selection-click from ever creating stray markers.
+        if ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
+            self.markRequested.emit(seconds)
+        else:
+            self.clicked.emit(seconds)
 
 
 class TraceView(pg.PlotWidget):
@@ -132,12 +139,14 @@ class TraceView(pg.PlotWidget):
     * ``windowChanged(start)`` — the view scrolled itself (mouse wheel), so the
       window can sync its scrollbar.
     * ``cursorMoved(seconds)`` — mouse position, for the status-bar clock.
+    * ``pointMarkRequested(seconds)`` — ctrl-click asked for a point mark here.
     """
 
     regionDrawn = QtCore.pyqtSignal(float, float)
     annotationSelected = QtCore.pyqtSignal(int)
     windowChanged = QtCore.pyqtSignal(float)
     cursorMoved = QtCore.pyqtSignal(float)
+    pointMarkRequested = QtCore.pyqtSignal(float)
 
     def __init__(self) -> None:
         self._viewbox = _AnnotateViewBox()
@@ -154,6 +163,7 @@ class TraceView(pg.PlotWidget):
 
         self._viewbox.dragFinished.connect(self._on_drag_finished)
         self._viewbox.clicked.connect(self._on_clicked)
+        self._viewbox.markRequested.connect(self._on_mark_requested)
         # Click-to-focus so the arrow-key navigation in keyPressEvent reaches
         # the traces after the operator clicks them.
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
@@ -239,6 +249,12 @@ class TraceView(pg.PlotWidget):
         hi = min(self._provider.duration, hi)
         if hi > lo:
             self.regionDrawn.emit(lo, hi)
+
+    def _on_mark_requested(self, seconds: float) -> None:
+        if self._provider is None:
+            return
+        seconds = min(max(0.0, seconds), self._provider.duration)
+        self.pointMarkRequested.emit(seconds)
 
     def _on_clicked(self, seconds: float) -> None:
         index = self._annotation_at(seconds)

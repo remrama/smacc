@@ -164,6 +164,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._recording: io.Recording | None = None
         self._annotations: list[Annotation] = []
         self._dirty = False
+        self._cursor_seconds: float | None = None  # last mouse time over the traces
         self.setWindowTitle("SMACC — EEG review")
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
@@ -191,6 +192,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self.view.annotationSelected.connect(self._on_view_selection)
         self.view.windowChanged.connect(self._sync_scrollbar)
         self.view.cursorMoved.connect(self._on_cursor_moved)
+        self.view.pointMarkRequested.connect(self._add_point_mark)
         viewColumn.addWidget(self.view, 1)
         self.scrollBar = QtWidgets.QScrollBar(QtCore.Qt.Orientation.Horizontal, self)
         self.scrollBar.setStatusTip("Scroll through the recording.")
@@ -334,6 +336,8 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         ):
             shortcut = QtGui.QShortcut(QtGui.QKeySequence(keys), self)
             shortcut.activated.connect(lambda f=fraction: self.view.scroll_by(f))
+        mark = QtGui.QShortcut(QtGui.QKeySequence(QtCore.Qt.Key.Key_M), self)
+        mark.activated.connect(self._mark_at_cursor)
 
     def _set_loaded(self, loaded: bool) -> None:
         for widget in (
@@ -413,6 +417,34 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._remember_label(label)
         self._mark_dirty()
         self._select(self._annotations.index(annotation))
+
+    def _add_point_mark(self, seconds: float) -> None:
+        """Drop a zero-duration mark at ``seconds`` (ctrl-click or the M key).
+
+        Goes straight to the label picker with no span to draw and no instant
+        checkbox to tick — the mark is already a point.
+        """
+        if self._recording is None:
+            return
+        seconds = min(max(0.0, seconds), self._recording.duration)
+        result = LabelDialog.get_label(self, self._recent_labels(), offer_instant=False)
+        if result is None:
+            return
+        label, _ = result
+        annotation = Annotation(seconds, 0.0, label)
+        self._annotations = insert(self._annotations, annotation)
+        self._remember_label(label)
+        self._mark_dirty()
+        self._select(self._annotations.index(annotation))
+
+    def _mark_at_cursor(self) -> None:
+        """Mark at the last cursor position, or the view's center if unknown."""
+        if self._recording is None:
+            return
+        seconds = self._cursor_seconds
+        if seconds is None:  # the mouse never entered the traces
+            seconds = self.view.window_start + self.view.window_seconds / 2
+        self._add_point_mark(seconds)
 
     def edit_selected(self) -> None:
         index = self.annotationList.currentRow()
@@ -583,6 +615,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
     def _on_cursor_moved(self, seconds: float) -> None:
         if self._recording is None:
             return
+        self._cursor_seconds = seconds  # remembered for the M (mark) shortcut
         text = f"t = {seconds:.3f} s"
         clock = wall_time(self._recording, seconds) if seconds >= 0 else None
         if clock is not None:

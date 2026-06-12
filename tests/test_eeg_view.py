@@ -196,6 +196,15 @@ def test_drawn_region_is_clamped_and_empty_drags_dropped(loaded):
     assert len(drawn) == 1
 
 
+def test_point_mark_request_is_clamped_to_the_recording(loaded):
+    view, _ = loaded
+    marks: list[float] = []
+    view.pointMarkRequested.connect(marks.append)
+    view._on_mark_requested(-3.0)
+    view._on_mark_requested(80.0)  # past the 60 s duration
+    assert marks == [pytest.approx(0.0), pytest.approx(60.0)]
+
+
 # ----- non-bioelectric channels ----------------------------------------------------
 
 
@@ -234,16 +243,29 @@ class _FakeMouseEvent:
     item coordinates with mapFromView — the frame the real events deliver.
     """
 
-    def __init__(self, viewbox, down_x: float, x: float, *, finish=True, button=None):
+    def __init__(
+        self,
+        viewbox,
+        down_x: float,
+        x: float,
+        *,
+        finish=True,
+        button=None,
+        modifiers=None,
+    ):
         self._button = button or QtCore.Qt.MouseButton.LeftButton
         self._down = viewbox.mapFromView(pg.Point(down_x, 0.0))
         self._pos = viewbox.mapFromView(pg.Point(x, 0.0))
         self._finish = finish
+        self._modifiers = modifiers or QtCore.Qt.KeyboardModifier.NoModifier
         self.accepted = False
         self.ignored = False
 
     def button(self):
         return self._button
+
+    def modifiers(self):
+        return self._modifiers
 
     def buttonDownPos(self):
         return self._down
@@ -314,6 +336,24 @@ def test_click_event_maps_to_data_seconds(exposed):
     view.annotationSelected.connect(selections.append)
     view._viewbox.mouseClickEvent(_FakeMouseEvent(view._viewbox, 6.0, 6.0))
     assert selections == [0]
+
+
+def test_ctrl_click_requests_a_point_mark_instead_of_selecting(exposed):
+    view, _ = exposed
+    view.set_annotations([Annotation(5.0, 2.0, "region")])
+    marks: list[float] = []
+    selections: list[int] = []
+    view.pointMarkRequested.connect(marks.append)
+    view.annotationSelected.connect(selections.append)
+    ev = _FakeMouseEvent(
+        view._viewbox,
+        6.0,
+        6.0,
+        modifiers=QtCore.Qt.KeyboardModifier.ControlModifier,
+    )
+    view._viewbox.mouseClickEvent(ev)
+    assert marks == [pytest.approx(6.0, abs=0.05)]
+    assert selections == []  # ctrl-click marks; it must never also select
 
 
 # ----- wheel and keyboard navigation -------------------------------------------------
