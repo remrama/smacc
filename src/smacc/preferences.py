@@ -53,6 +53,8 @@ DEFAULTS: dict[str, Any] = {
     "eeg_last_dir": None,
     # The folder the EEG review tool last saved/loaded a view profile from (#177).
     "eeg_last_profile_dir": None,
+    # The folder the EEG review tool last exported a figure to (#180).
+    "eeg_last_export_dir": None,
 }
 
 _logger = logging.getLogger("smacc")

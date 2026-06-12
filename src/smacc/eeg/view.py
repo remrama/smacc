@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import math
 from datetime import datetime, timedelta
-from typing import Any, Protocol
+from typing import Any, NamedTuple, Protocol
 
 import numpy as np
 import pyqtgraph as pg
@@ -33,6 +33,7 @@ from PyQt6 import QtCore, QtGui
 
 from . import dsp
 from .annotations import Annotation
+from .snapshot import Snapshot, SnapshotEpoch, SnapshotMark, SnapshotTrace
 
 # Bioelectric channels are recorded in volts and displayed in microvolts.
 # Other kinds (stim/misc/…) carry arbitrary units — a trigger channel holds
@@ -100,14 +101,26 @@ class TimeAxis(pg.AxisItem):
         self.picture = None
         self.update()
 
+    @property
+    def mode(self) -> str:
+        """``"clock"`` or ``"elapsed"`` — which kind of tick label is shown."""
+        return self._mode
+
+    def tick_label(self, value: float) -> str:
+        """Format one x value the way the axis labels it (clock or elapsed seconds).
+
+        Shared with the figure export (#180) so a snapshot's time ticks read
+        exactly like the screen's, without re-deriving the clock formatting.
+        """
+        if self._mode == "clock" and self._origin is not None:
+            return (self._origin + timedelta(seconds=float(value))).strftime("%H:%M:%S")
+        return f"{value:g}"
+
     def tickStrings(
         self, values: list[float], scale: float, spacing: float
     ) -> list[str]:
         if self._mode == "clock" and self._origin is not None:
-            return [
-                (self._origin + timedelta(seconds=float(v))).strftime("%H:%M:%S")
-                for v in values
-            ]
+            return [self.tick_label(float(v)) for v in values]
         return super().tickStrings(values, scale, spacing)
 
 
@@ -178,6 +191,21 @@ class _AnnotateViewBox(pg.ViewBox):
             self.markRequested.emit(seconds)
         else:
             self.clicked.emit(seconds)
+
+
+class _LaneTrace(NamedTuple):
+    """One drawn channel as :meth:`TraceView._lane_traces` returns it.
+
+    ``values`` is the lane-unit array centered on 0 (the curve draws
+    ``-lane + values``); ``scale_uv`` is the µV/lane used for a bioelectric
+    channel, ``None`` for the auto-fit (stim/misc) branch.
+    """
+
+    lane: int
+    channel: int
+    ch_type: str
+    values: np.ndarray
+    scale_uv: float | None
 
 
 class TraceView(pg.PlotWidget):
@@ -385,6 +413,70 @@ class TraceView(pg.PlotWidget):
         self._refresh_annotations()
         self._refresh_epochs()
 
+    def build_snapshot(
+        self,
+        *,
+        marks: list[tuple[float, float, str]],
+        show_epochs: bool,
+        n_time_ticks: int = 7,
+        title: str = "",
+    ) -> Snapshot:
+        """Assemble a pure :class:`Snapshot` of the current window for export (#180).
+
+        ``marks`` is the list of ``(onset, duration, clean_label)`` to draw — the
+        window chooses which annotations to include and how to relabel them.
+        Times come back window-relative. Reuses :meth:`_lane_traces` and
+        :meth:`_epoch_boundaries`, so the figure is the same picture as the
+        screen. Safe with no recording loaded (returns empty traces).
+        """
+        lo = self._window_start
+        hi = lo + self._window_seconds
+        if self._provider is None:
+            return Snapshot(
+                times=np.empty(0), window_seconds=self._window_seconds, traces=()
+            )
+        times, lanes = self._lane_traces()
+        names = self.channel_names
+        traces = tuple(
+            SnapshotTrace(
+                name=names[entry.channel],
+                ch_type=entry.ch_type,
+                lane=entry.lane,
+                values=entry.values,
+                scale_uv=entry.scale_uv,
+            )
+            for entry in lanes
+        )
+        snapshot_marks = tuple(
+            SnapshotMark(onset=onset - lo, duration=duration, label=label)
+            for onset, duration, label in marks
+        )
+        epochs = (
+            tuple(
+                SnapshotEpoch(x=x - lo, number=number)
+                for x, number in self._epoch_boundaries(lo, hi)
+            )
+            if show_epochs
+            else ()
+        )
+        ticks = tuple(
+            (float(t - lo), self._time_axis.tick_label(float(t)))
+            for t in np.linspace(lo, hi, n_time_ticks)
+        )
+        return Snapshot(
+            times=times - lo,
+            window_seconds=self._window_seconds,
+            traces=traces,
+            marks=snapshot_marks,
+            epochs=epochs,
+            time_ticks=ticks,
+            time_axis_label=(
+                "clock time" if self._time_axis.mode == "clock" else "time (s)"
+            ),
+            sfreq=self._provider.sfreq,
+            title=title,
+        )
+
     def set_window_seconds(self, seconds: float) -> None:
         self._window_seconds = max(1.0, seconds)
         self._clamp_window_start()
@@ -539,10 +631,16 @@ class TraceView(pg.PlotWidget):
         )
         self.setYRange(-len(self._visible) + 0.4, 0.6, padding=0)
 
-    def _refresh_data(self) -> None:
-        """Fetch, filter, scale, and draw the visible slice of every shown channel."""
-        if self._provider is None:
-            return
+    def _lane_traces(self) -> tuple[np.ndarray, list[_LaneTrace]]:
+        """Fetch, filter, trim, and scale the visible window into lane-unit traces.
+
+        The single source of truth for both :meth:`_refresh_data` (which draws
+        them) and :meth:`build_snapshot` (which exports them), so the screen and
+        the figure are guaranteed to be the same picture. ``times`` is in data
+        seconds, trimmed to the window; each :class:`_LaneTrace` carries the
+        lane-unit ``values`` (centered on 0; draw ``-lane + values``).
+        """
+        assert self._provider is not None
         ch_types = self._provider.ch_types
         sfreq = self._provider.sfreq
         # Each visible channel filters by its type's effective spec; fetch a
@@ -566,20 +664,31 @@ class TraceView(pg.PlotWidget):
         # Trim the filter margin so its edge transients never reach the screen.
         keep = (times >= lo) & (times <= hi)
         times = times[keep]
+        lanes: list[_LaneTrace] = []
         for lane, i in enumerate(self._visible):
             trace = data[i][keep]
             if ch_types[i] in _MICROVOLT_TYPES:
-                scaled = (
-                    trace * _VOLTS_TO_MICROVOLTS / self.effective_scale(ch_types[i])
-                )
+                scale_uv: float | None = self.effective_scale(ch_types[i])
+                scaled = trace * _VOLTS_TO_MICROVOLTS / scale_uv
             else:
                 # Unit-less channel (stim/misc/…): fit it to its own lane per
                 # visible slice. Absolute amplitude is meaningless for these;
                 # the edges (a trigger firing) are what a reviewer looks for.
+                scale_uv = None
                 peak = float(np.max(np.abs(trace))) if trace.size else 0.0
                 scaled = trace * (_AUTOFIT_EXCURSION / peak) if peak else trace
-            self._curves[lane].setData(times, -lane + scaled)
-        self.setXRange(lo, hi, padding=0)
+            lanes.append(_LaneTrace(lane, i, ch_types[i], scaled, scale_uv))
+        return times, lanes
+
+    def _refresh_data(self) -> None:
+        """Draw the visible slice of every shown channel."""
+        if self._provider is None:
+            return
+        times, lanes = self._lane_traces()
+        for entry in lanes:
+            self._curves[entry.lane].setData(times, -entry.lane + entry.values)
+        lo = self._window_start
+        self.setXRange(lo, lo + self._window_seconds, padding=0)
 
     def _refresh_annotations(self) -> None:
         """Redraw the annotation overlay for the visible window (cheap)."""
@@ -635,18 +744,28 @@ class TraceView(pg.PlotWidget):
             return
         lo = self._window_start
         hi = self._window_start + self._window_seconds
-        first = math.ceil((lo - self._epoch_anchor) / self._epoch_seconds)
-        last = math.floor((hi - self._epoch_anchor) / self._epoch_seconds)
-        for k in range(first, last + 1):
-            boundary = self._epoch_anchor + k * self._epoch_seconds
+        for boundary, number in self._epoch_boundaries(lo, hi):
             line = pg.InfiniteLine(
                 pos=boundary,
                 angle=90,
                 movable=False,
                 pen=_EPOCH_PEN,
-                label=str(k + 1),  # the epoch this boundary starts
+                label=number,  # the epoch this boundary starts
                 labelOpts={"position": 0.96, "color": _EPOCH_LABEL_COLOR},
             )
             line.setZValue(2)  # above the curves, below the annotations
             plot_item.addItem(line)
             self._epoch_items.append(line)
+
+    def _epoch_boundaries(self, lo: float, hi: float) -> list[tuple[float, str]]:
+        """``(boundary_seconds, "k+1")`` for every epoch line within ``[lo, hi]``.
+
+        Shared by :meth:`_refresh_epochs` (the on-screen grid) and
+        :meth:`build_snapshot` (the export), so both number epochs identically.
+        """
+        first = math.ceil((lo - self._epoch_anchor) / self._epoch_seconds)
+        last = math.floor((hi - self._epoch_anchor) / self._epoch_seconds)
+        return [
+            (self._epoch_anchor + k * self._epoch_seconds, str(k + 1))
+            for k in range(first, last + 1)
+        ]

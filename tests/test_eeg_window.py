@@ -704,6 +704,84 @@ def test_load_profile_skips_channels_not_in_the_recording(
     assert window.view.visible_channels == ["C4", "C3"]  # NOSUCH skipped
 
 
+# ----- figure export (#180) --------------------------------------------------------
+
+
+def test_export_dialog_collects_marks_and_options(qtbot):
+    from smacc.eeg.window import ExportDialog
+
+    dialog = ExportDialog(
+        None, ["C3", "C4"], [0, 1], [(12.0, 0.0, "tech-A"), (20.0, 3.0, "tech-B")]
+    )
+    qtbot.addWidget(dialog)
+    dialog.annoTable.item(0, 1).setText("LRLR x3")  # relabel the first mark
+    dialog.annoTable.item(1, 0).setCheckState(
+        QtCore.Qt.CheckState.Unchecked
+    )  # drop 2nd
+    dialog.formatCombo.setCurrentIndex(2)  # SVG
+    dialog.epochGridCheck.setChecked(True)
+    options, marks, channels = dialog.result_values()
+    assert options.fmt == "svg"
+    assert options.show_epoch_grid is True
+    assert marks == [(12.0, 0.0, "LRLR x3")]  # second mark excluded
+    assert channels is None  # the picker was not opened
+
+
+def test_export_figure_renders_with_the_dialog_choices(
+    window, recording_path, tmp_path, monkeypatch
+):
+    from smacc.eeg import export as export_mod
+
+    window._load(recording_path)
+    _answer_label(monkeypatch, ("Cue response", False))
+    window._on_region_drawn(10.0, 14.0)  # an in-window span annotation
+    options = export_mod.ExportOptions(fmt="png", show_epoch_grid=False)
+    monkeypatch.setattr(
+        window_mod.ExportDialog,
+        "get_export",
+        staticmethod(lambda *a, **k: (options, [(10.0, 4.0, "two-way comms")], None)),
+    )
+    out = tmp_path / "figure.png"
+    monkeypatch.setattr(
+        QtWidgets.QFileDialog, "getSaveFileName", lambda *a, **k: (str(out), "")
+    )
+    captured: dict = {}
+    real_render = export_mod.render
+
+    def spy_render(snapshot, opts, path):
+        captured["snapshot"] = snapshot
+        real_render(snapshot, opts, path)
+
+    monkeypatch.setattr(export_mod, "render", spy_render)
+    window._export_figure()
+    assert out.is_file()
+    snap = captured["snapshot"]
+    assert [m.label for m in snap.marks] == ["two-way comms"]  # the relabel reached it
+    assert snap.marks[0].onset == pytest.approx(10.0)  # window starts at 0
+    prefs = preferences.load_preferences(window._prefs_path)
+    assert prefs["eeg_last_export_dir"] == str(out.parent)
+
+
+def test_export_figure_appends_a_missing_suffix(
+    window, recording_path, tmp_path, monkeypatch
+):
+    from smacc.eeg import export as export_mod
+
+    window._load(recording_path)
+    options = export_mod.ExportOptions(fmt="pdf")
+    monkeypatch.setattr(
+        window_mod.ExportDialog,
+        "get_export",
+        staticmethod(lambda *a, **k: (options, [], None)),
+    )
+    bare = tmp_path / "figure"  # no extension typed
+    monkeypatch.setattr(
+        QtWidgets.QFileDialog, "getSaveFileName", lambda *a, **k: (str(bare), "")
+    )
+    window._export_figure()
+    assert (tmp_path / "figure.pdf").is_file()
+
+
 # ----- label dialog / entry point -----------------------------------------------------
 
 

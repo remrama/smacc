@@ -1668,6 +1668,7 @@ docs = [
     { name = "mkdocs-material" },
 ]
 eeg = [
+    { name = "matplotlib" },
     { name = "mne" },
     { name = "pyqtgraph" },
 ]
@@ -1675,6 +1676,7 @@ eeg = [
 [package.metadata]
 requires-dist = [
     { name = "blinkstick", marker = "sys_platform == 'win32'" },
+    { name = "matplotlib", marker = "extra == 'eeg'", specifier = ">=3.7" },
     { name = "mdformat", marker = "extra == 'docs'" },
     { name = "mdformat-frontmatter", marker = "extra == 'docs'" },
     { name = "mdformat-gfm", marker = "extra == 'docs'" },

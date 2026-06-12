@@ -26,6 +26,7 @@ from __future__ import annotations
 import math
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
@@ -46,6 +47,9 @@ from .annotations import (
 from .profiles import FILE_FILTER as PROFILE_FILE_FILTER
 from .profiles import PROFILE_SUFFIX, ViewProfile, read_view_profile, write_view_profile
 from .view import DEFAULT_EPOCH_SECONDS, TraceView
+
+if TYPE_CHECKING:  # matplotlib is heavy: import the export module only on demand
+    from .export import ExportOptions
 
 # Stable id for this window's geometry entry in the per-window prefs map.
 _EEG_WINDOW_ID = "eeg-review"
@@ -272,6 +276,196 @@ class ChannelPickerDialog(QtWidgets.QDialog):
         if dialog.exec() != QtWidgets.QDialog.DialogCode.Accepted:
             return None
         return dialog.result_indices() or None
+
+
+class ExportDialog(QtWidgets.QDialog):
+    """Choose what to export and how, for a publication figure (#180).
+
+    Faithful to the on-screen view by construction; the controls only strip
+    chrome (epoch grid, span shading), relabel marks (per-annotation editable
+    text), set line weight, pick channels (via the #177 picker), and select the
+    output format/resolution. Returns plain values — the window builds the
+    ``ExportOptions`` so this dialog never imports matplotlib.
+    """
+
+    def __init__(
+        self,
+        parent: QtWidgets.QWidget | None,
+        ch_names: list[str],
+        visible: list[int],
+        window_annotations: list[tuple[float, float, str]],
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Export figure")
+        self._ch_names = ch_names
+        self._chosen_channels: list[int] | None = None
+        # (onset, duration) per table row, parallel to the annotation rows.
+        self._anno_spans = [
+            (onset, duration) for onset, duration, _ in window_annotations
+        ]
+        form = QtWidgets.QFormLayout()
+
+        self.channelsLabel = QtWidgets.QLabel(f"{len(visible)} shown", self)
+        channelsButton = QtWidgets.QPushButton("Channels…", self)
+        channelsButton.setStatusTip(
+            "Choose and reorder which channels the figure shows."
+        )
+        channelsButton.clicked.connect(lambda: self._pick_channels(ch_names, visible))
+        channelsRow = QtWidgets.QHBoxLayout()
+        channelsRow.addWidget(self.channelsLabel)
+        channelsRow.addWidget(channelsButton)
+        channelsRow.addStretch(1)
+        form.addRow("Channels:", channelsRow)
+
+        self.titleEdit = QtWidgets.QLineEdit(self)
+        self.titleEdit.setPlaceholderText("optional caption")
+        form.addRow("Title:", self.titleEdit)
+
+        self.formatCombo = QtWidgets.QComboBox(self)
+        for label, value in (
+            ("PNG (raster)", "png"),
+            ("PDF (vector)", "pdf"),
+            ("SVG (vector)", "svg"),
+        ):
+            self.formatCombo.addItem(label, value)
+        self.formatCombo.currentIndexChanged.connect(self._on_format_changed)
+        form.addRow("Format:", self.formatCombo)
+
+        self.dpiCombo = QtWidgets.QComboBox(self)
+        for dpi in (150, 300, 600):
+            self.dpiCombo.addItem(f"{dpi} dpi", dpi)
+        self.dpiCombo.setCurrentIndex(1)  # 300
+        self.dpiCombo.setStatusTip(
+            "Pixel density (PNG) and the rasterized trace layer in PDF/SVG."
+        )
+        form.addRow("Resolution:", self.dpiCombo)
+
+        self.widthSpin = QtWidgets.QDoubleSpinBox(self)
+        self.widthSpin.setRange(2.0, 30.0)
+        self.widthSpin.setSingleStep(0.5)
+        self.widthSpin.setValue(10.0)
+        self.widthSpin.setSuffix(" in")
+        form.addRow("Width:", self.widthSpin)
+
+        self.lineWidthSpin = QtWidgets.QDoubleSpinBox(self)
+        self.lineWidthSpin.setRange(0.2, 3.0)
+        self.lineWidthSpin.setSingleStep(0.1)
+        self.lineWidthSpin.setValue(0.7)
+        self.lineWidthSpin.setSuffix(" pt")
+        form.addRow("Trace weight:", self.lineWidthSpin)
+
+        self.channelLabelsCheck = QtWidgets.QCheckBox("Channel labels", self)
+        self.channelLabelsCheck.setChecked(True)
+        self.epochGridCheck = QtWidgets.QCheckBox(
+            "Epoch gridlines", self
+        )  # off = clean
+        self.shadingCheck = QtWidgets.QCheckBox(
+            "Annotation shading", self
+        )  # off = clean
+        self.markLabelsCheck = QtWidgets.QCheckBox("Annotation labels", self)
+        self.markLabelsCheck.setChecked(True)
+        self.svgTextCheck = QtWidgets.QCheckBox("Editable SVG text", self)
+        self.svgTextCheck.setChecked(True)
+        self.svgTextCheck.setEnabled(False)  # only meaningful for SVG
+        for check in (
+            self.channelLabelsCheck,
+            self.epochGridCheck,
+            self.shadingCheck,
+            self.markLabelsCheck,
+            self.svgTextCheck,
+        ):
+            form.addRow("", check)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addLayout(form)
+        layout.addWidget(QtWidgets.QLabel("Annotations in this window:", self))
+        self.annoTable = QtWidgets.QTableWidget(len(window_annotations), 2, self)
+        self.annoTable.setHorizontalHeaderLabels(["Show", "Label"])
+        self.annoTable.setMinimumWidth(320)
+        vheader = self.annoTable.verticalHeader()
+        if vheader is not None:
+            vheader.setVisible(False)
+        header = self.annoTable.horizontalHeader()
+        assert header is not None
+        header.setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        for row, (_onset, _duration, description) in enumerate(window_annotations):
+            include = QtWidgets.QTableWidgetItem()
+            include.setFlags(
+                QtCore.Qt.ItemFlag.ItemIsUserCheckable
+                | QtCore.Qt.ItemFlag.ItemIsEnabled
+            )
+            include.setCheckState(QtCore.Qt.CheckState.Checked)
+            self.annoTable.setItem(row, 0, include)
+            self.annoTable.setItem(row, 1, QtWidgets.QTableWidgetItem(description))
+        layout.addWidget(self.annoTable, 1)
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            self,
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _on_format_changed(self) -> None:
+        self.svgTextCheck.setEnabled(self.formatCombo.currentData() == "svg")
+
+    def _pick_channels(self, ch_names: list[str], visible: list[int]) -> None:
+        current = (
+            self._chosen_channels if self._chosen_channels is not None else visible
+        )
+        result = ChannelPickerDialog.get_visible(self, ch_names, current)
+        if result is not None:
+            self._chosen_channels = result
+            self.channelsLabel.setText(f"{len(result)} shown")
+
+    def result_values(
+        self,
+    ) -> tuple[ExportOptions, list[tuple[float, float, str]], list[int] | None]:
+        """Return ``(options, marks, chosen_channels)`` from the controls.
+
+        Lazy-imports the export module (matplotlib) only here, once the dialog is
+        accepted — never at window startup.
+        """
+        from . import export
+
+        marks: list[tuple[float, float, str]] = []
+        for row, (onset, duration) in enumerate(self._anno_spans):
+            include = self.annoTable.item(row, 0)
+            label_item = self.annoTable.item(row, 1)
+            if (
+                include is not None
+                and include.checkState() == QtCore.Qt.CheckState.Checked
+            ):
+                label = label_item.text().strip() if label_item is not None else ""
+                marks.append((onset, duration, label))
+        options = export.ExportOptions(
+            fmt=self.formatCombo.currentData(),
+            dpi=int(self.dpiCombo.currentData()),
+            width_in=float(self.widthSpin.value()),
+            line_width_pt=float(self.lineWidthSpin.value()),
+            show_channel_labels=self.channelLabelsCheck.isChecked(),
+            show_epoch_grid=self.epochGridCheck.isChecked(),
+            show_mark_shading=self.shadingCheck.isChecked(),
+            show_mark_labels=self.markLabelsCheck.isChecked(),
+            svg_text_as_text=self.svgTextCheck.isChecked(),
+            title=self.titleEdit.text().strip(),
+        )
+        return options, marks, self._chosen_channels
+
+    @staticmethod
+    def get_export(
+        parent: QtWidgets.QWidget | None,
+        ch_names: list[str],
+        visible: list[int],
+        window_annotations: list[tuple[float, float, str]],
+    ) -> tuple[ExportOptions, list[tuple[float, float, str]], list[int] | None] | None:
+        """Run the dialog; return ``(options, marks, channels)`` or ``None`` on cancel."""
+        dialog = ExportDialog(parent, ch_names, visible, window_annotations)
+        if dialog.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+            return None
+        return dialog.result_values()
 
 
 class EegReviewWindow(QtWidgets.QMainWindow):
@@ -522,6 +716,12 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self.loadProfileButton.setStatusTip("Apply a saved montage to this recording.")
         self.loadProfileButton.clicked.connect(self._load_profile)
         row.addWidget(self.loadProfileButton)
+        self.exportButton = QtWidgets.QPushButton("Export figure…", self)
+        self.exportButton.setStatusTip(
+            "Export the current window as a publication PNG, PDF, or SVG."
+        )
+        self.exportButton.clicked.connect(self._export_figure)
+        row.addWidget(self.exportButton)
         return row
 
     def _build_contract_caption(self) -> QtWidgets.QLabel:
@@ -610,6 +810,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             self.channelsButton,
             self.saveProfileButton,
             self.loadProfileButton,
+            self.exportButton,
         ):
             widget.setEnabled(loaded)
 
@@ -1241,6 +1442,60 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         status_bar = self.statusBar()
         assert status_bar is not None
         status_bar.showMessage(f"Applied view profile {Path(path).name}", 5000)
+
+    def _export_figure(self) -> None:
+        if self._recording is None or not self.view.visible_indices:
+            return
+        lo = self.view.window_start
+        hi = lo + self.view.window_seconds
+        in_window = [
+            (a.onset, a.duration, a.description)
+            for a in self._annotations
+            if not (a.onset + a.duration < lo or a.onset > hi)
+        ]
+        result = ExportDialog.get_export(
+            self, self.view.channel_names, self.view.visible_indices, in_window
+        )
+        if result is None:
+            return
+        options, marks, channels = result
+        if channels is not None:  # the dialog's picker also updates the live view
+            self.view.set_visible_channels(channels)
+        from . import export  # lazy: matplotlib is heavy and only needed here
+
+        snapshot = self.view.build_snapshot(
+            marks=marks, show_epochs=options.show_epoch_grid
+        )
+        path = self._ask_export_path(options.fmt)
+        if path is None:
+            return
+        try:
+            export.render(snapshot, options, path)
+        except (OSError, ValueError) as exc:
+            self._error("Could not export the figure.", str(exc))
+            return
+        status_bar = self.statusBar()
+        assert status_bar is not None
+        status_bar.showMessage(f"Exported {path.name}", 5000)
+
+    def _ask_export_path(self, fmt: str) -> Path | None:
+        """Prompt for the figure path (remembering the folder); ``None`` on cancel."""
+        assert self._recording is not None
+        prefs = preferences.load_preferences(preferences_path)
+        start_dir = prefs.get("eeg_last_export_dir") or str(self._recording.path.parent)
+        default = str(Path(start_dir) / f"{self._recording.path.stem}.{fmt}")
+        chosen, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Export figure", default, f"{fmt.upper()} (*.{fmt})"
+        )
+        if not chosen:
+            return None
+        target = Path(chosen)
+        if target.suffix.lower() != f".{fmt}":
+            target = target.with_name(f"{target.name}.{fmt}")
+        preferences.update_preferences(
+            preferences_path, {"eeg_last_export_dir": str(target.parent)}
+        )
+        return target
 
     def _on_cursor_moved(self, seconds: float) -> None:
         if self._recording is None:
