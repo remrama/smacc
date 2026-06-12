@@ -405,3 +405,67 @@ def test_hue_config_round_trips_through_settings(
     window.apply_settings(state)
     assert window.gather_settings()["hue"]["bridge_ip"] == "192.168.1.50"
     assert design_session.hue_config.configured
+
+
+# ----- editor close prompts only when there are unsaved changes (#183) --------
+
+
+def _watch_close_prompt(monkeypatch):
+    """Record the editor's "save before closing?" prompt instead of blocking."""
+    prompts: list[str] = []
+
+    def fake_exec(self):
+        prompts.append(self.text())
+        return QtWidgets.QMessageBox.StandardButton.Discard
+
+    monkeypatch.setattr(QtWidgets.QMessageBox, "exec", fake_exec)
+    return prompts
+
+
+def test_editor_close_without_changes_skips_prompt(
+    qtbot, design_session, mock_devices, silence_dialogs, monkeypatch
+):
+    window = SmaccWindow(design_session)
+    qtbot.addWidget(window)
+    prompts = _watch_close_prompt(monkeypatch)
+    assert window.close() is True
+    assert prompts == []
+
+
+def test_editor_close_after_edit_prompts(
+    qtbot, design_session, mock_devices, silence_dialogs, monkeypatch
+):
+    window = SmaccWindow(design_session)
+    qtbot.addWidget(window)
+    # Session metadata is part of the saved file (File → Session info…).
+    window.session.metadata["notes"] = "tweaked"
+    prompts = _watch_close_prompt(monkeypatch)
+    assert window.close() is True  # Discard → still closes
+    assert len(prompts) == 1
+
+
+def test_editor_close_after_undone_edit_skips_prompt(
+    qtbot, design_session, mock_devices, silence_dialogs, monkeypatch
+):
+    # State equality (not an edit-signal flag) is the dirty check, so editing
+    # and then undoing back to the original counts as clean.
+    window = SmaccWindow(design_session)
+    qtbot.addWidget(window)
+    original = window.session.metadata.get("notes", "")
+    window.session.metadata["notes"] = "tweaked"
+    window.session.metadata["notes"] = original
+    prompts = _watch_close_prompt(monkeypatch)
+    assert window.close() is True
+    assert prompts == []
+
+
+def test_editor_save_marks_clean(
+    qtbot, design_session, mock_devices, silence_dialogs, monkeypatch, tmp_path
+):
+    window = SmaccWindow(design_session)
+    qtbot.addWidget(window)
+    window.session.metadata["notes"] = "tweaked"
+    assert window._write_settings(str(tmp_path / "study.smacc")) is True
+    prompts = _watch_close_prompt(monkeypatch)
+    assert window.close() is True
+    assert prompts == []

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 from functools import partial
 from pathlib import Path
@@ -152,6 +153,10 @@ class SmaccWindow(ToolWindow):
         # A study file passed on launch becomes this session's initial setup.
         if settings_path:
             self._load_initial_settings(settings_path)
+        if self.design:
+            # Baseline for the close-time unsaved-changes check (#183): what the
+            # editor would save right now. Re-captured on every successful save.
+            self._saved_snapshot = self._design_snapshot()
         self.show()  # single show, after window flags + geometry are applied
 
         # The designer records no run, so it skips the log header, the file
@@ -1071,6 +1076,8 @@ class SmaccWindow(ToolWindow):
             self.show_error_popup("Could not save settings.", str(exc))
             return False
         self.settings_path = path  # subsequent saves update this file
+        if self.design:
+            self._saved_snapshot = self._design_snapshot()  # editor is clean again
         self.session.log_debug_msg(f"Saved settings to {path}")
         # Status-bar confirmation: the editor has no log viewer to show the line.
         status_bar = self.statusBar()
@@ -1177,6 +1184,17 @@ class SmaccWindow(ToolWindow):
             panel.cleanup()
             panel.close()
 
+    def _design_snapshot(self) -> dict:
+        """A deep copy of the savable editor state (settings + metadata).
+
+        Compared against the post-load/post-save baseline to decide whether the
+        editor has unsaved changes; state-equality also treats "edited, then
+        undone back to the original" as clean (#183).
+        """
+        return copy.deepcopy(
+            {"settings": self.gather_settings(), "metadata": self.session.metadata}
+        )
+
     def closeEvent(self, event):
         """End the session (or close the designer) and emit ``closed``.
 
@@ -1186,25 +1204,28 @@ class SmaccWindow(ToolWindow):
         ``LauncherWindow._on_tool_closed``).
         """
         if self.design:
-            box = QtWidgets.QMessageBox(self)
-            box.setWindowTitle("Close editor")
-            box.setText("Save changes to the SMACC file before closing?")
-            box.setStandardButtons(
-                QtWidgets.QMessageBox.StandardButton.Save
-                | QtWidgets.QMessageBox.StandardButton.Discard
-                | QtWidgets.QMessageBox.StandardButton.Cancel
-            )
-            box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.Save)
-            choice = box.exec()
-            if choice == QtWidgets.QMessageBox.StandardButton.Cancel:
-                event.ignore()
-                return
-            if (
-                choice == QtWidgets.QMessageBox.StandardButton.Save
-                and not self.save_settings_in_place()
-            ):
-                event.ignore()  # save was cancelled/failed → keep the editor open
-                return
+            # Only prompt when the editor differs from what was last loaded or
+            # saved; an untouched editor closes silently (#183).
+            if self._design_snapshot() != self._saved_snapshot:
+                box = QtWidgets.QMessageBox(self)
+                box.setWindowTitle("Close editor")
+                box.setText("Save changes to the SMACC file before closing?")
+                box.setStandardButtons(
+                    QtWidgets.QMessageBox.StandardButton.Save
+                    | QtWidgets.QMessageBox.StandardButton.Discard
+                    | QtWidgets.QMessageBox.StandardButton.Cancel
+                )
+                box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.Save)
+                choice = box.exec()
+                if choice == QtWidgets.QMessageBox.StandardButton.Cancel:
+                    event.ignore()
+                    return
+                if (
+                    choice == QtWidgets.QMessageBox.StandardButton.Save
+                    and not self.save_settings_in_place()
+                ):
+                    event.ignore()  # save was cancelled/failed → keep the editor open
+                    return
             # No run to finalize and no operator prefs to write from the editor.
             self._teardown_panels()
             self.session.close()
