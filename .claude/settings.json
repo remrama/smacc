@@ -3,18 +3,5 @@
   "attribution": {
     "commit": "",
     "pr": ""
-  },
-  "hooks": {
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/lint-on-stop.sh"
-          }
-        ]
-      }
-    ]
   }
 }
