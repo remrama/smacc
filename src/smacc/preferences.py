@@ -63,6 +63,8 @@ DEFAULTS: dict[str, Any] = {
     # a labeled point mark at the cursor. Defaults to the lucid eye-signal
     # vocabulary; editable in the tool, and the first nine get number keys 1–9.
     "eeg_palette_labels": ["LRLR", "LRLRx2", "LRLRx3", "IEIE"],
+    # The folder the EEG review tool last loaded a blind config from (#181).
+    "eeg_last_blind_dir": None,
 }
 
 _logger = logging.getLogger("smacc")

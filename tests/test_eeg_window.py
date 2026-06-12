@@ -23,9 +23,9 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from smacc import preferences
 from smacc.config import VERSION
-from smacc.eeg import dsp
+from smacc.eeg import blind, dsp
 from smacc.eeg import window as window_mod
-from smacc.eeg.__main__ import pick_rater_id, pick_recording_path
+from smacc.eeg.__main__ import pick_blind_spec, pick_rater_id, pick_recording_path
 from smacc.eeg.annotations import (
     Annotation,
     autosave_path,
@@ -916,13 +916,20 @@ def test_pick_recording_path_takes_the_last_non_flag_argument():
     assert pick_recording_path(["exe", "a.edf", "b.fif"]) == "b.fif"
 
 
-def test_pick_recording_path_skips_the_rater_value(tmp_path):
-    # --rater alice night1.edf must open the recording, not the rater id.
+def test_pick_recording_path_skips_value_flag_values(tmp_path):
+    # --rater/--blind values must not be mistaken for the recording.
     assert (
         pick_recording_path(["exe", "--rater", "alice", "night1.edf"]) == "night1.edf"
     )
     assert pick_recording_path(["exe", "--rater", "alice"]) is None
     assert pick_recording_path(["exe", "--rater=alice", "night1.edf"]) == "night1.edf"
+    assert (
+        pick_recording_path(["exe", "--blind", "naive", "night1.edf"]) == "night1.edf"
+    )
+    assert (
+        pick_recording_path(["exe", "--rater", "a", "--blind", "naive", "n.edf"])
+        == "n.edf"
+    )
 
 
 def test_pick_rater_id_reads_both_forms():
@@ -930,6 +937,14 @@ def test_pick_rater_id_reads_both_forms():
     assert pick_rater_id(["exe", "--rater=bob", "night1.edf"]) == "bob"
     assert pick_rater_id(["exe", "night1.edf"]) is None
     assert pick_rater_id(["exe", "--rater"]) is None  # dangling flag, no value
+
+
+def test_pick_blind_spec_reads_both_forms():
+    assert pick_blind_spec(["exe", "--blind", "naive", "night1.edf"]) == "naive"
+    assert pick_blind_spec(["exe", "--blind=study.smacc-blind.json"]) == (
+        "study.smacc-blind.json"
+    )
+    assert pick_blind_spec(["exe", "night1.edf"]) is None
 
 
 # ----- wall-clock display ---------------------------------------------------------
@@ -1024,8 +1039,10 @@ def make_window(qtbot, tmp_path, monkeypatch):
         lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Discard,
     )
 
-    def build(rater_id: str | None = None) -> EegReviewWindow:
-        win = EegReviewWindow(rater_id=rater_id)
+    def build(
+        rater_id: str | None = None, blind_spec: str | None = None
+    ) -> EegReviewWindow:
+        win = EegReviewWindow(rater_id=rater_id, blind_spec=blind_spec)
         qtbot.addWidget(win)
         win.show()
         win._prefs_path = tmp_path / "prefs.yaml"  # test convenience handle
@@ -1286,3 +1303,122 @@ def test_palette_editor_reorders_and_normalizes_labels(qtbot):
     dialog._move(-1)  # B moves above A
     # Reordered, whitespace-normalized, and the blank entry dropped.
     assert dialog.result_labels() == ["B", "A"]
+
+
+# ----- blind-rater mode (#181) ----------------------------------------------
+
+
+def test_blind_without_a_rater_id_aborts_the_open(
+    make_window, recording_path, silence_dialogs
+):
+    win = make_window()  # no rater id — blinding would clobber the truth file
+    win._blind = blind.preset_config(blind.PRESET_NAIVE)
+    win._load(recording_path)
+    assert win._recording is None  # refused before opening
+    assert not win.saveButton.isEnabled()
+
+
+def test_naive_blind_hides_embedded_marks_before_render(
+    make_window, recording_path, monkeypatch
+):
+    monkeypatch.setattr(
+        window_mod.io,
+        "embedded_annotations",
+        lambda rec: [
+            Annotation(5.0, 0.0, "SignalObserved"),
+            Annotation(8.0, 0.0, "Cue"),
+        ],
+    )
+    win = make_window("alice")
+    win._blind = blind.preset_config(blind.PRESET_NAIVE)
+    win._load(recording_path)
+    assert win._annotations == []  # nothing hidden ever reaches window state
+    assert win.annotationList.count() == 0
+
+
+def test_classify_blind_seeds_from_truth_and_blanks_signals(
+    make_window, recording_path
+):
+    # A fresh blind review seeds from the coordinator's truth (the plain sidecar).
+    truth = [Annotation(5.0, 0.0, "SignalObserved"), Annotation(8.0, 0.0, "Arousal")]
+    plain_tsv, _ = sidecar_paths(recording_path)
+    write_annotations_tsv(truth, plain_tsv)
+    win = make_window("alice")
+    win._blind = blind.preset_config(blind.PRESET_CLASSIFY)
+    win._load(recording_path)
+    # Only the signal position survives, label blanked; the arousal is hidden.
+    assert win._annotations == [Annotation(5.0, 0.0, "?")]
+
+
+def test_blind_seeds_from_truth_not_embedded(make_window, recording_path, monkeypatch):
+    truth = [Annotation(5.0, 0.0, "DreamReportStarted")]
+    plain_tsv, _ = sidecar_paths(recording_path)
+    write_annotations_tsv(truth, plain_tsv)
+    monkeypatch.setattr(
+        window_mod.io,
+        "embedded_annotations",
+        lambda rec: pytest.fail("blind seeds from the truth sidecar, not embedded"),
+    )
+    win = make_window("alice")
+    win._blind = blind.preset_config(blind.PRESET_REPORTS)
+    win._load(recording_path)
+    assert win._annotations == truth  # the report is visible
+
+
+def test_rater_resume_is_not_reblinded(make_window, recording_path):
+    # Alice already saved her classifications; reopening blind shows them as-is —
+    # naive would wipe them if resume were (wrongly) re-filtered.
+    alice_marks = [Annotation(5.0, 0.0, "LRLR"), Annotation(8.0, 0.0, "?")]
+    rater_tsv, _ = rater_sidecar_paths(recording_path, "alice")
+    write_annotations_tsv(alice_marks, rater_tsv)
+    win = make_window("alice")
+    win._blind = blind.preset_config(blind.PRESET_NAIVE)
+    win._load(recording_path)
+    assert win._annotations == alice_marks  # her own marks survive, unfiltered
+
+
+def test_blind_save_writes_rater_path_and_leaves_truth(make_window, recording_path):
+    truth = [Annotation(5.0, 0.0, "SignalObserved")]
+    plain_tsv, _ = sidecar_paths(recording_path)
+    write_annotations_tsv(truth, plain_tsv)
+    win = make_window("alice")
+    win._confirmed_raters.add("alice")
+    win._blind = blind.preset_config(blind.PRESET_CLASSIFY)
+    win._load(recording_path)  # alice sees the blanked signal
+    win.save_annotations()
+    rater_tsv, _ = rater_sidecar_paths(recording_path, "alice")
+    assert read_annotations_tsv(rater_tsv) == [Annotation(5.0, 0.0, "?")]
+    assert read_annotations_tsv(plain_tsv) == truth  # truth untouched
+
+
+def test_blind_button_reflects_the_mode(make_window):
+    win = make_window("alice")
+    assert win.blindButton.text() == "Blind: off"
+    win._set_blind(blind.preset_config(blind.PRESET_CLASSIFY))
+    assert win.blindButton.text() == "Blind: classify"
+
+
+def test_set_blind_without_a_rater_is_refused(make_window, silence_dialogs):
+    win = make_window()  # no rater id
+    win._set_blind(blind.preset_config(blind.PRESET_NAIVE))
+    assert win._blind is None  # refused
+
+
+def test_blind_config_palette_overrides_the_buttons(make_window):
+    win = make_window("alice")
+    win._set_blind(
+        blind.BlindConfig(
+            preset="custom",
+            signal_labels=("SignalObserved",),
+            palette=("LRLR", "Sniff"),
+        )
+    )
+    assert [b.text() for b in win._palette_buttons] == ["LRLR", "Sniff"]
+
+
+def test_bad_blind_spec_opens_unblinded(make_window, silence_dialogs):
+    # An unknown --blind value must not crash the launch; it records a (deferred)
+    # error and the window opens with blinding off.
+    win = make_window(blind_spec="not-a-preset")
+    assert win._blind is None
+    assert win._blind_error is not None

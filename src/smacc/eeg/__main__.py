@@ -28,29 +28,43 @@ from ..config import VERSION
 # test — a lazy import would make it pass on a bundle that can't open a file).
 from .window import EegReviewWindow
 
+# Flags that take a following value, so the recording-path scan skips that value.
+_VALUE_FLAGS = ("--rater", "--blind")
+
 
 def pick_recording_path(args: list[str]) -> str | None:
     """Return the recording to open from CLI args, or ``None``.
 
     The last non-flag argument wins, mirroring the base app's settings-file
     handling; existence and format errors are left to the window so the user
-    sees a dialog, not a vanishing process. The value of ``--rater <id>`` is
-    skipped so a coordinator's ``--rater alice night1.edf`` opens the recording,
+    sees a dialog, not a vanishing process. A value following ``--rater`` or
+    ``--blind`` is skipped, so ``--rater alice night1.edf`` opens the recording,
     not the rater id.
     """
     candidates: list[str] = []
     skip = False
     for arg in args[1:]:
-        if skip:  # the value consumed by a preceding "--rater"
+        if skip:  # the value consumed by a preceding value-flag
             skip = False
             continue
-        if arg == "--rater":
+        if arg in _VALUE_FLAGS:
             skip = True
             continue
         if arg.startswith("-"):  # any flag, incl. "--rater=alice"
             continue
         candidates.append(arg)
     return candidates[-1] if candidates else None
+
+
+def _flag_value(args: list[str], flag: str) -> str | None:
+    """Return the value of ``flag`` (``--flag v`` or ``--flag=v``), or ``None``."""
+    prefix = f"{flag}="
+    for index, arg in enumerate(args):
+        if arg == flag and index + 1 < len(args):
+            return args[index + 1]
+        if arg.startswith(prefix):
+            return arg.split("=", 1)[1]
+    return None
 
 
 def pick_rater_id(args: list[str]) -> str | None:
@@ -61,12 +75,16 @@ def pick_rater_id(args: list[str]) -> str | None:
     Sanitizing/validation is the window's job — an empty or unusable id falls
     back to single-rater there rather than failing the launch.
     """
-    for index, arg in enumerate(args):
-        if arg == "--rater" and index + 1 < len(args):
-            return args[index + 1]
-        if arg.startswith("--rater="):
-            return arg.split("=", 1)[1]
-    return None
+    return _flag_value(args, "--rater")
+
+
+def pick_blind_spec(args: list[str]) -> str | None:
+    """Return the ``--blind`` value (a preset name or a config path), or ``None``.
+
+    Validation is the window's job: an unknown preset or unreadable config is
+    surfaced as a dialog after the window opens, not as a vanishing process.
+    """
+    return _flag_value(args, "--blind")
 
 
 def selftest() -> int:
@@ -107,6 +125,21 @@ def selftest() -> int:
         tsv = Path(tmp) / "selftest.annotations.tsv"
         write_annotations_tsv([Annotation(1.0, 0.5, "selftest")], tsv)
         assert read_annotations_tsv(tsv) == [Annotation(1.0, 0.5, "selftest")]
+        # Rater-keyed + blind-rater (#181): round-trip a per-rater sidecar and a
+        # blind config, and exercise the filter, so the frozen bundle proves them.
+        from . import blind
+        from .annotations import rater_sidecar_paths
+
+        rater_tsv, _ = rater_sidecar_paths(fif, "selftest")
+        write_annotations_tsv([Annotation(1.0, 0.0, "SignalObserved")], rater_tsv)
+        assert read_annotations_tsv(rater_tsv) == [
+            Annotation(1.0, 0.0, "SignalObserved")
+        ]
+        blind_path = Path(tmp) / f"selftest{blind.BLIND_SUFFIX}"
+        blind.write_blind_config(blind.preset_config(blind.PRESET_CLASSIFY), blind_path)
+        config = blind.read_blind_config(blind_path)
+        hidden = blind.apply_blind([Annotation(1.0, 0.0, "SignalObserved")], config)
+        assert hidden == [Annotation(1.0, 0.0, "?")], hidden
         # Figure export (#180): prove matplotlib's PNG/PDF/SVG backends are bundled
         # — a missed backend only surfaces when one actually writes a file.
         from .export import ExportOptions, render
@@ -134,7 +167,9 @@ def main() -> None:
     app = QApplication(sys.argv)
     app.setApplicationName("SMACC EEG review")
     window = EegReviewWindow(
-        pick_recording_path(sys.argv), rater_id=pick_rater_id(sys.argv)
+        pick_recording_path(sys.argv),
+        rater_id=pick_rater_id(sys.argv),
+        blind_spec=pick_blind_spec(sys.argv),
     )
     window.show()
     sys.exit(app.exec())
