@@ -23,7 +23,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from smacc import preferences
 from smacc.config import VERSION
-from smacc.eeg import blind, dsp
+from smacc.eeg import align, blind, dsp
 from smacc.eeg import window as window_mod
 from smacc.eeg.__main__ import pick_blind_spec, pick_rater_id, pick_recording_path
 from smacc.eeg.annotations import (
@@ -67,6 +67,11 @@ def window(qtbot, tmp_path, monkeypatch):
     monkeypatch.setattr(window_mod, "preferences_path", tmp_path / "prefs.yaml")
     monkeypatch.setattr(window_mod.io, "open_recording", FakeRecording)
     monkeypatch.setattr(window_mod.io, "embedded_annotations", lambda rec: [])
+    # Auto-align (#125c) reads the recording's embedded triggers on every log
+    # load; the fake recording has none, so default to empty (the auto-align
+    # tests override this). Without it, recorded_trigger_events hits the fake's
+    # missing _raw.
+    monkeypatch.setattr(window_mod.io, "recorded_trigger_events", lambda rec: [])
     # Tests routinely leave unsaved annotations, and pytest-qt closes added
     # widgets in its runtest-teardown hook — *before* fixture cleanup could
     # reset any state — so a dirty close would raise a real (blocking)
@@ -1033,6 +1038,7 @@ def make_window(qtbot, tmp_path, monkeypatch):
     monkeypatch.setattr(window_mod, "preferences_path", tmp_path / "prefs.yaml")
     monkeypatch.setattr(window_mod.io, "open_recording", FakeRecording)
     monkeypatch.setattr(window_mod.io, "embedded_annotations", lambda rec: [])
+    monkeypatch.setattr(window_mod.io, "recorded_trigger_events", lambda rec: [])
     monkeypatch.setattr(
         QtWidgets.QMessageBox,
         "question",
@@ -1683,3 +1689,105 @@ def test_esc_cancels_pairing(window, recording_path, monkeypatch, tmp_path):
     window.eventFilter(window, esc)
     assert window._pairing_entry is None
     assert not window.view._pick_mode
+
+
+# ----- auto-alignment (#125c) ------------------------------------------------
+
+# A log with three rare anchor codes (lights-off 47 at 5 s, REM 41 at 20 s,
+# clapper 49 at 25 s) placed against the 22:00:00 recording start.
+ALIGN_LOG = (
+    "2026-06-05 22:00:00.000-0500, INFO, Opened SMACC v0.0.7\n"
+    "2026-06-05 22:00:05.000-0500, INFO, Lights off - portcode 47\n"
+    "2026-06-05 22:00:20.000-0500, INFO, REM detected - portcode 41\n"
+    "2026-06-05 22:00:25.000-0500, INFO, Clapper - portcode 49\n"
+)
+# The same three codes the amp recorded, 3 s later than the log places them.
+ALIGN_TRIGGERS = [(8.0, 47), (23.0, 41), (28.0, 49)]
+
+
+def test_auto_align_applies_a_green_offset_on_load(
+    window, recording_path, monkeypatch, tmp_path
+):
+    monkeypatch.setattr(
+        window_mod.io, "recorded_trigger_events", lambda rec: ALIGN_TRIGGERS
+    )
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path, ALIGN_LOG)
+    assert window._alignment is not None
+    assert window._alignment.tier == align.GREEN
+    assert window._log_offset == pytest.approx(3.0)  # the recovered skew
+    # Every INFO entry shifts by the offset — the "Opened" line (0 → 3) plus the
+    # three matched markers (5/20/25 → 8/23/28). Only coded markers drive the fit.
+    assert [m.seconds for m in window.view._log_marks] == [3.0, 8.0, 23.0, 28.0]
+    assert "aligned" in window.logInfoLabel.text()
+
+
+def test_auto_align_red_leaves_the_offset_unchanged(
+    window, recording_path, monkeypatch, tmp_path
+):
+    # No embedded triggers → nothing to match → red, offset stays at the
+    # wall-clock placement (0), no "aligned" badge.
+    monkeypatch.setattr(window_mod.io, "recorded_trigger_events", lambda rec: [])
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path, ALIGN_LOG)
+    assert window._alignment.tier == align.RED
+    assert window._log_offset == 0.0
+    assert "aligned" not in window.logInfoLabel.text()
+
+
+def test_auto_align_button_announces_the_result(
+    window, recording_path, monkeypatch, tmp_path
+):
+    monkeypatch.setattr(
+        window_mod.io, "recorded_trigger_events", lambda rec: ALIGN_TRIGGERS
+    )
+    infos = []
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox,
+        "information",
+        lambda *a, **k: infos.append(a[2] if len(a) > 2 else ""),
+    )
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path, ALIGN_LOG)
+    window._auto_align(announce=True)
+    assert infos and "Aligned on 3 anchor" in infos[-1]
+
+
+def test_auto_align_disabled_without_a_recording_start(
+    window, recording_path, monkeypatch, tmp_path
+):
+    window._load(recording_path)
+    window._recording.meas_date = None  # anonymized recording
+    _overlay_log(window, monkeypatch, tmp_path, ALIGN_LOG)
+    assert not window.autoAlignButton.isEnabled()
+    assert window._alignment is None  # auto-align on load did nothing
+    assert window._log_offset == 0.0
+
+
+def test_manual_offset_clears_the_alignment_badge(
+    window, recording_path, monkeypatch, tmp_path
+):
+    monkeypatch.setattr(
+        window_mod.io, "recorded_trigger_events", lambda rec: ALIGN_TRIGGERS
+    )
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path, ALIGN_LOG)
+    assert window._alignment is not None
+    window._on_log_offset_changed(1.0)  # hand-set offset
+    assert window._alignment is None  # the estimate no longer describes the offset
+    assert "aligned" not in window.logInfoLabel.text()
+
+
+def test_new_recording_re_reads_embedded_triggers(
+    window, recording_path, monkeypatch, tmp_path
+):
+    monkeypatch.setattr(
+        window_mod.io, "recorded_trigger_events", lambda rec: ALIGN_TRIGGERS
+    )
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path, ALIGN_LOG)
+    assert window._embedded_triggers == ALIGN_TRIGGERS
+    other = tmp_path / "night2.edf"
+    other.write_bytes(b"")
+    window._load(other)
+    assert window._embedded_triggers is None  # invalidated for the new recording

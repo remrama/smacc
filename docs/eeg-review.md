@@ -98,6 +98,19 @@ offset:
 - **Nudge the offset.** The **Offset** box is the exact value, and the fine
     control.
 
+**Auto-align to triggers.** When the amplifier itself recorded SMACC's trigger
+codes — a hardware-TTL rig, where the codes are embedded events in the EEG file —
+**Auto-align to triggers** estimates the offset by matching the log's markers to
+them. It anchors only on *rare* codes (a clapper, a dream report, the
+recording-start marker), never the periodic cue codes that could line up at the
+wrong firing, and grades the result: a confident match is applied silently, a
+low-confidence one is applied but marked *unverified* in the status bar, and an
+unreliable or contradictory one (too few matches, or two clusters from a clock
+jump or the wrong log) is refused so you align by hand instead. It runs
+automatically when a log is loaded, and the button re-runs it. An LSL-only rig
+records markers only to its side file, not the EEG, so there is nothing embedded
+to match — use the manual gestures.
+
 The classic clapper workflow fits directly: press **Clapper** on the SMACC PC at
 the same instant as a manual trigger on the recording system, then pair (or drag)
 the logged clapper onto the marker it left in the EEG. Clapping at both lights-off

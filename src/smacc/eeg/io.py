@@ -15,6 +15,7 @@ rate, duration, ``get_slice``); tests fake it without MNE.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -49,6 +50,12 @@ FILE_FILTER = (
 # the Annotation model rejects empty descriptions, and inventing nothing is
 # worse than naming the gap.
 _UNLABELED = "unlabeled"
+
+# First run of digits in an embedded event description — the trigger code. SMACC
+# sends an integer byte; the amp records it as a bare "47" (Neuroscan/EEGLAB/EDF
+# TAL) or inside a label ("Stimulus/S 47", BrainVision). Amp-native events with
+# no number ("New Segment") yield nothing and are dropped (see recorded_trigger_events).
+_TRIGGER_CODE_RE = re.compile(r"\d+")
 
 
 class Recording:
@@ -135,14 +142,17 @@ def embedded_annotations(recording: Recording) -> list[Annotation]:
     new marks. Converted to this package's model so they save into the sidecar
     like any other annotation.
 
-    MNE's onsets are relative to ``orig_time`` when one is set (so the data
-    offset ``first_time`` must come off) and data-relative when it is ``None``
-    — the documented ``mne.Annotations`` semantics. Events that land outside
-    the data span after correction (possible on cropped files) are dropped.
+    MNE bakes the data offset ``first_time`` into the stored onsets, so it comes
+    off to recover the data-relative time — unconditionally, the way MNE's own
+    ``_sync_onset`` does it (``onset - first_time``). A conditional on
+    ``orig_time`` is wrong: an anonymized file (``meas_date`` stripped to
+    ``None``) keeps a non-zero ``first_samp`` but a ``None`` ``orig_time``, and
+    the offset is baked in regardless. Events that land outside the data span
+    after correction (possible on cropped files) are dropped.
     """
     raw = recording._raw
     duration = recording.duration
-    shift = raw.first_time if raw.annotations.orig_time is not None else 0.0
+    shift = raw.first_time
     out: list[Annotation] = []
     for onset, length, description in zip(
         raw.annotations.onset,
@@ -159,3 +169,74 @@ def embedded_annotations(recording: Recording) -> list[Annotation]:
         label = " ".join(str(description).split()) or _UNLABELED
         out.append(Annotation(data_onset, float(length), label))
     return sorted(out)
+
+
+def recorded_trigger_events(recording: Recording) -> list[tuple[float, int]]:
+    """Return ``(data_seconds, code)`` for every trigger the amp recorded.
+
+    The raw material for auto-aligning the session log to the EEG (#125): when a
+    hardware-TTL transport was wired into the amplifier, SMACC's portcodes land
+    in the recording as events, and matching them to the log's markers estimates
+    the clock-skew offset. Two sources are combined — codes parsed from
+    ``raw.annotations`` (BrainVision/Neuroscan/EEGLAB and EDF+ TAL) and codes on
+    a stim channel read with ``mne.find_events`` (FIF/EDF status) — covering the
+    formats sleep-lab amps produce. Empty when the file carries no triggers (an
+    LSL-only rig records markers only to its XDF, never the amp's native file),
+    in which case the aligner has nothing to match and the manual path stays.
+
+    Onsets are data-relative (the annotation/stim timebase), so they line up with
+    the log placement the aligner compares against.
+    """
+    raw = recording._raw
+    duration = recording.duration
+    out: list[tuple[float, int]] = []
+    # Annotation-borne codes. The data offset is baked into the stored onsets, so
+    # it comes off unconditionally — the same correction embedded_annotations
+    # makes, matching MNE's _sync_onset (and keeping these codes on the same
+    # data-relative timebase as the stim-channel codes below, even on an
+    # anonymized file with first_samp > 0 and no orig_time).
+    shift = raw.first_time
+    for onset, description in zip(
+        raw.annotations.onset, raw.annotations.description, strict=True
+    ):
+        match = _TRIGGER_CODE_RE.search(str(description))
+        if match is None:
+            continue
+        data_onset = float(onset) - shift
+        if 0.0 <= data_onset <= duration:
+            out.append((data_onset, int(match.group())))
+    out.extend(_stim_channel_events(recording))
+    return sorted(out)
+
+
+def _stim_channel_events(recording: Recording) -> list[tuple[float, int]]:
+    """Trigger codes on a stim channel (FIF/EDF status), or ``[]`` if there is none.
+
+    Guarded on a stim channel existing so an annotation-only file never pays
+    ``find_events``' full-length channel read or hits its "no stim channel"
+    error. Codes are read at their onset; the return-to-baseline 0 is dropped.
+    """
+    import mne
+
+    raw = recording._raw
+    if "stim" not in raw.get_channel_types():
+        return []
+    try:
+        # No stim_channel arg: find_events auto-detects (STI101 → STI 014 → the
+        # first stim-typed channel), which is what amp recordings carry.
+        # consecutive=True so a code written directly over a held one (SMACC's
+        # set-and-hold mode) is still reported even when it is numerically lower
+        # than the code it replaced; identical to the default for pulsed codes
+        # that return to baseline between events.
+        events = mne.find_events(
+            raw, shortest_event=1, consecutive=True, verbose="error"
+        )
+    except (ValueError, RuntimeError):
+        return []
+    sfreq = recording.sfreq
+    first = raw.first_samp
+    return [
+        (float(sample - first) / sfreq, int(code))
+        for sample, _prev, code in events
+        if int(code) > 0
+    ]
