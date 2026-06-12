@@ -11,11 +11,13 @@ coverage:
   status:
     project:
       default:
+        name: codecov/project
         # SMACC is a GUI-heavy desktop app where some glue is hard to cover
         # headlessly, so 60% is a floor to ratchet up over time, not a ceiling.
         target: 60%
         threshold: 1% # tolerate a 1% dip before the check fails (anti-flap)
     patch:
       default:
+        name: codecov/patch
         target: 60% # ~60% of the lines a PR changes should be covered
         informational: true # patch result is visible but never blocks a merge
