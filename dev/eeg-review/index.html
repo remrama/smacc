@@ -638,6 +638,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#blind-rater-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Blind-rater mode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#for-developers" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -976,6 +987,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#blind-rater-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Blind-rater mode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#for-developers" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1097,6 +1119,31 @@ The active id shows in the window title and on the Rater button, and the first
 save under an id confirms it (so a forgotten id is caught). Leave it blank for
 an ordinary single-rater review. See the
 <a href="../reference/annotations-file/#multiple-raters">annotations file reference</a>.</p>
+<h2 id="blind-rater-mode">Blind-rater mode</h2>
+<p>Objective scoring asks raters to judge the EEG without seeing what was already
+marked. The <strong>Blind</strong> button (or <code>--blind</code>) filters annotations <strong>before they
+are ever shown</strong>, so a rater cannot glimpse what is hidden, with three presets:</p>
+<ul>
+<li><strong>Fully naive</strong> — every mark is hidden; the rater scrolls a clean recording.</li>
+<li><strong>Reports visible</strong> — only dream-report markers are shown; detected signals
+    and cues are hidden.</li>
+<li><strong>Signal-present (classify only)</strong> — signal <em>positions</em> are shown with their
+    labels blanked (a <code>?</code>), so the rater sees <em>where</em> a signal is and classifies
+    <em>what</em> it is.</li>
+</ul>
+<p>Blind mode <strong>requires a rater id</strong> — a blind review seeds from the coordinator's
+truth sidecar (<code>night1.annotations.tsv</code>) but saves to the rater's own
+(<code>night1.annotations.alice.tsv</code>), so the truth file is never overwritten and
+each rater's judgements stay separate for later comparison. Reopening a rater's
+own file resumes their work unfiltered.</p>
+<p>A coordinator can save a preset (plus the visible/signal label lists and a
+quick-mark palette) as a shareable <code>study.smacc-blind.json</code> and hand out a
+one-click command:</p>
+<div class="highlight"><pre><span></span><code>SMACC-EEG.exe<span class="w"> </span>--rater<span class="w"> </span>alice<span class="w"> </span>--blind<span class="w"> </span>study.smacc-blind.json<span class="w"> </span>night1.edf
+</code></pre></div>
+<p>Blinding is a workflow aid, not a security boundary: the guarantee is that the
+app never <em>renders</em> a hidden label. Someone with file access can still read the
+recording or the truth sidecar directly.</p>
 <h2 id="for-developers">For developers</h2>
 <p>Run it from a source checkout with the <code>eeg</code> extra:</p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>dev<span class="w"> </span>--extra<span class="w"> </span>eeg
