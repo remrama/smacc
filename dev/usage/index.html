@@ -1325,11 +1325,11 @@ through the main features.</p>
 <p>SMACC has three main windows, named consistently throughout these docs:</p>
 <ul>
 <li>the <strong>SMACC Launcher</strong> (<em>Launcher</em> for short) — the small hub that opens when
-  you start the app;</li>
+    you start the app;</li>
 <li>the <strong>SMACC Session</strong> window (<em>Session</em>) — the live interface for running a
-  night and collecting data;</li>
+    night and collecting data;</li>
 <li>the <strong>SMACC Editor</strong> window (<em>Editor</em>) — where you create or edit a
-  <a href="../smacc-files/">SMACC file</a> without recording anything.</li>
+    <a href="../smacc-files/">SMACC file</a> without recording anything.</li>
 </ul>
 <!-- Add an annotated screenshot of the Launcher + Session window here once
 available, e.g.: ![SMACC Session window](assets/screenshot-session.png) -->
@@ -1340,23 +1340,23 @@ session (the one exception: double-clicking a <code>.smacc</code> file, which st
 Session for it directly). In the Launcher you:</p>
 <ul>
 <li><strong>pick a SMACC file</strong> — the dropdown lists the seeded <code>default.smacc</code>, your
-  recent files, and <strong>Browse…</strong> to find any other. With none chosen, SMACC uses
-  built-in defaults, so it works out of the box. (See
-  <a href="../smacc-files/">SMACC files</a> for what one holds.)</li>
+    recent files, and <strong>Browse…</strong> to find any other. With none chosen, SMACC uses
+    built-in defaults, so it works out of the box. (See
+    <a href="../smacc-files/">SMACC files</a> for what one holds.)</li>
 <li><strong>Start</strong> — open a live Session using the selected SMACC file, writing runs to
-  that file's <strong>data directory</strong>. The run folder and log are created only now,
-  when the session starts.</li>
+    that file's <strong>data directory</strong>. The run folder and log are created only now,
+    when the session starts.</li>
 <li><strong>Create</strong> — build a new SMACC file in the Editor: configure the tools (cues,
-  noise, visual, event codes, surveys), choose a data directory, and save it
-  anywhere.</li>
+    noise, visual, event codes, surveys), choose a data directory, and save it
+    anywhere.</li>
 <li><strong>Edit</strong> — reopen the selected SMACC file in the Editor.</li>
 <li><strong>Design cues</strong> — open the standalone <strong>Cue designer</strong> to build a simple tone cue
-  and export it as a WAV into a study's <code>cues/</code> folder, ready to use from the Audio
-  cue board (see <a href="#designing-a-cue">Designing a cue</a>).</li>
+    and export it as a WAV into a study's <code>cues/</code> folder, ready to use from the Audio
+    cue board (see <a href="#designing-a-cue">Designing a cue</a>).</li>
 <li><strong>Analyze</strong> — open a past session (a <code>.log</code>, a session folder, or a
-  zipped session) to see a summary (events, duration, subject/session, dream
-  reports), export its events to a BIDS <code>events.tsv</code>, or recover its settings to a
-  <code>.smacc</code> — all without starting a new session.</li>
+    zipped session) to see a summary (events, duration, subject/session, dream
+    reports), export its events to a BIDS <code>events.tsv</code>, or recover its settings to a
+    <code>.smacc</code> — all without starting a new session.</li>
 </ul>
 <p>Closing the Editor or a standalone tool returns you to the Launcher. Ending a
 Session quits SMACC entirely — the night is over. Closing the Launcher also
@@ -1411,7 +1411,7 @@ responses into the run folder next to the report; <strong>web surveys</strong> (
 questionnaire on Qualtrics or REDCap, added by URL) open in your browser. Manage
 both with the <strong>Manage…</strong> button next to the survey dropdown. Select a survey in
 the dropdown to open it automatically when recording starts, or open any survey
-on its own from <strong>File &rsaquo; Surveys</strong> (each open is logged as a
+on its own from <strong>File › Surveys</strong> (each open is logged as a
 <code>SurveyOpened</code> event). See <a href="../surveys/">Surveys</a> for the bundled instruments,
 the response-file format, and building your own.</p>
 <h2 id="biocals">Biocals</h2>
@@ -1423,17 +1423,17 @@ variants, fist clenches, sniffs), each on its own row.</p>
 <p>Each row has a toggle button plus two checkboxes and a duration:</p>
 <ul>
 <li><strong>Press the biocal's button</strong> to run it. The button stays depressed while it
-  runs and the countdown at the top shows the time remaining in its task window;
-  press it again to cancel early (no waiting out a botched 30-second window).</li>
+    runs and the countdown at the top shows the time remaining in its task window;
+    press it again to cancel early (no waiting out a botched 30-second window).</li>
 <li><strong>Voice</strong> — speak the pre-recorded instruction (e.g. <em>"Please close your eyes
-  and relax for thirty seconds."</em>) over the cue output when the biocal starts.
-  Leave it unchecked if you prefer to give instructions yourself.</li>
+    and relax for thirty seconds."</em>) over the cue output when the biocal starts.
+    Leave it unchecked if you prefer to give instructions yourself.</li>
 <li><strong>Seq</strong> — include this row when <strong>Play sequence</strong> runs the whole stack in
-  order. Standard biocals start checked; the lucid-dreaming ones start unchecked.</li>
+    order. Standard biocals start checked; the lucid-dreaming ones start unchecked.</li>
 <li><strong>Duration</strong> — the task window in seconds. With the voice on, the window (and
-  its countdown) starts when the instruction <em>ends</em>, so a 10-second breath hold
-  is a full 10 seconds — matching the manual practice of speaking first and
-  marking when the participant complies.</li>
+    its countdown) starts when the instruction <em>ends</em>, so a 10-second breath hold
+    is a full 10 seconds — matching the manual practice of speaking first and
+    marking when the participant complies.</li>
 </ul>
 <p><strong>Markers.</strong> Each biocal's <em>start</em> code fires when its task window opens; a shared
 <strong>completed</strong> code fires when the window runs out and a shared <strong>cancelled</strong> code
@@ -1521,15 +1521,15 @@ For each event you can set:</p>
 <li><strong>Code</strong> — the 8-bit port code (1–255) sent when the event triggers.</li>
 <li><strong>LSL</strong> — whether a firing sends the code over the LSL marker stream.</li>
 <li><strong>TTL</strong> — whether a firing sends the code over the hardware TTL trigger. The
-  column is grayed out until a transport is enabled in the window's <strong>Hardware
-  TTL transport</strong> section (the ticks are kept and re-arm with it). An event with
-  neither LSL nor TTL ticked is log-only.</li>
+    column is grayed out until a transport is enabled in the window's <strong>Hardware
+    TTL transport</strong> section (the ticks are kept and re-arm with it). An event with
+    neither LSL nor TTL ticked is log-only.</li>
 <li><strong>Preview</strong> — whether the event shows in the live log preview. The session log
-  <em>file</em> always records every event regardless; this only controls the on-screen
-  preview.</li>
+    <em>file</em> always records every event regardless; this only controls the on-screen
+    preview.</li>
 <li><strong>Increment</strong> — give an event a unique, increasing code on each firing (e.g. <strong>dream
-  reports</strong>: 201, 202, 203, …) so individual occurrences are findable in the trigger
-  channel. Off uses one fixed code each time.</li>
+    reports</strong>: 201, 202, 203, …) so individual occurrences are findable in the trigger
+    channel. Off uses one fixed code each time.</li>
 </ul>
 <p><strong>TTL safe max code</strong> raises a soft warning for TTL-routed codes above it — handy
 when your trigger hardware only accepts a limited range (some older systems do; LSL
@@ -1586,7 +1586,7 @@ launch once it grows large (one older <code>crash.log.1</code> generation is kep
 noise, visual cues, survey presets, event codes, display choices, and the <strong>data
 directory</strong> where runs are written — in a single portable <code>.smacc</code>. Create one in
 the Editor (the Launcher's <strong>Create</strong>/<strong>Edit</strong> buttons) or snapshot a running
-Session with <strong>File &rsaquo; Save SMACC file as…</strong>. Opening one starts a new
+Session with <strong>File › Save SMACC file as…</strong>. Opening one starts a new
 session with that configuration. See <a href="../smacc-files/">SMACC files</a> for the full
 story (creating, the data directory, opening by double-click), and the
 <a href="../reference/settings-file/">SMACC file reference</a> for the exact on-disk format.</p>
@@ -1596,8 +1596,8 @@ file: <strong>always-on-top</strong> (toggled per window — the Session window'
 menu, or each tool window's <strong>View</strong> menu, or <strong>Ctrl+T</strong> in whichever window is
 active) and which <strong>log levels</strong> show in the preview (the checkboxes above the
 log preview). Save them with the rest of the configuration from the Editor or
-with <strong>File &rsaquo; Save SMACC file as…</strong> in a Session.</p>
-<p>Tool windows close with <strong>Ctrl+W</strong> (or <strong>File &rsaquo; Close window</strong>) — that
+with <strong>File › Save SMACC file as…</strong> in a Session.</p>
+<p>Tool windows close with <strong>Ctrl+W</strong> (or <strong>File › Close window</strong>) — that
 only hides the window, with its state intact; the session keeps running and the
 Session window's Tools column reopens it.</p>
 <p>Separately, the machine remembers window positions and sizes and your recent files in

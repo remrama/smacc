@@ -1031,29 +1031,29 @@ night opens in seconds and scrolling stays smooth regardless of file size.</p>
 <h2 id="viewing">Viewing</h2>
 <ul>
 <li><strong>Window length</strong> — 10/30/60/120 s pages; <strong>30 s</strong> (one scoring epoch) is
-  the default. PageUp/PageDown page; the mouse wheel and scrollbar scroll;
-  click the traces and the arrow keys nudge, Home/End jump.</li>
+    the default. PageUp/PageDown page; the mouse wheel and scrollbar scroll;
+    click the traces and the arrow keys nudge, Home/End jump.</li>
 <li><strong>Filters</strong> — high-pass, low-pass, and a 50/60 Hz notch, applied to the
-  <em>display only</em> (zero-phase, so nothing shifts in time). Recordings open
-  <strong>unfiltered</strong> — the usual sleep view is two clicks away (HP 0.3 Hz, LP
-  35 Hz).</li>
+    <em>display only</em> (zero-phase, so nothing shifts in time). Recordings open
+    <strong>unfiltered</strong> — the usual sleep view is two clicks away (HP 0.3 Hz, LP
+    35 Hz).</li>
 <li><strong>Scale</strong> — microvolts per channel lane; smaller numbers mean bigger
-  traces. Trigger/stim channels are auto-fit to their lane.</li>
+    traces. Trigger/stim channels are auto-fit to their lane.</li>
 <li>The status bar shows the cursor's time from recording start <strong>and the
-  wall-clock time</strong>, so events line up with the night's session log.</li>
+    wall-clock time</strong>, so events line up with the night's session log.</li>
 </ul>
 <h2 id="annotating">Annotating</h2>
 <ol>
 <li><strong>Drag</strong> across the traces to mark a span (drag never pans — the time
-   axis only moves when you ask it to).</li>
+    axis only moves when you ask it to).</li>
 <li>Name it in the label dialog — recent labels and common marks (LRLR,
-   arousal, artifact, cue response) are one click; free text always works.
-   Tick <strong>instantaneous</strong> to keep just the moment instead of the dragged span.</li>
+    arousal, artifact, cue response) are one click; free text always works.
+    Tick <strong>instantaneous</strong> to keep just the moment instead of the dragged span.</li>
 <li><strong>Click</strong> an annotation to select it; use the side list to rename,
-   delete, or jump to one (double-click).</li>
+    delete, or jump to one (double-click).</li>
 <li><strong>Save annotations</strong> writes the sidecar next to the recording:
-   <code>night1.edf</code> → <code>night1.annotations.tsv</code> (+ a small <code>.json</code> describing it).
-   Unsaved changes star the title and prompt before closing.</li>
+    <code>night1.edf</code> → <code>night1.annotations.tsv</code> (+ a small <code>.json</code> describing it).
+    Unsaved changes star the title and prompt before closing.</li>
 </ol>
 <p>Events already stored <strong>inside</strong> the recording — amp markers, SMACC's own
 trigger codes — are imported automatically the <em>first</em> time a file is

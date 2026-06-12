@@ -1003,19 +1003,19 @@ from the task-oriented <a href="../usage/">Usage</a> guide.</p>
 <h2 id="where-each-file-lives">Where each file lives</h2>
 <ul>
 <li>The <strong>SMACC directory</strong> (<code>$SMACC_DIRECTORY</code>, else <code>~/SMACC</code>) holds <code>preferences.yaml</code>,
-  the seeded <code>default.smacc</code>, and the default data directory.</li>
+    the seeded <code>default.smacc</code>, and the default data directory.</li>
 <li>A <strong><code>.smacc</code></strong> can live anywhere; it names the <strong>data directory</strong> its runs are
-  written to.</li>
+    written to.</li>
 <li>Each <strong>run</strong> gets its own timestamped folder (<code>smacc-YYYYmmdd-HHMMSS/</code>) under that
-  data directory, holding the session <code>.log</code>, any dream-report audio, survey
-  responses, and exports.</li>
+    data directory, holding the session <code>.log</code>, any dream-report audio, survey
+    responses, and exports.</li>
 <li><strong>Custom survey definitions</strong> live in the SMACC directory's <code>surveys/</code> folder;
-  built-in ones ship inside SMACC itself.</li>
+    built-in ones ship inside SMACC itself.</li>
 <li><strong>Bundled assets refresh on upgrade.</strong> <code>default.smacc</code> (a read-only template) and
-  the <code>demo-</code> cues are re-seeded from the bundle when they change, so a newer
-  SMACC's improvements reach an existing directory; your own files are untouched.
-  Biocal voice recordings are read straight from the bundle, with the SMACC
-  directory's <code>biocals/</code> folder as an optional per-recording override.</li>
+    the <code>demo-</code> cues are re-seeded from the bundle when they change, so a newer
+    SMACC's improvements reach an existing directory; your own files are untouched.
+    Biocal voice recordings are read straight from the bundle, with the SMACC
+    directory's <code>biocals/</code> folder as an optional per-recording override.</li>
 </ul>
 <h2 id="stability-promise">Stability promise</h2>
 <p><code>.smacc</code> and <code>preferences.yaml</code> each carry an integer <code>schema_version</code>, currently

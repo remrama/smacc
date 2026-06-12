@@ -1109,13 +1109,13 @@ proof, that's what the bedroom camera (or your own eyes) is for.</p>
 <h2 id="patterns">Patterns</h2>
 <ul>
 <li><strong>Steady</strong> — constant light for the length. With a long fade-in this is also the
-  ambient/dawn workhorse (see <a href="#recipes">Recipes</a>).</li>
+    ambient/dawn workhorse (see <a href="#recipes">Recipes</a>).</li>
 <li><strong>Pulse</strong> — a smooth brightness wave at the chosen rate (it starts dark and peaks
-  mid-cycle, so onset is gentle). The usual choice for a salient-but-sleep-friendly
-  cue.</li>
+    mid-cycle, so onset is gentle). The usual choice for a salient-but-sleep-friendly
+    cue.</li>
 <li><strong>Flash</strong> — full on/off at the chosen rate (half on, half off). Maximal salience;
-  the classic photic stimulus. BlinkStick only — see
-  <a href="#blinkstick-or-philips-hue">the comparison</a> and <a href="#safety">Safety</a>.</li>
+    the classic photic stimulus. BlinkStick only — see
+    <a href="#blinkstick-or-philips-hue">the comparison</a> and <a href="#safety">Safety</a>.</li>
 </ul>
 <p>The rate is set in <strong>Hz</strong>, the unit your methods section wants. The fades stay
 separate from the pattern on purpose: the pattern <em>is</em> the stimulus, while the
@@ -1128,14 +1128,14 @@ the flicker.</p>
 events, each carrying the cue's name. Two details matter for analysis:</p>
 <ul>
 <li><strong><code>VisualStarted</code> fires after the first frame is committed to the device.</strong> On a
-  BlinkStick the USB write takes ~1–2 ms, so the marker trails the photons by
-  about that much. On Hue, "committed" means the bridge accepted the command — the
-  bulb itself transitions over the following ~100–200 ms, so the marker <em>leads</em>
-  the photons by that lag (and it varies). Time-locked analyses should use the
-  BlinkStick.</li>
+    BlinkStick the USB write takes ~1–2 ms, so the marker trails the photons by
+    about that much. On Hue, "committed" means the bridge accepted the command — the
+    bulb itself transitions over the following ~100–200 ms, so the marker <em>leads</em>
+    the photons by that lag (and it varies). Time-locked analyses should use the
+    BlinkStick.</li>
 <li><strong><code>VisualStopped</code> fires once the light is actually dark</strong> — after the fade-out
-  completes, not when Stop is pressed. The pair brackets the physical stimulus,
-  not the button presses.</li>
+    completes, not when Stop is pressed. The pair brackets the physical stimulus,
+    not the button presses.</li>
 </ul>
 <p>Every stop path turns the light off — Stop, the length running out, switching to
 another cue, a device failure, or quitting SMACC — so a cue can't be left burning
@@ -1226,36 +1226,36 @@ point.</p>
 <h2 id="recipes">Recipes</h2>
 <ul>
 <li><strong>A TLR-style lucidity cue</strong> — red, brightness ~0.2, <strong>pulse</strong> at 1 Hz, length
-  10 s, fade in/out ~1 s. Salient enough to penetrate REM, gentle enough to keep
-  it.</li>
+    10 s, fade in/out ~1 s. Salient enough to penetrate REM, gentle enough to keep
+    it.</li>
 <li><strong>Dawn simulation</strong> — warm white, <strong>steady</strong>, length 300 s, fade in 60 s, on a
-  Hue group: the room brightens like a sunrise for a gentler scheduled awakening.</li>
+    Hue group: the room brightens like a sunrise for a gentler scheduled awakening.</li>
 <li><strong>Cue vs. sham</strong> — two identical rows, the sham at brightness 0. The sham fires
-  real <code>VisualStarted</code>/<code>VisualStopped</code> markers with zero light, so the trigger
-  channel shows both conditions while only one stimulates.</li>
+    real <code>VisualStarted</code>/<code>VisualStopped</code> markers with zero light, so the trigger
+    channel shows both conditions while only one stimulates.</li>
 </ul>
 <h2 id="known-limitations">Known limitations</h2>
 <ul>
 <li>A BlinkStick's LEDs all show <strong>one color at a time</strong> — per-LED patterns are a
-  documented non-goal
-  (<a href="https://github.com/remrama/smacc/issues/11">#11</a>, closed as documented).</li>
+    documented non-goal
+    (<a href="https://github.com/remrama/smacc/issues/11">#11</a>, closed as documented).</li>
 <li><strong>One light at a time</strong>: cues are one-at-a-time on one routed device; SMACC does
-  not fire a BlinkStick and a Hue simultaneously.</li>
+    not fire a BlinkStick and a Hue simultaneously.</li>
 <li><strong>No flash on Hue</strong>, and Hue onsets lag their markers — see
-  <a href="#blinkstick-or-philips-hue">the comparison</a>.</li>
+    <a href="#blinkstick-or-philips-hue">the comparison</a>.</li>
 </ul>
 <h2 id="troubleshooting">Troubleshooting</h2>
 <ul>
 <li><strong>The BlinkStick isn't listed</strong> — replug it and press <code>F5</code> (or click <strong>Refresh
-  devices</strong> in the Devices window). The driver ships inside SMACC; nothing to install.</li>
+    devices</strong> in the Devices window). The driver ships inside SMACC; nothing to install.</li>
 <li><strong>"No light is set."</strong> — bind the device in the <strong>Devices</strong> window <em>and</em> check
-  that <em>Play visual cue</em> is routed to that light.</li>
+    that <em>Play visual cue</em> is routed to that light.</li>
 <li><strong>The Hue bridge stopped responding</strong> — its IP probably changed; re-enter it in
-  <strong>Set up Philips Hue…</strong> (and give the bridge a DHCP reservation so it stays
-  put). If pairing fails from lab Wi-Fi, see the network note above.</li>
+    <strong>Set up Philips Hue…</strong> (and give the bridge a DHCP reservation so it stays
+    put). If pairing fails from lab Wi-Fi, see the network note above.</li>
 <li><strong>A light stayed on</strong> — SMACC turns lights off on every stop and on quit, so a
-  stuck light means the app was killed mid-cue or the device dropped: replug the
-  stick, or power-cycle the bulb (or toggle it in the Hue app).</li>
+    stuck light means the app was killed mid-cue or the device dropped: replug the
+    stick, or power-cycle the bulb (or toggle it in the Hue app).</li>
 </ul>
 
 

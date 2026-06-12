@@ -1075,13 +1075,13 @@ of several controls spread across the OS.</p>
 window</strong> (in the <em>Tools</em> column) where you do two things:</p>
 <ol>
 <li><strong>Bind each piece of <em>equipment</em> to a device, once.</strong> Equipment entries are
-   the physical endpoints of a rig, named by place: <strong>Bedroom speaker</strong>, <strong>Control-room speaker</strong>, <strong>Bedroom
-   mic 1</strong> (and an optional <strong>Bedroom mic 2</strong>), the <strong>Control-room mic</strong> (the
-   experimenter's intercom voice), plus the light devices (<strong>BlinkStick light</strong>,
-   <strong>Philips Hue light</strong>).</li>
+    the physical endpoints of a rig, named by place: <strong>Bedroom speaker</strong>, <strong>Control-room speaker</strong>, <strong>Bedroom
+    mic 1</strong> (and an optional <strong>Bedroom mic 2</strong>), the <strong>Control-room mic</strong> (the
+    experimenter's intercom voice), plus the light devices (<strong>BlinkStick light</strong>,
+    <strong>Philips Hue light</strong>).</li>
 <li><strong>Route each <em>action</em> to equipment.</strong> Every action names what SMACC does
-   with a device — <em>Play audio cue</em>, <em>Record dream report</em> — and each points
-   at a piece of equipment. Hover any row in the window for a full description.</li>
+    with a device — <em>Play audio cue</em>, <em>Record dream report</em> — and each points
+    at a piece of equipment. Hover any row in the window for a full description.</li>
 </ol>
 <p>The cue, the noise, and your intercom voice can all share the <strong>Bedroom
 speaker</strong>, so swapping it is one change rather than several. Every other
@@ -1107,17 +1107,17 @@ its default device on its own — plugging in an HDMI monitor or a Bluetooth hea
 is enough — and an overnight study must not follow it. Instead:</p>
 <ul>
 <li>When a session starts (or loads a study) with nothing bound to the <strong>Bedroom
-  speaker</strong>, <strong>Bedroom mic 1</strong>, or the <strong>Control-room mic</strong>, SMACC binds the device
-  that is <em>currently</em> the Windows default — explicitly, by name — and logs which
-  one it picked. From then on the binding is pinned: changing the Windows default
-  never re-routes a study.</li>
+    speaker</strong>, <strong>Bedroom mic 1</strong>, or the <strong>Control-room mic</strong>, SMACC binds the device
+    that is <em>currently</em> the Windows default — explicitly, by name — and logs which
+    one it picked. From then on the binding is pinned: changing the Windows default
+    never re-routes a study.</li>
 <li>Equipment with nothing bound reads <strong>(none)</strong>, and anything routed to it
-  reports a clear error instead of quietly playing somewhere else.</li>
+    reports a clear error instead of quietly playing somewhere else.</li>
 <li>If no device is connected at all, the dropdown says so (e.g. <strong>No output device
-  found</strong>) rather than offering an empty choice.</li>
+    found</strong>) rather than offering an empty choice.</li>
 <li>A bound device that isn't currently connected shows as <strong>(not connected)</strong> and
-  is kept — never silently swapped — until you pick another device or plug it back
-  in (then <strong>Refresh devices (F5)</strong>).</li>
+    is kept — never silently swapped — until you pick another device or plug it back
+    in (then <strong>Refresh devices (F5)</strong>).</li>
 </ul>
 <p>The study editor never auto-binds: a study built on an office machine arrives at
 the rig with its equipment unbound, and the rig pins its own defaults on first
@@ -1126,18 +1126,18 @@ load.</p>
 <p>Three optional routes cover the things you reach for mid-study:</p>
 <ul>
 <li><strong>Listen to audio cue (fan-out).</strong> Route <em>Listen to audio cue</em> to the
-  control-room speaker and each cue plays in the bedroom and the control room at
-  once, so you hear what the participant hears.</li>
+    control-room speaker and each cue plays in the bedroom and the control room at
+    once, so you hear what the participant hears.</li>
 <li><strong>Listen to participant.</strong> The intercom is two-way: <strong>Speak to participant</strong>
-  sends your voice — picked up by the <strong>Control-room mic</strong> — to the participant
-  (and is marked in the EEG record), while <strong>Listen to participant</strong> brings the
-  participant's mic to your control-room speaker. The intercom also has a typed <a href="../usage/#text-chat">text-chat mode</a>
-  (no audio device involved) for hearing-impaired participants.</li>
+    sends your voice — picked up by the <strong>Control-room mic</strong> — to the participant
+    (and is marked in the EEG record), while <strong>Listen to participant</strong> brings the
+    participant's mic to your control-room speaker. The intercom also has a typed <a href="../usage/#text-chat">text-chat mode</a>
+    (no audio device involved) for hearing-impaired participants.</li>
 <li><strong>Monitor bedroom noise.</strong> A microphone meter in the Audio cue window that
-  confirms a cue is audible in the bedroom (see
-  <a href="#is-the-cue-reaching-the-bedroom">below</a>). It defaults to <strong>Bedroom mic 1</strong>, or
-  bind a dedicated, more sensitive <strong>Bedroom mic 2</strong> and route <em>Monitor bedroom
-  noise</em> to it.</li>
+    confirms a cue is audible in the bedroom (see
+    <a href="#is-the-cue-reaching-the-bedroom">below</a>). It defaults to <strong>Bedroom mic 1</strong>, or
+    bind a dedicated, more sensitive <strong>Bedroom mic 2</strong> and route <em>Monitor bedroom
+    noise</em> to it.</li>
 </ul>
 <h2 id="one-audio-engine">One audio engine</h2>
 <p>All real-time audio (cues, noise, the intercom, the dream-report recorder, and the
@@ -1170,16 +1170,16 @@ bedroom speaker could be muted, unplugged, or turned down at the hardware. The
 <strong>Audio cue</strong> window's <strong>Monitoring</strong> section shows two meters so you can tell:</p>
 <ul>
 <li><strong>Sending</strong> — the level SMACC is emitting to the cue output, the moment it plays.
-  It's exact, but it only confirms SMACC is <em>playing</em>; it's blind to everything
-  downstream (Windows volume, the speaker's power switch, the cable). Treat it as a
-  diagnostic: if <em>Sending</em> is dark, the problem is on SMACC's side (wrong cue, the
-  per-cue volume or the safety cap at zero); if it's lit but the room is silent, the
-  problem is the speaker.</li>
+    It's exact, but it only confirms SMACC is <em>playing</em>; it's blind to everything
+    downstream (Windows volume, the speaker's power switch, the cable). Treat it as a
+    diagnostic: if <em>Sending</em> is dark, the problem is on SMACC's side (wrong cue, the
+    per-cue volume or the safety cap at zero); if it's lit but the room is silent, the
+    problem is the speaker.</li>
 <li><strong>Bedroom</strong> — the level a microphone actually picks up in the room. This is the
-  objective check: it only moves when sound really happens in the bedroom. Tick the
-  box beside it to start monitoring. Because a faint cue can sit close to a cheap
-  mic's noise floor, the meter also shows the <strong>rise above the room's resting level</strong>
-  (the <code>+N</code> next to the reading), so even a small bump stands out.</li>
+    objective check: it only moves when sound really happens in the bedroom. Tick the
+    box beside it to start monitoring. Because a faint cue can sit close to a cheap
+    mic's noise floor, the meter also shows the <strong>rise above the room's resting level</strong>
+    (the <code>+N</code> next to the reading), so even a small bump stands out.</li>
 </ul>
 <div class="admonition tip">
 <p class="admonition-title">A dedicated monitoring mic</p>
@@ -1204,12 +1204,12 @@ failed. Read it together with <em>Sending</em>.</p>
 gain explicit and adds a safety limit, in the <strong>Volume</strong> window:</p>
 <ul>
 <li><strong>Output safety cap.</strong> A single master ceiling, applied as the last gain stage on
-  every cue and noise output. However loud an individual cue is set, the cap is a
-  hard limit, so a full-volume looped cue on a calibrated rig can't suddenly blast a
-  sleeping participant.</li>
+    every cue and noise output. However loud an individual cue is set, the cap is a
+    hard limit, so a full-volume looped cue on a calibrated rig can't suddenly blast a
+    sleeping participant.</li>
 <li><strong>A read-only view of the Windows stages.</strong> The window shows the current <strong>system
-  output volume</strong> and <strong>SMACC's own level</strong> in the Windows Volume Mixer, so the
-  hidden OS stages are visible.</li>
+    output volume</strong> and <strong>SMACC's own level</strong> in the Windows Volume Mixer, so the
+    hidden OS stages are visible.</li>
 </ul>
 <div class="admonition tip">
 <p class="admonition-title">Calibrating cue level</p>

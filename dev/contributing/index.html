@@ -1078,16 +1078,16 @@ first.</p>
 <h2 id="conventions">Conventions</h2>
 <ul>
 <li>Always use <a href="https://docs.astral.sh/uv/">uv</a> to run Python scripts and install
-  dependencies. Never <code>pip install</code> or run naked <code>python</code>.</li>
+    dependencies. Never <code>pip install</code> or run naked <code>python</code>.</li>
 <li>Use the marker vocabulary consistently in UI text, docs, and docstrings — <em>event</em>,
-  <em>marker</em>, <em>port code</em>, <em>trigger</em>, <em>transport</em> each mean exactly one thing; see the
-  <a href="../triggers/#terminology">terminology table</a>.</li>
+    <em>marker</em>, <em>port code</em>, <em>trigger</em>, <em>transport</em> each mean exactly one thing; see the
+    <a href="../triggers/#terminology">terminology table</a>.</li>
 <li>Pick log levels by the <a href="../reference/session-log/#log-levels">session-log convention</a>:
-  <code>DEBUG</code> for housekeeping/high-frequency detail, <code>INFO</code> for markers and meaningful
-  operator actions, <code>WARNING</code> for mid-session config changes and recoverable faults,
-  <code>ERROR</code> for faults that cost something. The file records every level, so demoting a
-  line to <code>DEBUG</code> only moves it out of the default live preview, never out of the
-  record.</li>
+    <code>DEBUG</code> for housekeeping/high-frequency detail, <code>INFO</code> for markers and meaningful
+    operator actions, <code>WARNING</code> for mid-session config changes and recoverable faults,
+    <code>ERROR</code> for faults that cost something. The file records every level, so demoting a
+    line to <code>DEBUG</code> only moves it out of the default live preview, never out of the
+    record.</li>
 </ul>
 <h2 id="commit-and-pull-request-style">Commit and pull-request style</h2>
 <p>Keep the history skimmable and merge commits clean.</p>
@@ -1095,10 +1095,10 @@ first.</p>
 <ul>
 <li>One line only — a subject, with no body or extended description.</li>
 <li>Start with a <a href="https://www.conventionalcommits.org/">Conventional Commits</a> prefix:
-  <code>feat:</code>, <code>fix:</code>, <code>docs:</code>, <code>refactor:</code>, <code>test:</code>, <code>chore:</code>, <code>build:</code>, <code>ci:</code>, or
-  <code>perf:</code>.</li>
+    <code>feat:</code>, <code>fix:</code>, <code>docs:</code>, <code>refactor:</code>, <code>test:</code>, <code>chore:</code>, <code>build:</code>, <code>ci:</code>, or
+    <code>perf:</code>.</li>
 <li>Imperative mood, lower-case after the prefix, no trailing period, and ideally
-  under ~72 characters.</li>
+    under ~72 characters.</li>
 <li>No AI attribution or co-author trailers.</li>
 </ul>
 <div class="highlight"><pre><span></span><code>feat: optional hardware TTL trigger output
@@ -1108,15 +1108,15 @@ fix: clamp incrementing port codes to 255
 <p><strong>Pull requests</strong></p>
 <ul>
 <li>The title follows the same one-line Conventional-Commits rule — on a squash merge
-  it becomes the commit subject (GitHub appends the <code>(#NN)</code> PR number).</li>
+    it becomes the commit subject (GitHub appends the <code>(#NN)</code> PR number).</li>
 <li>The body is a brief summary, not an exhaustive change list: what changed, why, and
-  how it was verified. A few sentences or bullets is plenty.</li>
+    how it was verified. A few sentences or bullets is plenty.</li>
 <li>No AI attribution footer.</li>
 </ul>
 <p><strong>Merging</strong></p>
 <ul>
 <li>Squash-merge, and clear the auto-generated commit body so the merged commit is the
-  one-line title alone — no bundled description or commit list.</li>
+    one-line title alone — no bundled description or commit list.</li>
 </ul>
 <h2 id="development">Development</h2>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>dev<span class="w">        </span><span class="c1"># create the environment with dev tools</span>
@@ -1125,6 +1125,7 @@ uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w">     
 uv<span class="w"> </span>run<span class="w"> </span>ruff<span class="w"> </span>check<span class="w"> </span>.<span class="w">        </span><span class="c1"># lint</span>
 uv<span class="w"> </span>run<span class="w"> </span>ruff<span class="w"> </span>format<span class="w"> </span>.<span class="w">       </span><span class="c1"># format</span>
 uv<span class="w"> </span>run<span class="w"> </span>mypy<span class="w">                </span><span class="c1"># type-check</span>
+uv<span class="w"> </span>run<span class="w"> </span>--extra<span class="w"> </span>docs<span class="w"> </span>mdformat<span class="w"> </span>.<span class="w">   </span><span class="c1"># format Markdown (docs, README, …)</span>
 pre-commit<span class="w"> </span>install<span class="w">         </span><span class="c1"># enable the lint/format/type-check git hooks</span>
 </code></pre></div>
 <p><code>uv run smacc</code> also works once the environment is synced — it's the installed GUI
@@ -1212,15 +1213,15 @@ on each <code>v*</code> release tag.</p>
 <ul>
 <li><code>src/</code> layout: the package lives in <code>src/smacc/</code>.</li>
 <li>The single source of truth for the version is <code>__version__</code> in
-  <code>src/smacc/__init__.py</code>; <code>config.py</code> and the packaging metadata both read from
-  it.</li>
+    <code>src/smacc/__init__.py</code>; <code>config.py</code> and the packaging metadata both read from
+    it.</li>
 <li>The build/runtime Python is pinned to <strong>3.13</strong> in <code>.python-version</code>. The
-  minimum OS is <strong>Windows 10</strong>, set by Qt 6 (PyQt6) — Qt 5 was the last line that
-  still ran on Windows 8.1. Keep the pin unless you intend to move the Python floor.</li>
+    minimum OS is <strong>Windows 10</strong>, set by Qt 6 (PyQt6) — Qt 5 was the last line that
+    still ran on Windows 8.1. Keep the pin unless you intend to move the Python floor.</li>
 <li>SMACC is distributed only as a frozen <code>SMACC.exe</code> (no PyPI), so CI tests what
-  ships rather than a version range: the <code>test</code> job in <code>ci.yaml</code> runs on the same
-  <code>windows-2022</code> + Python 3.13 + locked dependencies as the release build
-  (<code>release.yaml</code>), in a single job rather than a multi-version matrix.</li>
+    ships rather than a version range: the <code>test</code> job in <code>ci.yaml</code> runs on the same
+    <code>windows-2022</code> + Python 3.13 + locked dependencies as the release build
+    (<code>release.yaml</code>), in a single job rather than a multi-version matrix.</li>
 </ul>
 
 
