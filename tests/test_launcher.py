@@ -136,3 +136,61 @@ def test_start_session_aborts_when_the_file_breaks_after_selection(
     # The double-click flow starts a session before the launcher is ever shown;
     # on rejection the launcher must come up rather than leave no window at all.
     assert win.isVisible()
+
+
+# ----- the start-of-session metadata prompt (#184) ----------------------------
+
+
+def test_start_session_prompts_and_passes_metadata(qtbot, tmp_path, monkeypatch):
+    from smacc.toolwindow import ToolWindow
+
+    monkeypatch.setattr(launcher, "preferences_path", tmp_path / "preferences.yaml")
+    captured = {}
+
+    class FakeSession:
+        def __init__(self, data_dir, metadata=None):
+            captured["metadata"] = metadata
+
+    monkeypatch.setattr(launcher, "SmaccSession", FakeSession)
+    monkeypatch.setattr(
+        launcher, "SmaccWindow", lambda session, settings_path=None: ToolWindow()
+    )
+    entered = {"subject": "sub-001", "session": "ses-02", "notes": "first night"}
+    monkeypatch.setattr(
+        LauncherWindow, "_prompt_session_info", lambda self: dict(entered)
+    )
+    win = LauncherWindow(settings_path=None)
+    qtbot.addWidget(win)
+    win.start_session()
+    assert captured["metadata"] == entered
+    assert win._tool is not None  # the session window was opened
+
+
+def test_start_session_cancelled_prompt_aborts(qtbot, tmp_path, monkeypatch):
+    monkeypatch.setattr(launcher, "preferences_path", tmp_path / "preferences.yaml")
+    monkeypatch.setattr(LauncherWindow, "_prompt_session_info", lambda self: None)
+    win = LauncherWindow(settings_path=None)
+    qtbot.addWidget(win)
+    win.start_session()
+    assert win._tool is None  # no session was started
+    # The double-click flow prompts before the launcher is ever shown; on Cancel
+    # the launcher must come up rather than leave no window at all.
+    assert win.isVisible()
+
+
+def test_prompt_session_info_prefills_from_the_smacc_file(qtbot, tmp_path, monkeypatch):
+    from smacc import dialogs, settings
+
+    monkeypatch.setattr(launcher, "preferences_path", tmp_path / "preferences.yaml")
+    good = tmp_path / "study.smacc"
+    settings.save_settings(
+        good, {}, {"subject": "sub-001", "session": "ses-02", "notes": "template"}
+    )
+    monkeypatch.setattr(dialogs.SessionInfoDialog, "exec", lambda self: True)
+    win = LauncherWindow(settings_path=str(good))
+    qtbot.addWidget(win)
+    assert win._prompt_session_info() == {
+        "subject": "sub-001",
+        "session": "ses-02",
+        "notes": "template",
+    }

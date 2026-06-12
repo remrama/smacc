@@ -469,3 +469,33 @@ def test_editor_save_marks_clean(
     prompts = _watch_close_prompt(monkeypatch)
     assert window.close() is True
     assert prompts == []
+
+
+# ----- metadata precedence: the start-of-session prompt wins (#184) -----------
+
+
+def test_live_session_keeps_prompted_metadata_over_file_metadata(
+    qtbot, live_session, mock_devices, silence_dialogs
+):
+    # The start-of-session prompt (already prefilled from the file) owns the
+    # metadata; loading the file must not overwrite or restore values, or a
+    # field the operator edited/cleared in the prompt would silently revert.
+    live_session.metadata.update({"subject": "tonight", "session": ""})
+    window = SmaccWindow(live_session)
+    qtbot.addWidget(window)
+    window._apply_loaded_settings(
+        window.gather_settings(), {"subject": "template", "session": "ses-9"}
+    )
+    assert live_session.metadata["subject"] == "tonight"
+    assert live_session.metadata["session"] == ""
+
+
+def test_editor_adopts_loaded_file_metadata(
+    qtbot, design_session, mock_devices, silence_dialogs
+):
+    # The editor has no start prompt; a loaded file's metadata lands so it can
+    # be viewed/edited and saved back.
+    window = SmaccWindow(design_session)
+    qtbot.addWidget(window)
+    window._apply_loaded_settings(window.gather_settings(), {"subject": "template"})
+    assert design_session.metadata["subject"] == "template"

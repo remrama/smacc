@@ -1143,8 +1143,16 @@ class SmaccWindow(ToolWindow):
         return ask_initial_or_final(self, title="Load settings from log")
 
     def _apply_loaded_settings(self, state: dict, metadata: dict) -> None:
-        """Apply panel state and merge any non-empty loaded metadata into the session."""
+        """Apply panel state; in the editor, also adopt the file's metadata.
+
+        A live session's metadata comes from the start-of-session prompt (#184),
+        which was already prefilled from the file — re-merging the file's values
+        here would silently undo whatever the operator edited or cleared in that
+        prompt. The editor has no prompt, so it adopts the loaded file's values.
+        """
         self.apply_settings(state)
+        if not self.design:
+            return
         for key in ("subject", "session", "notes"):
             value = metadata.get(key)
             if value:

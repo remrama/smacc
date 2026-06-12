@@ -23,6 +23,7 @@ from . import eeg, preferences, settings, updates, winassoc, windowstate
 from .analyze import AnalyzeWindow
 from .config import VERSION
 from .cuedesigner import CueDesignerWindow
+from .dialogs import SessionInfoDialog
 from .gui import SmaccWindow
 from .paths import DEFAULT_DATA_DIR, DEFAULT_SETTINGS_PATH, LOGO_PATH, preferences_path
 from .session import SmaccSession
@@ -383,13 +384,47 @@ class LauncherWindow(QtWidgets.QMainWindow):
             self._set_settings(None)  # fall back to the built-in defaults
             self.show()  # the double-click flow starts before the launcher is shown
             return
-        session = SmaccSession(self._data_dir())
+        # Capture subject/session/notes before the session window opens (#184):
+        # metadata not entered at the start is usually lost. The fields stay
+        # optional — OK with blanks is a conscious skip — but Cancel backs out
+        # of starting the session at all.
+        metadata = self._prompt_session_info()
+        if metadata is None:
+            self.show()  # the double-click flow starts before the launcher is shown
+            return
+        session = SmaccSession(self._data_dir(), metadata=metadata)
         window = SmaccWindow(session, settings_path=self._settings_path)
         if self._settings_path:
             preferences.update_preferences(
                 preferences_path, {"last_settings": self._settings_path}
             )
         self._open_tool(window)
+
+    def _prompt_session_info(self) -> dict[str, str] | None:
+        """Ask for the optional subject/session/notes; None means Cancel.
+
+        Prefilled from the metadata stored in the selected SMACC file, so a study
+        template's values are offered for confirmation rather than retyped. The
+        prompt's result is the session's metadata — the file's stored values are
+        deliberately not re-merged after this (see SmaccWindow._apply_loaded_settings),
+        so clearing a prefilled field here sticks.
+        """
+        stored: dict = {}
+        if self._settings_path:
+            try:
+                _, stored = settings.load_settings(self._settings_path)
+            except (OSError, ValueError):
+                stored = {}  # already reported by the pre-start check
+        dialog = SessionInfoDialog(
+            str(stored.get("subject") or ""),
+            str(stored.get("session") or ""),
+            str(stored.get("notes") or ""),
+            parent=self,
+        )
+        if not dialog.exec():
+            return None
+        subject, session, notes = dialog.get_inputs()
+        return {"subject": subject, "session": session, "notes": notes}
 
     def create_settings(self) -> None:
         """Open the editor on a fresh settings file (built-in defaults; Save-As)."""
