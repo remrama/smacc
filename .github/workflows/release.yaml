@@ -4,9 +4,28 @@ on:
   push:
     tags:
       - "v*"
+  # Non-publishing verification runs (#190): trigger manually, or automatically
+  # on PRs that touch the packaging files. These build and smoke-test the exes
+  # and installer and upload them as workflow artifacts, but never create a
+  # GitHub release — publishing is gated on a tag ref below.
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/release.yaml"
+      - "tools/smacc.iss"
+      - "tools/make_versionfile.py"
+      - "entry.py"
+      - "entry_eeg.py"
 
 permissions:
   contents: write
+
+# A packaging PR can push several times in a row; each run holds a Windows
+# runner for up to 30 minutes, so supersede in-flight verification runs. Tag
+# runs are never cancelled.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   build-exe:
@@ -29,16 +48,22 @@ jobs:
       # and nothing reachable from the base app imports the MNE-touching eeg
       # modules (smacc.eeg's __init__ is import-light by design).
       - run: uv sync --extra dev --extra eeg
+      # The installer is stamped with smacc.__version__ on every run; a
+      # dispatch/PR verification run builds whatever version is checked out.
+      - name: Read smacc.__version__
+        run: |
+          $version = (uv run python -c "import smacc; print(smacc.__version__)")
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
       # The tag is the release's public version; smacc.__version__ is what the app
       # reports (About dialog, --version) and what the installer is stamped with.
       # A mismatch would ship an installer that misidentifies itself, so fail fast.
+      # Tag runs only: verification runs have no tag to compare against.
       - name: Check the tag matches smacc.__version__
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
-          $version = (uv run python -c "import smacc; print(smacc.__version__)")
-          if ("v$version" -ne "${{ github.ref_name }}") {
-            throw "Tag ${{ github.ref_name }} does not match smacc.__version__ ($version)"
+          if ("v$env:VERSION" -ne "${{ github.ref_name }}") {
+            throw "Tag ${{ github.ref_name }} does not match smacc.__version__ ($env:VERSION)"
           }
-          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
       # Embeds product name/version/publisher in the exe's Properties dialog —
       # metadata IT departments look at when vetting or whitelisting a binary.
       # Each call is checked: the step's result otherwise reflects only the
@@ -128,7 +153,21 @@ jobs:
           if (-not (Test-Path $eeg)) { throw "Installed EEG exe not found at $eeg" }
           $p = Start-Process -FilePath $eeg -ArgumentList '--selftest' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Installed SMACC-EEG.exe --selftest exited with code $($p.ExitCode)" }
+      # Every run leaves the build products behind as workflow artifacts, so a
+      # verification run's exes/installer can be downloaded and inspected
+      # without publishing anything.
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: smacc-build-${{ env.VERSION }}
+          path: |
+            dist/SMACC.exe
+            dist/SMACC-EEG.exe
+            dist/SMACC-Setup.exe
+      # Publishing is tag-gated: dispatch/PR verification runs stop at the
+      # artifact upload above.
       - name: Attach exes and installer to release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
           files: |
