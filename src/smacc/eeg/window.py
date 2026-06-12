@@ -217,7 +217,9 @@ class EegReviewWindow(QtWidgets.QMainWindow):
     def _build_controls_row(self) -> QtWidgets.QLayout:
         row = QtWidgets.QHBoxLayout()
         openButton = QtWidgets.QPushButton("Open recording…", self)
-        openButton.setStatusTip("Open an EEG recording (EDF, BrainVision, or FIF).")
+        openButton.setStatusTip(
+            "Open an EEG recording (EDF, BrainVision, FIF, Neuroscan .cnt, EEGLAB .set)."
+        )
         openButton.clicked.connect(self.open_file)
         row.addWidget(openButton)
         row.addSpacing(12)
