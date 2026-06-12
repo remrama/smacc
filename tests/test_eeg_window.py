@@ -9,6 +9,7 @@ touches the machine's real ``preferences.yaml``.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
@@ -26,6 +27,7 @@ from smacc.eeg import window as window_mod
 from smacc.eeg.__main__ import pick_recording_path
 from smacc.eeg.annotations import (
     Annotation,
+    autosave_path,
     read_annotations_tsv,
     sidecar_paths,
     write_annotations_tsv,
@@ -448,9 +450,7 @@ def test_a_focused_list_keeps_up_down_but_yields_left_right(
     assert window._handle_nav_key(_key(QtCore.Qt.Key.Key_Right)) is True  # still pages
 
 
-def test_event_filter_routes_keys_only_when_active(
-    window, recording_path, monkeypatch
-):
+def test_event_filter_routes_keys_only_when_active(window, recording_path, monkeypatch):
     window._load(recording_path)
     monkeypatch.setattr(
         QtWidgets.QApplication, "focusWidget", staticmethod(lambda: None)
@@ -494,7 +494,9 @@ def test_resuming_a_sidecar_saves_without_a_prompt(window, recording_path, monke
     monkeypatch.setattr(
         QtWidgets.QMessageBox,
         "question",
-        lambda *a, **k: pytest.fail("no overwrite prompt when resuming our own sidecar"),
+        lambda *a, **k: pytest.fail(
+            "no overwrite prompt when resuming our own sidecar"
+        ),
     )
     window.save_annotations()
     assert not window._dirty
@@ -535,6 +537,74 @@ def test_save_overwrites_a_foreign_sidecar_once_confirmed(
     window.save_annotations()
     assert read_annotations_tsv(tsv_path) == [Annotation(10.0, 4.0, "LRLR")]
     assert not window._dirty
+
+
+# ----- autosave / crash recovery (#176) --------------------------------------------
+
+
+def test_autosave_writes_a_recovery_file(window, recording_path, monkeypatch):
+    window._load(recording_path)
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._on_region_drawn(10.0, 14.0)
+    window._write_autosave()  # fire the debounced write directly
+    recovery = autosave_path(recording_path)
+    assert recovery.is_file()
+    assert read_annotations_tsv(recovery) == [Annotation(10.0, 4.0, "LRLR")]
+    # The recovery file must be distinct from the canonical sidecar.
+    tsv_path, _ = sidecar_paths(recording_path)
+    assert recovery != tsv_path and not tsv_path.is_file()
+
+
+def test_clean_save_removes_the_recovery_file(window, recording_path, monkeypatch):
+    window._load(recording_path)
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._on_region_drawn(10.0, 14.0)
+    window._write_autosave()
+    assert autosave_path(recording_path).is_file()
+    window.save_annotations()
+    assert not autosave_path(recording_path).is_file()
+
+
+def test_recovery_is_offered_and_can_be_restored(window, recording_path):
+    recovery = autosave_path(recording_path)
+    write_annotations_tsv([Annotation(7.0, 0.0, "LRLR")], recovery)  # a crashed session
+    window._load(recording_path)
+    assert window.recoveryBanner.isVisible()
+    window._restore_autosave()
+    assert window._annotations == [Annotation(7.0, 0.0, "LRLR")]
+    assert window._dirty  # restored but not yet saved
+    assert not window.recoveryBanner.isVisible()
+
+
+def test_recovery_can_be_dismissed_and_is_deleted(window, recording_path):
+    recovery = autosave_path(recording_path)
+    write_annotations_tsv([Annotation(7.0, 0.0, "LRLR")], recovery)
+    window._load(recording_path)
+    assert window.recoveryBanner.isVisible()
+    window._dismiss_autosave()
+    assert not window.recoveryBanner.isVisible()
+    assert not recovery.is_file()
+
+
+def test_stale_autosave_older_than_the_sidecar_is_ignored(window, recording_path):
+    tsv_path, _ = sidecar_paths(recording_path)
+    write_annotations_tsv([Annotation(5.0, 2.0, "saved")], tsv_path)  # a clean save
+    recovery = autosave_path(recording_path)
+    write_annotations_tsv([Annotation(7.0, 0.0, "old")], recovery)
+    os.utime(recovery, (1000, 1000))  # force the autosave to look old
+    window._load(recording_path)
+    assert not window.recoveryBanner.isVisible()
+    assert not recovery.is_file()  # stale autosave is cleaned on open
+
+
+def test_clean_close_removes_the_recovery_file(window, recording_path, monkeypatch):
+    window._load(recording_path)
+    _answer_label(monkeypatch, ("LRLR", False))
+    window._on_region_drawn(10.0, 14.0)
+    window._write_autosave()
+    assert autosave_path(recording_path).is_file()
+    assert window.close()  # the fixture answers the dirty prompt with Discard
+    assert not autosave_path(recording_path).is_file()
 
 
 # ----- label dialog / entry point -----------------------------------------------------

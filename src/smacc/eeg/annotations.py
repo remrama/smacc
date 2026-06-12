@@ -36,6 +36,10 @@ ANNOTATION_COLUMNS = ["onset", "duration", "description"]
 TSV_SUFFIX = ".annotations.tsv"
 JSON_SUFFIX = ".annotations.json"
 
+# Crash-recovery autosave, kept distinct from the canonical sidecar so autosave
+# can never clobber a deliberate save ("night1.edf" → the .autosave.tsv).
+AUTOSAVE_SUFFIX = ".annotations.autosave.tsv"
+
 # Onsets/durations are written with millisecond precision: finer than any human
 # click on a plot, and exact for every sample at the rates sleep labs record.
 _SECONDS_DECIMALS = 3
@@ -105,6 +109,16 @@ def sidecar_paths(source: str | Path) -> tuple[Path, Path]:
     """
     src = Path(source)
     return src.with_suffix(TSV_SUFFIX), src.with_suffix(JSON_SUFFIX)
+
+
+def autosave_path(source: str | Path) -> Path:
+    """Return the crash-recovery autosave path for a source recording.
+
+    Deliberately separate from :func:`sidecar_paths` (``night1.edf`` →
+    ``night1.annotations.autosave.tsv``) so an in-progress autosave is never
+    mistaken for, and never overwrites, the reviewer's deliberate sidecar.
+    """
+    return Path(source).with_suffix(AUTOSAVE_SUFFIX)
 
 
 def write_annotations_tsv(annotations: list[Annotation], path: str | Path) -> None:

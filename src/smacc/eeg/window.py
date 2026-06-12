@@ -34,6 +34,7 @@ from ..paths import LOGO_PATH, preferences_path
 from . import dsp, io
 from .annotations import (
     Annotation,
+    autosave_path,
     insert,
     read_annotations_tsv,
     remove,
@@ -61,6 +62,10 @@ DEFAULT_WINDOW_LENGTH = 30
 # The scrollbar works in tenths of a second: fine enough to land anywhere,
 # coarse enough that an 8 h night stays within QScrollBar's int range.
 _SCROLL_TICKS_PER_SECOND = 10
+
+# Autosave (#176) is debounced: each annotation change restarts this timer, so a
+# burst of edits writes the recovery file once, shortly after the last of them.
+_AUTOSAVE_DEBOUNCE_MS = 2000
 
 # Keyboard navigation (#174). Plain Left/Right page by one epoch; Shift nudges a
 # second to peek across a boundary. Up/Down step the amplitude multiplicatively
@@ -196,6 +201,14 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         # True once this review's annotations live in the canonical sidecar (we
         # loaded it, or we have saved at least once); gates the overwrite prompt.
         self._owns_sidecar = False
+        # Annotations recovered from an autosave, held until the user restores or
+        # dismisses them (#176).
+        self._recovery_annotations: list[Annotation] | None = None
+        # Debounced crash-recovery autosave (#176): restarted on every change.
+        self._autosave_timer = QtCore.QTimer(self)
+        self._autosave_timer.setSingleShot(True)
+        self._autosave_timer.setInterval(_AUTOSAVE_DEBOUNCE_MS)
+        self._autosave_timer.timeout.connect(self._write_autosave)
         self.setWindowTitle("SMACC — EEG review")
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
@@ -220,6 +233,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         layout.setSpacing(8)
         layout.addWidget(_section_title("EEG review"))
         layout.addWidget(self._build_contract_caption())
+        layout.addWidget(self._build_recovery_banner())
         layout.addLayout(self._build_controls_row())
         layout.addLayout(self._build_epoch_row())
 
@@ -410,6 +424,30 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         caption.setEnabled(False)  # renders dimmed, following the palette
         return caption
 
+    def _build_recovery_banner(self) -> QtWidgets.QWidget:
+        """A non-modal bar offering to restore autosaved annotations (#176).
+
+        Hidden until a recovery file is found on open; restoring is always an
+        explicit choice, never applied silently.
+        """
+        banner = QtWidgets.QFrame(self)
+        banner.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
+        banner.setVisible(False)
+        row = QtWidgets.QHBoxLayout(banner)
+        row.setContentsMargins(8, 4, 8, 4)
+        self.recoveryLabel = QtWidgets.QLabel("", banner)
+        row.addWidget(self.recoveryLabel, 1)
+        restoreButton = QtWidgets.QPushButton("Restore", banner)
+        restoreButton.setStatusTip("Load the autosaved annotations into this review.")
+        restoreButton.clicked.connect(self._restore_autosave)
+        row.addWidget(restoreButton)
+        dismissButton = QtWidgets.QPushButton("Dismiss", banner)
+        dismissButton.setStatusTip("Discard the autosaved annotations and delete them.")
+        dismissButton.clicked.connect(self._dismiss_autosave)
+        row.addWidget(dismissButton)
+        self.recoveryBanner = banner
+        return banner
+
     def _build_annotation_panel(self) -> QtWidgets.QLayout:
         panel = QtWidgets.QVBoxLayout()
         panel.addWidget(QtWidgets.QLabel("Annotations:", self))
@@ -480,6 +518,10 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         except (ValueError, OSError, RuntimeError) as exc:
             self._error("Could not open the recording.", str(exc))
             return
+        # Opened cleanly: stop autosaving the recording we're leaving and drop its
+        # recovery file (the user already saved or discarded it via open_file).
+        self._autosave_timer.stop()
+        self._clear_autosave()
         tsv_path, _ = sidecar_paths(path)
         if tsv_path.is_file():
             # Resume a previous review. A sidecar that exists but won't parse
@@ -528,6 +570,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             f"{path.name} — {len(recording.ch_names)} ch · "
             f"{recording.sfreq:g} Hz · {recording.duration:.0f} s{clock}"
         )
+        self._check_for_recovery(tsv_path)
 
     # ----- annotation editing -----------------------------------------------------
 
@@ -625,6 +668,8 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             return
         self._dirty = False
         self._owns_sidecar = True  # ours now; later saves don't re-prompt
+        self._autosave_timer.stop()
+        self._clear_autosave()  # the work is persisted; no recovery needed
         self._refresh_title()
         status_bar = self.statusBar()
         assert status_bar is not None
@@ -648,6 +693,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
 
     def _mark_dirty(self) -> None:
         self._dirty = True
+        self._autosave_timer.start()  # (re)arm the debounced recovery write
         self._refresh_title()
 
     def _select(self, index: int) -> None:
@@ -688,6 +734,68 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             self._recent_labels(), label, limit=_MAX_RECENT_LABELS
         )
         preferences.update_preferences(preferences_path, {"eeg_recent_labels": recents})
+
+    # ----- autosave / crash recovery (#176) ----------------------------------------
+
+    def _write_autosave(self) -> None:
+        """Write the recovery file (best-effort, atomic); fired by the debounce timer."""
+        if self._recording is None or not self._dirty:
+            return
+        path = autosave_path(self._recording.path)
+        tmp = path.with_suffix(".tmp")  # write-then-rename so a crash never half-writes
+        try:
+            write_annotations_tsv(self._annotations, tmp)
+            tmp.replace(path)
+        except OSError:
+            pass  # autosave must never interrupt the review
+
+    def _clear_autosave(self) -> None:
+        """Delete the current recording's recovery file, if any."""
+        if self._recording is not None:
+            autosave_path(self._recording.path).unlink(missing_ok=True)
+
+    def _check_for_recovery(self, tsv_path: Path) -> None:
+        """On open, offer to restore a recovery file newer than the saved sidecar."""
+        self.recoveryBanner.setVisible(False)
+        self._recovery_annotations = None
+        if self._recording is None:
+            return
+        recovery = autosave_path(self._recording.path)
+        if not recovery.is_file():
+            return
+        # A recovery file with a clean save strictly newer than it is stale — the
+        # save happened after the autosave, so there is nothing left to recover.
+        # Strict so a same-second tie errs toward offering recovery, never losing it.
+        stale = (
+            tsv_path.is_file() and tsv_path.stat().st_mtime > recovery.stat().st_mtime
+        )
+        if stale:
+            recovery.unlink(missing_ok=True)
+            return
+        try:
+            recovered = read_annotations_tsv(recovery)
+        except (OSError, ValueError):
+            return  # an unreadable recovery file must not block the open
+        self._recovery_annotations = recovered
+        self.recoveryLabel.setText(
+            f"Recovered {len(recovered)} unsaved annotation(s) from a previous session."
+        )
+        self.recoveryBanner.setVisible(True)
+
+    def _restore_autosave(self) -> None:
+        if self._recovery_annotations is None:
+            return
+        self._annotations = self._recovery_annotations
+        self._recovery_annotations = None
+        self.recoveryBanner.setVisible(False)
+        self.view.set_annotations(self._annotations)
+        self._refresh_list()
+        self._mark_dirty()  # restored but not yet saved — keep the recovery alive
+
+    def _dismiss_autosave(self) -> None:
+        self._recovery_annotations = None
+        self.recoveryBanner.setVisible(False)
+        self._clear_autosave()  # the user declined the recovery; drop it
 
     # ----- selection sync ---------------------------------------------------------
 
@@ -820,7 +928,9 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         current = self.scaleSpin.value()
         target = current / factor if louder else current * factor
         clamped = max(self.scaleSpin.minimum(), min(self.scaleSpin.maximum(), target))
-        self.scaleSpin.setValue(round(clamped))  # drives view.set_scale, shows the value
+        self.scaleSpin.setValue(
+            round(clamped)
+        )  # drives view.set_scale, shows the value
 
     def _on_filters_changed(self) -> None:
         highpass = self.highpassSpin.value() or None  # 0.0 displays as "Off"
@@ -894,6 +1004,10 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             if event is not None:
                 event.ignore()
             return
+        # Closing cleanly (saved or discarded): there is no unsaved work to
+        # recover, so drop the recovery file and stop the autosave timer.
+        self._autosave_timer.stop()
+        self._clear_autosave()
         # Drop the app-level key filter before this window goes away, so a stray
         # late event can never reach a half-deleted window.
         app = QtWidgets.QApplication.instance()
