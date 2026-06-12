@@ -44,10 +44,13 @@ _VOLTS_TO_MICROVOLTS = 1e6
 # Lane-units excursion an auto-fit (non-bioelectric) channel is normalized to.
 _AUTOFIT_EXCURSION = 0.4
 
-# Per-channel-type display gain applied on top of the global scale. EMG rides
-# hotter than EEG on most montages; halving it keeps the trace inside its lane
-# without a per-channel scaling UI (cut deliberately — see issue #136).
-TYPE_GAINS = {"emg": 0.5}
+# Default amplitude (µV per channel lane) and the per-type overrides applied on
+# top of it. EMG rides hotter than EEG on most montages, so it defaults to a
+# larger µV/lane (a smaller on-screen trace); every type is now overridable per
+# montage (#177) — these are only the starting points. (200 µV reproduces the
+# old EMG ×0.5 gain against the 100 µV base.)
+DEFAULT_BASE_SCALE_UV = 100.0
+DEFAULT_TYPE_SCALES = {"emg": 200.0}
 
 # Clicking selects the annotation under the cursor; a zero-duration mark gets
 # this much slack on each side, as a fraction of the visible window.
@@ -206,10 +209,15 @@ class TraceView(pg.PlotWidget):
             axisItems={"bottom": self._time_axis},
         )
         self._provider: SliceProvider | None = None
-        self._spec = dsp.UNFILTERED
+        self._spec = dsp.UNFILTERED  # the base filter; per-type overrides below
+        self._type_specs: dict[str, dsp.FilterSpec] = {}
         self._window_start = 0.0
         self._window_seconds = 30.0  # the standard sleep-scoring epoch
-        self._scale_uv = 100.0  # microvolts per channel lane
+        self._scale_uv = DEFAULT_BASE_SCALE_UV  # base µV per lane; overrides below
+        self._type_scales: dict[str, float] = dict(DEFAULT_TYPE_SCALES)
+        # Channel indices to draw, in display order; all channels until set_provider
+        # (or a view profile) narrows or reorders them (#177).
+        self._visible: list[int] = []
         # Epoch model (#173): the scoring epoch is separate from the on-screen
         # window. Boundaries fall at anchor + k·epoch for integer k, so anchoring
         # on a feature back/front-fills the whole grid from that point.
@@ -270,6 +278,8 @@ class TraceView(pg.PlotWidget):
         self._provider = provider
         self._window_start = 0.0
         self._epoch_anchor = 0.0  # a new recording starts epoch 1 at its start
+        # Show every channel in file order by default; a profile may narrow this.
+        self._visible = list(range(len(provider.ch_names))) if provider else []
         self._build_curves()
         self._refresh_data()
         self._refresh_annotations()
@@ -280,9 +290,100 @@ class TraceView(pg.PlotWidget):
         self._refresh_data()
 
     def set_scale(self, microvolts: float) -> None:
-        """Set the lane height in µV (smaller value → visually bigger traces)."""
+        """Set the base lane height in µV (smaller value → visually bigger traces)."""
         self._scale_uv = max(1e-9, microvolts)
         self._refresh_data()
+
+    # ----- per-type display + channel selection (#177) ----------------------
+
+    @property
+    def spec(self) -> dsp.FilterSpec:
+        """The base display filter (used by types without an override)."""
+        return self._spec
+
+    @property
+    def scale_uv(self) -> float:
+        """The base lane height in µV (used by types without an override)."""
+        return self._scale_uv
+
+    def type_scales(self) -> dict[str, float]:
+        return dict(self._type_scales)
+
+    def type_specs(self) -> dict[str, dsp.FilterSpec]:
+        return dict(self._type_specs)
+
+    def effective_spec(self, ch_type: str) -> dsp.FilterSpec:
+        return self._type_specs.get(ch_type, self._spec)
+
+    def effective_scale(self, ch_type: str) -> float:
+        return self._type_scales.get(ch_type, self._scale_uv)
+
+    def set_type_spec(self, ch_type: str, spec: dsp.FilterSpec | None) -> None:
+        """Override (or clear, with ``None``) the display filter for one type."""
+        if spec is None:
+            self._type_specs.pop(ch_type, None)
+        else:
+            self._type_specs[ch_type] = spec
+        self._refresh_data()
+
+    def set_type_scale(self, ch_type: str, microvolts: float | None) -> None:
+        """Override (or clear, with ``None``) the lane height for one type."""
+        if microvolts is None:
+            self._type_scales.pop(ch_type, None)
+        else:
+            self._type_scales[ch_type] = max(1e-9, microvolts)
+        self._refresh_data()
+
+    def set_type_scales(self, scales: dict[str, float]) -> None:
+        """Replace every per-type amplitude override (when applying a profile)."""
+        self._type_scales = {k: max(1e-9, v) for k, v in scales.items()}
+        self._refresh_data()
+
+    def set_type_specs(self, specs: dict[str, dsp.FilterSpec]) -> None:
+        """Replace every per-type filter override (when applying a profile)."""
+        self._type_specs = dict(specs)
+        self._refresh_data()
+
+    @property
+    def channel_names(self) -> list[str]:
+        return list(self._provider.ch_names) if self._provider else []
+
+    @property
+    def channel_types(self) -> list[str]:
+        return list(self._provider.ch_types) if self._provider else []
+
+    @property
+    def visible_indices(self) -> list[int]:
+        """The channel positions currently drawn, in display order."""
+        return list(self._visible)
+
+    @property
+    def visible_channels(self) -> list[str]:
+        """The names of the currently drawn channels, in display order."""
+        names = self.channel_names
+        return [names[i] for i in self._visible]
+
+    def set_visible_channels(self, indices: list[int]) -> None:
+        """Show exactly ``indices`` (channel positions), in the given order.
+
+        Out-of-range and duplicate indices are dropped; an empty result is
+        ignored (a montage with no channels is never useful), so the current
+        selection stays.
+        """
+        if self._provider is None:
+            return
+        count = len(self._provider.ch_names)
+        seen: list[int] = []
+        for i in indices:
+            if 0 <= i < count and i not in seen:
+                seen.append(i)
+        if not seen:
+            return
+        self._visible = seen
+        self._build_curves()
+        self._refresh_data()
+        self._refresh_annotations()
+        self._refresh_epochs()
 
     def set_window_seconds(self, seconds: float) -> None:
         self._window_seconds = max(1.0, seconds)
@@ -412,7 +513,7 @@ class TraceView(pg.PlotWidget):
         self._window_start = min(max(0.0, self._window_start), latest)
 
     def _build_curves(self) -> None:
-        """Recreate one curve per channel (on open/clear), tuned for speed."""
+        """Recreate one curve per *visible* channel (on open/clear), tuned for speed."""
         plot_item = self.getPlotItem()
         assert plot_item is not None
         for curve in self._curves:
@@ -423,7 +524,7 @@ class TraceView(pg.PlotWidget):
             return
         pen = pg.mkPen(self.palette().color(QtGui.QPalette.ColorRole.Text), width=1)
         names = self._provider.ch_names
-        for _ in names:
+        for _ in self._visible:
             curve = pg.PlotDataItem(pen=pen)
             # Peak (min/max) downsampling keeps extremes visible at any zoom;
             # clip-to-view skips offscreen points when a margin is set.
@@ -431,37 +532,53 @@ class TraceView(pg.PlotWidget):
             curve.setClipToView(True)
             plot_item.addItem(curve)
             self._curves.append(curve)
+        # Lanes follow display order: the channel at display position ``lane`` is
+        # centered at y = -lane, labelled with its name.
         plot_item.getAxis("left").setTicks(
-            [[(-i, name) for i, name in enumerate(names)]]
+            [[(-lane, names[i]) for lane, i in enumerate(self._visible)]]
         )
-        self.setYRange(-len(names) + 0.4, 0.6, padding=0)
+        self.setYRange(-len(self._visible) + 0.4, 0.6, padding=0)
 
     def _refresh_data(self) -> None:
-        """Fetch, filter, scale, and draw the visible slice of every channel."""
+        """Fetch, filter, scale, and draw the visible slice of every shown channel."""
         if self._provider is None:
             return
-        pad = dsp.pad_seconds(self._spec)
+        ch_types = self._provider.ch_types
+        sfreq = self._provider.sfreq
+        # Each visible channel filters by its type's effective spec; fetch a
+        # margin wide enough for the longest transient across all active specs.
+        specs = {i: self.effective_spec(ch_types[i]) for i in self._visible}
+        pad = max((dsp.pad_seconds(s) for s in specs.values()), default=1.0)
         lo = self._window_start
         hi = self._window_start + self._window_seconds
-        times, data = self._provider.get_slice(lo - pad, hi + pad)
-        data = dsp.apply(np.asarray(data), self._provider.sfreq, self._spec)
+        times, raw = self._provider.get_slice(lo - pad, hi + pad)
+        raw = np.asarray(raw)
         times = np.asarray(times)
+        data = raw.astype(float, copy=True)
+        # Filter each group of like-spec channels together — one designed filter
+        # per distinct spec (the dsp cache keys on it), not one per channel.
+        groups: dict[dsp.FilterSpec, list[int]] = {}
+        for i, spec in specs.items():
+            groups.setdefault(spec, []).append(i)
+        for spec, idx in groups.items():
+            if not spec.is_identity:
+                data[idx] = dsp.apply(raw[idx], sfreq, spec)
         # Trim the filter margin so its edge transients never reach the screen.
         keep = (times >= lo) & (times <= hi)
-        times, data = times[keep], data[:, keep]
-        ch_types = self._provider.ch_types
-        for i, curve in enumerate(self._curves):
-            trace = data[i]
+        times = times[keep]
+        for lane, i in enumerate(self._visible):
+            trace = data[i][keep]
             if ch_types[i] in _MICROVOLT_TYPES:
-                gain = TYPE_GAINS.get(ch_types[i], 1.0)
-                scaled = trace * _VOLTS_TO_MICROVOLTS * (gain / self._scale_uv)
+                scaled = (
+                    trace * _VOLTS_TO_MICROVOLTS / self.effective_scale(ch_types[i])
+                )
             else:
                 # Unit-less channel (stim/misc/…): fit it to its own lane per
                 # visible slice. Absolute amplitude is meaningless for these;
                 # the edges (a trigger firing) are what a reviewer looks for.
                 peak = float(np.max(np.abs(trace))) if trace.size else 0.0
                 scaled = trace * (_AUTOFIT_EXCURSION / peak) if peak else trace
-            curve.setData(times, -i + scaled)
+            self._curves[lane].setData(times, -lane + scaled)
         self.setXRange(lo, hi, padding=0)
 
     def _refresh_annotations(self) -> None:

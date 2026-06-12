@@ -43,6 +43,8 @@ from .annotations import (
     write_annotations_json,
     write_annotations_tsv,
 )
+from .profiles import FILE_FILTER as PROFILE_FILE_FILTER
+from .profiles import PROFILE_SUFFIX, ViewProfile, read_view_profile, write_view_profile
 from .view import DEFAULT_EPOCH_SECONDS, TraceView
 
 # Stable id for this window's geometry entry in the per-window prefs map.
@@ -189,6 +191,89 @@ class LabelDialog(QtWidgets.QDialog):
         return label, offer_instant and dialog.instantCheck.isChecked()
 
 
+class ChannelPickerDialog(QtWidgets.QDialog):
+    """Pick and order which channels the trace view shows (#177).
+
+    Each channel has a checkbox (checked = shown); the Up/Down buttons reorder.
+    Visible channels lead, in display order, then the hidden ones — so the common
+    "hide a few, nudge the order" edit is quick.
+    """
+
+    def __init__(
+        self, parent: QtWidgets.QWidget | None, ch_names: list[str], visible: list[int]
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Channels")
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(
+            QtWidgets.QLabel("Shown channels (checked), top to bottom:", self)
+        )
+        body = QtWidgets.QHBoxLayout()
+        self.listWidget = QtWidgets.QListWidget(self)
+        self.listWidget.setMinimumWidth(240)
+        hidden = [i for i in range(len(ch_names)) if i not in visible]
+        for i in [*visible, *hidden]:
+            item = QtWidgets.QListWidgetItem(ch_names[i])
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, i)
+            item.setFlags(item.flags() | QtCore.Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(
+                QtCore.Qt.CheckState.Checked
+                if i in visible
+                else QtCore.Qt.CheckState.Unchecked
+            )
+            self.listWidget.addItem(item)
+        body.addWidget(self.listWidget, 1)
+        buttonColumn = QtWidgets.QVBoxLayout()
+        upButton = QtWidgets.QPushButton("Up", self)
+        upButton.clicked.connect(lambda: self._move(-1))
+        downButton = QtWidgets.QPushButton("Down", self)
+        downButton.clicked.connect(lambda: self._move(1))
+        buttonColumn.addWidget(upButton)
+        buttonColumn.addWidget(downButton)
+        buttonColumn.addStretch(1)
+        body.addLayout(buttonColumn)
+        layout.addLayout(body)
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            self,
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _move(self, delta: int) -> None:
+        row = self.listWidget.currentRow()
+        target = row + delta
+        if row < 0 or not 0 <= target < self.listWidget.count():
+            return
+        item = self.listWidget.takeItem(row)
+        self.listWidget.insertItem(target, item)
+        self.listWidget.setCurrentRow(target)
+
+    def result_indices(self) -> list[int]:
+        out: list[int] = []
+        for row in range(self.listWidget.count()):
+            item = self.listWidget.item(row)
+            if item is not None and item.checkState() == QtCore.Qt.CheckState.Checked:
+                out.append(int(item.data(QtCore.Qt.ItemDataRole.UserRole)))
+        return out
+
+    @staticmethod
+    def get_visible(
+        parent: QtWidgets.QWidget | None, ch_names: list[str], visible: list[int]
+    ) -> list[int] | None:
+        """Run the dialog; return the chosen channel order, or ``None`` on cancel.
+
+        An empty selection also reads as ``None`` (no change) — a montage with no
+        channels is never what the operator wants.
+        """
+        dialog = ChannelPickerDialog(parent, ch_names, visible)
+        if dialog.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+            return None
+        return dialog.result_indices() or None
+
+
 class EegReviewWindow(QtWidgets.QMainWindow):
     """Review and annotate one recording; the EEG component's main window."""
 
@@ -282,6 +367,19 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         row.addWidget(openButton)
         row.addSpacing(12)
 
+        # Per-type display (#177): the filter and scale controls below edit the
+        # channel type selected here. "All channels" edits the base that every
+        # type without its own override inherits.
+        row.addWidget(QtWidgets.QLabel("Apply to:", self))
+        self.filterScopeCombo = QtWidgets.QComboBox(self)
+        self.filterScopeCombo.addItem("All channels", None)
+        self.filterScopeCombo.setStatusTip(
+            "Which channels the filter and scale below edit (a type, or all)."
+        )
+        self.filterScopeCombo.currentIndexChanged.connect(self._on_scope_changed)
+        row.addWidget(self.filterScopeCombo)
+        row.addSpacing(8)
+
         # Display filters. 0 reads as "Off" (special value text): the viewer
         # opens unfiltered — silently rewriting amplitudes before the operator
         # asked would misrepresent the recording.
@@ -339,9 +437,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self.scaleSpin.setStatusTip(
             "Microvolts per channel lane — smaller means visually bigger traces."
         )
-        self.scaleSpin.valueChanged.connect(
-            lambda value: self.view.set_scale(float(value))
-        )
+        self.scaleSpin.valueChanged.connect(self._on_scale_changed)
         row.addWidget(self.scaleSpin)
 
         row.addStretch(1)
@@ -412,6 +508,20 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         )
         row.addWidget(self.axisModeCombo)
         row.addStretch(1)
+        self.channelsButton = QtWidgets.QPushButton("Channels…", self)
+        self.channelsButton.setStatusTip("Choose and reorder which channels are shown.")
+        self.channelsButton.clicked.connect(self._open_channel_picker)
+        row.addWidget(self.channelsButton)
+        self.saveProfileButton = QtWidgets.QPushButton("Save profile…", self)
+        self.saveProfileButton.setStatusTip(
+            "Save this montage (channels, filters, scale, window/epoch) to a file."
+        )
+        self.saveProfileButton.clicked.connect(self._save_profile)
+        row.addWidget(self.saveProfileButton)
+        self.loadProfileButton = QtWidgets.QPushButton("Load profile…", self)
+        self.loadProfileButton.setStatusTip("Apply a saved montage to this recording.")
+        self.loadProfileButton.clicked.connect(self._load_profile)
+        row.addWidget(self.loadProfileButton)
         return row
 
     def _build_contract_caption(self) -> QtWidgets.QLabel:
@@ -496,6 +606,10 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             self.editButton,
             self.deleteButton,
             self.scrollBar,
+            self.filterScopeCombo,
+            self.channelsButton,
+            self.saveProfileButton,
+            self.loadProfileButton,
         ):
             widget.setEnabled(loaded)
 
@@ -557,6 +671,10 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self.axisModeCombo.setCurrentIndex(0 if started is not None else 1)
         self.axisModeCombo.blockSignals(False)
         self.view.set_time_axis_mode(self.axisModeCombo.currentData())
+        # Rebuild the per-type filter scope from this recording's types and show
+        # the base filter/scale in the controls (#177).
+        self._populate_scope_combo()
+        self._load_scope_into_controls()
         self._refresh_list()
         self._refresh_title()
         self._configure_scrollbar()
@@ -948,7 +1066,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             status_bar.showMessage(
                 "High-pass must stay below low-pass — filters unchanged.", 4000
             )
-            applied = self.view._spec
+            applied = self._scoped_applied_spec()
             for spin, value in (
                 (self.highpassSpin, applied.highpass),
                 (self.lowpassSpin, applied.lowpass),
@@ -957,7 +1075,172 @@ class EegReviewWindow(QtWidgets.QMainWindow):
                 spin.setValue(value or 0.0)  # 0.0 displays as "Off"
                 spin.blockSignals(False)
             return
-        self.view.set_spec(spec)
+        scope = self._current_scope()
+        if scope is None:
+            self.view.set_spec(spec)
+        else:
+            self.view.set_type_spec(scope, spec)
+
+    # ----- per-type display + view profiles (#177) ------------------------------------
+
+    def _current_scope(self) -> str | None:
+        """The channel type the filter/scale controls edit (``None`` = the base)."""
+        return self.filterScopeCombo.currentData()
+
+    def _scoped_applied_spec(self) -> dsp.FilterSpec:
+        scope = self._current_scope()
+        return self.view.spec if scope is None else self.view.effective_spec(scope)
+
+    def _notch_index(self, notch: float | None) -> int:
+        for index in range(self.notchCombo.count()):
+            if self.notchCombo.itemData(index) == notch:
+                return index
+        return 0
+
+    def _populate_scope_combo(self) -> None:
+        """Rebuild the per-type scope list from the loaded recording's types."""
+        self.filterScopeCombo.blockSignals(True)
+        self.filterScopeCombo.clear()
+        self.filterScopeCombo.addItem("All channels", None)
+        seen: list[str] = []
+        for ch_type in self.view.channel_types:
+            if ch_type not in seen:
+                seen.append(ch_type)
+                self.filterScopeCombo.addItem(ch_type.upper(), ch_type)
+        self.filterScopeCombo.setCurrentIndex(0)
+        self.filterScopeCombo.blockSignals(False)
+
+    def _load_scope_into_controls(self) -> None:
+        """Show the current scope's filter + scale in the controls (no signals)."""
+        scope = self._current_scope()
+        spec = self.view.spec if scope is None else self.view.effective_spec(scope)
+        scale = (
+            self.view.scale_uv if scope is None else self.view.effective_scale(scope)
+        )
+        for spin, value in (
+            (self.highpassSpin, spec.highpass),
+            (self.lowpassSpin, spec.lowpass),
+        ):
+            spin.blockSignals(True)
+            spin.setValue(value or 0.0)  # 0.0 displays as "Off"
+            spin.blockSignals(False)
+        self.notchCombo.blockSignals(True)
+        self.notchCombo.setCurrentIndex(self._notch_index(spec.notch))
+        self.notchCombo.blockSignals(False)
+        self.scaleSpin.blockSignals(True)
+        self.scaleSpin.setValue(scale)
+        self.scaleSpin.blockSignals(False)
+
+    def _on_scope_changed(self) -> None:
+        self._load_scope_into_controls()
+
+    def _on_scale_changed(self, value: float) -> None:
+        scope = self._current_scope()
+        if scope is None:
+            self.view.set_scale(float(value))
+        else:
+            self.view.set_type_scale(scope, float(value))
+
+    def _open_channel_picker(self) -> None:
+        if self._recording is None:
+            return
+        result = ChannelPickerDialog.get_visible(
+            self, self.view.channel_names, self.view.visible_indices
+        )
+        if result is not None:
+            self.view.set_visible_channels(result)
+
+    def _current_profile(self) -> ViewProfile:
+        """Capture the current montage as a profile."""
+        return ViewProfile(
+            channels=tuple(self.view.visible_channels),
+            base_scale_uv=self.view.scale_uv,
+            type_scales=self.view.type_scales(),
+            base_filter=self.view.spec,
+            type_filters=self.view.type_specs(),
+            window_seconds=self.view.window_seconds,
+            epoch_seconds=self.view.epoch_seconds,
+        )
+
+    def _apply_profile(self, profile: ViewProfile) -> None:
+        """Apply a saved montage; channels are matched by name (missing skipped)."""
+        names = self.view.channel_names
+        if profile.channels:
+            index_of = {name: i for i, name in enumerate(names)}
+            indices = [index_of[name] for name in profile.channels if name in index_of]
+            self.view.set_visible_channels(indices or list(range(len(names))))
+        else:
+            self.view.set_visible_channels(list(range(len(names))))
+        self.view.set_scale(profile.base_scale_uv)
+        self.view.set_type_scales(profile.type_scales)
+        self.view.set_spec(profile.base_filter)
+        self.view.set_type_specs(profile.type_filters)
+        self._select_window_seconds(profile.window_seconds)
+        self.epochSpin.setValue(int(profile.epoch_seconds))  # drives the view
+        self._populate_scope_combo()
+        self._load_scope_into_controls()
+        self._update_epoch_readout()
+
+    def _select_window_seconds(self, seconds: float) -> None:
+        options = [float(s) for s in WINDOW_LENGTHS]
+        if seconds in options:
+            self.windowCombo.setCurrentIndex(options.index(seconds))  # drives the view
+        else:
+            self.view.set_window_seconds(seconds)
+            self._configure_scrollbar()
+
+    def _save_profile(self) -> None:
+        if self._recording is None:
+            return
+        prefs = preferences.load_preferences(preferences_path)
+        start_dir = prefs.get("eeg_last_profile_dir") or str(
+            self._recording.path.parent
+        )
+        default = str(Path(start_dir) / f"montage{PROFILE_SUFFIX}")
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Save view profile", default, PROFILE_FILE_FILTER
+        )
+        if not path:
+            return
+        target = Path(path)
+        if target.suffix != ".json":  # the dialog may drop the compound suffix
+            target = target.with_name(target.name + PROFILE_SUFFIX)
+        try:
+            write_view_profile(self._current_profile(), target)
+        except OSError as exc:
+            self._error("Could not save the view profile.", str(exc))
+            return
+        preferences.update_preferences(
+            preferences_path, {"eeg_last_profile_dir": str(target.parent)}
+        )
+        status_bar = self.statusBar()
+        assert status_bar is not None
+        status_bar.showMessage(f"Saved view profile to {target.name}", 5000)
+
+    def _load_profile(self) -> None:
+        if self._recording is None:
+            return
+        prefs = preferences.load_preferences(preferences_path)
+        start_dir = prefs.get("eeg_last_profile_dir") or str(
+            self._recording.path.parent
+        )
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Load view profile", str(start_dir), PROFILE_FILE_FILTER
+        )
+        if not path:
+            return
+        try:
+            profile = read_view_profile(path)
+        except (OSError, ValueError) as exc:
+            self._error("Could not read the view profile.", str(exc))
+            return
+        self._apply_profile(profile)
+        preferences.update_preferences(
+            preferences_path, {"eeg_last_profile_dir": str(Path(path).parent)}
+        )
+        status_bar = self.statusBar()
+        assert status_bar is not None
+        status_bar.showMessage(f"Applied view profile {Path(path).name}", 5000)
 
     def _on_cursor_moved(self, seconds: float) -> None:
         if self._recording is None:

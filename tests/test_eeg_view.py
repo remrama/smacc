@@ -16,7 +16,7 @@ from PyQt6 import QtCore, QtGui
 
 from smacc.eeg import dsp
 from smacc.eeg.annotations import Annotation
-from smacc.eeg.view import TYPE_GAINS, TimeAxis, TraceView
+from smacc.eeg.view import DEFAULT_TYPE_SCALES, TimeAxis, TraceView
 
 SFREQ = 100.0
 DURATION = 60.0
@@ -75,7 +75,8 @@ def test_traces_are_scaled_to_microvolt_lanes(loaded):
     _, y0 = view._curves[0].getData()
     assert y0 == pytest.approx(0.0 + 0.5)
     _, y3 = view._curves[3].getData()
-    emg = 0.5 * TYPE_GAINS["emg"]
+    # EMG (50 µV) sits on its larger default lane (200 µV) → +0.25 above center.
+    emg = CONSTANT_VOLTS * 1e6 / DEFAULT_TYPE_SCALES["emg"]
     assert y3 == pytest.approx(-3 + emg)
 
 
@@ -490,3 +491,58 @@ def test_time_axis_falls_back_to_elapsed_without_an_origin(qtbot):
     axis.set_mode("clock")  # asked for clock, but no origin is known
     strings = axis.tickStrings([0.0, 30.0], 1.0, 1.0)
     assert all(":" not in s for s in strings)  # plain seconds, not HH:MM:SS
+
+
+# ----- channel selection + per-type display (#177) --------------------------------
+
+
+def test_hiding_channels_draws_only_the_chosen_curves(loaded):
+    view, _ = loaded  # FakeProvider: C3, C4, EOG, EMG
+    view.set_visible_channels([0, 2])  # C3, EOG
+    assert len(view._curves) == 2
+    assert view.visible_channels == ["C3", "EOG"]
+
+
+def test_reordering_channels_sets_the_lane_order(loaded):
+    view, _ = loaded
+    view.set_visible_channels([3, 0])  # EMG on top lane, then C3
+    assert view.visible_channels == ["EMG", "C3"]
+    _, y_emg = view._curves[0].getData()  # EMG 50 µV on its 200 µV lane → +0.25
+    assert y_emg == pytest.approx(0.25)  # lane 0 centered at y = 0
+    _, y_c3 = view._curves[1].getData()  # C3 50 µV on the 100 µV base → +0.5
+    assert y_c3 == pytest.approx(-1 + 0.5)  # lane 1 centered at y = -1
+
+
+def test_empty_or_out_of_range_selection_is_ignored(loaded):
+    view, _ = loaded
+    view.set_visible_channels([])  # nothing valid → keep the current selection
+    assert len(view._curves) == 4
+    view.set_visible_channels([99, -1])  # out of range → ignored
+    assert len(view._curves) == 4
+
+
+def test_per_type_scale_overrides_the_base(loaded):
+    view, _ = loaded
+    view.set_type_scale("eeg", 50.0)  # EEG channels now on a 50 µV lane
+    _, y_c3 = view._curves[0].getData()  # C3 (eeg) 50 µV / 50 → 1.0
+    assert y_c3 == pytest.approx(1.0)
+    _, y_eog = view._curves[2].getData()  # EOG (no override) still on 100 µV base
+    assert y_eog == pytest.approx(-2 + 0.5)
+
+
+def test_per_type_filter_applies_only_to_its_type(loaded):
+    view, _ = loaded
+    view.set_type_spec("emg", dsp.FilterSpec(highpass=1.0))  # removes EMG's DC
+    _, y_c3 = view._curves[0].getData()  # unfiltered EEG unchanged
+    assert y_c3 == pytest.approx(0.5)
+    _, y_emg = view._curves[3].getData()  # EMG flattened toward its lane center
+    assert np.allclose(y_emg, -3, atol=0.05)
+
+
+def test_effective_spec_and_scale_fall_back_to_the_base(loaded):
+    view, _ = loaded
+    assert view.effective_scale("eeg") == view.scale_uv  # no override → base 100
+    assert view.effective_scale("emg") == 200.0  # default per-type override
+    assert view.effective_spec("eeg") == view.spec  # base
+    view.set_type_spec("eog", dsp.FilterSpec(notch=50.0))
+    assert view.effective_spec("eog") == dsp.FilterSpec(notch=50.0)
