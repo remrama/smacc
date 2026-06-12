@@ -225,9 +225,9 @@ class TraceView(pg.PlotWidget):
         self._viewbox.dragFinished.connect(self._on_drag_finished)
         self._viewbox.clicked.connect(self._on_clicked)
         self._viewbox.markRequested.connect(self._on_mark_requested)
-        # Click-to-focus so the arrow-key navigation in keyPressEvent reaches
-        # the traces after the operator clicks them.
-        self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
+        # Keyboard navigation is owned by the window (a single app-level filter,
+        # so it works without first clicking the traces — see window.py); the
+        # view only exposes the navigation primitives it drives.
         self.setAntialiasing(False)  # measurably faster, invisible at 1 px pens
         plot_item = self.getPlotItem()
         assert plot_item is not None
@@ -329,6 +329,16 @@ class TraceView(pg.PlotWidget):
         self.set_window_start(self._window_start + fraction * self._window_seconds)
         self.windowChanged.emit(self._window_start)
 
+    def step_epochs(self, count: int) -> None:
+        """Move the window by ``count`` epoch lengths (the arrow-key page step)."""
+        self.set_window_start(self._window_start + count * self._epoch_seconds)
+        self.windowChanged.emit(self._window_start)
+
+    def nudge_seconds(self, seconds: float) -> None:
+        """Scroll a fixed number of seconds (the Shift+arrow fine step)."""
+        self.set_window_start(self._window_start + seconds)
+        self.windowChanged.emit(self._window_start)
+
     def set_annotations(
         self, annotations: list[Annotation], selected: int = -1
     ) -> None:
@@ -390,34 +400,6 @@ class TraceView(pg.PlotWidget):
             return
         notches = ev.angleDelta().y() / 120.0
         self.scroll_by(-0.1 * notches)
-        ev.accept()
-
-    def keyPressEvent(self, ev: QtGui.QKeyEvent | None) -> None:
-        """Arrow/Home/End navigation while the traces have focus.
-
-        These live here (with click-to-focus) rather than as window shortcuts
-        because a focused spin box consumes cursor keys via ShortcutOverride —
-        a window-level Left/Right would silently die right after the operator
-        adjusts a filter. Clicking the traces focuses them, and from there the
-        arrows always work. PageUp/PageDown are window shortcuts (no text
-        widget steals them), so paging works regardless of focus.
-        """
-        if ev is None:
-            return
-        key = ev.key()
-        if key == QtCore.Qt.Key.Key_Right:
-            self.scroll_by(0.1)
-        elif key == QtCore.Qt.Key.Key_Left:
-            self.scroll_by(-0.1)
-        elif key == QtCore.Qt.Key.Key_Home:
-            self.set_window_start(0.0)
-            self.windowChanged.emit(self._window_start)
-        elif key == QtCore.Qt.Key.Key_End:
-            self.set_window_start(float("inf"))
-            self.windowChanged.emit(self._window_start)
-        else:
-            super().keyPressEvent(ev)
-            return
         ev.accept()
 
     # ----- drawing ---------------------------------------------------------------

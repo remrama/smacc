@@ -23,6 +23,7 @@ must never share a process with a running night).
 
 from __future__ import annotations
 
+import math
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -60,6 +61,33 @@ DEFAULT_WINDOW_LENGTH = 30
 # The scrollbar works in tenths of a second: fine enough to land anywhere,
 # coarse enough that an 8 h night stays within QScrollBar's int range.
 _SCROLL_TICKS_PER_SECOND = 10
+
+# Keyboard navigation (#174). Plain Left/Right page by one epoch; Shift nudges a
+# second to peek across a boundary. Up/Down step the amplitude multiplicatively
+# (Shift = a gentler factor) — louder means a smaller µV/lane, i.e. bigger traces.
+_FINE_NUDGE_SECONDS = 1.0
+_SCALE_KEY_FACTOR = 1.25
+_SCALE_KEY_FACTOR_FINE = 1.1
+_NAV_KEYS = frozenset(
+    {
+        QtCore.Qt.Key.Key_Left,
+        QtCore.Qt.Key.Key_Right,
+        QtCore.Qt.Key.Key_Up,
+        QtCore.Qt.Key.Key_Down,
+        QtCore.Qt.Key.Key_Home,
+        QtCore.Qt.Key.Key_End,
+    }
+)
+# Keys a focused combo box, list, or spin box uses for its own up/down selection;
+# the filter yields these to such widgets but still claims Left/Right for paging.
+_VERTICAL_NAV_KEYS = frozenset(
+    {
+        QtCore.Qt.Key.Key_Up,
+        QtCore.Qt.Key.Key_Down,
+        QtCore.Qt.Key.Key_Home,
+        QtCore.Qt.Key.Key_End,
+    }
+)
 
 
 def _section_title(text: str) -> QtWidgets.QLabel:
@@ -170,6 +198,11 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
         self._build()
         self._set_loaded(False)
+        # An application-level filter so epoch/amplitude keys work from anywhere in
+        # the window, not only after clicking the traces (#174); removed on close.
+        app = QtWidgets.QApplication.instance()
+        if app is not None:
+            app.installEventFilter(self)
         if file_path is not None:
             # After the event loop starts, so the window is up before any
             # open-error dialog (and a long load doesn't block the first paint).
@@ -204,11 +237,15 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         layout.addLayout(body, 1)
 
         self.statusBar()
-        # Permanent (right-aligned) recording summary; transient messages and
-        # the cursor clock use the normal message area.
+        # Permanent (right-aligned) state: the epoch at the left edge of the view
+        # and the recording summary. Transient messages and the cursor clock use
+        # the normal message area.
+        self.epochLabel = QtWidgets.QLabel("", self)
+        self.epochLabel.setStatusTip("The epoch at the left edge of the view.")
         self.fileInfoLabel = QtWidgets.QLabel("", self)
         status_bar = self.statusBar()
         assert status_bar is not None
+        status_bar.addPermanentWidget(self.epochLabel)
         status_bar.addPermanentWidget(self.fileInfoLabel)
 
         self._build_shortcuts()
@@ -314,9 +351,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self.epochSpin.setStatusTip(
             "Scoring-epoch length (30 s is standard) — independent of the window."
         )
-        self.epochSpin.valueChanged.connect(
-            lambda value: self.view.set_epoch_seconds(float(value))
-        )
+        self.epochSpin.valueChanged.connect(self._on_epoch_seconds_changed)
         row.addWidget(self.epochSpin)
 
         self.epochGridCheck = QtWidgets.QCheckBox("Epoch grid", self)
@@ -331,15 +366,13 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self.anchorButton.setStatusTip(
             "Start an epoch at the left edge of the view (back/front-fills the grid)."
         )
-        self.anchorButton.clicked.connect(
-            lambda: self.view.set_epoch_anchor(self.view.window_start)
-        )
+        self.anchorButton.clicked.connect(self._anchor_epochs_to_view)
         row.addWidget(self.anchorButton)
         self.resetAnchorButton = QtWidgets.QPushButton("Reset anchor", self)
         self.resetAnchorButton.setStatusTip(
             "Put epoch 1 back at the start of the recording."
         )
-        self.resetAnchorButton.clicked.connect(lambda: self.view.set_epoch_anchor(0.0))
+        self.resetAnchorButton.clicked.connect(self._reset_epoch_anchor)
         row.addWidget(self.resetAnchorButton)
 
         row.addSpacing(12)
@@ -383,12 +416,12 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         return panel
 
     def _build_shortcuts(self) -> None:
-        """Window-wide paging on PageUp/PageDown only.
+        """Window-wide paging on PageUp/PageDown, plus M to drop a point mark.
 
-        Arrows and Home/End live on the TraceView itself (click the traces,
-        then navigate): as window shortcuts they would be consumed by whichever
-        spin box or list last had focus. No text widget steals PageUp/Down, so
-        paging works from anywhere.
+        Arrow/Home/End navigation and amplitude are handled by the application
+        event filter (see :meth:`eventFilter`), which works regardless of focus;
+        no text widget steals PageUp/Down or a bare M, so those stay plain
+        QShortcuts here.
         """
         for keys, fraction in (
             (QtCore.Qt.Key.Key_PageDown, 1.0),
@@ -462,6 +495,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._refresh_list()
         self._refresh_title()
         self._configure_scrollbar()
+        self._update_epoch_readout()
         self._set_loaded(True)
         preferences.update_preferences(
             preferences_path, {"eeg_last_dir": str(path.parent)}
@@ -642,15 +676,109 @@ class EegReviewWindow(QtWidgets.QMainWindow):
 
     def _on_scrollbar(self, value: int) -> None:
         self.view.set_window_start(value / _SCROLL_TICKS_PER_SECOND)
+        self._update_epoch_readout()
 
     def _sync_scrollbar(self, window_start: float) -> None:
         self.scrollBar.blockSignals(True)
         self.scrollBar.setValue(int(window_start * _SCROLL_TICKS_PER_SECOND))
         self.scrollBar.blockSignals(False)
+        self._update_epoch_readout()
 
     def _on_window_length_changed(self) -> None:
         self.view.set_window_seconds(float(self.windowCombo.currentData()))
         self._configure_scrollbar()
+        self._update_epoch_readout()
+
+    # ----- epoch model + keyboard navigation (#173, #174) -----------------------------
+
+    def _on_epoch_seconds_changed(self, value: int) -> None:
+        self.view.set_epoch_seconds(float(value))
+        self._update_epoch_readout()
+
+    def _anchor_epochs_to_view(self) -> None:
+        self.view.set_epoch_anchor(self.view.window_start)
+        self._update_epoch_readout()
+
+    def _reset_epoch_anchor(self) -> None:
+        self.view.set_epoch_anchor(0.0)
+        self._update_epoch_readout()
+
+    def _update_epoch_readout(self) -> None:
+        """Show the epoch number at the left edge of the view in the status bar."""
+        if self._recording is None:
+            self.epochLabel.clear()
+            return
+        number = (
+            math.floor(
+                (self.view.window_start - self.view.epoch_anchor)
+                / self.view.epoch_seconds
+            )
+            + 1
+        )
+        self.epochLabel.setText(f"Epoch {number}")
+
+    def eventFilter(
+        self, obj: QtCore.QObject | None, event: QtCore.QEvent | None
+    ) -> bool:
+        """Route epoch/amplitude keys to the view regardless of which child has focus.
+
+        Installed on the application so the keys work without first clicking the
+        traces; scoped to this window being active (so a modal dialog keeps them)
+        and to a recording being loaded.
+        """
+        if (
+            isinstance(event, QtGui.QKeyEvent)
+            and event.type() == QtCore.QEvent.Type.KeyPress
+            and self.isActiveWindow()
+            and self._recording is not None
+            and self._handle_nav_key(event)
+        ):
+            return True
+        return super().eventFilter(obj, event)
+
+    def _focus_wants(self, key: int) -> bool:
+        """True if the focused widget should keep ``key`` for its own editing/nav.
+
+        Text/number entry (spin box, line edit) keeps every navigation key; a
+        combo box or the annotation list keeps only the vertical keys, so
+        Left/Right still page epochs while the list has focus.
+        """
+        focus = QtWidgets.QApplication.focusWidget()
+        if isinstance(focus, QtWidgets.QAbstractSpinBox | QtWidgets.QLineEdit):
+            return True
+        if isinstance(focus, QtWidgets.QComboBox | QtWidgets.QAbstractItemView):
+            return key in _VERTICAL_NAV_KEYS
+        return False
+
+    def _handle_nav_key(self, event: QtGui.QKeyEvent) -> bool:
+        """Apply one navigation/amplitude key; return whether it was consumed."""
+        key = event.key()
+        if key not in _NAV_KEYS or self._focus_wants(key):
+            return False
+        shift = bool(event.modifiers() & QtCore.Qt.KeyboardModifier.ShiftModifier)
+        if key in (QtCore.Qt.Key.Key_Left, QtCore.Qt.Key.Key_Right):
+            sign = 1 if key == QtCore.Qt.Key.Key_Right else -1
+            if shift:
+                self.view.nudge_seconds(sign * _FINE_NUDGE_SECONDS)
+            else:
+                self.view.step_epochs(sign)
+        elif key == QtCore.Qt.Key.Key_Up:
+            self._nudge_scale(louder=True, fine=shift)
+        elif key == QtCore.Qt.Key.Key_Down:
+            self._nudge_scale(louder=False, fine=shift)
+        elif key == QtCore.Qt.Key.Key_Home:
+            self._jump_to(0.0)
+        elif key == QtCore.Qt.Key.Key_End:
+            self._jump_to(float("inf"))
+        return True
+
+    def _nudge_scale(self, *, louder: bool, fine: bool) -> None:
+        """Step the amplitude through the scale spin box (louder → smaller µV/lane)."""
+        factor = _SCALE_KEY_FACTOR_FINE if fine else _SCALE_KEY_FACTOR
+        current = self.scaleSpin.value()
+        target = current / factor if louder else current * factor
+        clamped = max(self.scaleSpin.minimum(), min(self.scaleSpin.maximum(), target))
+        self.scaleSpin.setValue(round(clamped))  # drives view.set_scale, shows the value
 
     def _on_filters_changed(self) -> None:
         highpass = self.highpassSpin.value() or None  # 0.0 displays as "Off"
@@ -724,6 +852,11 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             if event is not None:
                 event.ignore()
             return
+        # Drop the app-level key filter before this window goes away, so a stray
+        # late event can never reach a half-deleted window.
+        app = QtWidgets.QApplication.instance()
+        if app is not None:
+            app.removeEventFilter(self)
         # Remember where this window sat for next launch (best-effort, never raises).
         preferences.update_window_geometry(
             preferences_path, _EEG_WINDOW_ID, windowstate.geometry_of(self)

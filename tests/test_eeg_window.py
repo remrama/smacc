@@ -17,7 +17,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from PyQt6 import QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from smacc import preferences
 from smacc.config import VERSION
@@ -357,6 +357,110 @@ def test_anchor_button_anchors_epochs_to_the_view(window, recording_path):
     assert window.view.epoch_anchor == pytest.approx(45.0)
     window.resetAnchorButton.click()  # back to the start of the recording
     assert window.view.epoch_anchor == 0.0
+
+
+# ----- keyboard navigation (#174) --------------------------------------------------
+
+
+def _key(key, *, shift=False):
+    mods = (
+        QtCore.Qt.KeyboardModifier.ShiftModifier
+        if shift
+        else QtCore.Qt.KeyboardModifier.NoModifier
+    )
+    return QtGui.QKeyEvent(QtCore.QEvent.Type.KeyPress, key, mods)
+
+
+@pytest.fixture
+def nav_window(window, recording_path, monkeypatch):
+    """A loaded window with focus pinned to nothing, so the key filter acts."""
+    window._load(recording_path)
+    monkeypatch.setattr(
+        QtWidgets.QApplication, "focusWidget", staticmethod(lambda: None)
+    )
+    return window
+
+
+def test_left_right_arrows_page_by_one_epoch(nav_window):
+    window = nav_window  # 30 s epochs by default
+    assert window._handle_nav_key(_key(QtCore.Qt.Key.Key_Right)) is True
+    assert window.view.window_start == pytest.approx(30.0)
+    window._handle_nav_key(_key(QtCore.Qt.Key.Key_Left))
+    assert window.view.window_start == pytest.approx(0.0)
+
+
+def test_shift_arrows_nudge_finely(nav_window):
+    nav_window._handle_nav_key(_key(QtCore.Qt.Key.Key_Right, shift=True))
+    assert nav_window.view.window_start == pytest.approx(1.0)  # a 1 s fine nudge
+
+
+def test_up_down_arrows_step_the_amplitude(nav_window):
+    window = nav_window
+    window.scaleSpin.setValue(100)
+    window._handle_nav_key(_key(QtCore.Qt.Key.Key_Up))  # louder → smaller µV/lane
+    assert window.scaleSpin.value() == 80  # 100 / 1.25
+    window._handle_nav_key(_key(QtCore.Qt.Key.Key_Down))
+    assert window.scaleSpin.value() == 100  # 80 * 1.25
+
+
+def test_shift_up_down_step_the_amplitude_finely(nav_window):
+    window = nav_window
+    window.scaleSpin.setValue(100)
+    window._handle_nav_key(_key(QtCore.Qt.Key.Key_Up, shift=True))
+    assert window.scaleSpin.value() == 91  # round(100 / 1.1)
+
+
+def test_home_and_end_jump_to_the_edges(nav_window):
+    window = nav_window
+    window._handle_nav_key(_key(QtCore.Qt.Key.Key_End))
+    span = DURATION - window.view.window_seconds
+    assert window.view.window_start == pytest.approx(span)
+    window._handle_nav_key(_key(QtCore.Qt.Key.Key_Home))
+    assert window.view.window_start == 0.0
+
+
+def test_epoch_readout_tracks_the_current_epoch(nav_window):
+    window = nav_window
+    assert window.epochLabel.text() == "Epoch 1"
+    window._handle_nav_key(_key(QtCore.Qt.Key.Key_Right))  # to 30 s → epoch 2
+    assert window.epochLabel.text() == "Epoch 2"
+
+
+def test_a_focused_spinbox_keeps_its_arrow_keys(window, recording_path, monkeypatch):
+    window._load(recording_path)
+    monkeypatch.setattr(
+        QtWidgets.QApplication, "focusWidget", staticmethod(lambda: window.scaleSpin)
+    )
+    assert window._handle_nav_key(_key(QtCore.Qt.Key.Key_Right)) is False
+    assert window.view.window_start == 0.0  # the spin box kept the key
+
+
+def test_a_focused_list_keeps_up_down_but_yields_left_right(
+    window, recording_path, monkeypatch
+):
+    window._load(recording_path)
+    monkeypatch.setattr(
+        QtWidgets.QApplication,
+        "focusWidget",
+        staticmethod(lambda: window.annotationList),
+    )
+    assert window._handle_nav_key(_key(QtCore.Qt.Key.Key_Down)) is False  # row nav
+    assert window._handle_nav_key(_key(QtCore.Qt.Key.Key_Right)) is True  # still pages
+
+
+def test_event_filter_routes_keys_only_when_active(
+    window, recording_path, monkeypatch
+):
+    window._load(recording_path)
+    monkeypatch.setattr(
+        QtWidgets.QApplication, "focusWidget", staticmethod(lambda: None)
+    )
+    monkeypatch.setattr(window, "isActiveWindow", lambda: False)
+    assert window.eventFilter(window, _key(QtCore.Qt.Key.Key_Right)) is False
+    assert window.view.window_start == 0.0  # inactive: the key is left alone
+    monkeypatch.setattr(window, "isActiveWindow", lambda: True)
+    assert window.eventFilter(window, _key(QtCore.Qt.Key.Key_Right)) is True
+    assert window.view.window_start == pytest.approx(30.0)
 
 
 # ----- label dialog / entry point -----------------------------------------------------

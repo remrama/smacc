@@ -386,22 +386,25 @@ def test_wheel_down_scrolls_forward(loaded):
     assert view.window_start == pytest.approx(0.0)
 
 
-def _key_event(key) -> QtGui.QKeyEvent:
-    return QtGui.QKeyEvent(
-        QtCore.QEvent.Type.KeyPress, key, QtCore.Qt.KeyboardModifier.NoModifier
-    )
-
-
-def test_arrow_and_home_end_keys_navigate(loaded):
+def test_step_epochs_moves_by_one_epoch_length(loaded):
+    # The window's Left/Right arrows drive this (keyboard routing lives in the
+    # window now); the view just exposes the epoch-sized step and reports it.
     view, _ = loaded
-    view.keyPressEvent(_key_event(QtCore.Qt.Key.Key_Right))
+    view.set_epoch_seconds(10.0)
+    moves: list[float] = []
+    view.windowChanged.connect(moves.append)
+    view.step_epochs(2)
+    assert view.window_start == pytest.approx(20.0)
+    assert moves == [20.0]
+
+
+def test_nudge_seconds_scrolls_a_fixed_amount(loaded):
+    view, _ = loaded
+    moves: list[float] = []
+    view.windowChanged.connect(moves.append)
+    view.nudge_seconds(3.0)
     assert view.window_start == pytest.approx(3.0)
-    view.keyPressEvent(_key_event(QtCore.Qt.Key.Key_Left))
-    assert view.window_start == pytest.approx(0.0)
-    view.keyPressEvent(_key_event(QtCore.Qt.Key.Key_End))
-    assert view.window_start == pytest.approx(DURATION - view.window_seconds)
-    view.keyPressEvent(_key_event(QtCore.Qt.Key.Key_Home))
-    assert view.window_start == pytest.approx(0.0)
+    assert moves == [3.0]
 
 
 # ----- epoch model (#173) ---------------------------------------------------------
