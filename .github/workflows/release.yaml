@@ -95,13 +95,22 @@ jobs:
       # the test. For the EEG exe, --version only proves the import tree (MNE is
       # imported lazily), so --selftest additionally round-trips a synthetic
       # recording through MNE, the filters, and the annotation sidecar.
+      # Every Start-Process below is bounded like the crash-log test's: -Wait
+      # would sit behind any stray window/prompt until the 30-minute job
+      # timeout, reporting nothing about which command hung. A kill + throw
+      # names the culprit within minutes instead. 300s covers the slowest
+      # legitimate case (the MNE onefile extracting + importing on a runner
+      # under Defender's real-time scan).
       - name: Smoke-test the exes
         run: |
-          $p = Start-Process -FilePath dist/SMACC.exe -ArgumentList '--version' -Wait -PassThru
+          $p = Start-Process -FilePath dist/SMACC.exe -ArgumentList '--version' -PassThru
+          if (-not $p.WaitForExit(120000)) { $p.Kill(); throw "SMACC.exe --version did not exit within 120s" }
           if ($p.ExitCode -ne 0) { throw "SMACC.exe --version exited with code $($p.ExitCode)" }
-          $p = Start-Process -FilePath dist/SMACC-EEG.exe -ArgumentList '--version' -Wait -PassThru
+          $p = Start-Process -FilePath dist/SMACC-EEG.exe -ArgumentList '--version' -PassThru
+          if (-not $p.WaitForExit(300000)) { $p.Kill(); throw "SMACC-EEG.exe --version did not exit within 300s" }
           if ($p.ExitCode -ne 0) { throw "SMACC-EEG.exe --version exited with code $($p.ExitCode)" }
-          $p = Start-Process -FilePath dist/SMACC-EEG.exe -ArgumentList '--selftest' -Wait -PassThru
+          $p = Start-Process -FilePath dist/SMACC-EEG.exe -ArgumentList '--selftest' -PassThru
+          if (-not $p.WaitForExit(300000)) { $p.Kill(); throw "SMACC-EEG.exe --selftest did not exit within 300s" }
           if ($p.ExitCode -ne 0) { throw "SMACC-EEG.exe --selftest exited with code $($p.ExitCode)" }
       # The crash-log pipeline (#149) matters most in exactly this windowed build,
       # where nothing else can capture a crash — and it's the one build the test
@@ -136,22 +145,26 @@ jobs:
       # in-place upgrade path a lab uses to add the component later) must.
       - name: Smoke-test the installer (default - no EEG component)
         run: |
-          $p = Start-Process -FilePath dist/SMACC-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER' -Wait -PassThru
+          $p = Start-Process -FilePath dist/SMACC-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER' -PassThru
+          if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "SMACC-Setup.exe did not exit within 180s" }
           if ($p.ExitCode -ne 0) { throw "SMACC-Setup.exe exited with code $($p.ExitCode)" }
           $exe = "$env:LOCALAPPDATA\Programs\SMACC\SMACC.exe"
           if (-not (Test-Path $exe)) { throw "Installed exe not found at $exe" }
-          $p = Start-Process -FilePath $exe -ArgumentList '--version' -Wait -PassThru
+          $p = Start-Process -FilePath $exe -ArgumentList '--version' -PassThru
+          if (-not $p.WaitForExit(120000)) { $p.Kill(); throw "Installed SMACC.exe --version did not exit within 120s" }
           if ($p.ExitCode -ne 0) { throw "Installed SMACC.exe --version exited with code $($p.ExitCode)" }
           $progid = (Get-ItemProperty -Path 'HKCU:\Software\Classes\.smacc').'(default)'
           if ($progid -ne 'SMACC.Study') { throw ".smacc association not registered (got '$progid')" }
           if (Test-Path "$env:LOCALAPPDATA\Programs\SMACC\SMACC-EEG.exe") { throw "Default install must not include SMACC-EEG.exe" }
       - name: Smoke-test the installer (adding the EEG component)
         run: |
-          $p = Start-Process -FilePath dist/SMACC-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/COMPONENTS="core,eeg"' -Wait -PassThru
+          $p = Start-Process -FilePath dist/SMACC-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/COMPONENTS="core,eeg"' -PassThru
+          if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "SMACC-Setup.exe (core,eeg) did not exit within 180s" }
           if ($p.ExitCode -ne 0) { throw "SMACC-Setup.exe (core,eeg) exited with code $($p.ExitCode)" }
           $eeg = "$env:LOCALAPPDATA\Programs\SMACC\SMACC-EEG.exe"
           if (-not (Test-Path $eeg)) { throw "Installed EEG exe not found at $eeg" }
-          $p = Start-Process -FilePath $eeg -ArgumentList '--selftest' -Wait -PassThru
+          $p = Start-Process -FilePath $eeg -ArgumentList '--selftest' -PassThru
+          if (-not $p.WaitForExit(300000)) { $p.Kill(); throw "Installed SMACC-EEG.exe --selftest did not exit within 300s" }
           if ($p.ExitCode -ne 0) { throw "Installed SMACC-EEG.exe --selftest exited with code $($p.ExitCode)" }
       # Every run leaves the build products behind as workflow artifacts, so a
       # verification run's exes/installer can be downloaded and inspected
