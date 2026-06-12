@@ -41,7 +41,7 @@ from .annotations import (
     write_annotations_json,
     write_annotations_tsv,
 )
-from .view import TraceView
+from .view import DEFAULT_EPOCH_SECONDS, TraceView
 
 # Stable id for this window's geometry entry in the per-window prefs map.
 _EEG_WINDOW_ID = "eeg-review"
@@ -184,6 +184,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         layout.setSpacing(8)
         layout.addWidget(_section_title("EEG review"))
         layout.addLayout(self._build_controls_row())
+        layout.addLayout(self._build_epoch_row())
 
         body = QtWidgets.QHBoxLayout()
         viewColumn = QtWidgets.QVBoxLayout()
@@ -297,6 +298,65 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         row.addWidget(self.saveButton)
         return row
 
+    def _build_epoch_row(self) -> QtWidgets.QLayout:
+        """The epoch model controls (#173): length, grid, anchor, time-axis mode.
+
+        A second row so the busy filter/window/scale row above stays legible. The
+        epoch length is deliberately *separate* from the on-screen window length —
+        a 30 s scoring epoch can be inspected inside a 60 s window.
+        """
+        row = QtWidgets.QHBoxLayout()
+        row.addWidget(QtWidgets.QLabel("Epoch:", self))
+        self.epochSpin = QtWidgets.QSpinBox(self)
+        self.epochSpin.setRange(1, 300)
+        self.epochSpin.setValue(int(DEFAULT_EPOCH_SECONDS))
+        self.epochSpin.setSuffix(" s")
+        self.epochSpin.setStatusTip(
+            "Scoring-epoch length (30 s is standard) — independent of the window."
+        )
+        self.epochSpin.valueChanged.connect(
+            lambda value: self.view.set_epoch_seconds(float(value))
+        )
+        row.addWidget(self.epochSpin)
+
+        self.epochGridCheck = QtWidgets.QCheckBox("Epoch grid", self)
+        self.epochGridCheck.setChecked(True)
+        self.epochGridCheck.setStatusTip("Show faint, numbered epoch boundaries.")
+        self.epochGridCheck.toggled.connect(
+            lambda checked: self.view.set_epochs_visible(checked)
+        )
+        row.addWidget(self.epochGridCheck)
+
+        self.anchorButton = QtWidgets.QPushButton("Anchor epochs to view", self)
+        self.anchorButton.setStatusTip(
+            "Start an epoch at the left edge of the view (back/front-fills the grid)."
+        )
+        self.anchorButton.clicked.connect(
+            lambda: self.view.set_epoch_anchor(self.view.window_start)
+        )
+        row.addWidget(self.anchorButton)
+        self.resetAnchorButton = QtWidgets.QPushButton("Reset anchor", self)
+        self.resetAnchorButton.setStatusTip(
+            "Put epoch 1 back at the start of the recording."
+        )
+        self.resetAnchorButton.clicked.connect(lambda: self.view.set_epoch_anchor(0.0))
+        row.addWidget(self.resetAnchorButton)
+
+        row.addSpacing(12)
+        row.addWidget(QtWidgets.QLabel("Time axis:", self))
+        self.axisModeCombo = QtWidgets.QComboBox(self)
+        self.axisModeCombo.addItem("Clock", "clock")
+        self.axisModeCombo.addItem("Elapsed", "elapsed")
+        self.axisModeCombo.setStatusTip(
+            "Label the time axis with wall-clock time or seconds from the start."
+        )
+        self.axisModeCombo.currentIndexChanged.connect(
+            lambda: self.view.set_time_axis_mode(self.axisModeCombo.currentData())
+        )
+        row.addWidget(self.axisModeCombo)
+        row.addStretch(1)
+        return row
+
     def _build_annotation_panel(self) -> QtWidgets.QLayout:
         panel = QtWidgets.QVBoxLayout()
         panel.addWidget(QtWidgets.QLabel("Annotations:", self))
@@ -391,6 +451,14 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._dirty = False
         self.view.set_provider(recording)
         self.view.set_annotations(annotations)
+        # Hand the view the localized recording start so the time axis can label
+        # clock time; default to clock when the file carries one, else elapsed.
+        started = wall_time(recording, 0.0)
+        self.view.set_time_origin(started)
+        self.axisModeCombo.blockSignals(True)
+        self.axisModeCombo.setCurrentIndex(0 if started is not None else 1)
+        self.axisModeCombo.blockSignals(False)
+        self.view.set_time_axis_mode(self.axisModeCombo.currentData())
         self._refresh_list()
         self._refresh_title()
         self._configure_scrollbar()
@@ -398,7 +466,6 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         preferences.update_preferences(
             preferences_path, {"eeg_last_dir": str(path.parent)}
         )
-        started = wall_time(recording, 0.0)
         clock = f" · started {started.strftime('%H:%M:%S')}" if started else ""
         self.fileInfoLabel.setText(
             f"{path.name} — {len(recording.ch_names)} ch · "

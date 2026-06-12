@@ -23,6 +23,8 @@ no MNE and nothing from the wider app.
 
 from __future__ import annotations
 
+import math
+from datetime import datetime, timedelta
 from typing import Any, Protocol
 
 import numpy as np
@@ -57,6 +59,53 @@ _REGION_BRUSH_SELECTED = (70, 130, 180, 110)
 _REGION_PEN = (70, 130, 180, 160)
 _LINE_PEN = (178, 34, 34, 160)  # firebrick for instantaneous marks
 _LINE_PEN_SELECTED = (178, 34, 34, 255)
+
+# Epoch gridlines: a faint dashed grey so the boundaries read as background
+# scaffolding behind the traces, never competing with the firebrick marks.
+_EPOCH_PEN = pg.mkPen((128, 128, 128, 110), width=1, style=QtCore.Qt.PenStyle.DashLine)
+_EPOCH_LABEL_COLOR = (128, 128, 128, 200)
+# The standard polysomnography scoring epoch; the sleep default everywhere.
+DEFAULT_EPOCH_SECONDS = 30.0
+
+
+class TimeAxis(pg.AxisItem):
+    """Bottom axis that labels x (data seconds) as elapsed time or wall clock.
+
+    The tick *positions* stay in data seconds (pyqtgraph picks them); only the
+    strings change. Clock mode needs an ``origin`` datetime — the recording's
+    localized start, computed format-aware in :func:`smacc.eeg.window.wall_time`
+    and handed down here, so this axis stays free of MNE and format quirks.
+    Falls back to elapsed seconds whenever no origin is known (anonymized files).
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._mode = "elapsed"
+        self._origin: datetime | None = None
+        self.setLabel("time (s)")
+
+    def set_mode(self, mode: str) -> None:
+        """Switch between ``"clock"`` and ``"elapsed"`` tick labels."""
+        self._mode = mode
+        self.setLabel("clock time" if mode == "clock" else "time (s)")
+        self.picture = None  # drop the cached render so tickStrings re-runs
+        self.update()
+
+    def set_origin(self, origin: datetime | None) -> None:
+        """Set the wall-clock instant of data-second 0 (``None`` disables clock)."""
+        self._origin = origin
+        self.picture = None
+        self.update()
+
+    def tickStrings(
+        self, values: list[float], scale: float, spacing: float
+    ) -> list[str]:
+        if self._mode == "clock" and self._origin is not None:
+            return [
+                (self._origin + timedelta(seconds=float(v))).strftime("%H:%M:%S")
+                for v in values
+            ]
+        return super().tickStrings(values, scale, spacing)
 
 
 class SliceProvider(Protocol):
@@ -150,12 +199,24 @@ class TraceView(pg.PlotWidget):
 
     def __init__(self) -> None:
         self._viewbox = _AnnotateViewBox()
-        super().__init__(viewBox=self._viewbox, background=None)
+        self._time_axis = TimeAxis(orientation="bottom")
+        super().__init__(
+            viewBox=self._viewbox,
+            background=None,
+            axisItems={"bottom": self._time_axis},
+        )
         self._provider: SliceProvider | None = None
         self._spec = dsp.UNFILTERED
         self._window_start = 0.0
         self._window_seconds = 30.0  # the standard sleep-scoring epoch
         self._scale_uv = 100.0  # microvolts per channel lane
+        # Epoch model (#173): the scoring epoch is separate from the on-screen
+        # window. Boundaries fall at anchor + k·epoch for integer k, so anchoring
+        # on a feature back/front-fills the whole grid from that point.
+        self._epoch_seconds = DEFAULT_EPOCH_SECONDS
+        self._epoch_anchor = 0.0
+        self._show_epochs = True
+        self._epoch_items: list[pg.InfiniteLine] = []
         self._annotations: list[Annotation] = []
         self._selected = -1
         self._annotation_items: list[pg.LinearRegionItem | pg.InfiniteLine] = []
@@ -174,8 +235,7 @@ class TraceView(pg.PlotWidget):
         plot_item.setMenuEnabled(False)
         left_axis = plot_item.getAxis("left")
         left_axis.setStyle(tickLength=0)
-        bottom_axis = plot_item.getAxis("bottom")
-        bottom_axis.setLabel("time (s)")
+        # The bottom axis is the custom TimeAxis (clock/elapsed); it labels itself.
         # Track the mouse for the status-bar clock readout.
         self.scene().sigMouseMoved.connect(self._on_mouse_moved)
 
@@ -197,13 +257,23 @@ class TraceView(pg.PlotWidget):
     def selected(self) -> int:
         return self._selected
 
+    @property
+    def epoch_seconds(self) -> float:
+        return self._epoch_seconds
+
+    @property
+    def epoch_anchor(self) -> float:
+        return self._epoch_anchor
+
     def set_provider(self, provider: SliceProvider | None) -> None:
         """Show a (new) recording from its start; ``None`` clears the view."""
         self._provider = provider
         self._window_start = 0.0
+        self._epoch_anchor = 0.0  # a new recording starts epoch 1 at its start
         self._build_curves()
         self._refresh_data()
         self._refresh_annotations()
+        self._refresh_epochs()
 
     def set_spec(self, spec: dsp.FilterSpec) -> None:
         self._spec = spec
@@ -219,12 +289,40 @@ class TraceView(pg.PlotWidget):
         self._clamp_window_start()
         self._refresh_data()
         self._refresh_annotations()
+        self._refresh_epochs()
 
     def set_window_start(self, seconds: float) -> None:
         self._window_start = seconds
         self._clamp_window_start()
         self._refresh_data()
         self._refresh_annotations()
+        self._refresh_epochs()
+
+    def set_epoch_seconds(self, seconds: float) -> None:
+        """Set the scoring-epoch length (≥ 1 s); redraws the epoch grid."""
+        self._epoch_seconds = max(1.0, float(seconds))
+        self._refresh_epochs()
+
+    def set_epoch_anchor(self, seconds: float) -> None:
+        """Set the time at which an epoch boundary falls (epoch 1 starts here).
+
+        The grid back/front-fills from the anchor, so passing a feature's time
+        (e.g. the start of an LRLR) lets the signal sit cleanly inside one epoch.
+        """
+        self._epoch_anchor = max(0.0, float(seconds))
+        self._refresh_epochs()
+
+    def set_epochs_visible(self, visible: bool) -> None:
+        self._show_epochs = bool(visible)
+        self._refresh_epochs()
+
+    def set_time_axis_mode(self, mode: str) -> None:
+        """Label the time axis with ``"clock"`` wall time or ``"elapsed"`` seconds."""
+        self._time_axis.set_mode(mode)
+
+    def set_time_origin(self, origin: datetime | None) -> None:
+        """Tell the axis the wall-clock instant of data-second 0 (for clock mode)."""
+        self._time_axis.set_origin(origin)
 
     def scroll_by(self, fraction: float) -> None:
         """Scroll by a fraction of the window (±1.0 is a full page)."""
@@ -421,3 +519,35 @@ class TraceView(pg.PlotWidget):
             item.setZValue(10)
             plot_item.addItem(item)
             self._annotation_items.append(item)
+
+    def _refresh_epochs(self) -> None:
+        """Redraw the epoch boundary gridlines for the visible window.
+
+        Lines fall at ``anchor + k·epoch`` and are numbered with the epoch they
+        begin (the boundary at the anchor starts epoch 1). Only the handful of
+        boundaries inside the window are drawn, so this stays cheap on scroll.
+        """
+        plot_item = self.getPlotItem()
+        assert plot_item is not None
+        for old in self._epoch_items:
+            plot_item.removeItem(old)
+        self._epoch_items = []
+        if self._provider is None or not self._show_epochs:
+            return
+        lo = self._window_start
+        hi = self._window_start + self._window_seconds
+        first = math.ceil((lo - self._epoch_anchor) / self._epoch_seconds)
+        last = math.floor((hi - self._epoch_anchor) / self._epoch_seconds)
+        for k in range(first, last + 1):
+            boundary = self._epoch_anchor + k * self._epoch_seconds
+            line = pg.InfiniteLine(
+                pos=boundary,
+                angle=90,
+                movable=False,
+                pen=_EPOCH_PEN,
+                label=str(k + 1),  # the epoch this boundary starts
+                labelOpts={"position": 0.96, "color": _EPOCH_LABEL_COLOR},
+            )
+            line.setZValue(2)  # above the curves, below the annotations
+            plot_item.addItem(line)
+            self._epoch_items.append(line)

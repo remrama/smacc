@@ -320,6 +320,45 @@ def test_cursor_readout_shows_data_and_clock_time(window, recording_path):
     assert "22:01:30" in message  # 22:00:00 meas_date + 90 s, amp wall clock
 
 
+# ----- epoch model (#173) ----------------------------------------------------------
+
+
+def test_epoch_spin_sets_the_epoch_length(window, recording_path):
+    window._load(recording_path)
+    window.epochSpin.setValue(20)
+    assert window.view.epoch_seconds == 20.0
+
+
+def test_time_axis_defaults_to_clock_when_the_file_has_a_start(window, recording_path):
+    window._load(recording_path)  # FakeRecording carries a meas_date
+    assert window.axisModeCombo.currentData() == "clock"
+    assert window.view._time_axis._mode == "clock"
+
+
+def test_time_axis_defaults_to_elapsed_without_a_start(
+    window, recording_path, monkeypatch
+):
+    def no_date(path):
+        rec = FakeRecording(path)
+        rec.meas_date = None  # anonymized: only elapsed/epoch time is meaningful
+        return rec
+
+    monkeypatch.setattr(window_mod.io, "open_recording", no_date)
+    window._load(recording_path)
+    assert window.axisModeCombo.currentData() == "elapsed"
+    assert window.view._time_axis._mode == "elapsed"
+
+
+def test_anchor_button_anchors_epochs_to_the_view(window, recording_path):
+    window._load(recording_path)
+    window.scrollBar.setValue(450)  # 45.0 s
+    assert window.view.window_start == pytest.approx(45.0)
+    window.anchorButton.click()
+    assert window.view.epoch_anchor == pytest.approx(45.0)
+    window.resetAnchorButton.click()  # back to the start of the recording
+    assert window.view.epoch_anchor == 0.0
+
+
 # ----- label dialog / entry point -----------------------------------------------------
 
 
