@@ -281,6 +281,98 @@ class ChannelPickerDialog(QtWidgets.QDialog):
         return dialog.result_indices() or None
 
 
+class PaletteEditorDialog(QtWidgets.QDialog):
+    """Edit the quick-mark palette: a reorderable list of labels (#181).
+
+    The list order is the button order (and the first nine map to keys 1–9).
+    Items rename in place (double-click); Add appends a new label. Labels are
+    whitespace-normalized and blanks dropped, matching the annotation model.
+    """
+
+    def __init__(self, parent: QtWidgets.QWidget | None, labels: list[str]) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Quick-mark palette")
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(
+            QtWidgets.QLabel(
+                "Quick-mark buttons, top to bottom (the first nine get keys 1–9):",
+                self,
+            )
+        )
+        body = QtWidgets.QHBoxLayout()
+        self.listWidget = QtWidgets.QListWidget(self)
+        self.listWidget.setMinimumWidth(220)
+        for label in labels:
+            self._append_item(label)
+        body.addWidget(self.listWidget, 1)
+        column = QtWidgets.QVBoxLayout()
+        addButton = QtWidgets.QPushButton("Add…", self)
+        addButton.clicked.connect(self._add)
+        removeButton = QtWidgets.QPushButton("Remove", self)
+        removeButton.clicked.connect(self._remove)
+        upButton = QtWidgets.QPushButton("Up", self)
+        upButton.clicked.connect(lambda: self._move(-1))
+        downButton = QtWidgets.QPushButton("Down", self)
+        downButton.clicked.connect(lambda: self._move(1))
+        for button in (addButton, removeButton, upButton, downButton):
+            column.addWidget(button)
+        column.addStretch(1)
+        body.addLayout(column)
+        layout.addLayout(body)
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            self,
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _append_item(self, label: str) -> None:
+        item = QtWidgets.QListWidgetItem(label)
+        item.setFlags(item.flags() | QtCore.Qt.ItemFlag.ItemIsEditable)
+        self.listWidget.addItem(item)
+
+    def _add(self) -> None:
+        text, ok = QtWidgets.QInputDialog.getText(self, "Add quick mark", "Label:")
+        if ok and text.strip():
+            self._append_item(text.strip())
+            self.listWidget.setCurrentRow(self.listWidget.count() - 1)
+
+    def _remove(self) -> None:
+        row = self.listWidget.currentRow()
+        if row >= 0:
+            self.listWidget.takeItem(row)
+
+    def _move(self, delta: int) -> None:
+        row = self.listWidget.currentRow()
+        target = row + delta
+        if row < 0 or not 0 <= target < self.listWidget.count():
+            return
+        item = self.listWidget.takeItem(row)
+        self.listWidget.insertItem(target, item)
+        self.listWidget.setCurrentRow(target)
+
+    def result_labels(self) -> list[str]:
+        out: list[str] = []
+        for row in range(self.listWidget.count()):
+            item = self.listWidget.item(row)
+            text = " ".join(item.text().split()) if item is not None else ""
+            if text:
+                out.append(text)
+        return out
+
+    @staticmethod
+    def get_palette(
+        parent: QtWidgets.QWidget | None, labels: list[str]
+    ) -> list[str] | None:
+        """Run the dialog; return the edited label list, or ``None`` on cancel."""
+        dialog = PaletteEditorDialog(parent, labels)
+        if dialog.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+            return None
+        return dialog.result_labels()
+
+
 class ExportDialog(QtWidgets.QDialog):
     """Choose what to export and how, for a publication figure (#180).
 
@@ -634,6 +726,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         layout.addWidget(self._build_recovery_banner())
         layout.addLayout(self._build_controls_row())
         layout.addLayout(self._build_epoch_row())
+        layout.addLayout(self._build_palette_row())
 
         body = QtWidgets.QHBoxLayout()
         viewColumn = QtWidgets.QVBoxLayout()
@@ -854,6 +947,28 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         row.addWidget(self.exportButton)
         return row
 
+    def _build_palette_row(self) -> QtWidgets.QLayout:
+        """The quick-mark palette (#181): one-click labels dropped at the cursor.
+
+        A configurable row of buttons, each inserting a labeled point mark with no
+        dialog — the fast path for a rater scoring signals. The first nine also
+        answer to number keys 1–9 (see :meth:`_handle_palette_key`)."""
+        row = QtWidgets.QHBoxLayout()
+        row.addWidget(QtWidgets.QLabel("Quick marks:", self))
+        self.paletteButtonsLayout = QtWidgets.QHBoxLayout()
+        self.paletteButtonsLayout.setSpacing(4)
+        self._palette_buttons: list[QtWidgets.QPushButton] = []
+        row.addLayout(self.paletteButtonsLayout)
+        row.addStretch(1)
+        self.editPaletteButton = QtWidgets.QPushButton("Edit palette…", self)
+        self.editPaletteButton.setStatusTip(
+            "Choose the quick-mark buttons (each drops its label at the cursor)."
+        )
+        self.editPaletteButton.clicked.connect(self._edit_palette)
+        row.addWidget(self.editPaletteButton)
+        self._rebuild_palette_buttons()
+        return row
+
     def _build_contract_caption(self) -> QtWidgets.QLabel:
         """A quiet, always-visible reminder of the tool's safety contract (#175)."""
         caption = QtWidgets.QLabel(
@@ -943,6 +1058,47 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             self.exportButton,
         ):
             widget.setEnabled(loaded)
+        for button in self._palette_buttons:  # no recording → nothing to mark
+            button.setEnabled(loaded)
+
+    # ----- quick-mark palette (#181) ---------------------------------------------
+
+    def _palette_labels(self) -> list[str]:
+        """The configured quick-mark labels (falls back to the seed labels)."""
+        prefs = preferences.load_preferences(preferences_path)
+        labels = prefs.get("eeg_palette_labels")
+        if not isinstance(labels, list):
+            return list(SEED_LABELS)
+        return [s for s in labels if isinstance(s, str) and s.strip()]
+
+    def _rebuild_palette_buttons(self) -> None:
+        """Recreate the quick-mark buttons from the saved palette."""
+        while self.paletteButtonsLayout.count():
+            item = self.paletteButtonsLayout.takeAt(0)
+            widget = item.widget() if item is not None else None
+            if widget is not None:
+                widget.deleteLater()
+        self._palette_buttons = []
+        for index, label in enumerate(self._palette_labels()):
+            button = QtWidgets.QPushButton(label, self)
+            hint = "Drop this label at the cursor"
+            if index < 9:  # the first nine answer to number keys 1–9
+                hint += f" (key {index + 1})"
+            button.setStatusTip(hint + ".")
+            button.clicked.connect(
+                lambda _checked=False, text=label: self._insert_label_at_cursor(text)
+            )
+            button.setEnabled(self._recording is not None)
+            self.paletteButtonsLayout.addWidget(button)
+            self._palette_buttons.append(button)
+
+    def _edit_palette(self) -> None:
+        """Edit and persist the quick-mark palette, then rebuild the buttons."""
+        result = PaletteEditorDialog.get_palette(self, self._palette_labels())
+        if result is None:
+            return
+        preferences.update_preferences(preferences_path, {"eeg_palette_labels": result})
+        self._rebuild_palette_buttons()
 
     # ----- opening a recording ---------------------------------------------------
 
@@ -1042,25 +1198,48 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         """
         if self._recording is None:
             return
-        seconds = min(max(0.0, seconds), self._recording.duration)
         result = LabelDialog.get_label(self, self._recent_labels(), offer_instant=False)
         if result is None:
             return
         label, _ = result
+        self._insert_point_mark(seconds, label)
+
+    def _insert_label_at_cursor(self, label: str) -> None:
+        """Drop ``label`` as a point mark at the cursor (a quick-mark button/key).
+
+        No dialog: the label is already chosen, so a rater scoring signals places
+        the mark in one action, at the last cursor time (or the view center if the
+        mouse never entered the traces).
+        """
+        if self._recording is None:
+            return
+        self._insert_point_mark(self._cursor_or_center(), label)
+
+    def _insert_point_mark(self, seconds: float, label: str) -> None:
+        """Insert a clamped zero-duration mark, select it, and mark the review dirty.
+
+        The shared tail of every point-mark path: ctrl-click/M (which prompt for a
+        label first) and the quick-mark palette (which already has one).
+        """
+        assert self._recording is not None
+        seconds = min(max(0.0, seconds), self._recording.duration)
         annotation = Annotation(seconds, 0.0, label)
         self._annotations = insert(self._annotations, annotation)
         self._remember_label(label)
         self._mark_dirty()
         self._select(self._annotations.index(annotation))
 
+    def _cursor_or_center(self) -> float:
+        """The last cursor time over the traces, or the view center if never set."""
+        if self._cursor_seconds is not None:
+            return self._cursor_seconds
+        return self.view.window_start + self.view.window_seconds / 2
+
     def _mark_at_cursor(self) -> None:
         """Mark at the last cursor position, or the view's center if unknown."""
         if self._recording is None:
             return
-        seconds = self._cursor_seconds
-        if seconds is None:  # the mouse never entered the traces
-            seconds = self.view.window_start + self.view.window_seconds / 2
-        self._add_point_mark(seconds)
+        self._add_point_mark(self._cursor_or_center())
 
     def edit_selected(self) -> None:
         index = self.annotationList.currentRow()
@@ -1336,10 +1515,34 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             and event.type() == QtCore.QEvent.Type.KeyPress
             and self.isActiveWindow()
             and self._recording is not None
-            and self._handle_nav_key(event)
+            and (self._handle_nav_key(event) or self._handle_palette_key(event))
         ):
             return True
         return super().eventFilter(obj, event)
+
+    def _handle_palette_key(self, event: QtGui.QKeyEvent) -> bool:
+        """Drop the n-th quick mark on a bare digit 1–9; return whether consumed.
+
+        Yields the digit to any text/number entry that has focus (so typing a
+        scale or a label is never hijacked) and ignores it when a modifier other
+        than the numeric keypad is held.
+        """
+        key = event.key()
+        if not QtCore.Qt.Key.Key_1 <= key <= QtCore.Qt.Key.Key_9:
+            return False
+        if event.modifiers() & ~QtCore.Qt.KeyboardModifier.KeypadModifier:
+            return False  # only a bare digit (keypad ok), not Ctrl/Alt/Shift+digit
+        focus = QtWidgets.QApplication.focusWidget()
+        if isinstance(
+            focus,
+            QtWidgets.QAbstractSpinBox | QtWidgets.QLineEdit | QtWidgets.QComboBox,
+        ):
+            return False
+        index = key - QtCore.Qt.Key.Key_1
+        if index >= len(self._palette_buttons):
+            return False
+        self._insert_label_at_cursor(self._palette_buttons[index].text())
+        return True
 
     def _focus_wants(self, key: int) -> bool:
         """True if the focused widget should keep ``key`` for its own editing/nav.

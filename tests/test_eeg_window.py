@@ -1179,3 +1179,110 @@ def test_single_rater_save_never_prompts_for_identity(
     plain_tsv, _ = sidecar_paths(recording_path)
     assert read_annotations_tsv(plain_tsv) == [Annotation(10.0, 4.0, "LRLR")]
     assert not win._dirty
+
+
+# ----- quick-mark palette (#181) --------------------------------------------
+
+DEFAULT_PALETTE = ["LRLR", "LRLRx2", "LRLRx3", "IEIE"]
+
+
+def test_palette_seeds_buttons_from_the_pref(window):
+    assert [b.text() for b in window._palette_buttons] == DEFAULT_PALETTE
+
+
+def test_palette_buttons_disabled_until_a_recording_loads(window, recording_path):
+    assert all(not b.isEnabled() for b in window._palette_buttons)
+    window._load(recording_path)
+    assert all(b.isEnabled() for b in window._palette_buttons)
+
+
+def test_palette_button_drops_a_labeled_mark_at_the_cursor(window, recording_path):
+    window._load(recording_path)
+    window._on_cursor_moved(33.0)
+    window._palette_buttons[0].click()  # "LRLR" — no dialog
+    assert window._annotations == [Annotation(33.0, 0.0, "LRLR")]
+    assert window._dirty
+    # The palette label also lands in the recents that seed the label dialog.
+    assert window._recent_labels()[0] == "LRLR"
+
+
+def test_palette_button_falls_back_to_the_view_center(window, recording_path):
+    window._load(recording_path)  # cursor never moved; 0–30 window → center 15
+    window._palette_buttons[1].click()  # "LRLRx2"
+    assert window._annotations == [Annotation(15.0, 0.0, "LRLRx2")]
+
+
+def test_palette_number_key_inserts_the_nth_label(window, recording_path, monkeypatch):
+    window._load(recording_path)
+    window._on_cursor_moved(40.0)
+    monkeypatch.setattr(
+        QtWidgets.QApplication, "focusWidget", staticmethod(lambda: None)
+    )
+    event = QtGui.QKeyEvent(
+        QtCore.QEvent.Type.KeyPress,
+        QtCore.Qt.Key.Key_2,
+        QtCore.Qt.KeyboardModifier.NoModifier,
+    )
+    assert window._handle_palette_key(event)  # consumed
+    assert window._annotations == [Annotation(40.0, 0.0, "LRLRx2")]  # 2nd label
+
+
+def test_palette_number_key_yields_to_text_entry(window, recording_path, monkeypatch):
+    window._load(recording_path)
+    monkeypatch.setattr(
+        QtWidgets.QApplication, "focusWidget", staticmethod(lambda: window.scaleSpin)
+    )
+    event = QtGui.QKeyEvent(
+        QtCore.QEvent.Type.KeyPress,
+        QtCore.Qt.Key.Key_1,
+        QtCore.Qt.KeyboardModifier.NoModifier,
+    )
+    assert not window._handle_palette_key(event)  # the spin box keeps the digit
+    assert window._annotations == []
+
+
+def test_palette_number_key_past_the_end_is_ignored(
+    window, recording_path, monkeypatch
+):
+    window._load(recording_path)
+    monkeypatch.setattr(
+        QtWidgets.QApplication, "focusWidget", staticmethod(lambda: None)
+    )
+    event = QtGui.QKeyEvent(  # only four palette buttons; 9 has no target
+        QtCore.QEvent.Type.KeyPress,
+        QtCore.Qt.Key.Key_9,
+        QtCore.Qt.KeyboardModifier.NoModifier,
+    )
+    assert not window._handle_palette_key(event)
+    assert window._annotations == []
+
+
+def test_editing_the_palette_persists_and_rebuilds(window, monkeypatch):
+    monkeypatch.setattr(
+        window_mod.PaletteEditorDialog,
+        "get_palette",
+        staticmethod(lambda *a, **k: ["Sniff", "Frown"]),
+    )
+    window._edit_palette()
+    assert [b.text() for b in window._palette_buttons] == ["Sniff", "Frown"]
+    prefs = preferences.load_preferences(window._prefs_path)
+    assert prefs["eeg_palette_labels"] == ["Sniff", "Frown"]
+
+
+def test_cancelling_the_palette_editor_changes_nothing(window, monkeypatch):
+    monkeypatch.setattr(
+        window_mod.PaletteEditorDialog,
+        "get_palette",
+        staticmethod(lambda *a, **k: None),  # cancelled
+    )
+    window._edit_palette()
+    assert [b.text() for b in window._palette_buttons] == DEFAULT_PALETTE
+
+
+def test_palette_editor_reorders_and_normalizes_labels(qtbot):
+    dialog = window_mod.PaletteEditorDialog(None, ["A", "B", "   "])
+    qtbot.addWidget(dialog)
+    dialog.listWidget.setCurrentRow(1)
+    dialog._move(-1)  # B moves above A
+    # Reordered, whitespace-normalized, and the blank entry dropped.
+    assert dialog.result_labels() == ["B", "A"]
