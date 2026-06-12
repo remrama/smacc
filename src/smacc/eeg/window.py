@@ -32,7 +32,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import preferences, windowstate
 from ..paths import LOGO_PATH, preferences_path
-from . import dsp, io
+from . import blind, dsp, io
 from .annotations import (
     Annotation,
     autosave_path,
@@ -567,7 +567,10 @@ class EegReviewWindow(QtWidgets.QMainWindow):
     """Review and annotate one recording; the EEG component's main window."""
 
     def __init__(
-        self, file_path: str | Path | None = None, rater_id: str | None = None
+        self,
+        file_path: str | Path | None = None,
+        rater_id: str | None = None,
+        blind_spec: str | None = None,
     ) -> None:
         super().__init__()
         self._recording: io.Recording | None = None
@@ -585,6 +588,16 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         # Rater ids confirmed at save this session, so the confirm-before-save
         # prompt fires once per id, not on every save.
         self._confirmed_raters: set[str] = set()
+        # Blind-rater mode (#181): a filter applied at load so a rater never sees
+        # hidden marks. None is an ordinary review. A bad --blind value is held
+        # and surfaced after the window shows (see the deferred error below).
+        self._blind: blind.BlindConfig | None = None
+        self._blind_error: str | None = None
+        if blind_spec:
+            try:
+                self._blind = blind.resolve_blind(blind_spec)
+            except (OSError, ValueError) as exc:
+                self._blind_error = str(exc)
         # Annotations recovered from an autosave, held until the user restores or
         # dismisses them (#176).
         self._recovery_annotations: list[Annotation] | None = None
@@ -603,6 +616,15 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         app = QtWidgets.QApplication.instance()
         if app is not None:
             app.installEventFilter(self)
+        if self._blind_error is not None:
+            # A bad --blind value: warn once the window is up (a constructor-time
+            # dialog would race the first paint), then proceed unblinded.
+            QtCore.QTimer.singleShot(
+                0,
+                lambda: self._error(
+                    "Could not apply the blind config.", self._blind_error
+                ),
+            )
         if file_path is not None:
             # After the event loop starts, so the window is up before any
             # open-error dialog (and a long load doesn't block the first paint).
@@ -847,6 +869,16 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         row.addWidget(self.scaleSpin)
 
         row.addStretch(1)
+        # Blind-rater mode (#181): hide/blank marks before they render, for blind
+        # scoring. Needs a rater id (so marks save to the rater's own sidecar).
+        self.blindButton = QtWidgets.QPushButton(self)
+        self.blindButton.setStatusTip(
+            "Blind-rater mode: hide or blank marks before they are shown "
+            "(needs a rater id)."
+        )
+        self.blindButton.clicked.connect(self._choose_blind_mode)
+        self._refresh_blind_button()
+        row.addWidget(self.blindButton)
         # Rater identity (#181): blank for a single-rater review; set it and every
         # save/load/autosave routes to a per-rater sidecar. Always enabled — the id
         # can be set before a recording is open and persists for next launch.
@@ -1064,7 +1096,14 @@ class EegReviewWindow(QtWidgets.QMainWindow):
     # ----- quick-mark palette (#181) ---------------------------------------------
 
     def _palette_labels(self) -> list[str]:
-        """The configured quick-mark labels (falls back to the seed labels)."""
+        """The active quick-mark labels: a blind config's palette wins, else prefs.
+
+        A loaded blind config can ship its own classification vocabulary so a
+        coordinator hands out the buttons too; otherwise the operator's saved
+        palette applies (falling back to the seed labels if it is unreadable).
+        """
+        if self._blind is not None and self._blind.palette:
+            return list(self._blind.palette)
         prefs = preferences.load_preferences(preferences_path)
         labels = prefs.get("eeg_palette_labels")
         if not isinstance(labels, list):
@@ -1100,6 +1139,80 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         preferences.update_preferences(preferences_path, {"eeg_palette_labels": result})
         self._rebuild_palette_buttons()
 
+    # ----- blind-rater mode (#181) -----------------------------------------------
+
+    def _refresh_blind_button(self) -> None:
+        """Keep the Blind button showing the active preset (or off)."""
+        self.blindButton.setText(
+            f"Blind: {self._blind.preset}" if self._blind is not None else "Blind: off"
+        )
+
+    def _choose_blind_mode(self) -> None:
+        """Pop up the blind-mode menu: a preset, a config file, or off."""
+        menu = QtWidgets.QMenu(self)
+        menu.addAction("Off", lambda: self._set_blind(None))
+        menu.addAction(
+            "Fully naive",
+            lambda: self._set_blind(blind.preset_config(blind.PRESET_NAIVE)),
+        )
+        menu.addAction(
+            "Reports visible",
+            lambda: self._set_blind(blind.preset_config(blind.PRESET_REPORTS)),
+        )
+        menu.addAction(
+            "Signal-present (classify only)",
+            lambda: self._set_blind(blind.preset_config(blind.PRESET_CLASSIFY)),
+        )
+        menu.addSeparator()
+        menu.addAction("Load config file…", self._load_blind_config)
+        menu.exec(self.blindButton.mapToGlobal(self.blindButton.rect().bottomLeft()))
+
+    def _set_blind(self, config: blind.BlindConfig | None) -> None:
+        """Switch the blind mode, re-resolving the open recording through it.
+
+        Blinding needs a rater id (so marks save to the rater's own sidecar, never
+        the coordinator's truth). Changing the view re-reads the recording from
+        the data boundary, discarding in-progress edits, so confirm first.
+        """
+        if config is not None and self._rater_id is None:
+            self._error(
+                "Blind review needs a rater id.",
+                "Set a rater id with the Rater button first, so the rater's marks "
+                "save to their own sidecar.",
+            )
+            return
+        if self._recording is not None and not self._confirm_discard():
+            return
+        self._blind = config
+        self._refresh_blind_button()
+        self._rebuild_palette_buttons()  # a config may carry its own palette
+        if self._recording is not None:
+            self._load(self._recording.path)  # re-resolve marks under the new mode
+        self._refresh_title()
+
+    def _load_blind_config(self) -> None:
+        """Load a shareable .smacc-blind.json and switch to it."""
+        prefs = preferences.load_preferences(preferences_path)
+        start_dir = prefs.get("eeg_last_blind_dir") or (
+            str(self._recording.path.parent)
+            if self._recording is not None
+            else str(Path.home())
+        )
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Load blind config", str(start_dir), blind.FILE_FILTER
+        )
+        if not path:
+            return
+        try:
+            config = blind.read_blind_config(path)
+        except (OSError, ValueError) as exc:
+            self._error("Could not read the blind config.", str(exc))
+            return
+        preferences.update_preferences(
+            preferences_path, {"eeg_last_blind_dir": str(Path(path).parent)}
+        )
+        self._set_blind(config)
+
     # ----- opening a recording ---------------------------------------------------
 
     def open_file(self) -> None:
@@ -1114,6 +1227,17 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             self._load(Path(path))
 
     def _load(self, path: Path) -> None:
+        # Blind review must write to a rater's own sidecar, never the coordinator's
+        # truth file: without a rater id the resume/save would clobber the truth.
+        # Refuse before opening anything (the data-loss guard for #181c).
+        if self._blind is not None and self._rater_id is None:
+            self._error(
+                "Blind review needs a rater id.",
+                "Set a rater id (the Rater button or --rater) before a blind "
+                "review, so the rater's marks save to their own sidecar and never "
+                "overwrite the coordinator's truth file.",
+            )
+            return
         try:
             recording = io.open_recording(path)
         except (ValueError, OSError, RuntimeError) as exc:
@@ -1127,7 +1251,8 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         if tsv_path.is_file():
             # Resume a previous review. A sidecar that exists but won't parse
             # aborts the open: it is the reviewer's data, and proceeding would
-            # overwrite it with an empty list on the next save.
+            # overwrite it with an empty list on the next save. A rater's own
+            # resumed marks are theirs, so they are never re-blinded.
             try:
                 annotations = read_annotations_tsv(tsv_path)
             except (OSError, ValueError) as exc:
@@ -1138,10 +1263,10 @@ class EegReviewWindow(QtWidgets.QMainWindow):
                 )
                 return
         else:
-            # A fresh review starts from the events embedded in the recording
-            # (amp markers, SMACC's own portcodes…), so they end up in the
-            # sidecar alongside the reviewer's marks.
-            annotations = io.embedded_annotations(recording)
+            fresh = self._fresh_annotations(path, recording)
+            if fresh is None:  # a blind seed sidecar that won't parse
+                return
+            annotations = fresh
         self._recording = recording
         self._annotations = annotations
         self._dirty = False
@@ -1176,6 +1301,36 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             f"{recording.sfreq:g} Hz · {recording.duration:.0f} s{clock}"
         )
         self._check_for_recovery(tsv_path)
+
+    def _fresh_annotations(
+        self, path: Path, recording: io.Recording
+    ) -> list[Annotation] | None:
+        """Annotations to start a fresh review from; ``None`` on a read error.
+
+        A plain review starts from the events embedded in the recording (amp
+        markers, SMACC's own portcodes…). A blind review instead seeds from the
+        coordinator's truth sidecar (the plain one) when it exists — so the
+        blinding hides *its* marks — falling back to the embedded events, and
+        runs the blind filter before anything is shown. This is the load-time
+        safety invariant (#181c): the filter covers both fresh sources, so a
+        naive rater never glimpses the recording's cue/portcode markers.
+        """
+        if self._blind is None:
+            return io.embedded_annotations(recording)
+        truth_tsv, _ = sidecar_paths(path)
+        if truth_tsv.is_file():
+            try:
+                seed = read_annotations_tsv(truth_tsv)
+            except (OSError, ValueError) as exc:
+                self._error(
+                    "Could not read the coordinator's annotations sidecar.",
+                    f"{truth_tsv.name}: {exc}\n\nFix or rename it, then open the "
+                    "recording again.",
+                )
+                return None
+        else:
+            seed = io.embedded_annotations(recording)
+        return blind.apply_blind(seed, self._blind)
 
     # ----- annotation editing -----------------------------------------------------
 
@@ -1355,8 +1510,9 @@ class EegReviewWindow(QtWidgets.QMainWindow):
     def _refresh_title(self) -> None:
         name = f" — {self._recording.path.name}" if self._recording else ""
         rater = f" · rater {self._rater_id}" if self._rater_id else ""
+        blinded = f" · blind:{self._blind.preset}" if self._blind is not None else ""
         star = " *" if self._dirty else ""
-        self.setWindowTitle(f"SMACC — EEG review{name}{rater}{star}")
+        self.setWindowTitle(f"SMACC — EEG review{name}{rater}{blinded}{star}")
 
     def _recent_labels(self) -> list[str]:
         prefs = preferences.load_preferences(preferences_path)

@@ -83,6 +83,37 @@ save under an id confirms it (so a forgotten id is caught). Leave it blank for
 an ordinary single-rater review. See the
 [annotations file reference](reference/annotations-file.md#multiple-raters).
 
+## Blind-rater mode
+
+Objective scoring asks raters to judge the EEG without seeing what was already
+marked. The **Blind** button (or `--blind`) filters annotations **before they
+are ever shown**, so a rater cannot glimpse what is hidden, with three presets:
+
+- **Fully naive** — every mark is hidden; the rater scrolls a clean recording.
+- **Reports visible** — only dream-report markers are shown; detected signals
+    and cues are hidden.
+- **Signal-present (classify only)** — signal *positions* are shown with their
+    labels blanked (a `?`), so the rater sees *where* a signal is and classifies
+    *what* it is.
+
+Blind mode **requires a rater id** — a blind review seeds from the coordinator's
+truth sidecar (`night1.annotations.tsv`) but saves to the rater's own
+(`night1.annotations.alice.tsv`), so the truth file is never overwritten and
+each rater's judgements stay separate for later comparison. Reopening a rater's
+own file resumes their work unfiltered.
+
+A coordinator can save a preset (plus the visible/signal label lists and a
+quick-mark palette) as a shareable `study.smacc-blind.json` and hand out a
+one-click command:
+
+```sh
+SMACC-EEG.exe --rater alice --blind study.smacc-blind.json night1.edf
+```
+
+Blinding is a workflow aid, not a security boundary: the guarantee is that the
+app never *renders* a hidden label. Someone with file access can still read the
+recording or the truth sidecar directly.
+
 ## For developers
 
 Run it from a source checkout with the `eeg` extra:
