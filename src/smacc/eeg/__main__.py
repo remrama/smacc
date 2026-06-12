@@ -78,6 +78,20 @@ def selftest() -> int:
         tsv = Path(tmp) / "selftest.annotations.tsv"
         write_annotations_tsv([Annotation(1.0, 0.5, "selftest")], tsv)
         assert read_annotations_tsv(tsv) == [Annotation(1.0, 0.5, "selftest")]
+        # Figure export (#180): prove matplotlib's PNG/PDF/SVG backends are bundled
+        # — a missed backend only surfaces when one actually writes a file.
+        from .export import ExportOptions, render
+        from .snapshot import Snapshot, SnapshotTrace
+
+        figure_snapshot = Snapshot(
+            times=np.linspace(0.0, 6.0, 600),
+            window_seconds=6.0,
+            traces=(SnapshotTrace("C3", "eeg", 0, np.zeros(600), 100.0),),
+        )
+        for fmt in ("png", "pdf", "svg"):
+            out = Path(tmp) / f"selftest.{fmt}"
+            render(figure_snapshot, ExportOptions(fmt=fmt, dpi=100), out)
+            assert out.stat().st_size > 0, fmt
     print("selftest ok")
     return 0
 

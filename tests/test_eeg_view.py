@@ -546,3 +546,61 @@ def test_effective_spec_and_scale_fall_back_to_the_base(loaded):
     assert view.effective_spec("eeg") == view.spec  # base
     view.set_type_spec("eog", dsp.FilterSpec(notch=50.0))
     assert view.effective_spec("eog") == dsp.FilterSpec(notch=50.0)
+
+
+# ----- snapshot for figure export (#180) ------------------------------------------
+
+
+def test_lane_traces_match_exactly_what_the_curves_draw(loaded):
+    # The export reuses _lane_traces, so this parity is the guard that the
+    # refactor kept the on-screen picture byte-for-byte.
+    view, _ = loaded
+    times, lanes = view._lane_traces()
+    assert len(lanes) == len(view._curves)
+    for entry in lanes:
+        x, y = view._curves[entry.lane].getData()
+        assert np.allclose(x, times)
+        assert np.allclose(y, -entry.lane + entry.values)
+
+
+def test_build_snapshot_traces_match_the_visible_channels(loaded):
+    view, _ = loaded
+    view.set_visible_channels([0, 3])  # C3 (eeg), EMG (emg)
+    snap = view.build_snapshot(marks=[], show_epochs=False)
+    assert [t.name for t in snap.traces] == ["C3", "EMG"]
+    assert [t.lane for t in snap.traces] == [0, 1]
+    assert [t.ch_type for t in snap.traces] == ["eeg", "emg"]
+    # C3 50 µV on the 100 µV base → +0.5; EMG 50 µV on its 200 µV lane → +0.25.
+    assert np.allclose(snap.traces[0].values, 0.5)
+    assert np.allclose(snap.traces[1].values, 0.25)
+    assert (snap.traces[0].scale_uv, snap.traces[1].scale_uv) == (100.0, 200.0)
+
+
+def test_build_snapshot_marks_are_window_relative_and_relabeled(loaded):
+    view, _ = loaded
+    view.set_window_start(20.0)  # window 20–50
+    snap = view.build_snapshot(marks=[(25.0, 2.0, "clean")], show_epochs=False)
+    assert len(snap.marks) == 1
+    assert snap.marks[0].onset == pytest.approx(5.0)  # 25 − 20
+    assert snap.marks[0].duration == 2.0
+    assert snap.marks[0].label == "clean"
+    assert snap.times[0] == pytest.approx(0.0)  # times window-relative too
+
+
+def test_build_snapshot_epochs_follow_the_toggle(loaded):
+    view, _ = loaded  # 30 s epochs, anchor 0, window 0–30
+    assert view.build_snapshot(marks=[], show_epochs=False).epochs == ()
+    on = view.build_snapshot(marks=[], show_epochs=True)
+    assert [(e.x, e.number) for e in on.epochs] == [(0.0, "1"), (30.0, "2")]
+
+
+def test_build_snapshot_time_axis_label_follows_mode(loaded):
+    view, _ = loaded
+    snap = view.build_snapshot(marks=[], show_epochs=False)
+    assert snap.time_axis_label == "time (s)"  # no origin → elapsed
+    assert len(snap.time_ticks) == 7
+    view.set_time_origin(datetime(2026, 6, 5, 22, 0, 0))
+    view.set_time_axis_mode("clock")
+    assert (
+        view.build_snapshot(marks=[], show_epochs=False).time_axis_label == "clock time"
+    )

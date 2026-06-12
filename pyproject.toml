@@ -60,9 +60,12 @@ docs = [
 ]
 # The optional EEG review tool (#136). MNE is far too heavy for the base install,
 # so the viewer ships as a separate frozen exe / installer component; this extra
-# is its dev/CI environment. MNE is I/O and annotation conversion only — rendering
-# is pyqtgraph and display filtering is scipy (a core dependency).
+# is its dev/CI environment. MNE is I/O and annotation conversion only — on-screen
+# rendering is pyqtgraph and display filtering is scipy (a core dependency).
+# matplotlib is pinned explicitly because the figure export (#180) imports it
+# directly; it already ships in the bundle as an MNE dependency, so this is free.
 eeg = [
+    "matplotlib>=3.7",
     "mne>=1.6",
     "pyqtgraph>=0.13",
 ]
