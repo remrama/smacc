@@ -607,6 +607,103 @@ def test_clean_close_removes_the_recovery_file(window, recording_path, monkeypat
     assert not autosave_path(recording_path).is_file()
 
 
+# ----- channel picker + per-type display + view profiles (#177) --------------------
+
+
+def test_scope_combo_lists_all_channels_then_present_types(window, recording_path):
+    window._load(recording_path)  # FakeRecording types: eeg, eeg, eog, emg
+    datas = [
+        window.filterScopeCombo.itemData(i)
+        for i in range(window.filterScopeCombo.count())
+    ]
+    assert datas == [None, "eeg", "eog", "emg"]
+
+
+def test_filter_controls_edit_the_base_by_default(window, recording_path):
+    window._load(recording_path)  # scope defaults to "All channels"
+    window.highpassSpin.setValue(0.3)
+    assert window.view.spec == dsp.FilterSpec(highpass=0.3)
+
+
+def test_filter_controls_edit_one_type_when_scoped(window, recording_path):
+    window._load(recording_path)
+    window.filterScopeCombo.setCurrentIndex(3)  # EMG
+    window.highpassSpin.setValue(10.0)
+    assert window.view.effective_spec("emg") == dsp.FilterSpec(highpass=10.0)
+    assert window.view.spec == dsp.FilterSpec()  # base left alone
+
+
+def test_scale_control_edits_one_type_when_scoped(window, recording_path):
+    window._load(recording_path)
+    window.filterScopeCombo.setCurrentIndex(1)  # EEG
+    window.scaleSpin.setValue(60.0)
+    assert window.view.effective_scale("eeg") == 60.0
+
+
+def test_scope_change_loads_that_types_settings_into_the_controls(
+    window, recording_path
+):
+    window._load(recording_path)
+    window.filterScopeCombo.setCurrentIndex(3)  # EMG defaults to a 200 µV lane
+    assert window.scaleSpin.value() == 200.0
+    window.filterScopeCombo.setCurrentIndex(0)  # back to the 100 µV base
+    assert window.scaleSpin.value() == 100.0
+
+
+def test_channel_picker_applies_the_chosen_order(window, recording_path, monkeypatch):
+    window._load(recording_path)
+    monkeypatch.setattr(
+        window_mod.ChannelPickerDialog,
+        "get_visible",
+        staticmethod(lambda *a, **k: [2, 0]),  # EOG then C3
+    )
+    window._open_channel_picker()
+    assert window.view.visible_channels == ["EOG", "C3"]
+
+
+def test_save_then_load_profile_round_trips(
+    window, recording_path, tmp_path, monkeypatch
+):
+    window._load(recording_path)
+    window.view.set_visible_channels([0, 3])  # C3, EMG
+    window.filterScopeCombo.setCurrentIndex(1)  # EEG scope
+    window.scaleSpin.setValue(70.0)
+    window.highpassSpin.setValue(0.5)
+    path = tmp_path / "montage.smacc-view.json"
+    monkeypatch.setattr(
+        QtWidgets.QFileDialog, "getSaveFileName", lambda *a, **k: (str(path), "")
+    )
+    window._save_profile()
+    assert path.is_file()
+    # Wipe the montage, then load it back.
+    window.view.set_visible_channels([0, 1, 2, 3])
+    window.view.set_scale(100.0)
+    window.view.set_type_scales({})
+    window.view.set_type_specs({})
+    monkeypatch.setattr(
+        QtWidgets.QFileDialog, "getOpenFileName", lambda *a, **k: (str(path), "")
+    )
+    window._load_profile()
+    assert window.view.visible_channels == ["C3", "EMG"]
+    assert window.view.effective_scale("eeg") == 70.0
+    assert window.view.effective_spec("eeg") == dsp.FilterSpec(highpass=0.5)
+
+
+def test_load_profile_skips_channels_not_in_the_recording(
+    window, recording_path, tmp_path, monkeypatch
+):
+    from smacc.eeg.profiles import ViewProfile, write_view_profile
+
+    path = tmp_path / "m.smacc-view.json"
+    write_view_profile(ViewProfile(channels=("C4", "NOSUCH", "C3")), path)
+    window._load(recording_path)
+    monkeypatch.setattr(
+        QtWidgets.QFileDialog, "getOpenFileName", lambda *a, **k: (str(path), "")
+    )
+    window._load_profile()
+    assert window.view.visible_channels == ["C4", "C3"]  # NOSUCH skipped
+
+
 # ----- label dialog / entry point -----------------------------------------------------
 
 
