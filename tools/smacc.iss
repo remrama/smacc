@@ -37,6 +37,9 @@ OutputDir=..\dist
 OutputBaseFilename=SMACC-Setup
 SetupIconFile=..\src\smacc\assets\icon.ico
 UninstallDisplayIcon={app}\SMACC.exe
+; Without this, Inno defaults the Installed-apps entry to "SMACC version x.y.z"
+; even though Windows shows the version (from AppVersion) in its own column.
+UninstallDisplayName=SMACC
 ; Tells Windows to refresh Explorer's file-association cache after (un)install.
 ChangesAssociations=yes
 WizardStyle=modern
