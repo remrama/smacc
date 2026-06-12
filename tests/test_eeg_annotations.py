@@ -83,6 +83,56 @@ def test_sidecar_paths_keep_bids_style_stems_intact():
     assert tsv.name == "sub-01_task-sleep_eeg.annotations.tsv"
 
 
+# ----- rater-keyed sidecars (#181) ------------------------------------------
+
+
+def test_sanitize_rater_id_keeps_safe_tokens():
+    assert ann.sanitize_rater_id("alice") == "alice"
+    assert ann.sanitize_rater_id("rater_1") == "rater_1"
+    assert ann.sanitize_rater_id("RM-2") == "RM-2"
+
+
+def test_sanitize_rater_id_collapses_unsafe_runs_and_trims():
+    # The id becomes part of a filename, so spaces/punctuation collapse to a
+    # single underscore and the ends are trimmed.
+    assert ann.sanitize_rater_id("  rater one!! ") == "rater_one"
+    assert ann.sanitize_rater_id("a@@@b") == "a_b"
+    assert ann.sanitize_rater_id("rater.01") == "rater_01"  # no dots in the suffix
+
+
+def test_sanitize_rater_id_rejects_an_empty_token():
+    # A blank id must fail loudly rather than silently fall back to the plain
+    # single-rater sidecar (which would mix two reviewers' marks).
+    for raw in ("", "   ", "!!!", "__"):
+        with pytest.raises(ValueError, match="filename-safe"):
+            ann.sanitize_rater_id(raw)
+
+
+def test_rater_sidecar_paths_weave_the_id_into_the_stem():
+    tsv, js = ann.rater_sidecar_paths(Path("C:/data/night1.edf"), "alice")
+    assert tsv.name == "night1.annotations.alice.tsv"
+    assert js.name == "night1.annotations.alice.json"
+
+
+def test_rater_sidecar_paths_sanitize_the_id():
+    tsv, _ = ann.rater_sidecar_paths(Path("night1.edf"), "Rater One")
+    assert tsv.name == "night1.annotations.Rater_One.tsv"
+
+
+def test_rater_paths_differ_per_rater_so_they_cannot_clobber():
+    a, _ = ann.rater_sidecar_paths(Path("night1.edf"), "alice")
+    b, _ = ann.rater_sidecar_paths(Path("night1.edf"), "bob")
+    plain, _ = ann.sidecar_paths(Path("night1.edf"))
+    assert len({a, b, plain}) == 3
+
+
+def test_rater_autosave_path_is_distinct_from_the_sidecar():
+    auto = ann.rater_autosave_path(Path("night1.edf"), "alice")
+    tsv, _ = ann.rater_sidecar_paths(Path("night1.edf"), "alice")
+    assert auto.name == "night1.annotations.alice.autosave.tsv"
+    assert auto != tsv
+
+
 # ----- TSV round-trip -------------------------------------------------------
 
 
@@ -186,3 +236,17 @@ def test_json_sidecar_handles_a_missing_meas_date(tmp_path):
     path = tmp_path / "x.json"
     ann.write_annotations_json(path, source_name="x.fif", meas_date=None)
     assert json.loads(path.read_text(encoding="utf-8"))["MeasurementDate"] is None
+
+
+def test_json_sidecar_records_the_rater_when_set(tmp_path):
+    path = tmp_path / "night1.annotations.alice.json"
+    ann.write_annotations_json(
+        path, source_name="night1.edf", meas_date=None, rater_id="alice"
+    )
+    assert json.loads(path.read_text(encoding="utf-8"))["Rater"] == "alice"
+
+
+def test_json_sidecar_rater_is_null_for_a_single_rater_review(tmp_path):
+    path = tmp_path / "night1.annotations.json"
+    ann.write_annotations_json(path, source_name="night1.edf", meas_date=None)
+    assert json.loads(path.read_text(encoding="utf-8"))["Rater"] is None

@@ -37,9 +37,12 @@ from .annotations import (
     Annotation,
     autosave_path,
     insert,
+    rater_autosave_path,
+    rater_sidecar_paths,
     read_annotations_tsv,
     remove,
     replace,
+    sanitize_rater_id,
     sidecar_paths,
     write_annotations_json,
     write_annotations_tsv,
@@ -471,7 +474,9 @@ class ExportDialog(QtWidgets.QDialog):
 class EegReviewWindow(QtWidgets.QMainWindow):
     """Review and annotate one recording; the EEG component's main window."""
 
-    def __init__(self, file_path: str | Path | None = None) -> None:
+    def __init__(
+        self, file_path: str | Path | None = None, rater_id: str | None = None
+    ) -> None:
         super().__init__()
         self._recording: io.Recording | None = None
         self._annotations: list[Annotation] = []
@@ -480,6 +485,14 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         # True once this review's annotations live in the canonical sidecar (we
         # loaded it, or we have saved at least once); gates the overwrite prompt.
         self._owns_sidecar = False
+        # The rater whose sidecar this review reads and writes (#181): None is an
+        # ordinary single-rater review on the plain sidecar; a value routes every
+        # save/load/autosave to a per-rater path. Resolved arg → pref → none (no
+        # prompt — a solo reviewer is never nagged).
+        self._rater_id: str | None = self._resolve_rater_id(rater_id)
+        # Rater ids confirmed at save this session, so the confirm-before-save
+        # prompt fires once per id, not on every save.
+        self._confirmed_raters: set[str] = set()
         # Annotations recovered from an autosave, held until the user restores or
         # dismisses them (#176).
         self._recovery_annotations: list[Annotation] | None = None
@@ -502,6 +515,112 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             # After the event loop starts, so the window is up before any
             # open-error dialog (and a long load doesn't block the first paint).
             QtCore.QTimer.singleShot(0, lambda: self._load(Path(file_path)))
+
+    # ----- rater identity (#181) ----------------------------------------------
+
+    def _resolve_rater_id(self, rater_id: str | None) -> str | None:
+        """Pick the active rater id: explicit arg, else the saved pref, else none.
+
+        Deliberately no prompt for the bare default — a solo reviewer keeps the
+        plain sidecar and is never asked; a rater id only appears when one was
+        passed (``--rater``) or set in a prior session. An unusable saved/passed
+        id falls back to single-rater rather than failing to open.
+        """
+        if rater_id is None:
+            prefs = preferences.load_preferences(preferences_path)
+            rater_id = prefs.get("eeg_rater_id")
+        if not rater_id:
+            return None
+        try:
+            return sanitize_rater_id(rater_id)
+        except ValueError:
+            return None
+
+    def _sidecar_for(self, source: str | Path) -> tuple[Path, Path]:
+        """The (TSV, JSON) sidecar paths for the active rater (plain if none)."""
+        if self._rater_id is None:
+            return sidecar_paths(source)
+        return rater_sidecar_paths(source, self._rater_id)
+
+    def _autosave_for(self, source: str | Path) -> Path:
+        """The crash-recovery autosave path for the active rater (plain if none)."""
+        if self._rater_id is None:
+            return autosave_path(source)
+        return rater_autosave_path(source, self._rater_id)
+
+    def _refresh_rater_button(self) -> None:
+        """Keep the rater button (and so the toolbar) showing the active id."""
+        self.raterButton.setText(
+            f"Rater: {self._rater_id}" if self._rater_id else "Rater…"
+        )
+
+    def _set_rater_id(self) -> None:
+        """Prompt for the rater id and switch to it (blank clears it)."""
+        text, ok = QtWidgets.QInputDialog.getText(
+            self,
+            "Rater id",
+            "Rater id (annotations save to a per-rater sidecar; "
+            "leave blank for a single-rater review):",
+            text=self._rater_id or "",
+        )
+        if not ok:
+            return
+        text = text.strip()
+        if not text:
+            self._apply_rater_id(None)
+            return
+        try:
+            self._apply_rater_id(sanitize_rater_id(text))
+        except ValueError:
+            self._error(
+                "That rater id can't be used.",
+                "A rater id needs at least one letter, digit, dash, or underscore.",
+            )
+
+    def _apply_rater_id(self, new_id: str | None) -> None:
+        """Switch the active rater id, re-pointing this review's output to it.
+
+        A correction, not a merge (#181): the current marks are *this* rater's,
+        so the previous id's autosave is dropped (it was misattributed) and the
+        marks now save under ``new_id``. We have not loaded the new id's sidecar,
+        so ``_owns_sidecar`` re-arms — the first save into an existing foreign
+        file then prompts via the usual overwrite guard.
+        """
+        if new_id == self._rater_id:
+            return
+        self._autosave_timer.stop()
+        self._clear_autosave()  # uses the *old* id (still current here)
+        self._rater_id = new_id
+        self._owns_sidecar = False
+        # Re-confirm the new id on its next save (discard is a no-op for None).
+        self._confirmed_raters.discard(new_id)
+        preferences.update_preferences(preferences_path, {"eeg_rater_id": new_id})
+        self._refresh_rater_button()
+        if self._recording is not None and self._annotations:
+            self._mark_dirty()  # unsaved work now belongs to the new id
+        self._refresh_title()
+
+    def _confirm_rater_identity(self) -> bool:
+        """Confirm the active rater id once per id per session before its first save.
+
+        A single-rater review (no id) never prompts; once an id is confirmed it
+        stays confirmed until it changes, so routine saves are silent. The rater
+        button stays visible to fix a wrong id without saving.
+        """
+        if self._rater_id is None or self._rater_id in self._confirmed_raters:
+            return True
+        button = QtWidgets.QMessageBox.question(
+            self,
+            "Confirm rater",
+            f"Save these annotations as rater '{self._rater_id}'?\n\n"
+            "Use the Rater button to change it.",
+            QtWidgets.QMessageBox.StandardButton.Save
+            | QtWidgets.QMessageBox.StandardButton.Cancel,
+        )
+        if button == QtWidgets.QMessageBox.StandardButton.Save:
+            self._confirmed_raters.add(self._rater_id)
+            return True
+        return False
 
     # ----- UI construction ----------------------------------------------------
 
@@ -635,6 +754,17 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         row.addWidget(self.scaleSpin)
 
         row.addStretch(1)
+        # Rater identity (#181): blank for a single-rater review; set it and every
+        # save/load/autosave routes to a per-rater sidecar. Always enabled — the id
+        # can be set before a recording is open and persists for next launch.
+        self.raterButton = QtWidgets.QPushButton(self)
+        self.raterButton.setStatusTip(
+            "Set the rater id; annotations then save to a per-rater sidecar "
+            "(night1.annotations.<id>.tsv). Blank means a single-rater review."
+        )
+        self.raterButton.clicked.connect(self._set_rater_id)
+        self._refresh_rater_button()
+        row.addWidget(self.raterButton)
         self.saveButton = QtWidgets.QPushButton("Save annotations", self)
         self.saveButton.setStatusTip(
             "Write the annotation sidecar next to the recording; the recording "
@@ -837,7 +967,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         # recovery file (the user already saved or discarded it via open_file).
         self._autosave_timer.stop()
         self._clear_autosave()
-        tsv_path, _ = sidecar_paths(path)
+        tsv_path, _ = self._sidecar_for(path)
         if tsv_path.is_file():
             # Resume a previous review. A sidecar that exists but won't parse
             # aborts the open: it is the reviewer's data, and proceeding would
@@ -968,7 +1098,11 @@ class EegReviewWindow(QtWidgets.QMainWindow):
     def save_annotations(self) -> None:
         if self._recording is None:
             return
-        tsv_path, json_path = sidecar_paths(self._recording.path)
+        # In a per-rater review, confirm the identity once before its first save,
+        # so a forgotten/stale rater id is caught before it writes a file.
+        if not self._confirm_rater_identity():
+            return
+        tsv_path, json_path = self._sidecar_for(self._recording.path)
         # Guard the one case where a save would silently clobber someone else's
         # work: a sidecar we did not open (a fresh review, or one that appeared
         # while we worked). A sidecar we loaded — or already saved — is ours.
@@ -981,6 +1115,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
                 json_path,
                 source_name=self._recording.path.name,
                 meas_date=self._recording.meas_date,
+                rater_id=self._rater_id,
             )
         except OSError as exc:
             self._error("Could not save the annotations.", str(exc))
@@ -1040,8 +1175,9 @@ class EegReviewWindow(QtWidgets.QMainWindow):
 
     def _refresh_title(self) -> None:
         name = f" — {self._recording.path.name}" if self._recording else ""
+        rater = f" · rater {self._rater_id}" if self._rater_id else ""
         star = " *" if self._dirty else ""
-        self.setWindowTitle(f"SMACC — EEG review{name}{star}")
+        self.setWindowTitle(f"SMACC — EEG review{name}{rater}{star}")
 
     def _recent_labels(self) -> list[str]:
         prefs = preferences.load_preferences(preferences_path)
@@ -1060,7 +1196,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         """Write the recovery file (best-effort, atomic); fired by the debounce timer."""
         if self._recording is None or not self._dirty:
             return
-        path = autosave_path(self._recording.path)
+        path = self._autosave_for(self._recording.path)
         tmp = path.with_suffix(".tmp")  # write-then-rename so a crash never half-writes
         try:
             write_annotations_tsv(self._annotations, tmp)
@@ -1069,9 +1205,9 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             pass  # autosave must never interrupt the review
 
     def _clear_autosave(self) -> None:
-        """Delete the current recording's recovery file, if any."""
+        """Delete the active rater's recovery file for this recording, if any."""
         if self._recording is not None:
-            autosave_path(self._recording.path).unlink(missing_ok=True)
+            self._autosave_for(self._recording.path).unlink(missing_ok=True)
 
     def _check_for_recovery(self, tsv_path: Path) -> None:
         """On open, offer to restore a recovery file newer than the saved sidecar."""
@@ -1079,7 +1215,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._recovery_annotations = None
         if self._recording is None:
             return
-        recovery = autosave_path(self._recording.path)
+        recovery = self._autosave_for(self._recording.path)
         if not recovery.is_file():
             return
         # A recovery file with a clean save strictly newer than it is stale — the

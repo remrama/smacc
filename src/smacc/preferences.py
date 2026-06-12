@@ -55,6 +55,10 @@ DEFAULTS: dict[str, Any] = {
     "eeg_last_profile_dir": None,
     # The folder the EEG review tool last exported a figure to (#180).
     "eeg_last_export_dir": None,
+    # The rater id the EEG review tool saves under (#181): when set, annotations
+    # save to a per-rater sidecar (night1.annotations.<id>.tsv); None means an
+    # ordinary single-rater review writing the plain sidecar.
+    "eeg_rater_id": None,
 }
 
 _logger = logging.getLogger("smacc")

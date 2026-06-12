@@ -9,6 +9,7 @@ touches the machine's real ``preferences.yaml``.
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -24,10 +25,12 @@ from smacc import preferences
 from smacc.config import VERSION
 from smacc.eeg import dsp
 from smacc.eeg import window as window_mod
-from smacc.eeg.__main__ import pick_recording_path
+from smacc.eeg.__main__ import pick_rater_id, pick_recording_path
 from smacc.eeg.annotations import (
     Annotation,
     autosave_path,
+    rater_autosave_path,
+    rater_sidecar_paths,
     read_annotations_tsv,
     sidecar_paths,
     write_annotations_tsv,
@@ -913,6 +916,22 @@ def test_pick_recording_path_takes_the_last_non_flag_argument():
     assert pick_recording_path(["exe", "a.edf", "b.fif"]) == "b.fif"
 
 
+def test_pick_recording_path_skips_the_rater_value(tmp_path):
+    # --rater alice night1.edf must open the recording, not the rater id.
+    assert (
+        pick_recording_path(["exe", "--rater", "alice", "night1.edf"]) == "night1.edf"
+    )
+    assert pick_recording_path(["exe", "--rater", "alice"]) is None
+    assert pick_recording_path(["exe", "--rater=alice", "night1.edf"]) == "night1.edf"
+
+
+def test_pick_rater_id_reads_both_forms():
+    assert pick_rater_id(["exe", "--rater", "alice", "night1.edf"]) == "alice"
+    assert pick_rater_id(["exe", "--rater=bob", "night1.edf"]) == "bob"
+    assert pick_rater_id(["exe", "night1.edf"]) is None
+    assert pick_rater_id(["exe", "--rater"]) is None  # dangling flag, no value
+
+
 # ----- wall-clock display ---------------------------------------------------------
 
 
@@ -987,3 +1006,176 @@ def test_selftest_round_trips_through_mne():
     )
     assert proc.returncode == 0, proc.stderr
     assert "selftest ok" in proc.stdout
+
+
+# ----- rater identity (#181) ------------------------------------------------
+
+
+@pytest.fixture
+def make_window(qtbot, tmp_path, monkeypatch):
+    """Build EegReviewWindows (optionally with a rater id) over the faked IO,
+    isolated prefs, and auto-answered dialogs the ``window`` fixture uses."""
+    monkeypatch.setattr(window_mod, "preferences_path", tmp_path / "prefs.yaml")
+    monkeypatch.setattr(window_mod.io, "open_recording", FakeRecording)
+    monkeypatch.setattr(window_mod.io, "embedded_annotations", lambda rec: [])
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox,
+        "question",
+        lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Discard,
+    )
+
+    def build(rater_id: str | None = None) -> EegReviewWindow:
+        win = EegReviewWindow(rater_id=rater_id)
+        qtbot.addWidget(win)
+        win.show()
+        win._prefs_path = tmp_path / "prefs.yaml"  # test convenience handle
+        return win
+
+    return build
+
+
+def test_constructor_resolves_rater_from_the_pref(make_window, tmp_path):
+    preferences.update_preferences(tmp_path / "prefs.yaml", {"eeg_rater_id": "carol"})
+    win = make_window()  # no explicit arg → falls back to the saved pref
+    assert win._rater_id == "carol"
+
+
+def test_explicit_rater_arg_beats_the_pref(make_window, tmp_path):
+    preferences.update_preferences(tmp_path / "prefs.yaml", {"eeg_rater_id": "carol"})
+    assert make_window("alice")._rater_id == "alice"
+
+
+def test_unusable_rater_falls_back_to_single_rater(make_window, tmp_path):
+    preferences.update_preferences(tmp_path / "prefs.yaml", {"eeg_rater_id": "!!!"})
+    assert make_window()._rater_id is None  # nothing safe → plain sidecar, no crash
+
+
+def test_rater_button_shows_the_active_id(make_window):
+    win = make_window("alice")
+    assert win.raterButton.text() == "Rater: alice"
+    win._apply_rater_id(None)
+    assert win.raterButton.text() == "Rater…"
+
+
+def test_title_shows_the_rater(make_window, recording_path):
+    win = make_window("alice")
+    win._load(recording_path)
+    assert "rater alice" in win.windowTitle()
+
+
+def test_rater_save_writes_the_rater_sidecar_only(
+    make_window, recording_path, monkeypatch
+):
+    win = make_window("alice")
+    win._confirmed_raters.add("alice")  # identity confirmed (tested separately)
+    win._load(recording_path)
+    _answer_label(monkeypatch, ("LRLR", False))
+    win._on_region_drawn(10.0, 14.0)
+    win.save_annotations()
+    rater_tsv, rater_json = rater_sidecar_paths(recording_path, "alice")
+    plain_tsv, _ = sidecar_paths(recording_path)
+    assert read_annotations_tsv(rater_tsv) == [Annotation(10.0, 4.0, "LRLR")]
+    assert json.loads(rater_json.read_text(encoding="utf-8"))["Rater"] == "alice"
+    assert not plain_tsv.exists()  # the single-rater/truth sidecar is untouched
+
+
+def test_rater_load_resumes_from_the_rater_sidecar(
+    make_window, recording_path, monkeypatch
+):
+    saved = [Annotation(5.0, 2.0, "REM period")]
+    rater_tsv, _ = rater_sidecar_paths(recording_path, "alice")
+    write_annotations_tsv(saved, rater_tsv)
+    # A second rater must not see alice's marks: their fresh review imports the
+    # embedded events instead, against their own (absent) sidecar.
+    monkeypatch.setattr(
+        window_mod.io,
+        "embedded_annotations",
+        lambda rec: [Annotation(1.0, 0.0, "Cue")],
+    )
+    alice = make_window("alice")
+    alice._load(recording_path)
+    assert alice._annotations == saved
+    bob = make_window("bob")
+    bob._load(recording_path)
+    assert alice._annotations == saved  # alice's review is unaffected
+    assert bob._annotations == [Annotation(1.0, 0.0, "Cue")]  # bob starts fresh
+
+
+def test_rater_autosave_uses_the_rater_path(make_window, recording_path, monkeypatch):
+    win = make_window("alice")
+    win._load(recording_path)
+    _answer_label(monkeypatch, ("LRLR", False))
+    win._on_region_drawn(10.0, 14.0)  # marks dirty
+    win._write_autosave()
+    assert rater_autosave_path(recording_path, "alice").is_file()
+    assert not autosave_path(recording_path).exists()  # not the plain autosave
+
+
+def test_switching_rater_repoints_output_and_drops_the_old_autosave(
+    make_window, recording_path, monkeypatch
+):
+    win = make_window()  # single-rater to start
+    win._load(recording_path)
+    _answer_label(monkeypatch, ("LRLR", False))
+    win._on_region_drawn(10.0, 14.0)
+    win._write_autosave()
+    assert autosave_path(recording_path).is_file()  # the plain autosave exists
+    win._apply_rater_id("alice")
+    assert win._rater_id == "alice"
+    assert win._dirty  # the marks now belong to alice, unsaved
+    assert not autosave_path(recording_path).exists()  # misattributed autosave gone
+    assert preferences.load_preferences(win._prefs_path)["eeg_rater_id"] == "alice"
+    win._confirmed_raters.add("alice")
+    win.save_annotations()
+    rater_tsv, _ = rater_sidecar_paths(recording_path, "alice")
+    assert read_annotations_tsv(rater_tsv) == [Annotation(10.0, 4.0, "LRLR")]
+
+
+def test_save_confirm_fires_once_per_rater(make_window, recording_path, monkeypatch):
+    calls: list[int] = []
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox,
+        "question",
+        lambda *a, **k: calls.append(1) or QtWidgets.QMessageBox.StandardButton.Save,
+    )
+    win = make_window("alice")
+    win._load(recording_path)
+    _answer_label(monkeypatch, ("LRLR", False))
+    win._on_region_drawn(10.0, 14.0)
+    win.save_annotations()  # first save under "alice" → confirms
+    win._on_region_drawn(20.0, 21.0)
+    win.save_annotations()  # already confirmed → silent
+    assert len(calls) == 1
+    assert "alice" in win._confirmed_raters
+
+
+def test_save_confirm_cancel_blocks_the_save(make_window, recording_path, monkeypatch):
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox,
+        "question",
+        lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Cancel,
+    )
+    win = make_window("alice")
+    win._load(recording_path)
+    _answer_label(monkeypatch, ("LRLR", False))
+    win._on_region_drawn(10.0, 14.0)
+    win.save_annotations()
+    rater_tsv, _ = rater_sidecar_paths(recording_path, "alice")
+    assert not rater_tsv.exists()  # cancelled before any write
+    assert win._dirty
+    win._dirty = False  # let teardown close cleanly under the Cancel patch
+
+
+def test_single_rater_save_never_prompts_for_identity(
+    make_window, recording_path, monkeypatch
+):
+    # The fixture answers QMessageBox.question with Discard; a single-rater save
+    # must still succeed, proving it never reaches the identity prompt.
+    win = make_window()  # no rater id
+    win._load(recording_path)
+    _answer_label(monkeypatch, ("LRLR", False))
+    win._on_region_drawn(10.0, 14.0)
+    win.save_annotations()
+    plain_tsv, _ = sidecar_paths(recording_path)
+    assert read_annotations_tsv(plain_tsv) == [Annotation(10.0, 4.0, "LRLR")]
+    assert not win._dirty

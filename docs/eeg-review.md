@@ -67,6 +67,17 @@ duplicated).
 The sidecar format is documented in the
 [annotations file reference](reference/annotations-file.md).
 
+## Multiple raters
+
+For blind, multi-rater scoring, give each reviewer a **rater id** — click the
+**Rater** button, or launch with `--rater <id>`. Their annotations then save to
+a per-rater sidecar (`night1.annotations.alice.tsv`) instead of the plain one,
+so several raters can score the same recording without overwriting each other.
+The active id shows in the window title and on the Rater button, and the first
+save under an id confirms it (so a forgotten id is caught). Leave it blank for
+an ordinary single-rater review. See the
+[annotations file reference](reference/annotations-file.md#multiple-raters).
+
 ## For developers
 
 Run it from a source checkout with the `eeg` extra:
