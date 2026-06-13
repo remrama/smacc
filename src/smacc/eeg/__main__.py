@@ -165,6 +165,43 @@ def selftest() -> int:
             out = Path(tmp) / f"selftest.{fmt}"
             render(figure_snapshot, ExportOptions(fmt=fmt, dpi=100), out)
             assert out.stat().st_size > 0, fmt
+        # Session-log overlay (#125): round-trip a log through the parser, the
+        # auto-aligner, and the report-WAV resolver — pure, but it proves the
+        # smacc.bids/yaml chain the overlay imports is bundled.
+        from . import align, sessionlog
+
+        log = Path(tmp) / "smacc-selftest.log"
+        log.write_text(
+            "2026-06-05 22:00:00.000-0500, INFO, Opened SMACC\n"
+            "2026-06-05 22:00:05.000-0500, INFO, Lights off - portcode 47\n"
+            "2026-06-05 22:00:20.000-0500, INFO, Dream report started: report-01 "
+            "- portcode 201\n",
+            encoding="utf-8",
+        )
+        entries = sessionlog.read_session_log(log)
+        assert [e.kind for e in entries] == [
+            sessionlog.OTHER,
+            sessionlog.MARKER,
+            sessionlog.REPORT,
+        ], entries
+        origin = entries[0].timestamp
+        log_events = [
+            (sessionlog.seconds_at(e, origin, 0.0), e.code)
+            for e in entries
+            if e.code is not None
+        ]
+        result = align.estimate_offset(
+            log_events, [(8.0, 47), (23.0, 201)], duration=100.0
+        )
+        assert result.offset == 3.0, result
+        (Path(tmp) / "report-01.wav").write_bytes(b"RIFF")
+        report = next(e for e in entries if e.kind == sessionlog.REPORT)
+        assert sessionlog.report_wav(report, tmp) == Path(tmp) / "report-01.wav"
+        # Dream-report playback (#125e): QtMultimedia must be in the frozen bundle
+        # (a missed module only surfaces when the viewer tries to play a report).
+        from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
+
+        assert QMediaPlayer is not None and QAudioOutput is not None
     print("selftest ok")
     return 0
 
