@@ -627,6 +627,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#session-log-overlay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session log overlay
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#multiple-raters" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -976,6 +987,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#session-log-overlay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session log overlay
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#multiple-raters" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1110,6 +1132,38 @@ sidecar exists it is the single source of truth (nothing is re-imported or
 duplicated).</p>
 <p>The sidecar format is documented in the
 <a href="../reference/annotations-file/">annotations file reference</a>.</p>
+<h2 id="session-log-overlay">Session log overlay</h2>
+<p>Load the night's SMACC session <a href="../reference/session-log/"><code>.log</code></a> onto the
+timeline as a <strong>read-only reference track</strong> — every marker, cue, dream report,
+and survey shown where it happened, so you see what SMACC <em>did</em> alongside the
+EEG. Click <strong>Load session log…</strong> in the <strong>Session log</strong> panel (a recording must
+be open; the log aligns to <em>its</em> clock). Ticks appear in a thin lane across the
+top, coloured by log level, with the full message on hover. The per-level
+checkboxes show or hide levels just like the live preview — <code>DEBUG</code> (raw-trigger
+and volume-edit noise) is off by default. The log is reference context only: it
+is never editable and never saved into your annotations.</p>
+<p><strong>Aligning the log.</strong> The log's timestamps come from the recording PC while the
+EEG's clock comes from the amplifier, so the two can differ by seconds or more.
+Slide the whole log along the EEG to line them up, three ways — all adjusting one
+offset:</p>
+<ul>
+<li><strong>Drag the log lane.</strong> A left-drag that starts in the top lane slides the log
+    (a drag anywhere else still draws an annotation). On release it snaps onto a
+    nearby mark of yours, so a clapper lands exactly on the artifact it made.</li>
+<li><strong>Pair an entry to a feature.</strong> Select a log entry, click <strong>Align entry to
+    feature…</strong>, then click the EEG feature it produced — useful when the two are
+    far apart to drag. (Esc cancels.)</li>
+<li><strong>Nudge the offset.</strong> The <strong>Offset</strong> box is the exact value, and the fine
+    control.</li>
+</ul>
+<p>The classic clapper workflow fits directly: press <strong>Clapper</strong> on the SMACC PC at
+the same instant as a manual trigger on the recording system, then pair (or drag)
+the logged clapper onto the marker it left in the EEG. Clapping at both lights-off
+and lights-on gives two reference points. A recording with no start time
+(anonymized) has no absolute anchor, so the log starts at its first entry and you
+align it entirely by hand.</p>
+<p>The log is <strong>never shown in a blind review</strong> — it records every cue and portcode,
+which would unblind the rater.</p>
 <h2 id="multiple-raters">Multiple raters</h2>
 <p>For blind, multi-rater scoring, give each reviewer a <strong>rater id</strong> — click the
 <strong>Rater</strong> button, or launch with <code>--rater &lt;id&gt;</code>. Their annotations then save to
