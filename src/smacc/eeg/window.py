@@ -66,6 +66,7 @@ from .staging import (
 from .view import (
     DEFAULT_EPOCH_SECONDS,
     OVERLAY_COLORS,
+    HypnogramStrip,
     LogMark,
     RaterOverlay,
     TraceView,
@@ -894,6 +895,12 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self.scrollBar.setStatusTip("Scroll through the recording.")
         self.scrollBar.valueChanged.connect(self._on_scrollbar)
         viewColumn.addWidget(self.scrollBar)
+        # Hypnogram overview strip (#182c): the whole-night staircase, shown only
+        # once staging is in play (hidden for pure annotation work). Click to jump.
+        self.hypnogramStrip = HypnogramStrip()
+        self.hypnogramStrip.seekRequested.connect(self._on_strip_seek)
+        self.hypnogramStrip.setVisible(False)
+        viewColumn.addWidget(self.hypnogramStrip)
         body.addLayout(viewColumn, 1)
         body.addLayout(self._build_annotation_panel())
         layout.addLayout(body, 1)
@@ -1560,10 +1567,30 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._refresh_title()
 
     def _refresh_staging(self) -> None:
-        """Repaint the whole staging overlay (bands, focus, buttons, readout)."""
+        """Repaint the whole staging overlay (bands, focus, buttons, readout, strip)."""
         self.view.set_hypnogram(self._stage_epochs, self._vocab.colors)
         self.view.set_stage_focus(self._staging)
-        self._update_stage_ui()
+        self._update_stage_ui()  # also refreshes the overview strip
+
+    def _refresh_strip(self) -> None:
+        """Feed the hypnogram overview strip cells, shown only when staging is in play.
+
+        The window marker is moved separately by :meth:`_update_epoch_readout` on
+        every scroll; this rebuilds the cells (after a score) and toggles
+        visibility, which only matters when the scored set or recording changes.
+        """
+        duration = self._recording.duration if self._recording is not None else 0.0
+        self.hypnogramStrip.set_data(duration, self._stage_epochs, self._vocab.colors)
+        self.hypnogramStrip.setVisible(
+            self._recording is not None and (self._staging or bool(self._stage_epochs))
+        )
+
+    def _on_strip_seek(self, seconds: float) -> None:
+        """Jump the view so the clicked epoch is framed at the left edge."""
+        onset, _ = staging.epoch_bounds(
+            self.view.epoch_anchor, self.view.epoch_seconds, seconds
+        )
+        self._jump_to(max(0.0, onset))
 
     def _update_stage_ui(self) -> None:
         """Refresh the stage buttons, the progress counter, and the epoch readout."""
@@ -1583,6 +1610,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         else:
             self.stageProgressLabel.clear()
         self._update_epoch_readout()
+        self._refresh_strip()
 
     def _refresh_stage_focus_chip(self) -> None:
         """Show/hide the 'STAGE FOCUS' status chip in the active stage colour-neutral tint."""
@@ -2899,6 +2927,9 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         """Show the epoch number (and its scored stage) at the left edge of the view."""
         # Drive off the provider, not the recording, so the readout matches the
         # epoch grid (which a standalone log timeline also draws).
+        # The overview strip's window marker tracks every scroll (wheel/scrollbar/
+        # jump all route through here), cheaply — it only repaints the strip.
+        self.hypnogramStrip.set_window(self.view.window_start, self.view.window_seconds)
         if not self.view.has_provider:
             self.epochLabel.clear()
             self.stageReadout.clear()

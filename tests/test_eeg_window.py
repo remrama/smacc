@@ -2219,3 +2219,29 @@ def test_opening_another_recording_drops_a_discarded_stage_autosave(
 def test_progress_total_counts_only_full_epochs(stage_window):
     # 600 s / 30 s = 20 full epochs; the counter must be able to reach 20/20.
     assert "/20 scored" in stage_window.stageProgressLabel.text()
+
+
+# ----- hypnogram overview strip (#182c) ------------------------------------------
+
+
+def test_strip_is_hidden_until_staging_or_scored(stage_window):
+    assert stage_window.hypnogramStrip.isHidden()  # loaded, nothing scored, not staging
+    stage_window._score_current_epoch("N2")
+    assert not stage_window.hypnogramStrip.isHidden()  # a scored epoch reveals it
+
+
+def test_entering_staging_shows_the_strip(stage_window):
+    assert stage_window.hypnogramStrip.isHidden()
+    stage_window._set_staging(True)
+    assert not stage_window.hypnogramStrip.isHidden()
+
+
+def test_strip_seek_frames_the_clicked_epoch(stage_window):
+    stage_window.hypnogramStrip.seekRequested.emit(95.0)  # epoch [90, 120)
+    assert stage_window.view.window_start == pytest.approx(90.0)
+
+
+def test_strip_tracks_the_window_on_scroll(stage_window):
+    stage_window._score_current_epoch("N2")  # reveal the strip
+    stage_window._jump_to(120.0)
+    assert stage_window.hypnogramStrip._window_start == pytest.approx(120.0)

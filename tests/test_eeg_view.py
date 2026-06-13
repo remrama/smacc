@@ -17,7 +17,13 @@ from PyQt6 import QtCore, QtGui
 from smacc.eeg import dsp
 from smacc.eeg.annotations import Annotation
 from smacc.eeg.staging import StageEpoch
-from smacc.eeg.view import DEFAULT_TYPE_SCALES, RaterOverlay, TimeAxis, TraceView
+from smacc.eeg.view import (
+    DEFAULT_TYPE_SCALES,
+    HypnogramStrip,
+    RaterOverlay,
+    TimeAxis,
+    TraceView,
+)
 
 SFREQ = 100.0
 DURATION = 60.0
@@ -843,3 +849,46 @@ def test_new_provider_drops_the_previous_hypnogram(loaded):
     view.set_provider(FakeProvider())  # a different recording
     assert view._stage_epochs == []
     assert view._stage_band_items == []
+
+
+# ----- hypnogram overview strip (#182c) --------------------------------------
+
+
+def _press(x, width=600.0):
+    return QtGui.QMouseEvent(
+        QtCore.QEvent.Type.MouseButtonPress,
+        QtCore.QPointF(x, 15.0),
+        QtCore.Qt.MouseButton.LeftButton,
+        QtCore.Qt.MouseButton.LeftButton,
+        QtCore.Qt.KeyboardModifier.NoModifier,
+    )
+
+
+def test_strip_click_emits_a_seek_at_the_clicked_time(qtbot):
+    strip = HypnogramStrip()
+    qtbot.addWidget(strip)
+    strip.resize(600, 30)
+    strip.set_data(600.0, [], {})
+    captured: list[float] = []
+    strip.seekRequested.connect(captured.append)
+    strip.mousePressEvent(_press(300.0))  # half width → half the recording
+    assert captured == [pytest.approx(300.0)]
+
+
+def test_strip_ignores_clicks_with_no_recording(qtbot):
+    strip = HypnogramStrip()
+    qtbot.addWidget(strip)
+    strip.resize(600, 30)
+    captured: list[float] = []
+    strip.seekRequested.connect(captured.append)
+    strip.mousePressEvent(_press(300.0))  # duration is 0 → no seek
+    assert captured == []
+
+
+def test_strip_paints_without_crashing(qtbot):
+    strip = HypnogramStrip()
+    qtbot.addWidget(strip)
+    strip.resize(600, 30)
+    strip.set_data(600.0, [StageEpoch(0.0, 30.0, "N2")], {"N2": (74, 144, 200)})
+    strip.set_window(30.0, 30.0)
+    strip.repaint()  # exercise paintEvent (cells + window marker)
