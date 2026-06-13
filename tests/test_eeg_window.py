@@ -25,7 +25,12 @@ from smacc import preferences
 from smacc.config import VERSION
 from smacc.eeg import align, blind, dsp
 from smacc.eeg import window as window_mod
-from smacc.eeg.__main__ import pick_blind_spec, pick_rater_id, pick_recording_path
+from smacc.eeg.__main__ import (
+    pick_blind_spec,
+    pick_log_path,
+    pick_rater_id,
+    pick_recording_path,
+)
 from smacc.eeg.annotations import (
     Annotation,
     autosave_path,
@@ -922,7 +927,7 @@ def test_pick_recording_path_takes_the_last_non_flag_argument():
 
 
 def test_pick_recording_path_skips_value_flag_values(tmp_path):
-    # --rater/--blind values must not be mistaken for the recording.
+    # --rater/--blind/--log values must not be mistaken for the recording.
     assert (
         pick_recording_path(["exe", "--rater", "alice", "night1.edf"]) == "night1.edf"
     )
@@ -935,6 +940,16 @@ def test_pick_recording_path_skips_value_flag_values(tmp_path):
         pick_recording_path(["exe", "--rater", "a", "--blind", "naive", "n.edf"])
         == "n.edf"
     )
+    # --log night1.log opens standalone (no recording): the log path is not it.
+    assert pick_recording_path(["exe", "--log", "night1.log"]) is None
+    assert pick_recording_path(["exe", "--log", "n.log", "rec.edf"]) == "rec.edf"
+
+
+def test_pick_log_path_reads_both_forms():
+    assert pick_log_path(["exe", "--log", "night1.log"]) == "night1.log"
+    assert pick_log_path(["exe", "--log=night1.log", "rec.edf"]) == "night1.log"
+    assert pick_log_path(["exe", "rec.edf"]) is None
+    assert pick_log_path(["exe", "--log"]) is None  # dangling flag, no value
 
 
 def test_pick_rater_id_reads_both_forms():
@@ -1791,3 +1806,101 @@ def test_new_recording_re_reads_embedded_triggers(
     other.write_bytes(b"")
     window._load(other)
     assert window._embedded_triggers is None  # invalidated for the new recording
+
+
+# ----- standalone log view (#125d) -------------------------------------------
+
+
+def _standalone_log(window, monkeypatch, tmp_path, text=LOG_TEXT):
+    """Load a log into a window that has no recording open."""
+    log = tmp_path / "standalone.log"
+    log.write_text(text, encoding="utf-8")
+    monkeypatch.setattr(
+        QtWidgets.QFileDialog, "getOpenFileName", lambda *a, **k: (str(log), "")
+    )
+    window._load_session_log()
+    return log
+
+
+def test_standalone_log_shows_on_a_bare_timeline(window, monkeypatch, tmp_path):
+    # No recording is open: loading a log installs a zero-channel timeline and
+    # draws the log ticks, with annotation/save off but scrolling on.
+    assert window._recording is None
+    _standalone_log(window, monkeypatch, tmp_path)
+    assert window.view.has_provider  # a LogTimeline is now the provider
+    assert window.view.channel_names == []  # no channels
+    assert len(window.view._log_marks) == 3  # the INFO entries (DEBUG hidden)
+    assert not window.saveButton.isEnabled()  # nothing to annotate/save
+    assert window.scrollBar.isEnabled()  # but the timeline scrolls
+    # The timeline spans the log (22:00:00 → 22:00:20 = 20 s).
+    assert window.view.duration == pytest.approx(20.0)
+
+
+def test_standalone_then_opening_a_recording_switches_to_overlay(
+    window, recording_path, monkeypatch, tmp_path
+):
+    _standalone_log(window, monkeypatch, tmp_path)
+    assert window.view.channel_names == []
+    window._load(recording_path)  # open a real recording
+    assert window._recording is not None
+    assert window.view.channel_names == ["C3", "C4", "EOG", "EMG"]  # real channels
+    assert window._log_entries == []  # the standalone log was dropped
+    assert window.saveButton.isEnabled()
+
+
+def test_standalone_drag_below_lane_makes_no_annotation(window, monkeypatch, tmp_path):
+    # With no recording there is nothing to annotate; a region draw is a no-op.
+    _standalone_log(window, monkeypatch, tmp_path)
+    before = list(window._annotations)
+    window._on_region_drawn(1.0, 3.0)
+    assert window._annotations == before  # unchanged, no dialog, no mark
+
+
+def test_load_button_enabled_without_a_recording(window):
+    # Standalone loading is allowed (the button is live before any recording).
+    assert window._recording is None
+    assert window.loadLogButton.isEnabled()
+
+
+def test_constructor_log_path_loads_standalone(qtbot, tmp_path, monkeypatch):
+    monkeypatch.setattr(window_mod, "preferences_path", tmp_path / "prefs.yaml")
+    monkeypatch.setattr(window_mod.io, "recorded_trigger_events", lambda rec: [])
+    log = tmp_path / "boot.log"
+    log.write_text(LOG_TEXT, encoding="utf-8")
+    win = EegReviewWindow(log_path=log)
+    qtbot.addWidget(win)
+    win.show()
+    qtbot.waitUntil(lambda: bool(win._log_entries), timeout=2000)  # deferred load
+    assert win._log_path == log
+    assert win.view.has_provider
+
+
+def test_standalone_disables_the_alignment_controls(window, monkeypatch, tmp_path):
+    # With no recording there is one clock, so the skew controls (offset, pair,
+    # auto-align, lane drag) are off; viewing controls stay on.
+    _standalone_log(window, monkeypatch, tmp_path)
+    assert not window.logOffsetSpin.isEnabled()
+    assert not window.autoAlignButton.isEnabled()
+    window.logList.setCurrentRow(1)
+    assert not window.logAlignButton.isEnabled()
+    assert window.view._viewbox._log_lane_active is False  # lane not draggable
+    assert window.logList.isEnabled()  # the list still works (jump/highlight)
+
+
+def test_standalone_shows_the_epoch_readout(window, monkeypatch, tmp_path):
+    # The bare timeline draws the epoch grid, so the readout must match it.
+    _standalone_log(window, monkeypatch, tmp_path)
+    assert "Epoch" in window.epochLabel.text()
+
+
+def test_entering_blind_tears_down_a_standalone_log(make_window, monkeypatch, tmp_path):
+    # A standalone log has no _load to fall through to, so entering blind must
+    # tear the bare timeline down itself — no residual "log only" leak.
+    win = make_window("alice")
+    assert win._recording is None
+    _standalone_log(win, monkeypatch, tmp_path)
+    assert win.view.has_provider
+    win._set_blind(blind.preset_config(blind.PRESET_NAIVE))
+    assert win._log_entries == []
+    assert not win.view.has_provider  # the timeline is gone
+    assert win.fileInfoLabel.text() == ""  # and its "log only" label

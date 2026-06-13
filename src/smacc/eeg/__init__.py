@@ -51,20 +51,23 @@ def available() -> bool:
     return find_spec("mne") is not None and find_spec("pyqtgraph") is not None
 
 
-def launch() -> bool:
+def launch(args: list[str] | None = None) -> bool:
     """Start the EEG review tool as its own detached process; True if started.
 
     Detached on purpose: the viewer outlives the launcher (or a session) and
     never shares a process with them — see the isolation rationale above. The
     development path runs ``python -m smacc.eeg`` with the current
-    interpreter, the packaged path runs the installed exe.
+    interpreter, the packaged path runs the installed exe. ``args`` are extra
+    command-line arguments (e.g. ``["--log", path]`` for the Analyze handoff),
+    appended after the module/exe so both paths receive them identically.
     """
     from PyQt6 import QtCore  # deferred: keep this module import-light
 
+    extra = list(args) if args else []
     if getattr(sys, "frozen", False):
-        started, _pid = QtCore.QProcess.startDetached(str(component_exe()), [])
+        started, _pid = QtCore.QProcess.startDetached(str(component_exe()), extra)
     else:
         started, _pid = QtCore.QProcess.startDetached(
-            sys.executable, ["-m", "smacc.eeg"]
+            sys.executable, ["-m", "smacc.eeg", *extra]
         )
     return started

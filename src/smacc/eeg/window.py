@@ -589,6 +589,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         file_path: str | Path | None = None,
         rater_id: str | None = None,
         blind_spec: str | None = None,
+        log_path: str | Path | None = None,
     ) -> None:
         super().__init__()
         self._recording: io.Recording | None = None
@@ -672,6 +673,12 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             # After the event loop starts, so the window is up before any
             # open-error dialog (and a long load doesn't block the first paint).
             QtCore.QTimer.singleShot(0, lambda: self._load(Path(file_path)))
+        if log_path is not None:
+            # Open a session log too (or on its own, standalone — the Analyze
+            # window's "open in annotator" handoff uses this). Deferred for the
+            # same reason; runs after the recording load so it overlays when both
+            # are given.
+            QtCore.QTimer.singleShot(0, lambda: self.load_session_log(Path(log_path)))
 
     # ----- rater identity (#181) ----------------------------------------------
 
@@ -1321,6 +1328,13 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         # cue ticks on screen under a blind preset.
         if config is not None:
             self._clear_log_overlay()
+            # A standalone log (no recording) has no _load to fall through to, so
+            # tear its bare timeline down here too — otherwise the empty axis and
+            # the "log only · N entries" label would leak that a log was loaded.
+            if self._recording is None:
+                self.view.set_provider(None)
+                self.fileInfoLabel.clear()
+                self._set_loaded(False)
         if self._recording is not None:
             self._load(self._recording.path)  # re-resolve marks under the new mode
         self._update_log_controls()  # the Load-log button follows the blind state
@@ -1422,42 +1436,43 @@ class EegReviewWindow(QtWidgets.QMainWindow):
     # ----- session-log overlay (#125) --------------------------------------------
 
     def _can_overlay_log(self) -> bool:
-        """True when a log may be overlaid: a recording is open and not blinded.
+        """True when a log may be overlaid on a recording (one is open, not blind).
 
         A blind review never shows the log — it records every cue and portcode,
         which would unblind the rater (the same invariant as the peer overlays).
         """
         return self._recording is not None and self._blind is None
 
-    def _load_session_log(self) -> None:
-        """Pick a SMACC ``.log`` and overlay its parsed entries (#125)."""
-        if not self._can_overlay_log():
-            return
-        prefs = preferences.load_preferences(preferences_path)
-        start_dir = prefs.get("eeg_last_log_dir") or (
-            str(self._recording.path.parent)
-            if self._recording is not None
-            else str(Path.home())
-        )
-        path, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Open session log", str(start_dir), "SMACC log (*.log);;All files (*)"
-        )
-        if not path:
-            return
+    def _can_load_log(self) -> bool:
+        """True when a log may be loaded at all — i.e. not in a blind review.
+
+        With a recording open it overlays; with none it opens *standalone* on a
+        bare time axis (#125), for inspecting a log on its own. Both are refused
+        while blind (the log carries the cue markers).
+        """
+        return self._blind is None
+
+    def load_session_log(self, path: str | Path) -> bool:
+        """Load and show ``path`` as the overlay (or standalone) log; True on success.
+
+        The programmatic entry point behind both the button and the ``--log``
+        launch flag. Overlays the open recording, or — with none — shows the log
+        standalone on a bare time axis. Returns False (after an error dialog) when
+        the file can't be read or holds no timestamped entries, or when blinded.
+        """
+        if not self._can_load_log():
+            return False
         try:
             entries = sessionlog.read_session_log(path)
         except OSError as exc:
             self._error("Could not read the session log.", str(exc))
-            return
+            return False
         if not entries:
             self._error(
                 "That log has no timestamped entries.",
                 "It may be empty or not a SMACC session log.",
             )
-            return
-        preferences.update_preferences(
-            preferences_path, {"eeg_last_log_dir": str(Path(path).parent)}
-        )
+            return False
         # A pairing armed against the previous log would otherwise hijack the
         # next click with a stale entry; cancel it before swapping logs.
         self._end_pairing()
@@ -1471,12 +1486,62 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self.logOffsetSpin.setValue(0.0)
         self.logOffsetSpin.blockSignals(False)
         self._alignment = None
+        if self._recording is None:
+            self._show_standalone_log()  # bare time axis, view-only
         self._rebuild_log_level_checks()
         self._refresh_log_overlay()
         self._update_log_controls()
         # Try to place the log automatically against the amp's embedded triggers;
-        # a confident fit applies, otherwise the manual gestures take over.
+        # a confident fit applies, otherwise the manual gestures take over. A
+        # standalone log (no recording) has nothing to match, so this is a no-op.
         self._auto_align(announce=False)
+        return True
+
+    def _load_session_log(self) -> None:
+        """Pick a SMACC ``.log`` and load it (button handler)."""
+        if not self._can_load_log():
+            return
+        prefs = preferences.load_preferences(preferences_path)
+        start_dir = prefs.get("eeg_last_log_dir") or (
+            str(self._recording.path.parent)
+            if self._recording is not None
+            else str(Path.home())
+        )
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Open session log", str(start_dir), "SMACC log (*.log);;All files (*)"
+        )
+        if not path:
+            return
+        if self.load_session_log(path):
+            preferences.update_preferences(
+                preferences_path, {"eeg_last_log_dir": str(Path(path).parent)}
+            )
+
+    def _show_standalone_log(self) -> None:
+        """Show the log on a bare time axis with no recording loaded (#125).
+
+        The trace view's channel/overlay split means a log-only display is just
+        the same widget driven by a zero-channel :class:`~smacc.eeg.sessionlog.
+        LogTimeline` provider: no curves, the log ticks drawn by the overlay
+        layer, the axis and scrollbar sized to the log's span. Annotation and
+        save stay disabled (there is no recording to annotate); scrolling, the
+        epoch grid, and the log controls work.
+        """
+        timeline = sessionlog.LogTimeline(self._log_entries)
+        self.view.set_provider(timeline)
+        started = self._log_entries[0].timestamp
+        self.view.set_time_origin(started)
+        self.axisModeCombo.blockSignals(True)
+        self.axisModeCombo.setCurrentIndex(0)  # clock time, anchored at entry 1
+        self.axisModeCombo.blockSignals(False)
+        self.view.set_time_axis_mode("clock")
+        self._set_loaded(False)  # no recording: no annotate/save/channels/export
+        self.scrollBar.setEnabled(True)  # the log timeline still scrolls
+        self._configure_scrollbar()
+        self._update_epoch_readout()
+        self.fileInfoLabel.setText(
+            f"(no recording) · log only · {len(self._log_entries)} entries"
+        )
 
     def _log_has_level(self, level: str) -> bool:
         return any(e.level == level for e in self._log_entries)
@@ -1555,6 +1620,9 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._visible_log = [
             e for e in self._log_entries if e.level in self._log_levels
         ]
+        # The lane is draggable only with a recording to align against (standalone
+        # has a single clock — a slide would only push the ticks off their labels).
+        self.view.set_log_alignable(self._recording is not None)
         if origin is None:
             self.view.set_log_marks([])
         else:
@@ -1781,16 +1849,19 @@ class EegReviewWindow(QtWidgets.QMainWindow):
     def _update_log_controls(self) -> None:
         """Enable the log controls by state (recording open, log loaded, blind)."""
         has_log = bool(self._log_entries)
-        self.loadLogButton.setEnabled(self._can_overlay_log())
+        # Aligning reconciles the log clock with the recording's, so every skew
+        # control needs a recording; standalone log mode (no recording) shows the
+        # log but offers no alignment — there is only one clock.
+        can_align = has_log and self._recording is not None
+        self.loadLogButton.setEnabled(self._can_load_log())
         self.logList.setEnabled(has_log)
-        self.logOffsetSpin.setEnabled(has_log)
+        self.logOffsetSpin.setEnabled(can_align)
         self.logAlignButton.setEnabled(
-            has_log and 0 <= self.logList.currentRow() < len(self._visible_log)
+            can_align and 0 <= self.logList.currentRow() < len(self._visible_log)
         )
-        # Auto-align needs a start time to align against; without one only the
-        # manual gestures apply.
+        # Auto-align additionally needs a start time to align against.
         self.autoAlignButton.setEnabled(
-            has_log
+            can_align
             and self._recording is not None
             and self._recording.meas_date is not None
         )
@@ -1936,6 +2007,8 @@ class EegReviewWindow(QtWidgets.QMainWindow):
     # ----- annotation editing -----------------------------------------------------
 
     def _on_region_drawn(self, lo: float, hi: float) -> None:
+        if self._recording is None:
+            return  # standalone log view has no recording to annotate
         result = LabelDialog.get_label(self, self._recent_labels())
         if result is None:
             return
@@ -2205,8 +2278,9 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._sync_scrollbar(self.view.window_start)
 
     def _configure_scrollbar(self) -> None:
-        duration = self._recording.duration if self._recording else 0.0
-        span = max(0.0, duration - self.view.window_seconds)
+        # The loaded provider's length — a recording, or the standalone log
+        # timeline (#125) — so the bar sizes itself in either mode.
+        span = max(0.0, self.view.duration - self.view.window_seconds)
         self.scrollBar.blockSignals(True)
         self.scrollBar.setRange(0, int(span * _SCROLL_TICKS_PER_SECOND))
         self.scrollBar.setPageStep(
@@ -2246,7 +2320,9 @@ class EegReviewWindow(QtWidgets.QMainWindow):
 
     def _update_epoch_readout(self) -> None:
         """Show the epoch number at the left edge of the view in the status bar."""
-        if self._recording is None:
+        # Drive off the provider, not the recording, so the readout matches the
+        # epoch grid (which a standalone log timeline also draws).
+        if not self.view.has_provider:
             self.epochLabel.clear()
             return
         number = (
@@ -2283,9 +2359,12 @@ class EegReviewWindow(QtWidgets.QMainWindow):
                 if status_bar is not None:
                     status_bar.showMessage("Alignment cancelled.", 3000)
                 return True
-            if self._recording is not None and (
-                self._handle_nav_key(event) or self._handle_palette_key(event)
-            ):
+            # Navigation works whenever something is loaded (a recording, or the
+            # standalone log timeline); the quick-mark palette needs a recording
+            # to annotate.
+            if self.view.has_provider and self._handle_nav_key(event):
+                return True
+            if self._recording is not None and self._handle_palette_key(event):
                 return True
         return super().eventFilter(obj, event)
 
