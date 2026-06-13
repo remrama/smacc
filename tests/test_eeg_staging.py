@@ -240,6 +240,30 @@ def test_json_sidecar_records_manual_grid_and_provenance(tmp_path: Path):
     assert payload["stage"]["Levels"]["N3"].startswith("NREM stage 3")
 
 
+def test_read_json_sidecar_round_trips_the_provenance(tmp_path: Path):
+    path = tmp_path / "night1.stages.json"
+    staging.write_stages_json(
+        path,
+        source_name="night1.edf",
+        meas_date=None,
+        vocabulary=staging.RK,
+        epoch_seconds=20.0,
+        anchor=2.5,
+        rater_id="bob",
+    )
+    payload = staging.read_stages_json(path)
+    assert payload["ScoringManual"] == "R&K-1968"
+    assert payload["EpochLength"] == 20.0
+    assert payload["Anchor"] == 2.5
+
+
+def test_read_json_sidecar_rejects_non_json(tmp_path: Path):
+    path = tmp_path / "bad.json"
+    path.write_text("not json", encoding="utf-8")
+    with pytest.raises(ValueError, match="Not valid JSON"):
+        staging.read_stages_json(path)
+
+
 def test_json_sidecar_rater_is_null_for_a_single_rater_review(tmp_path: Path):
     path = tmp_path / "night1.stages.json"
     staging.write_stages_json(

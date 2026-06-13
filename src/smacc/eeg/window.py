@@ -32,7 +32,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import preferences, windowstate
 from ..paths import LOGO_PATH, preferences_path
-from . import align, blind, dsp, io, sessionlog
+from . import align, blind, dsp, io, sessionlog, staging
 from .annotations import (
     Annotation,
     autosave_path,
@@ -51,6 +51,18 @@ from .annotations import (
 from .profiles import FILE_FILTER as PROFILE_FILE_FILTER
 from .profiles import PROFILE_SUFFIX, ViewProfile, read_view_profile, write_view_profile
 from .sessionlog import LogEntry
+from .staging import (
+    StageEpoch,
+    rater_stages_autosave_path,
+    rater_stages_paths,
+    read_stages_json,
+    read_stages_tsv,
+    stages_autosave_path,
+    stages_sidecar_paths,
+    vocabulary_by_name,
+    write_stages_json,
+    write_stages_tsv,
+)
 from .view import (
     DEFAULT_EPOCH_SECONDS,
     OVERLAY_COLORS,
@@ -120,6 +132,29 @@ _VERTICAL_NAV_KEYS = frozenset(
         QtCore.Qt.Key.Key_End,
     }
 )
+
+# Keys that un-score the current epoch in stage focus (clear, never advance).
+_STAGE_CLEAR_KEYS = frozenset(
+    {
+        QtCore.Qt.Key.Key_0,
+        QtCore.Qt.Key.Key_Backspace,
+        QtCore.Qt.Key.Key_Delete,
+    }
+)
+
+
+def _stage_char(key: int) -> str | None:
+    """The character a Qt key denotes for staging (``A``-``Z`` / ``0``-``9``), or None.
+
+    Qt's letter/digit key codes equal their ASCII, so ``chr`` recovers the upper-
+    case character the vocabulary's hotkey map is keyed on (#182).
+    """
+    if (
+        QtCore.Qt.Key.Key_0 <= key <= QtCore.Qt.Key.Key_9
+        or QtCore.Qt.Key.Key_A <= key <= QtCore.Qt.Key.Key_Z
+    ):
+        return chr(key)
+    return None
 
 
 def _section_title(text: str) -> QtWidgets.QLabel:
@@ -657,6 +692,19 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._autosave_timer.setSingleShot(True)
         self._autosave_timer.setInterval(_AUTOSAVE_DEBOUNCE_MS)
         self._autosave_timer.timeout.connect(self._write_autosave)
+        # Sleep staging (#182): the hypnogram is a separate partition with its own
+        # rater-keyed sidecar, dirty/owns/recovery state paralleling the
+        # annotations above. ``_staging`` is the sticky stage-focus that governs
+        # the bare-digit hotkeys and auto-advance; the data (bands, scored epochs)
+        # is always live regardless, so a rater scores and annotates the same
+        # recording without a mode that loses their place. The vocabulary (AASM by
+        # default, R&K optional) is data, resolved from a saved preference.
+        self._staging = False
+        self._stage_epochs: list[StageEpoch] = []
+        self._vocab = self._resolve_vocabulary()
+        self._stage_dirty = False
+        self._owns_stage_sidecar = False
+        self._recovery_stages: list[StageEpoch] | None = None
         self.setWindowTitle("SMACC — EEG review")
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
@@ -719,6 +767,23 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             return autosave_path(source)
         return rater_autosave_path(source, self._rater_id)
 
+    def _stage_sidecar_for(self, source: str | Path) -> tuple[Path, Path]:
+        """The (TSV, JSON) hypnogram sidecar paths for the active rater (#182)."""
+        if self._rater_id is None:
+            return stages_sidecar_paths(source)
+        return rater_stages_paths(source, self._rater_id)
+
+    def _stage_autosave_for(self, source: str | Path) -> Path:
+        """The crash-recovery autosave path for the active rater's hypnogram (#182)."""
+        if self._rater_id is None:
+            return stages_autosave_path(source)
+        return rater_stages_autosave_path(source, self._rater_id)
+
+    def _resolve_vocabulary(self) -> staging.StagingVocabulary:
+        """The staging vocabulary from the saved preference (AASM default, #182)."""
+        prefs = preferences.load_preferences(preferences_path)
+        return vocabulary_by_name(prefs.get("eeg_staging_vocabulary"))
+
     def _refresh_rater_button(self) -> None:
         """Keep the rater button (and so the toolbar) showing the active id."""
         self.raterButton.setText(
@@ -761,14 +826,18 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             return
         self._autosave_timer.stop()
         self._clear_autosave()  # uses the *old* id (still current here)
+        self._clear_stage_autosave()  # likewise re-point the hypnogram autosave
         self._rater_id = new_id
         self._owns_sidecar = False
+        self._owns_stage_sidecar = False  # the new id hasn't loaded its hypnogram
         # Re-confirm the new id on its next save (discard is a no-op for None).
         self._confirmed_raters.discard(new_id)
         preferences.update_preferences(preferences_path, {"eeg_rater_id": new_id})
         self._refresh_rater_button()
         if self._recording is not None and self._annotations:
             self._mark_dirty()  # unsaved work now belongs to the new id
+        if self._recording is not None and self._stage_epochs:
+            self._mark_stage_dirty()  # the scored epochs now belong to the new id
         self._refresh_title()
 
     def _confirm_rater_identity(self) -> bool:
@@ -806,6 +875,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         layout.addLayout(self._build_controls_row())
         layout.addLayout(self._build_epoch_row())
         layout.addLayout(self._build_palette_row())
+        layout.addLayout(self._build_stage_row())
 
         body = QtWidgets.QHBoxLayout()
         viewColumn = QtWidgets.QVBoxLayout()
@@ -832,6 +902,10 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         # Permanent (right-aligned) state: the epoch at the left edge of the view
         # and the recording summary. Transient messages and the cursor clock use
         # the normal message area.
+        self.stageFocusLabel = QtWidgets.QLabel("", self)
+        self.stageFocusLabel.setStatusTip(
+            "Stage focus is on: number keys score the epoch and auto-advance."
+        )
         self.epochLabel = QtWidgets.QLabel("", self)
         self.epochLabel.setStatusTip("The epoch at the left edge of the view.")
         self.logInfoLabel = QtWidgets.QLabel("", self)
@@ -839,6 +913,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self.fileInfoLabel = QtWidgets.QLabel("", self)
         status_bar = self.statusBar()
         assert status_bar is not None
+        status_bar.addPermanentWidget(self.stageFocusLabel)
         status_bar.addPermanentWidget(self.epochLabel)
         status_bar.addPermanentWidget(self.logInfoLabel)
         status_bar.addPermanentWidget(self.fileInfoLabel)
@@ -1065,6 +1140,71 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._rebuild_palette_buttons()
         return row
 
+    def _build_stage_row(self) -> QtWidgets.QLayout:
+        """The sleep-staging controls (#182): focus toggle, vocabulary, stage keys.
+
+        Staging and annotating share one surface — the stage bands and the event
+        marks are always drawn — so this row never hides the annotation tools. The
+        "Stage focus" toggle (or Tab) only decides whether the bare number keys
+        score stages and the view auto-advances; the stage buttons and the W/R
+        keys score regardless, so a rater drops the odd Wake epoch without flipping
+        anything. The big readout names the epoch under the left edge and its
+        stage; the counter tracks how many epochs remain unscored.
+        """
+        row = QtWidgets.QHBoxLayout()
+        self.stagingButton = QtWidgets.QPushButton("Stage focus", self)
+        self.stagingButton.setCheckable(True)
+        self.stagingButton.setStatusTip(
+            "Stage focus (Tab): number keys score the epoch and auto-advance; "
+            "one epoch fills the screen. The stage buttons and W/R work either way."
+        )
+        self.stagingButton.toggled.connect(self._on_staging_toggled)
+        row.addWidget(self.stagingButton)
+
+        row.addWidget(QtWidgets.QLabel("Manual:", self))
+        self.vocabCombo = QtWidgets.QComboBox(self)
+        for vocab in staging.VOCABULARIES.values():
+            self.vocabCombo.addItem(vocab.name, vocab.name)
+        self.vocabCombo.setCurrentText(self._vocab.name)
+        self.vocabCombo.setStatusTip(
+            "Scoring manual: AASM (W/N1/N2/N3/R) or Rechtschaffen & Kales "
+            "(S1-S4 + Movement). Locked once an epoch is scored."
+        )
+        self.vocabCombo.currentIndexChanged.connect(self._on_vocabulary_changed)
+        row.addWidget(self.vocabCombo)
+
+        self.stageButtonsLayout = QtWidgets.QHBoxLayout()
+        self.stageButtonsLayout.setSpacing(4)
+        self._stage_buttons: dict[str, QtWidgets.QPushButton] = {}
+        row.addLayout(self.stageButtonsLayout)
+
+        self.stageReadout = QtWidgets.QLabel("", self)
+        self.stageReadout.setStatusTip(
+            "The stage scored for the epoch at the left edge."
+        )
+        font = self.stageReadout.font()
+        font.setPointSize(font.pointSize() + 4)
+        font.setBold(True)
+        self.stageReadout.setFont(font)
+        self.stageReadout.setMinimumWidth(150)
+        self.stageReadout.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        row.addWidget(self.stageReadout)
+
+        row.addStretch(1)
+        self.stageProgressLabel = QtWidgets.QLabel("", self)
+        self.stageProgressLabel.setStatusTip("Scored / total epochs in the recording.")
+        self.stageProgressLabel.setEnabled(False)  # quiet, dimmed
+        row.addWidget(self.stageProgressLabel)
+        self.saveStageButton = QtWidgets.QPushButton("Save staging", self)
+        self.saveStageButton.setStatusTip(
+            "Write the hypnogram sidecar (night1.stages[.<rater>].tsv) next to the "
+            "recording; the recording itself is never modified."
+        )
+        self.saveStageButton.clicked.connect(self.save_staging)
+        row.addWidget(self.saveStageButton)
+        self._rebuild_stage_buttons()
+        return row
+
     def _build_contract_caption(self) -> QtWidgets.QLabel:
         """A quiet, always-visible reminder of the tool's safety contract (#175)."""
         caption = QtWidgets.QLabel(
@@ -1247,10 +1387,15 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             self.saveProfileButton,
             self.loadProfileButton,
             self.exportButton,
+            self.stagingButton,
+            self.saveStageButton,
         ):
             widget.setEnabled(loaded)
         for button in self._palette_buttons:  # no recording → nothing to mark
             button.setEnabled(loaded)
+        if not loaded and self._staging:
+            self._set_staging(False)  # can't stay in stage focus with nothing loaded
+        self._update_stage_ui()  # stage buttons + readout follow the load state
         self._update_log_controls()  # log loading is gated on a recording too
 
     # ----- quick-mark palette (#181) ---------------------------------------------
@@ -1298,6 +1443,249 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             return
         preferences.update_preferences(preferences_path, {"eeg_palette_labels": result})
         self._rebuild_palette_buttons()
+
+    # ----- sleep staging (#182) --------------------------------------------------
+
+    def _rebuild_stage_buttons(self) -> None:
+        """Recreate the stage buttons from the active vocabulary (W/N1/N2/N3/R …)."""
+        while self.stageButtonsLayout.count():
+            item = self.stageButtonsLayout.takeAt(0)
+            widget = item.widget() if item is not None else None
+            if widget is not None:
+                widget.deleteLater()
+        self._stage_buttons = {}
+        # The button caption shows the hotkey so the mapping is discoverable; key
+        # lookup is the vocabulary's, so R&K's digits and AASM's line up with it.
+        key_for_stage = {stage: key for key, stage in self._vocab.hotkeys.items()}
+        for stage in self._vocab.stages:
+            key = key_for_stage.get(stage, "")
+            button = QtWidgets.QPushButton(f"{stage} ({key})" if key else stage, self)
+            red, green, blue = self._vocab.colors[stage]
+            button.setStatusTip(
+                f"Score the current epoch as {staging.STAGE_LABELS.get(stage, stage)}"
+                + (f" (key {key})." if key else ".")
+            )
+            button.clicked.connect(
+                lambda _checked=False, s=stage: self._score_current_epoch(s)
+            )
+            button.setEnabled(self._recording is not None)
+            self.stageButtonsLayout.addWidget(button)
+            self._stage_buttons[stage] = button
+        # Tint the band swatch onto each button so the colour key is visible.
+        for stage, button in self._stage_buttons.items():
+            red, green, blue = self._vocab.colors[stage]
+            button.setStyleSheet(
+                f"QPushButton {{ border-left: 4px solid rgb({red},{green},{blue}); }}"
+            )
+
+    def _on_vocabulary_changed(self) -> None:
+        """Switch the scoring vocabulary (only allowed before any epoch is scored)."""
+        name = self.vocabCombo.currentData()
+        self._vocab = vocabulary_by_name(name)
+        preferences.update_preferences(
+            preferences_path, {"eeg_staging_vocabulary": name}
+        )
+        self._rebuild_stage_buttons()
+        self._refresh_staging()
+
+    def _on_staging_toggled(self, checked: bool) -> None:
+        """Enter/leave stage focus from the toggle button."""
+        self._set_staging(checked)
+
+    def _toggle_staging(self) -> None:
+        """Flip stage focus (the Tab key path); drives the toggle button."""
+        self.stagingButton.toggle()  # emits toggled → _on_staging_toggled
+
+    def _set_staging(self, on: bool) -> None:
+        """Turn stage focus on/off: epoch-lock the view and route the number keys.
+
+        Entering snaps the window to one epoch per screen (the standard scoring
+        view) and locks the epoch length/anchor so the grid can't shift mid-sweep
+        and silently re-slot the scores. The data is unchanged either way — only
+        the bare-digit hotkeys and auto-advance follow this flag.
+        """
+        on = on and self._recording is not None
+        self._staging = on
+        if self.stagingButton.isChecked() != on:
+            self.stagingButton.blockSignals(True)
+            self.stagingButton.setChecked(on)
+            self.stagingButton.blockSignals(False)
+        # Lock the epoch grid controls while staging: re-anchoring or re-length-ing
+        # mid-sweep would remap which span each score lands in.
+        self.epochSpin.setEnabled(not on)
+        self.anchorButton.setEnabled(not on)
+        self.resetAnchorButton.setEnabled(not on)
+        if on:
+            onset, _ = self._current_epoch_bounds()
+            self._select_window_seconds(self.view.epoch_seconds)  # one epoch/screen
+            self._jump_to(max(0.0, onset))  # frame that epoch at the left edge
+        self._refresh_staging()
+        self._refresh_stage_focus_chip()
+
+    def _current_epoch_bounds(self) -> tuple[float, float]:
+        """``(onset, duration)`` of the epoch at the left edge — the scoring target."""
+        return staging.epoch_bounds(
+            self.view.epoch_anchor, self.view.epoch_seconds, self.view.window_start
+        )
+
+    def _score_current_epoch(self, stage: str) -> None:
+        """Score the left-edge epoch as ``stage`` and, while staging, auto-advance."""
+        if self._recording is None:
+            return
+        onset, duration = self._current_epoch_bounds()
+        if onset < 0:  # the left edge sits before the recording start / anchor
+            return
+        self._stage_epochs = staging.set_stage(
+            self._stage_epochs, StageEpoch(onset, duration, stage)
+        )
+        self.view.set_hypnogram(self._stage_epochs, self._vocab.colors)
+        self._mark_stage_dirty()
+        if self._staging:
+            self._jump_to(onset + duration)  # next epoch, snapped to the boundary
+        self._update_stage_ui()
+
+    def _clear_current_epoch(self) -> None:
+        """Un-score the left-edge epoch (back to unscored); never auto-advances."""
+        if self._recording is None:
+            return
+        onset, _ = self._current_epoch_bounds()
+        self._stage_epochs = staging.clear_stage(self._stage_epochs, onset)
+        self.view.set_hypnogram(self._stage_epochs, self._vocab.colors)
+        self._mark_stage_dirty()
+        self._update_stage_ui()
+
+    def _mark_stage_dirty(self) -> None:
+        self._stage_dirty = True
+        self._autosave_timer.start()  # (re)arm the shared debounced recovery write
+        self._refresh_title()
+
+    def _refresh_staging(self) -> None:
+        """Repaint the whole staging overlay (bands, focus, buttons, readout)."""
+        self.view.set_hypnogram(self._stage_epochs, self._vocab.colors)
+        self.view.set_stage_focus(self._staging)
+        self._update_stage_ui()
+
+    def _update_stage_ui(self) -> None:
+        """Refresh the stage buttons, the progress counter, and the epoch readout."""
+        loaded = self._recording is not None
+        for button in self._stage_buttons.values():
+            button.setEnabled(loaded)
+        # The vocabulary is locked once scoring starts (mixed manuals corrupt a
+        # hypnogram), so the combo is enabled only on an empty, loaded recording.
+        self.vocabCombo.setEnabled(loaded and not self._stage_epochs)
+        if self._recording is not None:
+            # Count only *full* epochs (floor): a trailing fragment shorter than the
+            # epoch length isn't a scorable epoch and can't be framed at the left
+            # edge (the window can't scroll past the data), so counting it would
+            # leave the sweep stuck below 100%.
+            total = max(1, int(self._recording.duration // self.view.epoch_seconds))
+            self.stageProgressLabel.setText(f"{len(self._stage_epochs)}/{total} scored")
+        else:
+            self.stageProgressLabel.clear()
+        self._update_epoch_readout()
+
+    def _refresh_stage_focus_chip(self) -> None:
+        """Show/hide the 'STAGE FOCUS' status chip in the active stage colour-neutral tint."""
+        if self._staging:
+            self.stageFocusLabel.setText("  STAGE FOCUS  ")
+            self.stageFocusLabel.setStyleSheet(
+                "QLabel { background: rgb(0,150,136); color: white; "
+                "border-radius: 3px; }"
+            )
+        else:
+            self.stageFocusLabel.clear()
+            self.stageFocusLabel.setStyleSheet("")
+
+    def save_staging(self) -> None:
+        """Write the hypnogram sidecar for the active rater (mirrors save_annotations)."""
+        if self._recording is None:
+            return
+        if not self._confirm_rater_identity():
+            return
+        tsv_path, json_path = self._stage_sidecar_for(self._recording.path)
+        if not self._owns_stage_sidecar and tsv_path.is_file():
+            if not self._confirm_overwrite(tsv_path, kind="staging"):
+                return
+        try:
+            write_stages_tsv(self._stage_epochs, tsv_path)
+            write_stages_json(
+                json_path,
+                source_name=self._recording.path.name,
+                meas_date=self._recording.meas_date,
+                vocabulary=self._vocab,
+                epoch_seconds=self.view.epoch_seconds,
+                anchor=self.view.epoch_anchor,
+                rater_id=self._rater_id,
+            )
+        except OSError as exc:
+            self._error("Could not save the staging.", str(exc))
+            return
+        self._stage_dirty = False
+        self._owns_stage_sidecar = True
+        self._clear_stage_autosave()
+        self._maybe_stop_autosave()
+        self._refresh_title()
+        status_bar = self.statusBar()
+        assert status_bar is not None
+        status_bar.showMessage(
+            f"Saved {len(self._stage_epochs)} scored epochs to {tsv_path.name}", 5000
+        )
+
+    def _clear_stage_autosave(self) -> None:
+        """Delete the active rater's hypnogram recovery file for this recording."""
+        if self._recording is not None:
+            self._stage_autosave_for(self._recording.path).unlink(missing_ok=True)
+
+    def _load_stages(self, tsv_path: Path) -> tuple[list[StageEpoch], bool]:
+        """Load a hypnogram sidecar; return ``(epochs, owns)``.
+
+        Absent → ``([], False)``. A corrupt sidecar is not fatal to the open (the
+        annotations may be fine) but it is *not* claimed as ours, so the overwrite
+        guard catches the next save instead of silently clobbering it.
+        """
+        if not tsv_path.is_file():
+            return [], False
+        try:
+            return read_stages_tsv(tsv_path), True
+        except (OSError, ValueError) as exc:
+            self._error(
+                "Could not read the existing staging sidecar.",
+                f"{tsv_path.name}: {exc}\n\nFix or rename it; staging starts empty "
+                "and will not overwrite it without confirmation.",
+            )
+            return [], False
+
+    def _apply_stage_provenance(self, json_path: Path) -> None:
+        """Adopt the manual + epoch grid a resumed hypnogram was scored on (#182).
+
+        The TSV is self-describing for the data, but the *vocabulary* (so the
+        keyboard map, band colours, and the locked combo match) and the *epoch
+        grid* (so new scores tile on the same boundaries as the loaded bands) live
+        in the JSON. Applied after ``set_provider`` (which resets the anchor). A
+        missing/unreadable JSON leaves the preference defaults — never fatal.
+        """
+        try:
+            payload = read_stages_json(json_path)
+        except (OSError, ValueError):
+            return
+        manual = payload.get("ScoringManual")
+        if isinstance(manual, str):
+            self._vocab = vocabulary_by_name(manual)
+            self._rebuild_stage_buttons()
+            index = self.vocabCombo.findData(self._vocab.name)
+            if index >= 0:
+                self.vocabCombo.blockSignals(True)
+                self.vocabCombo.setCurrentIndex(index)
+                self.vocabCombo.blockSignals(False)
+        epoch_length = payload.get("EpochLength")
+        if isinstance(epoch_length, int | float) and epoch_length > 0:
+            self.epochSpin.blockSignals(True)
+            self.epochSpin.setValue(int(epoch_length))
+            self.epochSpin.blockSignals(False)
+            self.view.set_epoch_seconds(float(epoch_length))
+        anchor = payload.get("Anchor")
+        if isinstance(anchor, int | float) and anchor >= 0:
+            self.view.set_epoch_anchor(float(anchor))
 
     # ----- blind-rater mode (#181) -----------------------------------------------
 
@@ -2021,9 +2409,11 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             self._error("Could not open the recording.", str(exc))
             return
         # Opened cleanly: stop autosaving the recording we're leaving and drop its
-        # recovery file (the user already saved or discarded it via open_file).
+        # recovery files — both layers (the user already saved or discarded it via
+        # open_file), so a discarded staging sweep isn't re-offered on the next open.
         self._autosave_timer.stop()
         self._clear_autosave()
+        self._clear_stage_autosave()
         tsv_path, _ = self._sidecar_for(path)
         if tsv_path.is_file():
             # Resume a previous review. A sidecar that exists but won't parse
@@ -2051,8 +2441,22 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         # We own the sidecar when we loaded from it; a fresh review does not yet,
         # so its first save guards against overwriting one that appeared meanwhile.
         self._owns_sidecar = tsv_path.is_file()
+        # Stages (#182) are an independent partition with their own sidecar — loaded
+        # unconditionally (no blind filter applies to a hypnogram).
+        stage_tsv, stage_json = self._stage_sidecar_for(path)
+        self._stage_epochs, self._owns_stage_sidecar = self._load_stages(stage_tsv)
+        self._stage_dirty = False
+        # A fresh recording uses the preference vocabulary; a resumed hypnogram
+        # adopts the manual + epoch grid it was scored on (applied after
+        # set_provider, which resets the anchor), so the keyboard map, the band
+        # colours, and the grid all match the file rather than the operator default.
+        if not self._stage_epochs:
+            self._vocab = self._resolve_vocabulary()
         self.view.set_provider(recording)
         self.view.set_annotations(annotations)
+        if self._stage_epochs and stage_json.is_file():
+            self._apply_stage_provenance(stage_json)
+        self.view.set_hypnogram(self._stage_epochs, self._vocab.colors)
         # Hand the view the localized recording start so the time axis can label
         # clock time; default to clock when the file carries one, else elapsed.
         started = wall_time(recording, 0.0)
@@ -2084,6 +2488,9 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         # re-loads it for the new file if wanted.
         self._clear_log_overlay()
         self._check_for_recovery(tsv_path)
+        # Re-establish staging for this recording: re-frame/lock if a sweep was on,
+        # and paint the bands/readout/buttons either way.
+        self._set_staging(self._staging)
 
     def _fresh_annotations(
         self, path: Path, recording: io.Recording
@@ -2241,8 +2648,8 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             return
         self._dirty = False
         self._owns_sidecar = True  # ours now; later saves don't re-prompt
-        self._autosave_timer.stop()
         self._clear_autosave()  # the work is persisted; no recovery needed
+        self._maybe_stop_autosave()  # but keep autosaving an unsaved hypnogram
         self._refresh_title()
         status_bar = self.statusBar()
         assert status_bar is not None
@@ -2250,13 +2657,17 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             f"Saved {len(self._annotations)} annotations to {tsv_path.name}", 5000
         )
 
-    def _confirm_overwrite(self, tsv_path: Path) -> bool:
-        """Ask before overwriting a sidecar this review did not open."""
+    def _confirm_overwrite(self, tsv_path: Path, kind: str = "annotations") -> bool:
+        """Ask before overwriting a sidecar this review did not open.
+
+        ``kind`` names the artifact (``"annotations"`` or ``"staging"``) so the
+        destructive confirmation matches the file actually being saved.
+        """
         button = QtWidgets.QMessageBox.question(
             self,
-            "Overwrite annotations?",
+            "Overwrite?",
             f"{tsv_path.name} already exists and was not opened in this review.\n\n"
-            "Overwrite it with the current annotations?",
+            f"Overwrite it with the current {kind}?",
             QtWidgets.QMessageBox.StandardButton.Yes
             | QtWidgets.QMessageBox.StandardButton.No,
         )
@@ -2296,7 +2707,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         name = f" — {self._recording.path.name}" if self._recording else ""
         rater = f" · rater {self._rater_id}" if self._rater_id else ""
         blinded = f" · blind:{self._blind.preset}" if self._blind is not None else ""
-        star = " *" if self._dirty else ""
+        star = " *" if self._dirty or self._stage_dirty else ""
         self.setWindowTitle(f"SMACC — EEG review{name}{rater}{blinded}{star}")
 
     def _recent_labels(self) -> list[str]:
@@ -2313,16 +2724,37 @@ class EegReviewWindow(QtWidgets.QMainWindow):
     # ----- autosave / crash recovery (#176) ----------------------------------------
 
     def _write_autosave(self) -> None:
-        """Write the recovery file (best-effort, atomic); fired by the debounce timer."""
-        if self._recording is None or not self._dirty:
+        """Write the recovery files (best-effort, atomic); fired by the debounce timer.
+
+        One debounce serves both layers: the dirty annotation list and the dirty
+        hypnogram each write their own recovery file, so a crash mid-staging
+        recovers the scored epochs just as it recovers unsaved marks.
+        """
+        if self._recording is None:
             return
-        path = self._autosave_for(self._recording.path)
-        tmp = path.with_suffix(".tmp")  # write-then-rename so a crash never half-writes
-        try:
-            write_annotations_tsv(self._annotations, tmp)
-            tmp.replace(path)
-        except OSError:
-            pass  # autosave must never interrupt the review
+        if self._dirty:
+            path = self._autosave_for(self._recording.path)
+            tmp = path.with_suffix(
+                ".tmp"
+            )  # write-then-rename so a crash never half-writes
+            try:
+                write_annotations_tsv(self._annotations, tmp)
+                tmp.replace(path)
+            except OSError:
+                pass  # autosave must never interrupt the review
+        if self._stage_dirty:
+            path = self._stage_autosave_for(self._recording.path)
+            tmp = path.with_suffix(".tmp")
+            try:
+                write_stages_tsv(self._stage_epochs, tmp)
+                tmp.replace(path)
+            except OSError:
+                pass
+
+    def _maybe_stop_autosave(self) -> None:
+        """Stop the shared debounce once neither layer has unsaved work."""
+        if not self._dirty and not self._stage_dirty:
+            self._autosave_timer.stop()
 
     def _clear_autosave(self) -> None:
         """Delete the active rater's recovery file for this recording, if any."""
@@ -2330,47 +2762,81 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             self._autosave_for(self._recording.path).unlink(missing_ok=True)
 
     def _check_for_recovery(self, tsv_path: Path) -> None:
-        """On open, offer to restore a recovery file newer than the saved sidecar."""
+        """On open, offer to restore recovery files newer than the saved sidecars.
+
+        Covers both layers in one banner: the annotation autosave and the
+        hypnogram autosave (#182). A recovery file is offered unless a clean save
+        is strictly newer than it (then it is stale and dropped); a same-second
+        tie errs toward offering it, never losing work.
+        """
         self.recoveryBanner.setVisible(False)
         self._recovery_annotations = None
+        self._recovery_stages = None
         if self._recording is None:
             return
+        parts: list[str] = []
         recovery = self._autosave_for(self._recording.path)
-        if not recovery.is_file():
-            return
-        # A recovery file with a clean save strictly newer than it is stale — the
-        # save happened after the autosave, so there is nothing left to recover.
-        # Strict so a same-second tie errs toward offering recovery, never losing it.
-        stale = (
-            tsv_path.is_file() and tsv_path.stat().st_mtime > recovery.stat().st_mtime
-        )
-        if stale:
-            recovery.unlink(missing_ok=True)
-            return
-        try:
-            recovered = read_annotations_tsv(recovery)
-        except (OSError, ValueError):
-            return  # an unreadable recovery file must not block the open
-        self._recovery_annotations = recovered
-        self.recoveryLabel.setText(
-            f"Recovered {len(recovered)} unsaved annotation(s) from a previous session."
-        )
-        self.recoveryBanner.setVisible(True)
+        if recovery.is_file():
+            stale = (
+                tsv_path.is_file()
+                and tsv_path.stat().st_mtime > recovery.stat().st_mtime
+            )
+            if stale:
+                recovery.unlink(missing_ok=True)
+            else:
+                try:
+                    self._recovery_annotations = read_annotations_tsv(recovery)
+                except (OSError, ValueError):
+                    self._recovery_annotations = None  # don't block the open
+                if self._recovery_annotations is not None:
+                    parts.append(
+                        f"{len(self._recovery_annotations)} unsaved annotation(s)"
+                    )
+        stage_tsv, _ = self._stage_sidecar_for(self._recording.path)
+        stage_recovery = self._stage_autosave_for(self._recording.path)
+        if stage_recovery.is_file():
+            stale = (
+                stage_tsv.is_file()
+                and stage_tsv.stat().st_mtime > stage_recovery.stat().st_mtime
+            )
+            if stale:
+                stage_recovery.unlink(missing_ok=True)
+            else:
+                try:
+                    self._recovery_stages = read_stages_tsv(stage_recovery)
+                except (OSError, ValueError):
+                    self._recovery_stages = None
+                if self._recovery_stages is not None:
+                    parts.append(f"{len(self._recovery_stages)} scored epoch(s)")
+        if parts:
+            self.recoveryLabel.setText(
+                "Recovered " + " and ".join(parts) + " from a previous session."
+            )
+            self.recoveryBanner.setVisible(True)
 
     def _restore_autosave(self) -> None:
-        if self._recovery_annotations is None:
+        if self._recovery_annotations is None and self._recovery_stages is None:
             return
-        self._annotations = self._recovery_annotations
+        if self._recovery_annotations is not None:
+            self._annotations = self._recovery_annotations
+            self.view.set_annotations(self._annotations)
+            self._refresh_list()
+            self._mark_dirty()  # restored but not yet saved — keep the recovery alive
+        if self._recovery_stages is not None:
+            self._stage_epochs = self._recovery_stages
+            self.view.set_hypnogram(self._stage_epochs, self._vocab.colors)
+            self._mark_stage_dirty()
+            self._update_stage_ui()
         self._recovery_annotations = None
+        self._recovery_stages = None
         self.recoveryBanner.setVisible(False)
-        self.view.set_annotations(self._annotations)
-        self._refresh_list()
-        self._mark_dirty()  # restored but not yet saved — keep the recovery alive
 
     def _dismiss_autosave(self) -> None:
         self._recovery_annotations = None
+        self._recovery_stages = None
         self.recoveryBanner.setVisible(False)
-        self._clear_autosave()  # the user declined the recovery; drop it
+        self._clear_autosave()  # the user declined the recovery; drop both
+        self._clear_stage_autosave()
 
     # ----- selection sync ---------------------------------------------------------
 
@@ -2430,11 +2896,12 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._update_epoch_readout()
 
     def _update_epoch_readout(self) -> None:
-        """Show the epoch number at the left edge of the view in the status bar."""
+        """Show the epoch number (and its scored stage) at the left edge of the view."""
         # Drive off the provider, not the recording, so the readout matches the
         # epoch grid (which a standalone log timeline also draws).
         if not self.view.has_provider:
             self.epochLabel.clear()
+            self.stageReadout.clear()
             return
         number = (
             math.floor(
@@ -2444,6 +2911,24 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             + 1
         )
         self.epochLabel.setText(f"Epoch {number}")
+        # The big readout names the current epoch's stage in its own colour, or a
+        # dash when unscored — the at-a-glance answer to "what is this epoch?".
+        stage = staging.stage_at(self._stage_epochs, self.view.window_start)
+        if self._recording is None:
+            self.stageReadout.clear()
+        elif stage is None:
+            self.stageReadout.setText("—")
+            self.stageReadout.setStyleSheet("")
+        else:
+            self.stageReadout.setText(stage)
+            color = self._vocab.colors.get(stage)
+            if color is not None:
+                red, green, blue = color
+                self.stageReadout.setStyleSheet(
+                    f"QLabel {{ color: rgb({red},{green},{blue}); }}"
+                )
+            else:
+                self.stageReadout.setStyleSheet("")
 
     def eventFilter(
         self, obj: QtCore.QObject | None, event: QtCore.QEvent | None
@@ -2470,10 +2955,24 @@ class EegReviewWindow(QtWidgets.QMainWindow):
                 if status_bar is not None:
                     status_bar.showMessage("Alignment cancelled.", 3000)
                 return True
+            # Tab toggles stage focus (#182), but only with a recording open and
+            # the focus off any text/number entry — so Tab still moves between the
+            # filter fields when you are editing them.
+            if (
+                event.key() == QtCore.Qt.Key.Key_Tab
+                and not event.modifiers()
+                and self._recording is not None
+                and not self._focus_is_text_entry()
+            ):
+                self._toggle_staging()
+                return True
             # Navigation works whenever something is loaded (a recording, or the
-            # standalone log timeline); the quick-mark palette needs a recording
-            # to annotate.
+            # standalone log timeline). Stage keys (in focus) and the quick-mark
+            # palette both need a recording; stage keys go first so a staging sweep
+            # owns the bare digits, then they fall through to quick-marks otherwise.
             if self.view.has_provider and self._handle_nav_key(event):
+                return True
+            if self._recording is not None and self._handle_stage_key(event):
                 return True
             if self._recording is not None and self._handle_palette_key(event):
                 return True
@@ -2516,6 +3015,46 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         if isinstance(focus, QtWidgets.QComboBox | QtWidgets.QAbstractItemView):
             return key in _VERTICAL_NAV_KEYS
         return False
+
+    def _focus_is_text_entry(self) -> bool:
+        """True if a spin box / line edit / combo box has focus (don't hijack typing)."""
+        focus = QtWidgets.QApplication.focusWidget()
+        return isinstance(
+            focus,
+            QtWidgets.QAbstractSpinBox | QtWidgets.QLineEdit | QtWidgets.QComboBox,
+        )
+
+    def _handle_stage_key(self, event: QtGui.QKeyEvent) -> bool:
+        """Score (or clear) the current epoch from a stage hotkey; return if consumed.
+
+        Keyboard scoring is confined to stage focus: outside it a bare ``W``/``R``
+        or digit is *not* consumed here, so a stray letter can never silently start
+        a hypnogram during plain annotation review, and digits stay quick-mark
+        hotkeys (#181b). The mouse stage buttons remain the way to score the odd
+        epoch without entering focus. In focus an unmapped digit (6-9 under AASM) is
+        swallowed so a mis-key never scatters a quick-mark mid-sweep; an unmapped
+        letter falls through (it may be another shortcut). Yields to any focused
+        text/number entry so typing is never hijacked.
+        """
+        if not self._staging:
+            return False
+        if event.modifiers() & ~QtCore.Qt.KeyboardModifier.KeypadModifier:
+            return False  # only a bare key (keypad ok), not Ctrl/Alt/Shift+key
+        if self._focus_is_text_entry():
+            return False
+        key = event.key()
+        if key in _STAGE_CLEAR_KEYS:
+            self._clear_current_epoch()
+            return True
+        char = _stage_char(key)
+        if char is None:
+            return False
+        stage = self._vocab.stage_for_key(char)
+        if stage is not None:
+            self._score_current_epoch(stage)
+            return True
+        # An unmapped digit is inert but swallowed; an unmapped letter falls through.
+        return char.isdigit()
 
     def _handle_nav_key(self, event: QtGui.QKeyEvent) -> bool:
         """Apply one navigation/amplitude key; return whether it was consumed."""
@@ -2810,20 +3349,24 @@ class EegReviewWindow(QtWidgets.QMainWindow):
     # ----- helpers / lifecycle -------------------------------------------------------
 
     def _confirm_discard(self) -> bool:
-        """True when it's safe to drop the current annotations (saved or confirmed)."""
-        if not self._dirty:
+        """True when it's safe to drop the current work (saved or confirmed)."""
+        if not self._dirty and not self._stage_dirty:
             return True
         button = QtWidgets.QMessageBox.question(
             self,
-            "Unsaved annotations",
-            "Save the annotations before closing this recording?",
+            "Unsaved work",
+            "Save the annotations and staging before closing this recording?",
             QtWidgets.QMessageBox.StandardButton.Save
             | QtWidgets.QMessageBox.StandardButton.Discard
             | QtWidgets.QMessageBox.StandardButton.Cancel,
         )
         if button == QtWidgets.QMessageBox.StandardButton.Save:
-            self.save_annotations()
-            return not self._dirty  # a failed save keeps the recording open
+            if self._dirty:
+                self.save_annotations()
+            if self._stage_dirty:
+                self.save_staging()
+            # A failed save (or a declined rater confirm) keeps the recording open.
+            return not self._dirty and not self._stage_dirty
         return button == QtWidgets.QMessageBox.StandardButton.Discard
 
     def _error(self, short: str, detail: str | None = None) -> None:
@@ -2841,9 +3384,10 @@ class EegReviewWindow(QtWidgets.QMainWindow):
                 event.ignore()
             return
         # Closing cleanly (saved or discarded): there is no unsaved work to
-        # recover, so drop the recovery file and stop the autosave timer.
+        # recover, so drop the recovery files and stop the autosave timer.
         self._autosave_timer.stop()
         self._clear_autosave()
+        self._clear_stage_autosave()
         self._stop_player()  # don't leave a report playing after the window closes
         # Drop the app-level key filter before this window goes away, so a stray
         # late event can never reach a half-deleted window.

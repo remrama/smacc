@@ -35,6 +35,7 @@ from PyQt6 import QtCore, QtGui
 from . import dsp
 from .annotations import Annotation
 from .snapshot import Snapshot, SnapshotEpoch, SnapshotMark, SnapshotTrace
+from .staging import StageEpoch
 
 # Bioelectric channels are recorded in volts and displayed in microvolts.
 # Other kinds (stim/misc/…) carry arbitrary units — a trigger channel holds
@@ -86,6 +87,20 @@ _EPOCH_PEN = pg.mkPen((128, 128, 128, 110), width=1, style=QtCore.Qt.PenStyle.Da
 _EPOCH_LABEL_COLOR = (128, 128, 128, 200)
 # The standard polysomnography scoring epoch; the sleep default everywhere.
 DEFAULT_EPOCH_SECONDS = 30.0
+
+# Sleep-staging overlay (#182). A scored epoch paints a translucent stage-coloured
+# band *behind* the traces (z below the curves, a pure backdrop tint) so the
+# hypnogram reads at a glance without ever obscuring a deflection. The colour is
+# the vocabulary's per-stage RGB; the alpha is low enough to keep traces crisp.
+_STAGE_BAND_ALPHA = 45
+_STAGE_BAND_Z = -5
+# While staging, the epoch about to be scored (the one at the left edge) gets a
+# bright accent bracket — a teal that is none of the stage colours, so the
+# focused epoch is unmistakable over the amber/blue/rose bands. Above the grid,
+# below the editable marks.
+_FOCUS_PEN = pg.mkPen((0, 150, 136), width=2)
+_FOCUS_BRUSH = (0, 150, 136, 22)
+_FOCUS_Z = 3
 
 # Session-log overlay (#125): the parsed log is drawn as a read-only reference
 # track in a thin lane across the top of the plot, kept clear of the traces and
@@ -377,6 +392,14 @@ class TraceView(pg.PlotWidget):
         self._epoch_anchor = 0.0
         self._show_epochs = True
         self._epoch_items: list[pg.InfiniteLine] = []
+        # Sleep-staging overlay (#182): the scored epochs and their per-stage
+        # colours paint as backdrop bands; ``_stage_focus_active`` brackets the
+        # left-edge epoch (the scoring target) while a staging sweep is on.
+        self._stage_epochs: list[StageEpoch] = []
+        self._stage_colors: dict[str, tuple[int, int, int]] = {}
+        self._stage_band_items: list[pg.LinearRegionItem] = []
+        self._stage_focus_active = False
+        self._focused_epoch_item: pg.LinearRegionItem | None = None
         self._annotations: list[Annotation] = []
         self._selected = -1
         self._annotation_items: list[pg.LinearRegionItem | pg.InfiniteLine] = []
@@ -463,13 +486,14 @@ class TraceView(pg.PlotWidget):
         self._epoch_anchor = 0.0  # a new recording starts epoch 1 at its start
         self._overlays = []  # peers belong to the previous recording; window reloads
         self._log_marks = []  # the log belongs to the previous recording too
+        self._stage_epochs = []  # the hypnogram belongs to the previous recording
         self._viewbox.set_log_lane_active(False)
         # Show every channel in file order by default; a profile may narrow this.
         self._visible = list(range(len(provider.ch_names))) if provider else []
         self._build_curves()
         self._refresh_data()
         self._refresh_annotations()
-        self._refresh_epochs()
+        self._refresh_epoch_layer()
         self._refresh_log_marks()
 
     def set_spec(self, spec: dsp.FilterSpec) -> None:
@@ -570,7 +594,7 @@ class TraceView(pg.PlotWidget):
         self._build_curves()
         self._refresh_data()
         self._refresh_annotations()
-        self._refresh_epochs()
+        self._refresh_epoch_layer()
         self._refresh_log_marks()
 
     def build_snapshot(
@@ -642,7 +666,7 @@ class TraceView(pg.PlotWidget):
         self._clamp_window_start()
         self._refresh_data()
         self._refresh_annotations()
-        self._refresh_epochs()
+        self._refresh_epoch_layer()
         self._refresh_log_marks()
 
     def set_window_start(self, seconds: float) -> None:
@@ -650,13 +674,13 @@ class TraceView(pg.PlotWidget):
         self._clamp_window_start()
         self._refresh_data()
         self._refresh_annotations()
-        self._refresh_epochs()
+        self._refresh_epoch_layer()
         self._refresh_log_marks()
 
     def set_epoch_seconds(self, seconds: float) -> None:
         """Set the scoring-epoch length (≥ 1 s); redraws the epoch grid."""
         self._epoch_seconds = max(1.0, float(seconds))
-        self._refresh_epochs()
+        self._refresh_epoch_layer()
 
     def set_epoch_anchor(self, seconds: float) -> None:
         """Set the time at which an epoch boundary falls (epoch 1 starts here).
@@ -665,11 +689,11 @@ class TraceView(pg.PlotWidget):
         (e.g. the start of an LRLR) lets the signal sit cleanly inside one epoch.
         """
         self._epoch_anchor = max(0.0, float(seconds))
-        self._refresh_epochs()
+        self._refresh_epoch_layer()
 
     def set_epochs_visible(self, visible: bool) -> None:
         self._show_epochs = bool(visible)
-        self._refresh_epochs()
+        self._refresh_epoch_layer()
 
     def set_time_axis_mode(self, mode: str) -> None:
         """Label the time axis with ``"clock"`` wall time or ``"elapsed"`` seconds."""
@@ -710,6 +734,24 @@ class TraceView(pg.PlotWidget):
         """
         self._overlays = list(overlays)
         self._refresh_overlays()
+
+    def set_hypnogram(
+        self, epochs: list[StageEpoch], colors: dict[str, tuple[int, int, int]]
+    ) -> None:
+        """Show the scored epochs as backdrop stage-coloured bands (#182).
+
+        ``colors`` maps a stage token to its RGB (the active vocabulary's
+        palette). Read-only context — the bands are never selectable; staging
+        edits go through the window's hotkeys, not the view.
+        """
+        self._stage_epochs = list(epochs)
+        self._stage_colors = dict(colors)
+        self._refresh_stage_bands()
+
+    def set_stage_focus(self, active: bool) -> None:
+        """Bracket the left-edge epoch (the scoring target) while staging (#182)."""
+        self._stage_focus_active = bool(active)
+        self._refresh_focused_epoch()
 
     def set_log_marks(self, marks: list[LogMark]) -> None:
         """Replace the read-only session-log overlay in the top lane (#125).
@@ -1015,6 +1057,81 @@ class TraceView(pg.PlotWidget):
             line.setZValue(_LOG_Z)
             plot_item.addItem(line)
             self._log_items.append(line)
+
+    def _refresh_epoch_layer(self) -> None:
+        """Redraw everything keyed to the epoch grid: gridlines, stage bands, focus.
+
+        Called from every window/epoch lifecycle change (and the wheel scroll),
+        so the staging overlay tracks the grid without the window reaching in on
+        each scroll. The three are independent — the stage bands show even when
+        the gridlines are toggled off — so they are separate draws, not nested.
+        """
+        self._refresh_epochs()
+        self._refresh_stage_bands()
+        self._refresh_focused_epoch()
+
+    def _refresh_stage_bands(self) -> None:
+        """Redraw the stage-coloured backdrop bands for the visible window (#182).
+
+        One translucent band per scored epoch in view, behind the curves, so the
+        hypnogram tints the trace without obscuring it. Only the handful of epochs
+        inside the window are drawn, so this stays cheap on scroll.
+        """
+        plot_item = self.getPlotItem()
+        assert plot_item is not None
+        for old in self._stage_band_items:
+            plot_item.removeItem(old)
+        self._stage_band_items = []
+        if self._provider is None or not self._stage_epochs:
+            return
+        lo = self._window_start
+        hi = self._window_start + self._window_seconds
+        for epoch in self._stage_epochs:
+            # Half-open overlap with [lo, hi): an epoch tiling exactly to the right
+            # edge belongs to the *next* screen, not this one — so each page shows
+            # exactly its own epochs rather than a sliver of the following band.
+            if epoch.onset >= hi or epoch.onset + epoch.duration <= lo:
+                continue
+            color = self._stage_colors.get(epoch.stage)
+            if (
+                color is None
+            ):  # a token with no colour (foreign vocab) just tints nothing
+                continue
+            red, green, blue = color
+            band = pg.LinearRegionItem(
+                values=(epoch.onset, epoch.onset + epoch.duration),
+                movable=False,
+                brush=(red, green, blue, _STAGE_BAND_ALPHA),
+                pen=pg.mkPen((red, green, blue, 0)),  # no border, just the wash
+            )
+            band.setZValue(_STAGE_BAND_Z)
+            plot_item.addItem(band)
+            self._stage_band_items.append(band)
+
+    def _refresh_focused_epoch(self) -> None:
+        """Bracket the left-edge epoch while a staging sweep is active (#182).
+
+        The focused epoch is the one a stage key will score — always the epoch at
+        the left edge of the window, the same one the status-bar readout names.
+        """
+        plot_item = self.getPlotItem()
+        assert plot_item is not None
+        if self._focused_epoch_item is not None:
+            plot_item.removeItem(self._focused_epoch_item)
+            self._focused_epoch_item = None
+        if self._provider is None or not self._stage_focus_active:
+            return
+        k = math.floor((self._window_start - self._epoch_anchor) / self._epoch_seconds)
+        onset = self._epoch_anchor + k * self._epoch_seconds
+        item = pg.LinearRegionItem(
+            values=(onset, onset + self._epoch_seconds),
+            movable=False,
+            brush=_FOCUS_BRUSH,
+            pen=_FOCUS_PEN,
+        )
+        item.setZValue(_FOCUS_Z)
+        plot_item.addItem(item)
+        self._focused_epoch_item = item
 
     def _refresh_epochs(self) -> None:
         """Redraw the epoch boundary gridlines for the visible window.
