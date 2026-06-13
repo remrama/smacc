@@ -1018,6 +1018,7 @@ or corrupt file falls back to the built-in defaults, and saving swallows errors.
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">C:\Users\you\SMACC\paul.smacc</span>
 <span class="w">  </span><span class="nt">last_settings</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">C:\Users\you\SMACC\peter.smacc</span>
 <span class="w">  </span><span class="nt">log_preview_max_lines</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1000</span>
+<span class="w">  </span><span class="nt">log_preview_clock</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">24h</span>
 </code></pre></div>
 <h2 id="fields">Fields</h2>
 <table>
@@ -1075,6 +1076,11 @@ or corrupt file falls back to the built-in defaults, and saving swallows errors.
 <td><code>log_preview_max_lines</code></td>
 <td>integer</td>
 <td>How many lines the Session window's live log preview keeps (default <strong>1000</strong>); the oldest lines are dropped first. The log <em>file</em> always records everything, so nothing is lost. Very large values cost GUI memory and repaint time over an overnight session.</td>
+</tr>
+<tr>
+<td><code>log_preview_clock</code></td>
+<td>string</td>
+<td>How the live preview renders the time of day: <code>24h</code> (default, e.g. <code>22:14:01</code>) or <code>12h</code> (<code>10:14:01 PM</code>). Presentation only — the log <em>file</em> always keeps 24-hour timestamps with a UTC offset. Toggle it from the Session window's <strong>File → 12-hour clock</strong>; an unknown value falls back to <code>24h</code>.</td>
 </tr>
 </tbody>
 </table>

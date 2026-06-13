@@ -1035,7 +1035,10 @@ and two embedded snapshots of the full settings the run used. The study <em>desi
     offset (e.g. <code>-0500</code>). The offset lets a reader place the night on an absolute
     timeline — for example when overlaying the log on an EEG recording whose clock
     sits in another zone. Logs written before SMACC recorded the offset are
-    timezone-naive (no <code>±HHMM</code>); both forms are read back the same way.</li>
+    timezone-naive (no <code>±HHMM</code>); both forms are read back the same way. The <em>file</em>
+    is always 24-hour; the live on-screen preview can optionally show 12-hour
+    (AM/PM) time (Session window → <strong>File → 12-hour clock</strong>), which changes only the
+    display, not what is written.</li>
 <li><strong>LEVEL</strong> — a Python logging level: <code>DEBUG</code>, <code>INFO</code>, <code>WARNING</code>, <code>ERROR</code>, or
     <code>CRITICAL</code>. The file records every level; the live on-screen preview shows only a
     configurable subset.</li>
