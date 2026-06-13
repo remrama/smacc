@@ -627,6 +627,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sleep-staging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sleep staging
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#session-log-overlay" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -987,6 +998,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#sleep-staging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sleep staging
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#session-log-overlay" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1132,6 +1154,61 @@ sidecar exists it is the single source of truth (nothing is re-imported or
 duplicated).</p>
 <p>The sidecar format is documented in the
 <a href="../reference/annotations-file/">annotations file reference</a>.</p>
+<h2 id="sleep-staging">Sleep staging</h2>
+<p>Score the night a 30 s epoch at a time. Staging is a separate layer from
+annotating — both are always live on the same view, so you can drop an LRLR or
+arousal mark mid-sweep without leaving your place — and it saves to its <strong>own</strong>
+sidecar (<code>night1.edf</code> → <code>night1.stages.tsv</code>), a partition of one stage per epoch,
+never mixed into the event annotations.</p>
+<p><strong>Stage focus.</strong> Press <strong>Tab</strong> (or the <strong>Stage focus</strong> button) to start a sweep.
+The view locks to one epoch per screen and the epoch grid/length is fixed (so a
+score can't land in the wrong span), a <strong>STAGE FOCUS</strong> chip shows in the status
+bar, and the epoch at the left edge — the one you're about to score — gets a teal
+bracket.</p>
+<p><strong>Scoring.</strong> With stage focus on, the number keys score the epoch at the left
+edge and <strong>auto-advance</strong> to the next one:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>AASM stage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>W</code></td>
+<td>Wake</td>
+</tr>
+<tr>
+<td><code>1</code> / <code>2</code> / <code>3</code></td>
+<td>N1 / N2 / N3</td>
+</tr>
+<tr>
+<td><code>R</code></td>
+<td>REM</td>
+</tr>
+<tr>
+<td><code>0</code> / <code>Backspace</code></td>
+<td>clear (un-score, stays put)</td>
+</tr>
+</tbody>
+</table>
+<p>The stage <strong>buttons</strong> do the same with the mouse and also work outside stage
+focus (so the number keys stay free for <a href="#annotating">quick marks</a> until you
+deliberately start a sweep). Re-scoring an epoch overwrites it; <code>Left</code>/<code>Right</code>
+page back and forth to fix one.</p>
+<p><strong>Reading the night.</strong> Each scored epoch tints the traces a faint stage colour,
+the big readout names the current epoch's stage, and a <strong>hypnogram overview
+strip</strong> under the traces shows the whole night as a colour staircase — click it
+to jump anywhere. The status bar counts scored / total epochs.</p>
+<p><strong>Scoring manual.</strong> AASM (W/N1/N2/N3/R) is the default; switch the <strong>Manual</strong>
+dropdown to <strong>Rechtschaffen &amp; Kales</strong> (S1–S4 + a Movement-Time epoch) before you
+start — it locks once the first epoch is scored, and a resumed hypnogram reopens
+under the manual it was scored with. A sub-epoch <strong>movement or artifact</strong> isn't a
+stage under AASM; mark it as an <a href="#annotating">annotation</a> over the epoch's stage
+instead (<code>Artifact</code> is a default quick mark).</p>
+<p>Each <a href="#multiple-raters">rater</a> scores to their own <code>night1.stages.&lt;id&gt;.tsv</code>, so
+two scorers of one night produce two hypnograms to compare.</p>
 <h2 id="session-log-overlay">Session log overlay</h2>
 <p>Load the night's SMACC session <a href="../reference/session-log/"><code>.log</code></a> onto the
 timeline as a <strong>read-only reference track</strong> — every marker, cue, dream report,
