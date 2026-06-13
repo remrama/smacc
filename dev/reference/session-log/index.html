@@ -1028,22 +1028,29 @@ and two embedded snapshots of the full settings the run used. The study <em>desi
 (which records nothing) writes no log.</p>
 <h2 id="line-format">Line format</h2>
 <p>Each line is three comma-separated fields:</p>
-<div class="highlight"><pre><span></span><code>YYYY-MM-DD HH:MM:SS.mmm, LEVEL, message
+<div class="highlight"><pre><span></span><code>YYYY-MM-DD HH:MM:SS.mmm±HHMM, LEVEL, message
 </code></pre></div>
 <ul>
-<li><strong>timestamp</strong> — local wall-clock, millisecond precision.</li>
+<li><strong>timestamp</strong> — local wall-clock, millisecond precision, with the machine's UTC
+    offset (e.g. <code>-0500</code>). The offset lets a reader place the night on an absolute
+    timeline — for example when overlaying the log on an EEG recording whose clock
+    sits in another zone. Logs written before SMACC recorded the offset are
+    timezone-naive (no <code>±HHMM</code>); both forms are read back the same way.</li>
 <li><strong>LEVEL</strong> — a Python logging level: <code>DEBUG</code>, <code>INFO</code>, <code>WARNING</code>, <code>ERROR</code>, or
     <code>CRITICAL</code>. The file records every level; the live on-screen preview shows only a
     configurable subset.</li>
 <li><strong>message</strong> — the log text. An <strong>event-marker</strong> line ends in <code>" - portcode N"</code>:</li>
 </ul>
-<div class="highlight"><pre><span></span><code>2026-06-09 22:14:01.003, INFO, Opened SMACC v0.0.7
-2026-06-09 22:14:05.221, INFO, Lights off - portcode 47
-2026-06-09 22:18:30.880, INFO, Dream report started - portcode 201
-2026-06-09 22:19:02.114, INFO, Cue volume set to 0.40
+<div class="highlight"><pre><span></span><code>2026-06-09 22:14:01.003-0500, INFO, Opened SMACC v0.0.7
+2026-06-09 22:14:05.221-0500, INFO, Lights off - portcode 47
+2026-06-09 22:18:30.880-0500, INFO, Dream report started: report-01, t+00:04:29 - portcode 201
+2026-06-09 22:19:02.114-0500, INFO, Cue volume set to 0.40
 </code></pre></div>
 <p>A marker line is <code>"{label} - portcode {code}"</code> when the event drives a trigger, or
-just <code>"{label}"</code> when it does not. The code-to-event map is the study's
+just <code>"{label}"</code> when it does not. A dream-report start names its recording
+(<code>report-NN</code>, matching <code>report-NN.wav</code> in the run folder) and its time since the
+recording-start marker, so the entry can be tied back to both its audio and its
+place in the EEG. The code-to-event map is the study's
 <a href="../settings-file/#event_codes"><code>event_codes</code></a> registry; see the
 <a href="../../triggers/#default-event-codes">default code catalog</a>.</p>
 <h2 id="log-levels">Log levels</h2>
@@ -1087,8 +1094,8 @@ the exception: their timestamp — in the log line <em>and</em> the LSL stream �
 marker lines up with the sound rather than SMACC's buffer (see
 <a href="../../latency/">Latency</a>). The raw software-trigger instant rides alongside on a
 <code>DEBUG</code> line:</p>
-<div class="highlight"><pre><span></span><code>2026-06-09 22:18:30.858, DEBUG, Cue started: Piano cue: software trigger at 22:18:30.858, marker advanced +22.0 ms to estimated onset (output latency)
-2026-06-09 22:18:30.880, INFO, Cue started: Piano cue - portcode 60
+<div class="highlight"><pre><span></span><code>2026-06-09 22:18:30.858-0500, DEBUG, Cue started: Piano cue: software trigger at 22:18:30.858, marker advanced +22.0 ms to estimated onset (output latency)
+2026-06-09 22:18:30.880-0500, INFO, Cue started: Piano cue - portcode 60
 </code></pre></div>
 <p>That <code>DEBUG</code> line is deliberately <strong>not</strong> a <code>" - portcode N"</code> line, so the
 <a href="../bids-export/">BIDS export</a> counts the event once, at its onset.</p>
@@ -1096,8 +1103,8 @@ marker lines up with the sound rather than SMACC's buffer (see
 <p>Each <a href="../../usage/#text-chat">text-chat</a> message is written verbatim to a <code>DEBUG</code>
 line, one per message — in the file for the record, out of the live preview and
 the BIDS export by default:</p>
-<div class="highlight"><pre><span></span><code>2026-06-09 23:41:12.402, DEBUG, Chat to participant: Are you comfortable?
-2026-06-09 23:41:35.118, DEBUG, Chat from participant: yes
+<div class="highlight"><pre><span></span><code>2026-06-09 23:41:12.402-0500, DEBUG, Chat to participant: Are you comfortable?
+2026-06-09 23:41:35.118-0500, DEBUG, Chat from participant: yes
 </code></pre></div>
 <p>If a study flips the chat events' triggers on, the marker lines fire alongside —
 bare (<code>Chat to participant - portcode 69</code>), without the message text, so the
