@@ -327,6 +327,28 @@ def read_stages_tsv(path: str | Path) -> list[StageEpoch]:
     return sorted(epochs)
 
 
+def read_stages_json(path: str | Path) -> dict[str, object]:
+    """Read a hypnogram JSON sidecar back into its payload dict.
+
+    Lets a resume reconcile the live session with the manual and epoch grid the
+    file was scored on (``ScoringManual``/``EpochLength``/``Anchor``) instead of
+    the operator's defaults — so an R&K file does not open under AASM. ``utf-8-sig``
+    tolerates a Notepad BOM.
+
+    Raises:
+        OSError: if the file can't be read.
+        ValueError: on invalid JSON or a non-object payload.
+    """
+    text = Path(path).read_text(encoding="utf-8-sig")
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Not valid JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("A stages JSON sidecar must be a JSON object")
+    return payload
+
+
 def stages_sidecar(
     source_name: str,
     meas_date: datetime | None,

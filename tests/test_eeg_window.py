@@ -40,6 +40,16 @@ from smacc.eeg.annotations import (
     sidecar_paths,
     write_annotations_tsv,
 )
+from smacc.eeg.staging import (
+    RK,
+    StageEpoch,
+    rater_stages_paths,
+    read_stages_tsv,
+    stages_autosave_path,
+    stages_sidecar_paths,
+    write_stages_json,
+    write_stages_tsv,
+)
 from smacc.eeg.window import SEED_LABELS, EegReviewWindow, LabelDialog
 
 SFREQ = 100.0
@@ -2002,3 +2012,210 @@ def test_clearing_the_log_stops_playback(window, recording_path, monkeypatch, tm
     other.write_bytes(b"")
     window._load(other)  # opening a new recording clears the log
     assert window._player.stopped
+
+
+# ----- sleep staging (#182) ------------------------------------------------------
+
+
+@pytest.fixture
+def stage_window(window, recording_path, monkeypatch):
+    """A loaded window with focus pinned to nothing, ready for stage hotkeys."""
+    window._load(recording_path)
+    monkeypatch.setattr(
+        QtWidgets.QApplication, "focusWidget", staticmethod(lambda: None)
+    )
+    return window
+
+
+def test_scoring_an_epoch_adds_it_to_the_hypnogram(stage_window):
+    stage_window._score_current_epoch("N2")  # left-edge epoch is [0, 30)
+    assert stage_window._stage_epochs == [StageEpoch(0.0, 30.0, "N2")]
+    assert stage_window._stage_dirty
+    assert stage_window.windowTitle().endswith("*")
+    assert stage_window.stageReadout.text() == "N2"
+
+
+def test_stage_digit_scores_and_autoadvances_in_focus(stage_window):
+    stage_window._set_staging(True)
+    assert stage_window._handle_stage_key(_key(QtCore.Qt.Key.Key_2)) is True
+    assert stage_window._stage_epochs == [StageEpoch(0.0, 30.0, "N2")]
+    assert stage_window.view.window_start == pytest.approx(30.0)  # advanced one epoch
+
+
+def test_letter_keys_do_not_score_outside_focus(stage_window):
+    # A stray W/R during plain annotation review must NOT silently start a
+    # hypnogram — keyboard scoring is confined to stage focus.
+    assert not stage_window._staging
+    assert stage_window._handle_stage_key(_key(QtCore.Qt.Key.Key_W)) is False
+    assert stage_window._stage_epochs == []
+
+
+def test_letter_key_scores_in_focus(stage_window):
+    stage_window._set_staging(True)
+    assert stage_window._handle_stage_key(_key(QtCore.Qt.Key.Key_W)) is True
+    assert stage_window._stage_epochs == [StageEpoch(0.0, 30.0, "W")]
+
+
+def test_stage_button_scores_without_focus(stage_window):
+    # The mouse buttons remain the no-focus way to score the odd epoch.
+    assert not stage_window._staging
+    stage_window._stage_buttons["W"].click()
+    assert stage_window._stage_epochs == [StageEpoch(0.0, 30.0, "W")]
+    assert stage_window.view.window_start == pytest.approx(0.0)  # no auto-advance
+
+
+def test_digits_fall_through_to_palette_outside_focus(stage_window):
+    # Outside stage focus a bare digit stays a quick-mark hotkey, so the stage
+    # handler must decline it (lets _handle_palette_key run next).
+    assert stage_window._handle_stage_key(_key(QtCore.Qt.Key.Key_2)) is False
+    assert stage_window._stage_epochs == []
+
+
+def test_unmapped_digit_is_inert_but_swallowed_in_focus(stage_window):
+    # 4-9 score nothing under AASM, but in focus they must not scatter a quick-mark.
+    stage_window._set_staging(True)
+    assert stage_window._handle_stage_key(_key(QtCore.Qt.Key.Key_7)) is True
+    assert stage_window._stage_epochs == []
+
+
+def test_clear_key_unscores_the_current_epoch(stage_window):
+    stage_window._set_staging(True)
+    stage_window._handle_stage_key(_key(QtCore.Qt.Key.Key_2))  # score [0,30), advance
+    stage_window._jump_to(0.0)  # back to the first epoch
+    assert stage_window._handle_stage_key(_key(QtCore.Qt.Key.Key_0)) is True
+    assert stage_window._stage_epochs == []
+
+
+def test_rescoring_replaces_the_stage(stage_window):
+    stage_window._score_current_epoch("N1")  # not staging → no advance, same epoch
+    stage_window._score_current_epoch("N2")
+    assert stage_window._stage_epochs == [StageEpoch(0.0, 30.0, "N2")]
+
+
+def test_entering_staging_locks_the_grid_and_snaps_to_one_epoch(stage_window):
+    stage_window._select_window_seconds(60.0)
+    stage_window._set_staging(True)
+    assert stage_window.view.window_seconds == pytest.approx(30.0)  # one epoch/screen
+    assert not stage_window.epochSpin.isEnabled()  # grid locked while staging
+    assert not stage_window.anchorButton.isEnabled()
+    assert "STAGE FOCUS" in stage_window.stageFocusLabel.text()
+
+
+def test_tab_toggles_stage_focus(stage_window):
+    assert not stage_window._staging
+    stage_window._toggle_staging()
+    assert stage_window._staging
+    stage_window._toggle_staging()
+    assert not stage_window._staging
+
+
+def test_vocabulary_combo_locks_after_the_first_score(stage_window):
+    assert stage_window.vocabCombo.isEnabled()
+    stage_window._score_current_epoch("N2")
+    assert not stage_window.vocabCombo.isEnabled()  # no mixing manuals mid-hypnogram
+
+
+def test_save_staging_writes_the_sidecar(stage_window, recording_path):
+    stage_window._score_current_epoch("N2")
+    stage_window.save_staging()
+    tsv, json_path = stages_sidecar_paths(recording_path)
+    assert read_stages_tsv(tsv) == [StageEpoch(0.0, 30.0, "N2")]
+    assert not stage_window._stage_dirty
+    assert stage_window._owns_stage_sidecar
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    assert payload["ScoringManual"] == "AASM"
+    assert payload["EpochLength"] == 30.0
+
+
+def test_staging_save_is_independent_of_annotation_save(stage_window, recording_path):
+    # The two artifacts have separate sidecars and separate dirty state.
+    stage_window._score_current_epoch("N2")
+    stage_window.save_staging()
+    assert not stage_window._stage_dirty
+    assert not sidecar_paths(recording_path)[0].is_file()  # no annotations written
+
+
+def test_load_resumes_an_existing_hypnogram(window, recording_path):
+    tsv, _ = stages_sidecar_paths(recording_path)
+    write_stages_tsv([StageEpoch(0.0, 30.0, "N3")], tsv)
+    window._load(recording_path)
+    assert window._stage_epochs == [StageEpoch(0.0, 30.0, "N3")]
+    assert window._owns_stage_sidecar
+
+
+def test_rater_staging_uses_a_rater_keyed_sidecar(window, recording_path):
+    window._apply_rater_id("alice")
+    window._confirmed_raters.add("alice")  # skip the once-per-id save confirm
+    window._load(recording_path)
+    window._score_current_epoch("N2")
+    window.save_staging()
+    rater_tsv, _ = rater_stages_paths(recording_path, "alice")
+    assert rater_tsv.is_file()
+    assert not stages_sidecar_paths(recording_path)[0].is_file()  # not the plain one
+
+
+def test_crashed_staging_is_offered_and_restored(window, recording_path):
+    # A stage autosave newer than any saved sidecar is offered on open.
+    write_stages_tsv([StageEpoch(0.0, 30.0, "R")], stages_autosave_path(recording_path))
+    window._load(recording_path)
+    assert window.recoveryBanner.isVisible()
+    window._restore_autosave()
+    assert window._stage_epochs == [StageEpoch(0.0, 30.0, "R")]
+    assert window._stage_dirty  # restored but unsaved
+
+
+def test_resume_adopts_the_files_scoring_manual(window, recording_path):
+    # An R&K hypnogram must open under R&K (not the AASM default), so its bands
+    # tint and its keys/combo match — and a save can't relabel it to AASM.
+    tsv, json_path = stages_sidecar_paths(recording_path)
+    write_stages_tsv([StageEpoch(0.0, 30.0, "S2")], tsv)
+    write_stages_json(
+        json_path,
+        source_name=recording_path.name,
+        meas_date=None,
+        vocabulary=RK,
+        epoch_seconds=30.0,
+        anchor=0.0,
+    )
+    window._load(recording_path)
+    assert window._vocab is RK
+    assert window.vocabCombo.currentData() == "R&K-1968"
+    assert "S2" in window._vocab.colors  # the loaded band can tint
+
+
+def test_resume_restores_a_nondefault_epoch_grid(window, recording_path):
+    tsv, json_path = stages_sidecar_paths(recording_path)
+    write_stages_tsv([StageEpoch(0.0, 20.0, "N2")], tsv)
+    write_stages_json(
+        json_path,
+        source_name=recording_path.name,
+        meas_date=None,
+        vocabulary=window._vocab,
+        epoch_seconds=20.0,
+        anchor=2.5,
+    )
+    window._load(recording_path)
+    assert window.view.epoch_seconds == pytest.approx(20.0)
+    assert window.view.epoch_anchor == pytest.approx(2.5)
+    assert window.epochSpin.value() == 20
+
+
+def test_opening_another_recording_drops_a_discarded_stage_autosave(
+    window, recording_path, tmp_path
+):
+    # Score, then open a different recording (the fixture answers the discard
+    # prompt with Discard): the first file's stage autosave must not survive to be
+    # re-offered on its next open.
+    window._load(recording_path)
+    window._score_current_epoch("N2")
+    window._write_autosave()  # the debounce would do this; force it now
+    assert stages_autosave_path(recording_path).is_file()
+    other = tmp_path / "night2.edf"
+    other.write_bytes(b"")
+    window._load(other)
+    assert not stages_autosave_path(recording_path).is_file()  # discarded, not leaked
+
+
+def test_progress_total_counts_only_full_epochs(stage_window):
+    # 600 s / 30 s = 20 full epochs; the counter must be able to reach 20/20.
+    assert "/20 scored" in stage_window.stageProgressLabel.text()

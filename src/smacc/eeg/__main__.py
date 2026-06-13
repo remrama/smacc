@@ -151,6 +151,25 @@ def selftest() -> int:
         config = blind.read_blind_config(blind_path)
         hidden = blind.apply_blind([Annotation(1.0, 0.0, "SignalObserved")], config)
         assert hidden == [Annotation(1.0, 0.0, "?")], hidden
+        # Sleep staging (#182): round-trip a hypnogram sidecar and exercise the
+        # partition ops, so the frozen bundle proves the staging stack.
+        from . import staging
+
+        onset, dur = staging.epoch_bounds(0.0, 30.0, 45.0)
+        assert (onset, dur) == (30.0, 30.0), (onset, dur)
+        epochs = staging.set_stage([], staging.StageEpoch(onset, dur, "N2"))
+        stages_tsv, stages_json = staging.rater_stages_paths(fif, "selftest")
+        staging.write_stages_tsv(epochs, stages_tsv)
+        staging.write_stages_json(
+            stages_json,
+            source_name=fif.name,
+            meas_date=recording.meas_date,
+            vocabulary=staging.AASM,
+            epoch_seconds=30.0,
+            anchor=0.0,
+            rater_id="selftest",
+        )
+        assert staging.read_stages_tsv(stages_tsv) == epochs
         # Figure export (#180): prove matplotlib's PNG/PDF/SVG backends are bundled
         # — a missed backend only surfaces when one actually writes a file.
         from .export import ExportOptions, render

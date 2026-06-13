@@ -16,6 +16,7 @@ from PyQt6 import QtCore, QtGui
 
 from smacc.eeg import dsp
 from smacc.eeg.annotations import Annotation
+from smacc.eeg.staging import StageEpoch
 from smacc.eeg.view import DEFAULT_TYPE_SCALES, RaterOverlay, TimeAxis, TraceView
 
 SFREQ = 100.0
@@ -796,3 +797,49 @@ def test_build_snapshot_time_axis_label_follows_mode(loaded):
     assert (
         view.build_snapshot(marks=[], show_epochs=False).time_axis_label == "clock time"
     )
+
+
+# ----- sleep-staging overlay (#182) ------------------------------------------
+
+
+def test_set_hypnogram_draws_a_band_per_visible_scored_epoch(loaded):
+    view, _ = loaded
+    view.set_window_seconds(60.0)  # whole 60 s file in view
+    view.set_hypnogram(
+        [StageEpoch(0.0, 30.0, "W"), StageEpoch(30.0, 30.0, "N2")],
+        {"W": (242, 201, 76), "N2": (74, 144, 200)},
+    )
+    assert len(view._stage_band_items) == 2
+
+
+def test_stage_bands_only_draw_the_epochs_in_view(loaded):
+    view, _ = loaded
+    view.set_window_seconds(30.0)
+    view.set_window_start(0.0)  # only [0, 30) is visible
+    view.set_hypnogram(
+        [StageEpoch(0.0, 30.0, "W"), StageEpoch(30.0, 30.0, "N2")],
+        {"W": (242, 201, 76), "N2": (74, 144, 200)},
+    )
+    assert len(view._stage_band_items) == 1
+
+
+def test_a_stage_with_no_colour_tints_nothing(loaded):
+    view, _ = loaded
+    view.set_hypnogram([StageEpoch(0.0, 30.0, "N2")], {})  # no colour for N2
+    assert view._stage_band_items == []
+
+
+def test_stage_focus_brackets_the_left_edge_epoch(loaded):
+    view, _ = loaded
+    view.set_stage_focus(True)
+    assert view._focused_epoch_item is not None
+    view.set_stage_focus(False)
+    assert view._focused_epoch_item is None
+
+
+def test_new_provider_drops_the_previous_hypnogram(loaded):
+    view, _ = loaded
+    view.set_hypnogram([StageEpoch(0.0, 30.0, "N2")], {"N2": (74, 144, 200)})
+    view.set_provider(FakeProvider())  # a different recording
+    assert view._stage_epochs == []
+    assert view._stage_band_items == []
