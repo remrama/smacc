@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 from PyQt6 import QtWidgets
 
-from smacc import gui, paths, triggers, winvolume
+from smacc import gui, paths, preferences, triggers, winvolume
 from smacc.gui import SmaccWindow
 
 
@@ -281,6 +281,37 @@ def test_set_lights_toggles_state_and_label(
     window.set_lights(True)
     assert window.lights_on is True
     assert "ON" in window.lightswitchButton.text()
+
+
+def test_preview_clock_toggle_switches_format_and_persists(
+    qtbot, tmp_path, monkeypatch, mock_devices, silence_dialogs
+):
+    # The 12-hour/24-hour preview clock is a machine preference: toggling it swaps
+    # the live formatter and writes preferences.yaml (not the .smacc study file).
+    prefs_path = tmp_path / "preferences.yaml"
+    monkeypatch.setattr(gui, "preferences_path", prefs_path)
+
+    from smacc.session import SmaccSession
+
+    monkeypatch.setattr(
+        SmaccSession,
+        "init_lsl_stream",
+        lambda self, *a, **k: setattr(self, "outlet", None),
+    )
+    window = SmaccWindow(SmaccSession(tmp_path / "data", design=False))
+    qtbot.addWidget(window)
+
+    # Defaults to 24-hour: the menu item is unchecked and the formatter is 24h.
+    assert window._preview_clock_action.isChecked() is False
+    assert window.preview_handler.formatter.datefmt == "%H:%M:%S"
+
+    window._preview_clock_action.trigger()  # → 12-hour (AM/PM)
+
+    assert window.preview_handler.formatter.datefmt == "%I:%M:%S %p"
+    saved = preferences.load_preferences(prefs_path)
+    assert saved["log_preview_clock"] == "12h"
+
+    window.session.close()
 
 
 # ----- interface choices carried by the .smacc settings -----------------------

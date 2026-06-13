@@ -50,6 +50,10 @@ from .qtlog import QtLogHandler
 from .session import SmaccSession
 from .toolwindow import ToolWindow
 
+# The live log preview's record format; the time field's strftime (24h/12h) comes
+# from preferences (preferences.CLOCK_FORMATS) and can be flipped at runtime.
+_PREVIEW_LOG_FORMAT = "%(asctime)s  %(levelname)s  %(message)s"
+
 #####################################
 #########    Main window    #########
 #####################################
@@ -415,6 +419,20 @@ class SmaccWindow(ToolWindow):
         alwaysOnTopAction.toggled.connect(self.toggle_always_on_top)
         self._always_on_top_action = alwaysOnTopAction
 
+        # The live-preview clock (12-hour vs 24-hour) is a machine preference, not
+        # study state, so it persists to preferences.yaml on toggle rather than into
+        # the .smacc. Surfaced only in a session's File menu (the editor has no
+        # preview); built here so _apply_preferences can sync its checkmark.
+        previewClockAction = QtGui.QAction("12-hour &clock", self)
+        previewClockAction.setStatusTip(
+            "Show the live log preview in 12-hour (AM/PM) time; "
+            "the log file always stays 24-hour."
+        )
+        previewClockAction.setCheckable(True)
+        previewClockAction.setChecked(False)
+        previewClockAction.toggled.connect(self.toggle_preview_clock)
+        self._preview_clock_action = previewClockAction
+
         # Device rescanning lives on the Devices window's Refresh button (which also
         # carries the F5 shortcut), not in this menu — hot-plugging is detected
         # automatically, so a menu entry here was redundant.
@@ -486,6 +504,7 @@ class SmaccWindow(ToolWindow):
         self._add_surveys_menu(fileMenu)
         fileMenu.addSeparator()
         fileMenu.addAction(alwaysOnTopAction)
+        fileMenu.addAction(self._preview_clock_action)
 
     def _rebuild_surveys_menu(self, menu: QtWidgets.QMenu) -> None:
         """Fill File → Surveys with each available survey (open standalone).
@@ -524,7 +543,8 @@ class SmaccWindow(ToolWindow):
         )
         self.preview_handler.setFormatter(
             logging.Formatter(
-                fmt="%(asctime)s  %(levelname)s  %(message)s", datefmt="%H:%M:%S"
+                fmt=_PREVIEW_LOG_FORMAT,
+                datefmt=preferences.preview_time_format(self._prefs),
             )
         )
         self.session.logger.addHandler(self.preview_handler)
@@ -629,6 +649,26 @@ class SmaccWindow(ToolWindow):
         self.show()
         self.session.log_debug_msg(
             f"Always-on-top {'enabled' if enabled else 'disabled'}"
+        )
+
+    def toggle_preview_clock(self, enabled: bool) -> None:
+        """Switch the live preview between 12-hour and 24-hour time (File menu).
+
+        Presentation only: the log file keeps 24-hour ISO timestamps regardless.
+        The new format applies to lines logged from here on; lines already in the
+        preview keep the format they were rendered with. Saved to preferences.yaml
+        (a machine preference, not study state) so it persists across sessions.
+        """
+        token = "12h" if enabled else "24h"
+        self.preview_handler.setFormatter(
+            logging.Formatter(
+                fmt=_PREVIEW_LOG_FORMAT, datefmt=preferences.CLOCK_FORMATS[token]
+            )
+        )
+        self._prefs["log_preview_clock"] = token
+        preferences.update_preferences(preferences_path, {"log_preview_clock": token})
+        self.session.log_debug_msg(
+            f"Log preview clock set to {'12-hour' if enabled else '24-hour'}"
         )
 
     def on_lightswitch_toggled(self, checked: bool) -> None:
@@ -958,6 +998,17 @@ class SmaccWindow(ToolWindow):
                 self, geometry, default_size=(640, 560)
             ):
                 self._move_to_default_position()  # first run: sit by the launcher
+
+        # Reflect the saved live-preview clock choice in its menu toggle. The
+        # preview formatter was already built from this preference; this only syncs
+        # the checkmark (signals blocked so the handler doesn't re-persist). The
+        # editor has no preview pane and no such menu item.
+        if not self.design:
+            self._preview_clock_action.blockSignals(True)
+            self._preview_clock_action.setChecked(
+                preferences.log_preview_clock(prefs) == "12h"
+            )
+            self._preview_clock_action.blockSignals(False)
 
     def _move_to_default_position(self) -> None:
         """Place a first-run session window just down-right of the launcher.

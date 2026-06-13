@@ -41,7 +41,7 @@ def make_session_dir(base: Path, now: datetime) -> Path:
 class _LogFormatter(logging.Formatter):
     """Format a log line as ``YYYY-MM-DD HH:MM:SS.mmm±HHMM, LEVEL, message``.
 
-    The timezone offset (#215) stamps each line with the machine's local UTC
+    The timezone offset (#216) stamps each line with the machine's local UTC
     offset, so a later reader can place the night on an absolute timeline —
     notably when overlaying the log onto an EEG recording whose clock may sit in
     a different zone (#125). Older logs are timezone-naive;

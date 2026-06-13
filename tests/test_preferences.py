@@ -54,6 +54,31 @@ def test_log_preview_max_lines_falls_back_on_garbage():
         assert preferences.log_preview_max_lines(bad) == default
 
 
+def test_log_preview_clock_reads_a_known_token():
+    assert preferences.log_preview_clock({"log_preview_clock": "12h"}) == "12h"
+    assert preferences.log_preview_clock({"log_preview_clock": "24h"}) == "24h"
+
+
+def test_log_preview_clock_falls_back_on_garbage():
+    default = preferences.DEFAULTS["log_preview_clock"]
+    for bad in (
+        {},
+        {"log_preview_clock": "13h"},
+        {"log_preview_clock": ""},
+        {"log_preview_clock": True},
+        {"log_preview_clock": {}},  # unhashable: the str guard must not raise
+    ):
+        assert preferences.log_preview_clock(bad) == default
+
+
+def test_preview_time_format_maps_token_to_strftime():
+    assert preferences.preview_time_format({"log_preview_clock": "24h"}) == "%H:%M:%S"
+    assert (
+        preferences.preview_time_format({"log_preview_clock": "12h"}) == "%I:%M:%S %p"
+    )
+    assert preferences.preview_time_format({}) == "%H:%M:%S"  # default token
+
+
 def test_round_trip(tmp_path):
     path = tmp_path / "preferences.yaml"
     custom = preferences.default_preferences()

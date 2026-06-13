@@ -23,6 +23,7 @@ preferences:
     - C:\Users\you\SMACC\paul.smacc
   last_settings: C:\Users\you\SMACC\peter.smacc
   log_preview_max_lines: 1000
+  log_preview_clock: 24h
 ```
 
 ## Fields
@@ -35,12 +36,13 @@ preferences:
 
 ### `preferences`
 
-| Key                     | Type           | Meaning                                                                                                                                                                                                                                                        |
-| ----------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `windows`               | mapping        | Per-window geometry, keyed by a stable window id → `{x, y, w, h}`. Ids include `launcher`, `main` (the Session window), the analyze window, and each tool window. An absent/`null` `x`/`y` means "no saved position — open at a default".                      |
-| `recent_settings`       | list of paths  | Recently opened `.smacc` files, most-recent first, de-duplicated and capped at 8.                                                                                                                                                                              |
-| `last_settings`         | path or `null` | The last `.smacc` opened, so the Launcher can preselect it.                                                                                                                                                                                                    |
-| `log_preview_max_lines` | integer        | How many lines the Session window's live log preview keeps (default **1000**); the oldest lines are dropped first. The log *file* always records everything, so nothing is lost. Very large values cost GUI memory and repaint time over an overnight session. |
+| Key                     | Type           | Meaning                                                                                                                                                                                                                                                                                            |
+| ----------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `windows`               | mapping        | Per-window geometry, keyed by a stable window id → `{x, y, w, h}`. Ids include `launcher`, `main` (the Session window), the analyze window, and each tool window. An absent/`null` `x`/`y` means "no saved position — open at a default".                                                          |
+| `recent_settings`       | list of paths  | Recently opened `.smacc` files, most-recent first, de-duplicated and capped at 8.                                                                                                                                                                                                                  |
+| `last_settings`         | path or `null` | The last `.smacc` opened, so the Launcher can preselect it.                                                                                                                                                                                                                                        |
+| `log_preview_max_lines` | integer        | How many lines the Session window's live log preview keeps (default **1000**); the oldest lines are dropped first. The log *file* always records everything, so nothing is lost. Very large values cost GUI memory and repaint time over an overnight session.                                     |
+| `log_preview_clock`     | string         | How the live preview renders the time of day: `24h` (default, e.g. `22:14:01`) or `12h` (`10:14:01 PM`). Presentation only — the log *file* always keeps 24-hour timestamps with a UTC offset. Toggle it from the Session window's **File → 12-hour clock**; an unknown value falls back to `24h`. |
 
 !!! note "Partial files are fine"
 
