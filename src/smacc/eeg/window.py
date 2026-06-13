@@ -26,7 +26,7 @@ from __future__ import annotations
 import math
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
@@ -642,6 +642,13 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         # "aligned"/"unverified" badge only ever describes the current offset.
         self._embedded_triggers: list[tuple[float, int]] | None = None
         self._alignment: align.Alignment | None = None
+        # Dream-report audio playback (#125e, folds in #179). Created lazily on
+        # first play and kept alive on the window so it isn't GC'd mid-clip.
+        # QtMultimedia, never sounddevice/PortAudio — the frozen SMACC-EEG.exe
+        # ships no live-session audio stack.
+        self._player: Any = None
+        self._audio_output: Any = None
+        self._playing_wav: Path | None = None
         # Annotations recovered from an autosave, held until the user restores or
         # dismisses them (#176).
         self._recovery_annotations: list[Annotation] | None = None
@@ -1191,6 +1198,24 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self.autoAlignButton.clicked.connect(lambda: self._auto_align(announce=True))
         box.addWidget(self.autoAlignButton)
 
+        # Artifact actions on the selected entry (#125e, folds in #179): play the
+        # dream-report audio, or reveal the file the entry points at.
+        artifactRow = QtWidgets.QHBoxLayout()
+        self.logPlayButton = QtWidgets.QPushButton("Play report", self)
+        self.logPlayButton.setStatusTip(
+            "Play the selected dream report's recorded audio (report-NN.wav)."
+        )
+        self.logPlayButton.clicked.connect(self._play_or_stop_report)
+        self.logRevealButton = QtWidgets.QPushButton("Reveal file", self)
+        self.logRevealButton.setStatusTip(
+            "Show the selected entry's file (or its session folder) in the file "
+            "browser."
+        )
+        self.logRevealButton.clicked.connect(self._reveal_log_artifact)
+        artifactRow.addWidget(self.logPlayButton)
+        artifactRow.addWidget(self.logRevealButton)
+        box.addLayout(artifactRow)
+
         self.logGroup = group
         return group
 
@@ -1549,6 +1574,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
     def _clear_log_overlay(self) -> None:
         """Drop the overlaid log (a new recording, or a blind switch)."""
         self._end_pairing()
+        self._stop_player()  # the report being played belongs to this log
         self._log_entries = []
         self._log_path = None
         self._visible_log = []
@@ -1846,6 +1872,87 @@ class EegReviewWindow(QtWidgets.QMainWindow):
                 "feature).",
             )
 
+    # ----- artifact actions (#125e, folds in #179) -------------------------------
+
+    def _selected_log_entry(self) -> LogEntry | None:
+        """The log entry highlighted in the list, or ``None``."""
+        row = self.logList.currentRow()
+        return self._visible_log[row] if 0 <= row < len(self._visible_log) else None
+
+    def _selected_report_wav(self) -> Path | None:
+        """The ``report-NN.wav`` the selected entry points at, if it exists.
+
+        Resolved beside the log (the session folder); ``None`` for any entry that
+        is not a dream report, or whose audio file is missing — e.g. a log handed
+        over on its own, away from its recordings.
+        """
+        entry = self._selected_log_entry()
+        if entry is None or self._log_path is None:
+            return None
+        return sessionlog.report_wav(entry, self._log_path.parent)
+
+    def _play_or_stop_report(self) -> None:
+        """Play the selected dream report's audio, or stop it if it's playing.
+
+        QtMultimedia, never the live-session audio stack: the annotator runs as
+        the frozen ``SMACC-EEG.exe``, which ships no sounddevice/PortAudio.
+        """
+        from PyQt6.QtMultimedia import QMediaPlayer
+
+        wav = self._selected_report_wav()
+        if wav is None:
+            return
+        self._ensure_player()
+        assert self._player is not None
+        playing = (
+            self._player.playbackState() == QMediaPlayer.PlaybackState.PlayingState
+        )
+        if playing and self._playing_wav == wav:
+            self._player.stop()  # second press on the same clip stops it
+            return
+        self._player.setSource(QtCore.QUrl.fromLocalFile(str(wav)))
+        self._player.play()
+        self._playing_wav = wav
+
+    def _ensure_player(self) -> None:
+        """Create the QtMultimedia player on first use (kept alive on the window)."""
+        if self._player is not None:
+            return
+        from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
+
+        self._audio_output = QAudioOutput(self)
+        self._player = QMediaPlayer(self)
+        self._player.setAudioOutput(self._audio_output)
+        self._player.playbackStateChanged.connect(self._on_playback_state)
+
+    def _on_playback_state(self, state: Any) -> None:
+        """Reflect play/stop on the button label and forget a finished clip."""
+        from PyQt6.QtMultimedia import QMediaPlayer
+
+        playing = state == QMediaPlayer.PlaybackState.PlayingState
+        self.logPlayButton.setText("Stop" if playing else "Play report")
+        if not playing:
+            self._playing_wav = None
+
+    def _stop_player(self) -> None:
+        """Stop any playback (on clearing the log, or closing the window)."""
+        if self._player is not None:
+            self._player.stop()
+        self._playing_wav = None
+
+    def _reveal_log_artifact(self) -> None:
+        """Open the selected entry's session folder in the file browser.
+
+        The dream-report WAV and survey-response files live there beside the log,
+        so the folder is the reliable target across entry kinds; the file-browser
+        opens to it (the report's audio is also one click via Play).
+        """
+        if self._log_path is None:
+            return
+        QtGui.QDesktopServices.openUrl(
+            QtCore.QUrl.fromLocalFile(str(self._log_path.parent))
+        )
+
     def _update_log_controls(self) -> None:
         """Enable the log controls by state (recording open, log loaded, blind)."""
         has_log = bool(self._log_entries)
@@ -1865,6 +1972,10 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             and self._recording is not None
             and self._recording.meas_date is not None
         )
+        # Artifact actions (#125e): Play needs the selected entry to resolve to a
+        # report WAV; Reveal needs only a loaded log (it opens its folder).
+        self.logPlayButton.setEnabled(self._selected_report_wav() is not None)
+        self.logRevealButton.setEnabled(has_log and self._log_path is not None)
 
     def _update_log_status(self) -> None:
         """Show the loaded log, its offset, and any alignment grade in the status."""
@@ -2733,6 +2844,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         # recover, so drop the recovery file and stop the autosave timer.
         self._autosave_timer.stop()
         self._clear_autosave()
+        self._stop_player()  # don't leave a report playing after the window closes
         # Drop the app-level key filter before this window goes away, so a stray
         # late event can never reach a half-deleted window.
         app = QtWidgets.QApplication.instance()

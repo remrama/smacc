@@ -90,6 +90,12 @@ bare time axis — for inspecting a log on its own (the **Analyze** window's *Op
 log in EEG annotator* hands a session off this way). Opening a recording while a
 standalone log is shown switches to the overlaid view.
 
+**Artifacts.** Selecting a dream-report entry lets you **Play** its recorded
+audio (`report-NN.wav`, beside the log in the session folder) — press again to
+stop — and **Reveal file** opens that folder in the file browser. Playback is
+disabled for an entry with no audio (a marker, or a log opened away from its
+recordings).
+
 **Aligning the log.** The log's timestamps come from the recording PC while the
 EEG's clock comes from the amplifier, so the two can differ by seconds or more.
 Slide the whole log along the EEG to line them up, three ways — all adjusting one

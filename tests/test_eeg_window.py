@@ -1904,3 +1904,101 @@ def test_entering_blind_tears_down_a_standalone_log(make_window, monkeypatch, tm
     assert win._log_entries == []
     assert not win.view.has_provider  # the timeline is gone
     assert win.fileInfoLabel.text() == ""  # and its "log only" label
+
+
+# ----- artifact actions: play / reveal (#125e, folds in #179) ----------------
+
+# A log with a dream-report entry that resolves to report-01.wav.
+REPORT_LOG = (
+    "2026-06-05 22:00:00.000-0500, INFO, Opened SMACC v0.0.7\n"
+    "2026-06-05 22:00:05.000-0500, INFO, Lights off - portcode 47\n"
+    "2026-06-05 22:31:00.000-0500, INFO, "
+    "Dream report started: report-01, t+00:31:00 - portcode 201\n"
+)
+
+
+class _FakePlayer:
+    """Stand-in for QMediaPlayer that records the calls _play_or_stop_report makes."""
+
+    def __init__(self):
+        self.source = None
+        self.played = False
+        self.stopped = False
+
+    def playbackState(self):
+        return None  # never the PlayingState enum, so a press always plays
+
+    def setSource(self, url):
+        self.source = url
+
+    def play(self):
+        self.played = True
+
+    def stop(self):
+        self.stopped = True
+
+
+def test_play_button_enabled_only_for_a_report_with_audio(
+    window, recording_path, monkeypatch, tmp_path
+):
+    window._load(recording_path)
+    (tmp_path / "report-01.wav").write_bytes(b"RIFF")  # the report's audio, by the log
+    _overlay_log(window, monkeypatch, tmp_path, REPORT_LOG)
+    window.logList.setCurrentRow(2)  # the dream-report entry
+    window._update_log_controls()
+    assert window.logPlayButton.isEnabled()
+    window.logList.setCurrentRow(1)  # a plain marker — no audio
+    window._update_log_controls()
+    assert not window.logPlayButton.isEnabled()
+
+
+def test_play_button_disabled_when_the_wav_is_missing(
+    window, recording_path, monkeypatch, tmp_path
+):
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path, REPORT_LOG)  # no report-01.wav written
+    window.logList.setCurrentRow(2)
+    window._update_log_controls()
+    assert window._selected_report_wav() is None
+    assert not window.logPlayButton.isEnabled()
+
+
+def test_play_report_plays_the_resolved_wav(
+    window, recording_path, monkeypatch, tmp_path
+):
+    window._load(recording_path)
+    wav = tmp_path / "report-01.wav"
+    wav.write_bytes(b"RIFF")
+    _overlay_log(window, monkeypatch, tmp_path, REPORT_LOG)
+    window.logList.setCurrentRow(2)
+    window._player = _FakePlayer()  # pre-set, so _ensure_player makes no real player
+    window._play_or_stop_report()
+    assert window._player.played
+    assert window._player.source.toLocalFile().endswith("report-01.wav")
+    assert window._playing_wav == wav
+
+
+def test_reveal_opens_the_session_folder(window, recording_path, monkeypatch, tmp_path):
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path, REPORT_LOG)
+    opened = []
+    monkeypatch.setattr(
+        window_mod.QtGui.QDesktopServices,
+        "openUrl",
+        lambda url: opened.append(url.toLocalFile()),
+    )
+    window._reveal_log_artifact()
+    assert [Path(p) for p in opened] == [tmp_path]  # the log's session folder
+
+
+def test_clearing_the_log_stops_playback(window, recording_path, monkeypatch, tmp_path):
+    window._load(recording_path)
+    (tmp_path / "report-01.wav").write_bytes(b"RIFF")
+    _overlay_log(window, monkeypatch, tmp_path, REPORT_LOG)
+    window._player = _FakePlayer()
+    window.logList.setCurrentRow(2)
+    window._play_or_stop_report()
+    other = tmp_path / "night2.edf"
+    other.write_bytes(b"")
+    window._load(other)  # opening a new recording clears the log
+    assert window._player.stopped
