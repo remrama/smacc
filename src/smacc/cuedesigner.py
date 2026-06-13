@@ -1,7 +1,7 @@
-"""The Cue designer: build a simple tone cue and export it as a WAV (#77, #137).
+"""The Audio Cue Designer: build a simple tone cue and export it as a WAV (#77, #137).
 
-Reached from the launcher's **Design cues** button — a standalone tool (like
-Analyze), not a session panel, since authoring a cue is a design-time task with no
+Reached from the launcher's **Audio Cue Designer** button — a standalone tool (like
+the Analyzer), not a session panel, since authoring a cue is a design-time task with no
 markers, devices, or run folder. You lay out a short sequence of **tone** and
 **silence** segments (the simple beeps/chimes a cueing study actually uses, 1-30 s),
 optionally repeat the pattern into a pip train, watch the live waveform, preview it
@@ -198,7 +198,7 @@ class CueDesignerWindow(ToolWindow):
         self._renderTimer.timeout.connect(self._refresh_waveform)
         self._presets = make_presets()
         self.rows: list[SegmentRow] = []
-        self.setWindowTitle("SMACC — Cue designer")
+        self.setWindowTitle("SMACC Audio Cue Designer")
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
         self._build()
@@ -213,7 +213,7 @@ class CueDesignerWindow(ToolWindow):
         layout = QtWidgets.QVBoxLayout(central)
         layout.setContentsMargins(16, 12, 16, 12)
         layout.setSpacing(10)
-        layout.addWidget(make_section_title("Cue designer"))
+        layout.addWidget(make_section_title("Audio Cue Designer"))
 
         intro = QtWidgets.QLabel(
             "Build a short cue from tone and silence segments, preview it, then "
@@ -513,7 +513,7 @@ class CueDesignerWindow(ToolWindow):
         label, design = self._presets[index - 1]
         clicked = QtWidgets.QMessageBox.question(
             self,
-            "Cue designer",
+            "Audio Cue Designer",
             f'Replace the current design with the "{label}" preset?',
         )
         if clicked == QtWidgets.QMessageBox.StandardButton.Yes:
@@ -664,14 +664,16 @@ class CueDesignerWindow(ToolWindow):
         status_bar = self.statusBar()
         assert status_bar is not None
         status_bar.showMessage(f"Saved {Path(path).name}", 5000)
-        QtWidgets.QMessageBox.information(self, "Cue designer", f"Saved cue to\n{path}")
+        QtWidgets.QMessageBox.information(
+            self, "Audio Cue Designer", f"Saved cue to\n{path}"
+        )
 
     # ----- helpers / lifecycle ----------------------------------------------
 
     def _warn(self, short: str, detail: str | None = None) -> None:
         box = QtWidgets.QMessageBox(self)
         box.setIcon(QtWidgets.QMessageBox.Icon.Warning)
-        box.setWindowTitle("Cue designer")
+        box.setWindowTitle("Audio Cue Designer")
         box.setText(short)
         if detail is not None:
             box.setInformativeText(detail)

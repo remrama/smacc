@@ -1,4 +1,4 @@
-"""Publication-figure export for the EEG review tool (#180).
+"""Publication-figure export for the EEG Annotator (#180).
 
 Renders a :class:`~smacc.eeg.snapshot.Snapshot` to PNG / PDF / SVG with
 matplotlib's headless backends — the engine MNE itself uses for static figures,

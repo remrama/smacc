@@ -57,7 +57,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
         super().__init__()
         self._settings_path: str | None = None  # current .smacc, or None for defaults
         self._tool: ToolWindow | None = None
-        self.setWindowTitle("SMACC Launcher")
+        self.setWindowTitle("SMACC")
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
         self._build()
@@ -115,13 +115,13 @@ class LauncherWindow(QtWidgets.QMainWindow):
         # Standalone tools that don't act on the selected settings: design a cue
         # WAV, or analyze a past session. Each opens from here and returns on close.
         layout.addSpacing(8)
-        designButton = QtWidgets.QPushButton("Design cues", self)
+        designButton = QtWidgets.QPushButton("Audio Cue Designer", self)
         designButton.setMinimumHeight(40)
         designButton.setStatusTip("Create a tone cue and export it as a WAV file.")
         designButton.clicked.connect(self.design_cues)
         layout.addWidget(designButton)
 
-        analyzeButton = QtWidgets.QPushButton("Analyze", self)
+        analyzeButton = QtWidgets.QPushButton("Analyzer", self)
         analyzeButton.setMinimumHeight(40)
         analyzeButton.setStatusTip(
             "Summarize a past session, export its events, or recover its settings."
@@ -129,23 +129,23 @@ class LauncherWindow(QtWidgets.QMainWindow):
         analyzeButton.clicked.connect(self.analyze_session)
         layout.addWidget(analyzeButton)
 
-        # The optional EEG review component (#136). Shown disabled (not
+        # The optional EEG Annotator component (#136). Shown disabled (not
         # hidden) when absent, so a lab knows the tool exists and how to get
         # it — the same surface-don't-hide approach as missing trigger
         # hardware (#147). Availability is probed once, here: installing the
         # component mid-run requires closing SMACC anyway (the installer
         # replaces the locked exe), and a stale True is already handled by
         # the launch-failure dialog.
-        reviewEegButton = QtWidgets.QPushButton("Review EEG", self)
+        reviewEegButton = QtWidgets.QPushButton("EEG Annotator", self)
         reviewEegButton.setMinimumHeight(40)
         if eeg.available():
             reviewEegButton.setStatusTip(
-                "Open the EEG review tool in its own window (annotate a recording)."
+                "Open the EEG Annotator in its own window (annotate a recording)."
             )
         else:
             reviewEegButton.setEnabled(False)
             reviewEegButton.setStatusTip(
-                "EEG Review Tools are not installed — re-run the SMACC "
+                "The EEG Annotator is not installed — re-run the SMACC "
                 "installer and select the component."
             )
         reviewEegButton.clicked.connect(self.review_eeg)
@@ -442,7 +442,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self._open_tool(SmaccWindow(session, settings_path=self._settings_path))
 
     def design_cues(self) -> None:
-        """Open the standalone Cue designer (exports WAVs to a study's cues folder)."""
+        """Open the standalone Audio Cue Designer (exports WAVs to a study's cues folder)."""
         self._open_tool(CueDesignerWindow(self._data_dir() / "cues"))
 
     def analyze_session(self) -> None:
@@ -450,7 +450,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self._open_tool(AnalyzeWindow(self._data_dir()))
 
     def review_eeg(self) -> None:
-        """Launch the EEG review tool as its own detached process.
+        """Launch the EEG Annotator as its own detached process.
 
         Unlike the launcher-managed tools this never hides the launcher: the
         viewer is a sibling app in a separate process (the frozen build can't
@@ -460,14 +460,14 @@ class LauncherWindow(QtWidgets.QMainWindow):
         if eeg.launch():
             bar = self.statusBar()
             if bar is not None:
-                bar.showMessage("EEG review opened in its own window.", 5000)
+                bar.showMessage("EEG Annotator opened in its own window.", 5000)
             return
         QtWidgets.QMessageBox.warning(
             self,
-            "Review EEG",
-            "Could not start the EEG review tool.\n\n"
-            "Re-running the SMACC installer and selecting the EEG Review "
-            "Tools component may repair it.",
+            "EEG Annotator",
+            "Could not start the EEG Annotator.\n\n"
+            "Re-running the SMACC installer and selecting the EEG Annotator "
+            "component may repair it.",
         )
 
     def associate_files(self) -> None:

@@ -4,15 +4,15 @@ SMACC reads and writes a handful of files. This section is the **reference** for
 each one — its on-disk shape, every field, and how it is versioned — as distinct
 from the task-oriented [Usage](../usage.md) guide.
 
-| File                                            | What it is                             | Format     | Version              |
-| ----------------------------------------------- | -------------------------------------- | ---------- | -------------------- |
-| [SMACC file (`.smacc`)](settings-file.md)       | A portable study configuration         | YAML       | `schema_version: 1`  |
-| [`preferences.yaml`](preferences-file.md)       | Per-machine operator preferences       | YAML       | `schema_version: 1`  |
-| [Session `.log`](session-log.md)                | The per-run record (events + settings) | Text       | —                    |
-| [BIDS export](bids-export.md)                   | `events.tsv` + JSON sidecar            | TSV / JSON | follows BIDS         |
-| [Survey definition](../surveys.md)              | An in-app survey (built-in or custom)  | YAML       | `schema_version: 1`  |
-| [Survey response](../surveys.md#response-files) | One administration's answers           | JSON       | —                    |
-| [Annotations sidecar](annotations-file.md)      | EEG review marks (`*.annotations.tsv`) | TSV / JSON | follows BIDS columns |
+| File                                            | What it is                                | Format     | Version              |
+| ----------------------------------------------- | ----------------------------------------- | ---------- | -------------------- |
+| [SMACC file (`.smacc`)](settings-file.md)       | A portable study configuration            | YAML       | `schema_version: 1`  |
+| [`preferences.yaml`](preferences-file.md)       | Per-machine operator preferences          | YAML       | `schema_version: 1`  |
+| [Session `.log`](session-log.md)                | The per-run record (events + settings)    | Text       | —                    |
+| [BIDS export](bids-export.md)                   | `events.tsv` + JSON sidecar               | TSV / JSON | follows BIDS         |
+| [Survey definition](../surveys.md)              | An in-app survey (built-in or custom)     | YAML       | `schema_version: 1`  |
+| [Survey response](../surveys.md#response-files) | One administration's answers              | JSON       | —                    |
+| [Annotations sidecar](annotations-file.md)      | EEG Annotator marks (`*.annotations.tsv`) | TSV / JSON | follows BIDS columns |
 
 ## Where each file lives
 

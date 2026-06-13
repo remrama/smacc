@@ -1,4 +1,4 @@
-"""Run the EEG review tool: ``python -m smacc.eeg [recording]``.
+"""Run the EEG Annotator: ``python -m smacc.eeg [recording]``.
 
 The component's own entry point — its own process and ``QApplication``, never
 sharing one with a live session (see the package docstring). The frozen
@@ -27,7 +27,7 @@ from ..config import VERSION
 # Imported eagerly, on purpose: --version must prove the whole MNE/pyqtgraph
 # import tree resolves in the frozen bundle (that is the point of the smoke
 # test — a lazy import would make it pass on a bundle that can't open a file).
-from .window import EegReviewWindow
+from .window import EegAnnotatorWindow
 
 # Flags that take a following value, so the recording-path scan skips that value.
 _VALUE_FLAGS = ("--rater", "--blind", "--log")
@@ -91,7 +91,7 @@ def pick_blind_spec(args: list[str]) -> str | None:
 def pick_log_path(args: list[str]) -> str | None:
     """Return the ``--log`` value (a SMACC session log to overlay/show), or ``None``.
 
-    Lets the Analyze window hand a session off to the annotator
+    Lets the Analyzer hand a session off to the annotator
     (``SMACC-EEG.exe --log night1.log``): with no recording the log opens
     standalone, with one it overlays. Read/parse errors surface as a dialog after
     the window opens, not as a vanishing process.
@@ -228,7 +228,7 @@ def selftest() -> int:
 
 def main() -> None:
     if "--version" in sys.argv:
-        print(f"SMACC EEG review v{VERSION}")
+        print(f"SMACC EEG Annotator v{VERSION}")
         sys.exit(0)
     if "--selftest" in sys.argv:
         # A windowed (--noconsole) build pops a *blocking* "Failed to execute
@@ -242,8 +242,8 @@ def main() -> None:
             traceback.print_exc()
             sys.exit(1)
     app = QApplication(sys.argv)
-    app.setApplicationName("SMACC EEG review")
-    window = EegReviewWindow(
+    app.setApplicationName("SMACC EEG Annotator")
+    window = EegAnnotatorWindow(
         pick_recording_path(sys.argv),
         rater_id=pick_rater_id(sys.argv),
         blind_spec=pick_blind_spec(sys.argv),

@@ -1,4 +1,4 @@
-"""Saveable display ("view") profiles for the EEG review tool (#177).
+"""Saveable display ("view") profiles for the EEG Annotator (#177).
 
 A view profile is a named, shareable *montage*: which channels to show and in
 what order, the per-channel-type display filter and amplitude, and the

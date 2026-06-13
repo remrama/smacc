@@ -75,11 +75,11 @@ jobs:
         run: |
           uv run python tools/make_versionfile.py version_info.txt
           if ($LASTEXITCODE -ne 0) { throw "make_versionfile (SMACC) exited with code $LASTEXITCODE" }
-          uv run python tools/make_versionfile.py version_info_eeg.txt --product SMACC-EEG --description "SMACC EEG review tool"
+          uv run python tools/make_versionfile.py version_info_eeg.txt --product SMACC-EEG --description "SMACC EEG Annotator"
           if ($LASTEXITCODE -ne 0) { throw "make_versionfile (SMACC-EEG) exited with code $LASTEXITCODE" }
       - name: Build SMACC.exe
         run: uv run pyinstaller entry.py --name SMACC --onefile --noconsole --icon src/smacc/assets/icon.ico --version-file version_info.txt --add-data "src/smacc/assets/icon.png;smacc/assets" --add-data "src/smacc/assets/default.smacc;smacc/assets" --add-data "src/smacc/assets/cues;smacc/assets/cues" --add-data "src/smacc/assets/biocals;smacc/assets/biocals" --add-data "src/smacc/assets/surveys;smacc/assets/surveys"
-      # The optional EEG review component (#136): a second frozen exe carrying
+      # The optional EEG Annotator component (#136): a second frozen exe carrying
       # the MNE/pyqtgraph stack the base exe deliberately doesn't. MNE uses
       # lazy_loader, which imports submodules by name at runtime and reads the
       # package's .pyi stubs — both invisible to PyInstaller's static analysis —
@@ -143,15 +143,19 @@ jobs:
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=$env:VERSION tools\smacc.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC exited with code $LASTEXITCODE" }
       # Same idea as the exe smoke test, one level up: a broken installer (bad
-      # source path, registry section typo) would otherwise ship silently. Both
-      # component configurations are exercised: the default install must exclude
-      # the EEG exe, then an explicit core+eeg install (the in-place upgrade path
-      # a lab uses to add the component later) must place it. The core+eeg case
-      # only *verifies* the EEG exe was placed (a size floor), it does not run it
-      # — the dist copy is byte-identical and already ran --selftest above, and a
-      # third 120 MB extract/scan of it here intermittently thrashed the runner
-      # into a timeout.
-      - name: Smoke-test the installer (default - no EEG component)
+      # source path, registry section typo) would otherwise ship silently. The
+      # default install now INCLUDES the EEG Annotator (checked by default); this
+      # verifies SMACC.exe and SMACC-EEG.exe land and the .smacc association
+      # registers. It only *verifies* the EEG exe was placed (a size floor), it
+      # does not run it — the dist copy is byte-identical and already ran
+      # --selftest above, and a third 120 MB extract/scan here intermittently
+      # thrashed the runner into a timeout.
+      #
+      # The opt-out path (a /COMPONENTS="core" install dropping the EEG exe via
+      # [InstallDelete]) is not smoke-tested here: a second, in-place install
+      # reliably hangs the runner (an Inno Restart-Manager wait, not Defender).
+      # Tracked in #234, which will fix the upgrade hang and restore that check.
+      - name: Smoke-test the installer (default - includes the EEG Annotator)
         run: |
           $p = Start-Process -FilePath dist/SMACC-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER' -PassThru
           if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "SMACC-Setup.exe did not exit within 180s" }
@@ -163,14 +167,8 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "Installed SMACC.exe --version exited with code $($p.ExitCode)" }
           $progid = (Get-ItemProperty -Path 'HKCU:\Software\Classes\.smacc').'(default)'
           if ($progid -ne 'SMACC.Study') { throw ".smacc association not registered (got '$progid')" }
-          if (Test-Path "$env:LOCALAPPDATA\Programs\SMACC\SMACC-EEG.exe") { throw "Default install must not include SMACC-EEG.exe" }
-      - name: Verify the installer adds the EEG component
-        run: |
-          $p = Start-Process -FilePath dist/SMACC-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/COMPONENTS="core,eeg"' -PassThru
-          if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "SMACC-Setup.exe (core,eeg) did not exit within 180s" }
-          if ($p.ExitCode -ne 0) { throw "SMACC-Setup.exe (core,eeg) exited with code $($p.ExitCode)" }
           $eeg = "$env:LOCALAPPDATA\Programs\SMACC\SMACC-EEG.exe"
-          if (-not (Test-Path $eeg)) { throw "Installed EEG exe not found at $eeg" }
+          if (-not (Test-Path $eeg)) { throw "Default install must include SMACC-EEG.exe (the EEG Annotator is checked by default)" }
           # Verify the whole onefile was copied, but do not run it (see comment
           # above); a size floor catches a truncated/partial install.
           $size = (Get-Item $eeg).Length

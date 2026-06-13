@@ -1,8 +1,8 @@
-"""Recording access for the EEG review tool — the only module that touches MNE (#136).
+"""Recording access for the EEG Annotator — the only module that touches MNE (#136).
 
 MNE is strictly a *backend* here: it reads the formats (EDF, BrainVision, FIF —
 the formats sleep-lab amps actually produce) and exposes their metadata;
-rendering is pyqtgraph and filtering is :mod:`smacc.eeg.dsp`. The review tool
+rendering is pyqtgraph and filtering is :mod:`smacc.eeg.dsp`. The EEG Annotator
 itself only ever *writes* the TSV/JSON sidecar (:mod:`smacc.eeg.annotations`) —
 the source recording is never modified. The import is lazy so probing
 this package costs nothing, and recordings are opened with ``preload=False`` so

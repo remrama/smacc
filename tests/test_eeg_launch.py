@@ -1,7 +1,7 @@
 """Tests for launching the optional EEG component from the launcher (#136).
 
 Covers the availability probe (dev extra vs. frozen exe-beside-exe), the
-detached-process launch, and the launcher's Review EEG button — which is shown
+detached-process launch, and the launcher's EEG Annotator button — which is shown
 disabled (never hidden) when the component is absent, the same
 surface-don't-hide approach as missing trigger hardware (#147).
 """
@@ -136,4 +136,4 @@ def test_failed_launch_shows_a_warning(make_launcher, monkeypatch):
     win = make_launcher()
     win.review_eeg()
     assert len(warnings) == 1
-    assert "EEG Review Tools" in warnings[0]
+    assert "EEG Annotator" in warnings[0]
