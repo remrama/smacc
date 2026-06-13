@@ -44,6 +44,11 @@ DEFAULTS: dict[str, Any] = {
     # first; the log file always keeps everything). Large values cost GUI memory
     # and repaint time over an overnight session.
     "log_preview_max_lines": 1000,
+    # How the live log preview renders the time of day: "24h" (e.g. 22:14:01) or
+    # "12h" (10:14:01 PM). Presentation only — the log *file* always keeps 24-hour
+    # ISO timestamps with a UTC offset; this changes only the on-screen preview.
+    # See CLOCK_FORMATS and log_preview_clock().
+    "log_preview_clock": "24h",
     # EEG review tool (#136): recently used annotation labels (most-recent
     # first, seeding the label dialog's dropdown) and the last folder a
     # recording was opened from. Note loading only round-trips keys present
@@ -174,6 +179,30 @@ def log_preview_max_lines(prefs: dict[str, Any]) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         return int(DEFAULTS["log_preview_max_lines"])
     return value
+
+
+# The live preview's time-of-day formats, keyed by the stored log_preview_clock
+# token. The 12-hour form uses %I (zero-padded hour) + %p (AM/PM); the log file is
+# unaffected — it always keeps 24-hour ISO with a UTC offset (see
+# smacc.session._LogFormatter).
+CLOCK_FORMATS: dict[str, str] = {"24h": "%H:%M:%S", "12h": "%I:%M:%S %p"}
+
+
+def log_preview_clock(prefs: dict[str, Any]) -> str:
+    """Return the preview clock token (``"24h"`` or ``"12h"``), else the default.
+
+    A hand-edited ``preferences.yaml`` may carry anything here; an unknown value
+    falls back to the default rather than breaking the preview formatter.
+    """
+    value = prefs.get("log_preview_clock")
+    if isinstance(value, str) and value in CLOCK_FORMATS:
+        return value
+    return str(DEFAULTS["log_preview_clock"])
+
+
+def preview_time_format(prefs: dict[str, Any]) -> str:
+    """Return the ``strftime`` time format for the live preview (per :func:`log_preview_clock`)."""
+    return CLOCK_FORMATS[log_preview_clock(prefs)]
 
 
 def levels_to_names(levels: set[int]) -> list[str]:
