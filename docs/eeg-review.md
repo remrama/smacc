@@ -72,6 +72,50 @@ duplicated).
 The sidecar format is documented in the
 [annotations file reference](reference/annotations-file.md).
 
+## Sleep staging
+
+Score the night a 30 s epoch at a time. Staging is a separate layer from
+annotating — both are always live on the same view, so you can drop an LRLR or
+arousal mark mid-sweep without leaving your place — and it saves to its **own**
+sidecar (`night1.edf` → `night1.stages.tsv`), a partition of one stage per epoch,
+never mixed into the event annotations.
+
+**Stage focus.** Press **Tab** (or the **Stage focus** button) to start a sweep.
+The view locks to one epoch per screen and the epoch grid/length is fixed (so a
+score can't land in the wrong span), a **STAGE FOCUS** chip shows in the status
+bar, and the epoch at the left edge — the one you're about to score — gets a teal
+bracket.
+
+**Scoring.** With stage focus on, the number keys score the epoch at the left
+edge and **auto-advance** to the next one:
+
+| Key               | AASM stage                  |
+| ----------------- | --------------------------- |
+| `W`               | Wake                        |
+| `1` / `2` / `3`   | N1 / N2 / N3                |
+| `R`               | REM                         |
+| `0` / `Backspace` | clear (un-score, stays put) |
+
+The stage **buttons** do the same with the mouse and also work outside stage
+focus (so the number keys stay free for [quick marks](#annotating) until you
+deliberately start a sweep). Re-scoring an epoch overwrites it; `Left`/`Right`
+page back and forth to fix one.
+
+**Reading the night.** Each scored epoch tints the traces a faint stage colour,
+the big readout names the current epoch's stage, and a **hypnogram overview
+strip** under the traces shows the whole night as a colour staircase — click it
+to jump anywhere. The status bar counts scored / total epochs.
+
+**Scoring manual.** AASM (W/N1/N2/N3/R) is the default; switch the **Manual**
+dropdown to **Rechtschaffen & Kales** (S1–S4 + a Movement-Time epoch) before you
+start — it locks once the first epoch is scored, and a resumed hypnogram reopens
+under the manual it was scored with. A sub-epoch **movement or artifact** isn't a
+stage under AASM; mark it as an [annotation](#annotating) over the epoch's stage
+instead (`Artifact` is a default quick mark).
+
+Each [rater](#multiple-raters) scores to their own `night1.stages.<id>.tsv`, so
+two scorers of one night produce two hypnograms to compare.
+
 ## Session log overlay
 
 Load the night's SMACC session [`.log`](reference/session-log.md) onto the

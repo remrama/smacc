@@ -30,7 +30,7 @@ from typing import Any, NamedTuple, Protocol
 
 import numpy as np
 import pyqtgraph as pg
-from PyQt6 import QtCore, QtGui
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from . import dsp
 from .annotations import Annotation
@@ -1174,3 +1174,87 @@ class TraceView(pg.PlotWidget):
             (self._epoch_anchor + k * self._epoch_seconds, str(k + 1))
             for k in range(first, last + 1)
         ]
+
+
+# Hypnogram overview strip (#182c): the height of the whole-night staircase and
+# the accent used for the current-window marker (the teal of the focus bracket).
+_STRIP_HEIGHT = 30
+_STRIP_MARKER_PEN = pg.mkPen((0, 150, 136), width=2)
+
+
+class HypnogramStrip(QtWidgets.QWidget):
+    """A whole-night hypnogram overview the operator scans and clicks to navigate.
+
+    A thin strip under the trace view: the full recording mapped to its width,
+    one stage-coloured cell per scored epoch, unscored gaps left blank, and a
+    bracket marking where the trace window currently sits. Clicking jumps the view
+    there. It is the at-a-glance map of a night's scoring — where the unscored gap
+    starts, where the REM bouts are — that scoring a long recording needs and the
+    per-window bands alone can't give. Pure ``QPainter``, no pyqtgraph: a few
+    hundred filled rects redraw far faster than that many scene items.
+    """
+
+    seekRequested = QtCore.pyqtSignal(float)  # data seconds to centre the view on
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setFixedHeight(_STRIP_HEIGHT)
+        self.setStatusTip("Hypnogram overview — click to jump the view there.")
+        self._duration = 0.0
+        self._epochs: list[StageEpoch] = []
+        self._colors: dict[str, tuple[int, int, int]] = {}
+        self._window_start = 0.0
+        self._window_seconds = 30.0
+
+    def set_data(
+        self,
+        duration: float,
+        epochs: list[StageEpoch],
+        colors: dict[str, tuple[int, int, int]],
+    ) -> None:
+        """Replace the recording length, scored epochs, and per-stage colours."""
+        self._duration = max(0.0, duration)
+        self._epochs = list(epochs)
+        self._colors = dict(colors)
+        self.update()
+
+    def set_window(self, start: float, seconds: float) -> None:
+        """Move the current-window marker to ``[start, start + seconds)``."""
+        self._window_start = start
+        self._window_seconds = seconds
+        self.update()
+
+    def _x(self, seconds: float) -> float:
+        return seconds / self._duration * self.width()
+
+    def paintEvent(self, event: QtGui.QPaintEvent | None) -> None:
+        painter = QtGui.QPainter(self)
+        base = self.palette().color(QtGui.QPalette.ColorRole.Base)
+        painter.fillRect(self.rect(), base)
+        if self._duration <= 0 or self.width() <= 0:
+            return
+        height = self.height()
+        for epoch in self._epochs:
+            color = self._colors.get(epoch.stage)
+            if color is None:  # a token with no colour (foreign vocab) draws nothing
+                continue
+            red, green, blue = color
+            left = self._x(epoch.onset)
+            width = max(1.0, self._x(epoch.onset + epoch.duration) - left)
+            painter.fillRect(
+                QtCore.QRectF(left, 0.0, width, float(height)),
+                QtGui.QColor(red, green, blue),
+            )
+        # The current trace window, as a bracket the eye tracks while paging.
+        left = self._x(self._window_start)
+        width = max(2.0, self._x(self._window_start + self._window_seconds) - left)
+        painter.setPen(_STRIP_MARKER_PEN)
+        painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+        painter.drawRect(QtCore.QRectF(left, 1.0, width, float(height - 2)))
+
+    def mousePressEvent(self, event: QtGui.QMouseEvent | None) -> None:
+        if event is None or self._duration <= 0 or self.width() <= 0:
+            return
+        fraction = event.position().x() / self.width()
+        seconds = max(0.0, min(self._duration, fraction * self._duration))
+        self.seekRequested.emit(seconds)
