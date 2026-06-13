@@ -171,3 +171,63 @@ def test_embedded_annotations_never_surface_out_of_range_events(tmp_path):
     cropped.save(path, verbose="error")
     found = io.embedded_annotations(io.open_recording(path))
     assert [a.description for a in found] == ["kept"]
+
+
+# ----- recorded trigger events (#125 auto-alignment) ------------------------
+
+
+def test_recorded_trigger_events_parses_codes_from_annotations(tmp_path):
+    # Codes surface in annotations as a bare "47" (Neuroscan/EEGLAB/EDF TAL) or
+    # inside a label "Stimulus/S 60" (BrainVision); both yield the integer.
+    raw = _make_raw()
+    raw.set_annotations(
+        mne.Annotations(
+            onset=[1.0, 2.0, 3.0],
+            duration=[0.0, 0.0, 0.0],
+            description=["47", "Stimulus/S 60", "New Segment"],
+        )
+    )
+    path = tmp_path / "trig_raw.fif"
+    raw.save(path, verbose="error")
+    events = io.recorded_trigger_events(io.open_recording(path))
+    # The two numeric codes are extracted; "New Segment" (no digits) is dropped.
+    assert events == [(1.0, 47), (2.0, 60)]
+
+
+def test_recorded_trigger_events_reads_a_stim_channel(tmp_path):
+    # A FIF with a STIM channel carrying codes 5 (at 1 s) and 7 (at 2 s).
+    info = mne.create_info(["C3", "STI 014"], sfreq=SFREQ, ch_types=["eeg", "stim"])
+    data = np.zeros((2, int(3 * SFREQ)))
+    data[1, int(1.0 * SFREQ)] = 5
+    data[1, int(2.0 * SFREQ)] = 7
+    raw = mne.io.RawArray(data, info, verbose="error")
+    path = tmp_path / "stim_raw.fif"
+    raw.save(path, verbose="error")
+    events = io.recorded_trigger_events(io.open_recording(path))
+    assert (1.0, 5) in events
+    assert (2.0, 7) in events
+
+
+def test_recorded_trigger_events_empty_when_no_triggers(fif_path):
+    # The fixture's only annotation is "Arousal" (no digits) and it has no stim
+    # channel — an LSL-only-style file with nothing to match.
+    assert io.recorded_trigger_events(io.open_recording(fif_path)) == []
+
+
+def test_trigger_events_data_relative_when_anonymized_with_first_samp(tmp_path):
+    # An anonymized recording drops meas_date but keeps a non-zero first_samp;
+    # MNE bakes first_time into the stored onsets, so the data-relative time must
+    # still come off (matching the stim-channel timebase), not be left too large.
+    info = mne.create_info(["C3", "STI 014"], sfreq=SFREQ, ch_types=["eeg", "stim"])
+    data = np.zeros((2, int(5 * SFREQ)))
+    data[1, int(1.0 * SFREQ)] = 9  # a stim code at data-second 1.0
+    raw = mne.io.RawArray(data, info, first_samp=int(2.0 * SFREQ), verbose="error")
+    raw.set_annotations(
+        mne.Annotations(onset=[1.0], duration=[0.0], description=["9"])
+    )  # an annotation code at data-second 1.0 (orig_time None, meas_date None)
+    path = tmp_path / "anon_raw.fif"
+    raw.save(path, verbose="error")
+    events = io.recorded_trigger_events(io.open_recording(path))
+    # Both the annotation code and the stim code land at 1.0 s — consistent, not
+    # offset by first_time (2.0 s).
+    assert events.count((1.0, 9)) == 2

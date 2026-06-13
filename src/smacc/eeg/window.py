@@ -32,7 +32,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import preferences, windowstate
 from ..paths import LOGO_PATH, preferences_path
-from . import blind, dsp, io, sessionlog
+from . import align, blind, dsp, io, sessionlog
 from .annotations import (
     Annotation,
     autosave_path,
@@ -635,6 +635,12 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._visible_log: list[LogEntry] = []
         self._log_slide_base: float | None = None  # offset captured at drag start
         self._pairing_entry: LogEntry | None = None  # entry awaiting a paired click
+        # Auto-alignment (#125c): the recording's embedded trigger events (cached
+        # per recording; None until first needed) and the last estimate. The
+        # estimate is dropped the moment the offset is touched by hand, so its
+        # "aligned"/"unverified" badge only ever describes the current offset.
+        self._embedded_triggers: list[tuple[float, int]] | None = None
+        self._alignment: align.Alignment | None = None
         # Annotations recovered from an autosave, held until the user restores or
         # dismisses them (#176).
         self._recovery_annotations: list[Annotation] | None = None
@@ -1169,6 +1175,15 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self.logAlignButton.clicked.connect(self._align_selected_log_entry)
         box.addWidget(self.logAlignButton)
 
+        self.autoAlignButton = QtWidgets.QPushButton("Auto-align to triggers", self)
+        self.autoAlignButton.setStatusTip(
+            "Estimate the offset by matching the log's markers to trigger codes "
+            "the amplifier recorded (needs a recording start time and embedded "
+            "triggers)."
+        )
+        self.autoAlignButton.clicked.connect(lambda: self._auto_align(announce=True))
+        box.addWidget(self.autoAlignButton)
+
         self.logGroup = group
         return group
 
@@ -1455,9 +1470,13 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self.logOffsetSpin.blockSignals(True)
         self.logOffsetSpin.setValue(0.0)
         self.logOffsetSpin.blockSignals(False)
+        self._alignment = None
         self._rebuild_log_level_checks()
         self._refresh_log_overlay()
         self._update_log_controls()
+        # Try to place the log automatically against the amp's embedded triggers;
+        # a confident fit applies, otherwise the manual gestures take over.
+        self._auto_align(announce=False)
 
     def _log_has_level(self, level: str) -> bool:
         return any(e.level == level for e in self._log_entries)
@@ -1469,6 +1488,11 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._log_path = None
         self._visible_log = []
         self._log_slide_base = None
+        self._alignment = None
+        self._log_offset = 0.0  # don't carry one log's offset into the next
+        self.logOffsetSpin.blockSignals(True)
+        self.logOffsetSpin.setValue(0.0)
+        self.logOffsetSpin.blockSignals(False)
         self.logList.blockSignals(True)
         self.logList.clear()
         self.logList.blockSignals(False)
@@ -1585,8 +1609,13 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._refresh_log_overlay()
 
     def _on_log_offset_changed(self, value: float) -> None:
+        self._clear_alignment_estimate()  # a hand-set offset is no longer the estimate
         self._log_offset = value
         self._refresh_log_overlay()
+
+    def _clear_alignment_estimate(self) -> None:
+        """Forget the auto-alignment grade (the offset is being set by hand now)."""
+        self._alignment = None
 
     def _on_log_slide_started(self) -> None:
         """Capture the offset each gesture starts from (every drag re-bases here).
@@ -1596,6 +1625,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         never strand a stale base into the next slide: the next gesture always
         re-bases from the current offset.
         """
+        self._clear_alignment_estimate()  # a hand-dragged offset isn't the estimate
         self._log_slide_base = self._log_offset
 
     def _on_log_slide_moved(self, delta: float) -> None:
@@ -1666,6 +1696,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._end_pairing()
         if entry is None or origin is None:
             return
+        self._clear_alignment_estimate()  # a hand-paired offset isn't the estimate
         # Solve for the offset that puts this entry at the clicked time.
         self._set_log_offset(seconds - sessionlog.seconds_at(entry, origin, 0.0))
         status_bar = self.statusBar()
@@ -1677,6 +1708,76 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._pairing_entry = None
         self.view.set_pick_mode(False)
 
+    # ----- auto-alignment (#125c) ------------------------------------------------
+
+    def _auto_align(self, *, announce: bool) -> None:
+        """Estimate and apply the offset by matching the log to embedded triggers.
+
+        Opportunistic: it works only when the amp recorded SMACC's trigger codes
+        (a hardware-TTL rig) and the file carries a start time. A confident
+        (green) fit is applied silently; a low-confidence (amber) one is applied
+        but flagged; an unreliable or contradictory (red) one is refused, leaving
+        the offset for the manual path. ``announce`` adds a dialog (the user
+        pressed the button and wants to know what happened).
+        """
+        if self._recording is None or not self._log_entries:
+            return
+        if self._recording.meas_date is None:
+            self._alignment = None
+            self._refresh_log_overlay()
+            if announce:
+                self._error(
+                    "No recording start time.",
+                    "This recording has no start time to align against, so the "
+                    "log can only be aligned by hand (drag the lane, or pair an "
+                    "entry to a feature).",
+                )
+            return
+        if self._embedded_triggers is None:
+            self._embedded_triggers = io.recorded_trigger_events(self._recording)
+        origin = self._log_origin()
+        assert origin is not None  # meas_date present → wall_time gives an origin
+        log_events = [
+            (sessionlog.seconds_at(entry, origin, 0.0), entry.code)
+            for entry in self._log_entries
+            if entry.code is not None
+        ]
+        result = align.estimate_offset(
+            log_events, self._embedded_triggers, duration=self._recording.duration
+        )
+        self._alignment = result
+        if result.tier == align.RED:
+            self._refresh_log_overlay()  # offset unchanged; status reflects the miss
+        else:
+            self._set_log_offset(result.offset)  # also refreshes the overlay/status
+        if announce:
+            self._announce_alignment(result)
+
+    def _announce_alignment(self, result: align.Alignment) -> None:
+        """Report an explicit Auto-align press: what matched and what was applied."""
+        if result.tier == align.GREEN:
+            QtWidgets.QMessageBox.information(
+                self,
+                "Log aligned",
+                f"Aligned on {result.n_anchor} anchor markers "
+                f"({result.n_matched} matched, ±{result.residual_mad:.2f} s). "
+                f"Offset set to {self._log_offset:+.2f} s.",
+            )
+        elif result.tier == align.AMBER:
+            self._error(
+                "Low-confidence alignment.",
+                f"{result.reason.capitalize()}. The offset was applied "
+                f"({self._log_offset:+.2f} s) but is marked unverified — check it "
+                "against a known event before trusting marker times.",
+            )
+        else:
+            self._error(
+                "Could not auto-align the log.",
+                f"{result.reason.capitalize()}. The offset was left unchanged; "
+                "align the log by hand (drag the lane, or pair an entry to a "
+                "feature).",
+            )
+
     def _update_log_controls(self) -> None:
         """Enable the log controls by state (recording open, log loaded, blind)."""
         has_log = bool(self._log_entries)
@@ -1686,15 +1787,26 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self.logAlignButton.setEnabled(
             has_log and 0 <= self.logList.currentRow() < len(self._visible_log)
         )
+        # Auto-align needs a start time to align against; without one only the
+        # manual gestures apply.
+        self.autoAlignButton.setEnabled(
+            has_log
+            and self._recording is not None
+            and self._recording.meas_date is not None
+        )
 
     def _update_log_status(self) -> None:
-        """Show the loaded log and its offset in the permanent status area."""
+        """Show the loaded log, its offset, and any alignment grade in the status."""
         if not self._log_entries or self._log_path is None:
             self.logInfoLabel.clear()
             return
-        self.logInfoLabel.setText(
-            f"log: {self._log_path.name} · offset {self._log_offset:+.2f} s"
-        )
+        text = f"log: {self._log_path.name} · offset {self._log_offset:+.2f} s"
+        result = self._alignment
+        if result is not None and result.tier == align.GREEN:
+            text += f" · aligned ({result.n_matched} marks)"
+        elif result is not None and result.tier == align.AMBER:
+            text += " · alignment unverified"
+        self.logInfoLabel.setText(text)
 
     # ----- opening a recording ---------------------------------------------------
 
@@ -1753,6 +1865,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._recording = recording
         self._annotations = annotations
         self._dirty = False
+        self._embedded_triggers = None  # belong to the previous recording; re-read
         # We own the sidecar when we loaded from it; a fresh review does not yet,
         # so its first save guards against overwriting one that appeared meanwhile.
         self._owns_sidecar = tsv_path.is_file()
