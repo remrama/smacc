@@ -72,6 +72,42 @@ duplicated).
 The sidecar format is documented in the
 [annotations file reference](reference/annotations-file.md).
 
+## Session log overlay
+
+Load the night's SMACC session [`.log`](reference/session-log.md) onto the
+timeline as a **read-only reference track** — every marker, cue, dream report,
+and survey shown where it happened, so you see what SMACC *did* alongside the
+EEG. Click **Load session log…** in the **Session log** panel (a recording must
+be open; the log aligns to *its* clock). Ticks appear in a thin lane across the
+top, coloured by log level, with the full message on hover. The per-level
+checkboxes show or hide levels just like the live preview — `DEBUG` (raw-trigger
+and volume-edit noise) is off by default. The log is reference context only: it
+is never editable and never saved into your annotations.
+
+**Aligning the log.** The log's timestamps come from the recording PC while the
+EEG's clock comes from the amplifier, so the two can differ by seconds or more.
+Slide the whole log along the EEG to line them up, three ways — all adjusting one
+offset:
+
+- **Drag the log lane.** A left-drag that starts in the top lane slides the log
+    (a drag anywhere else still draws an annotation). On release it snaps onto a
+    nearby mark of yours, so a clapper lands exactly on the artifact it made.
+- **Pair an entry to a feature.** Select a log entry, click **Align entry to
+    feature…**, then click the EEG feature it produced — useful when the two are
+    far apart to drag. (Esc cancels.)
+- **Nudge the offset.** The **Offset** box is the exact value, and the fine
+    control.
+
+The classic clapper workflow fits directly: press **Clapper** on the SMACC PC at
+the same instant as a manual trigger on the recording system, then pair (or drag)
+the logged clapper onto the marker it left in the EEG. Clapping at both lights-off
+and lights-on gives two reference points. A recording with no start time
+(anonymized) has no absolute anchor, so the log starts at its first entry and you
+align it entirely by hand.
+
+The log is **never shown in a blind review** — it records every cue and portcode,
+which would unblind the rater.
+
 ## Multiple raters
 
 For blind, multi-rater scoring, give each reviewer a **rater id** — click the

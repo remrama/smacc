@@ -1477,3 +1477,209 @@ def test_corrupt_peer_sidecar_is_skipped(make_window, recording_path):
     win = make_window("alice")
     win._load(recording_path)
     assert [rid for rid, _, _ in win._rater_layers] == ["bob"]  # carol skipped
+
+
+# ----- session-log overlay (#125) -------------------------------------------
+
+# Entries placed against the recording's 22:00:00 start (FakeRecording.meas_date):
+# Opened at 0 s, Lights off at 5 s, a DEBUG soft line at 10 s, REM at 20 s.
+LOG_TEXT = (
+    "2026-06-05 22:00:00.000-0500, INFO, Opened SMACC v0.0.7\n"
+    "2026-06-05 22:00:05.000-0500, INFO, Lights off - portcode 47\n"
+    "2026-06-05 22:00:10.000-0500, DEBUG, Cue volume set to 0.40\n"
+    "2026-06-05 22:00:20.000-0500, INFO, REM detected - portcode 41\n"
+)
+
+
+def _overlay_log(window, monkeypatch, tmp_path, text=LOG_TEXT):
+    """Write ``text`` to a .log and load it through the file-dialog flow."""
+    log = tmp_path / "session.log"
+    log.write_text(text, encoding="utf-8")
+    monkeypatch.setattr(
+        QtWidgets.QFileDialog, "getOpenFileName", lambda *a, **k: (str(log), "")
+    )
+    window._load_session_log()
+    return log
+
+
+def test_load_log_overlays_placed_marks(window, recording_path, monkeypatch, tmp_path):
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path)
+    # INFO is on by default, DEBUG off: Opened (0 s), Lights off (5 s), REM (20 s).
+    placed = [m.seconds for m in window.view._log_marks]
+    assert placed == [0.0, 5.0, 20.0]
+    assert "session.log" in window.logInfoLabel.text()
+    assert "+0.00 s" in window.logInfoLabel.text()
+
+
+def test_log_level_filter_toggles_debug(window, recording_path, monkeypatch, tmp_path):
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path)
+    assert len(window.view._log_marks) == 3  # DEBUG hidden by default
+    window._log_level_checks["DEBUG"].setChecked(True)
+    assert len(window.view._log_marks) == 4  # the 10 s soft line appears
+    assert 10.0 in [m.seconds for m in window.view._log_marks]
+
+
+def test_offset_slides_every_mark(window, recording_path, monkeypatch, tmp_path):
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path)
+    window._set_log_offset(2.5)
+    assert [m.seconds for m in window.view._log_marks] == [2.5, 7.5, 22.5]
+    assert "+2.50 s" in window.logInfoLabel.text()
+    assert window.logOffsetSpin.value() == pytest.approx(2.5)
+
+
+def test_pair_entry_aligns_log_to_clicked_feature(
+    window, recording_path, monkeypatch, tmp_path
+):
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path)
+    # Select "Lights off" (row 1, placed at 5 s) and pair it to a feature at 12 s.
+    window.logList.setCurrentRow(1)
+    window._align_selected_log_entry()
+    assert window._pairing_entry is not None
+    window._on_time_picked(12.0)
+    # The whole log shifts +7 s so that entry lands on the clicked feature.
+    assert window._log_offset == pytest.approx(7.0)
+    assert [m.seconds for m in window.view._log_marks] == [7.0, 12.0, 27.0]
+    assert window._pairing_entry is None  # pairing ended
+
+
+def test_lane_drag_finish_snaps_to_a_nearby_mark(
+    window, recording_path, monkeypatch, tmp_path
+):
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path)
+    # A reviewer mark at 5.3 s; dragging the log +0.1 s leaves "Lights off" (5 s)
+    # at 5.1 s, within snap tolerance of 5.3 → it clicks onto 5.3.
+    window._annotations = [Annotation(5.3, 0.0, "clap artifact")]
+    window._on_log_slide_moved(0.1)
+    window._on_log_slide_finished(0.1)
+    assert window._log_offset == pytest.approx(0.3)  # snapped, not 0.1
+    assert window._log_slide_base is None
+
+
+def test_slide_finish_without_move_preserves_the_offset(
+    window, recording_path, monkeypatch, tmp_path
+):
+    # A minimal lane drag can finish without an intervening move; it must not
+    # reset a previously-set offset to ~0.
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path)
+    window._set_log_offset(5.0)
+    window._on_log_slide_finished(0.0)  # finish with no preceding moved + no delta
+    assert window._log_offset == pytest.approx(5.0)
+
+
+def test_blind_review_refuses_the_log_overlay(
+    make_window, recording_path, monkeypatch, tmp_path
+):
+    win = make_window("alice")
+    win._blind = blind.preset_config(blind.PRESET_NAIVE)
+    win._load(recording_path)
+    assert not win._can_overlay_log()  # the log carries the cues
+    assert not win.loadLogButton.isEnabled()
+
+
+def test_entering_blind_clears_a_loaded_log(
+    make_window, recording_path, monkeypatch, tmp_path
+):
+    win = make_window("alice")
+    win._load(recording_path)
+    _overlay_log(win, monkeypatch, tmp_path)
+    assert win._log_entries
+    win._set_blind(blind.preset_config(blind.PRESET_NAIVE))
+    assert win._log_entries == []  # dropped on entering blind
+    assert win.view._log_marks == []
+    assert win.logInfoLabel.text() == ""  # no stale "log: …" status
+
+
+def test_entering_blind_clears_the_log_even_if_reload_fails(
+    make_window, recording_path, monkeypatch, tmp_path, silence_dialogs
+):
+    # Blind safety: the overlay must be gone the instant blind is entered, even
+    # when _load early-returns (here: an unreadable coordinator truth sidecar,
+    # which pops a silenced error dialog), so the cue/portcode ticks can never
+    # survive under a blind preset.
+    win = make_window("alice")
+    win._load(recording_path)
+    _overlay_log(win, monkeypatch, tmp_path)
+    assert win._log_entries
+    truth_tsv, _ = sidecar_paths(recording_path)
+    truth_tsv.write_text("not\ta\tsidecar\n", encoding="utf-8")  # makes _load abort
+    win._set_blind(blind.preset_config(blind.PRESET_NAIVE))
+    assert win._log_entries == []  # cleared before the failing reload
+    assert win.view._log_marks == []
+    assert win.view._viewbox._log_lane_active is False  # lane disarmed, not draggable
+
+
+def test_opening_a_new_recording_clears_the_log(
+    window, recording_path, monkeypatch, tmp_path
+):
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path)
+    assert window._log_entries
+    other = tmp_path / "night2.edf"
+    other.write_bytes(b"")
+    window._load(other)
+    assert window._log_entries == []
+    assert window.view._log_marks == []
+    assert window.logInfoLabel.text() == ""  # no stale "log: …" status
+
+
+def test_loading_a_new_log_cancels_a_pending_pairing(
+    window, recording_path, monkeypatch, tmp_path
+):
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path)
+    window.logList.setCurrentRow(1)
+    window._align_selected_log_entry()
+    assert window._pairing_entry is not None
+    # Loading a different log mid-pairing must cancel it — else the next click
+    # would align a stale entry from the old log.
+    _overlay_log(window, monkeypatch, tmp_path)
+    assert window._pairing_entry is None
+    assert not window.view._pick_mode
+
+
+def test_slide_rebases_each_gesture_even_after_a_dropped_finish(
+    window, recording_path, monkeypatch, tmp_path
+):
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path)
+    # Gesture 1 starts and moves but its finish is lost (no _on_log_slide_finished).
+    window._on_log_slide_started()
+    window._on_log_slide_moved(5.0)
+    assert window._log_offset == pytest.approx(5.0)
+    # Gesture 2 re-bases from the current offset (5.0), not a stale base.
+    window._on_log_slide_started()
+    window._on_log_slide_moved(2.0)
+    assert window._log_offset == pytest.approx(7.0)
+
+
+def test_double_click_log_entry_jumps_the_view(
+    window, recording_path, monkeypatch, tmp_path
+):
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path)
+    window.logList.setCurrentRow(2)  # REM detected, placed at 20 s
+    window._go_to_log_entry()
+    # Jumps so the entry sits a quarter-window in (20 - 30/4 = 12.5 s).
+    assert window.view.window_start == pytest.approx(12.5)
+
+
+def test_esc_cancels_pairing(window, recording_path, monkeypatch, tmp_path):
+    window._load(recording_path)
+    _overlay_log(window, monkeypatch, tmp_path)
+    window.logList.setCurrentRow(0)
+    window._align_selected_log_entry()
+    assert window._pairing_entry is not None
+    esc = QtGui.QKeyEvent(
+        QtCore.QEvent.Type.KeyPress,
+        QtCore.Qt.Key.Key_Escape,
+        QtCore.Qt.KeyboardModifier.NoModifier,
+    )
+    window.eventFilter(window, esc)
+    assert window._pairing_entry is None
+    assert not window.view._pick_mode

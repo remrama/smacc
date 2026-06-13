@@ -32,7 +32,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import preferences, windowstate
 from ..paths import LOGO_PATH, preferences_path
-from . import blind, dsp, io
+from . import blind, dsp, io, sessionlog
 from .annotations import (
     Annotation,
     autosave_path,
@@ -50,7 +50,14 @@ from .annotations import (
 )
 from .profiles import FILE_FILTER as PROFILE_FILE_FILTER
 from .profiles import PROFILE_SUFFIX, ViewProfile, read_view_profile, write_view_profile
-from .view import DEFAULT_EPOCH_SECONDS, OVERLAY_COLORS, RaterOverlay, TraceView
+from .sessionlog import LogEntry
+from .view import (
+    DEFAULT_EPOCH_SECONDS,
+    OVERLAY_COLORS,
+    LogMark,
+    RaterOverlay,
+    TraceView,
+)
 
 if TYPE_CHECKING:  # matplotlib is heavy: import the export module only on demand
     from .export import ExportOptions
@@ -76,6 +83,16 @@ _SCROLL_TICKS_PER_SECOND = 10
 # Autosave (#176) is debounced: each annotation change restarts this timer, so a
 # burst of edits writes the recovery file once, shortly after the last of them.
 _AUTOSAVE_DEBOUNCE_MS = 2000
+
+# Session-log overlay (#125). The level checkboxes default to the live preview's
+# gate (INFO and up); DEBUG is off so the lane isn't swamped by the raw-trigger
+# and volume-edit lines. The tuple fixes the checkbox order.
+_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+_LOG_DEFAULT_LEVELS = frozenset({"INFO", "WARNING", "ERROR", "CRITICAL"})
+# On a log-lane drag release, a mark within this many seconds of one of the
+# reviewer's marks snaps onto it, so a clapper lands exactly (mark-on-mark)
+# instead of by eye.
+_LOG_SNAP_SECONDS = 0.5
 
 # Keyboard navigation (#174). Plain Left/Right page by one epoch; Shift nudges a
 # second to peek across a boundary. Up/Down step the amplitude multiplicatively
@@ -606,6 +623,18 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             tuple[str, list[Annotation], tuple[int, int, int]]
         ] = []
         self._hidden_raters: set[str] = set()
+        # Session-log overlay (#125): the parsed entries, the source path, the
+        # manual clock-skew offset (seconds added to the wall-clock placement),
+        # and which levels are shown. Empty until a log is loaded; never loaded in
+        # a blind review (the log carries the cue markers a blind rater must not
+        # see). ``_visible_log`` is the level-filtered subset shown in the list.
+        self._log_entries: list[LogEntry] = []
+        self._log_path: Path | None = None
+        self._log_offset = 0.0
+        self._log_levels: set[str] = set(_LOG_DEFAULT_LEVELS)
+        self._visible_log: list[LogEntry] = []
+        self._log_slide_base: float | None = None  # offset captured at drag start
+        self._pairing_entry: LogEntry | None = None  # entry awaiting a paired click
         # Annotations recovered from an autosave, held until the user restores or
         # dismisses them (#176).
         self._recovery_annotations: list[Annotation] | None = None
@@ -766,6 +795,10 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self.view.windowChanged.connect(self._sync_scrollbar)
         self.view.cursorMoved.connect(self._on_cursor_moved)
         self.view.pointMarkRequested.connect(self._add_point_mark)
+        self.view.logSlideStarted.connect(self._on_log_slide_started)
+        self.view.logSlideMoved.connect(self._on_log_slide_moved)
+        self.view.logSlideFinished.connect(self._on_log_slide_finished)
+        self.view.timePicked.connect(self._on_time_picked)
         viewColumn.addWidget(self.view, 1)
         self.scrollBar = QtWidgets.QScrollBar(QtCore.Qt.Orientation.Horizontal, self)
         self.scrollBar.setStatusTip("Scroll through the recording.")
@@ -781,10 +814,13 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         # the normal message area.
         self.epochLabel = QtWidgets.QLabel("", self)
         self.epochLabel.setStatusTip("The epoch at the left edge of the view.")
+        self.logInfoLabel = QtWidgets.QLabel("", self)
+        self.logInfoLabel.setStatusTip("The overlaid session log and its offset.")
         self.fileInfoLabel = QtWidgets.QLabel("", self)
         status_bar = self.statusBar()
         assert status_bar is not None
         status_bar.addPermanentWidget(self.epochLabel)
+        status_bar.addPermanentWidget(self.logInfoLabel)
         status_bar.addPermanentWidget(self.fileInfoLabel)
 
         self._build_shortcuts()
@@ -1073,7 +1109,68 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self.ratersGroup.setVisible(False)
         self._rater_checks: list[QtWidgets.QCheckBox] = []
         panel.addWidget(self.ratersGroup)
+        panel.addWidget(self._build_log_group())
         return panel
+
+    def _build_log_group(self) -> QtWidgets.QWidget:
+        """The session-log overlay controls (#125): load, filter, list, align.
+
+        The log is a read-only reference track on the timeline — what SMACC did
+        during the night, laid over the EEG. Loading needs a recording open (the
+        log aligns to *its* clock) and is refused in a blind review (the log
+        carries the cue markers). Alignment is manual here (#125b): drag the lane,
+        pair an entry to a feature, or nudge the offset; #125c adds auto-align.
+        """
+        group = QtWidgets.QGroupBox("Session log", self)
+        box = QtWidgets.QVBoxLayout(group)
+        self.loadLogButton = QtWidgets.QPushButton("Load session log…", self)
+        self.loadLogButton.setStatusTip(
+            "Overlay a SMACC session .log on the timeline as a read-only track."
+        )
+        self.loadLogButton.clicked.connect(self._load_session_log)
+        box.addWidget(self.loadLogButton)
+
+        # Per-level show/hide (the live preview's model), built on load from the
+        # levels the log actually contains.
+        self.logLevelsLayout = QtWidgets.QHBoxLayout()
+        self.logLevelsLayout.setSpacing(6)
+        self._log_level_checks: dict[str, QtWidgets.QCheckBox] = {}
+        box.addLayout(self.logLevelsLayout)
+
+        self.logList = QtWidgets.QListWidget(self)
+        self.logList.setMinimumWidth(230)
+        self.logList.setStatusTip(
+            "Log entries shown on the timeline; double-click to jump there."
+        )
+        self.logList.currentRowChanged.connect(self._on_log_list_selection)
+        self.logList.itemDoubleClicked.connect(lambda _item: self._go_to_log_entry())
+        box.addWidget(self.logList, 1)
+
+        offsetRow = QtWidgets.QHBoxLayout()
+        offsetRow.addWidget(QtWidgets.QLabel("Offset:", self))
+        self.logOffsetSpin = QtWidgets.QDoubleSpinBox(self)
+        self.logOffsetSpin.setRange(-86400.0, 86400.0)  # ±24 h covers any skew
+        self.logOffsetSpin.setDecimals(2)
+        self.logOffsetSpin.setSingleStep(0.5)
+        self.logOffsetSpin.setSuffix(" s")
+        self.logOffsetSpin.setStatusTip(
+            "Slide the whole log along the EEG to correct clock skew between "
+            "the recording PC and the amplifier."
+        )
+        self.logOffsetSpin.valueChanged.connect(self._on_log_offset_changed)
+        offsetRow.addWidget(self.logOffsetSpin, 1)
+        box.addLayout(offsetRow)
+
+        self.logAlignButton = QtWidgets.QPushButton("Align entry to feature…", self)
+        self.logAlignButton.setStatusTip(
+            "Select a log entry, then click the EEG feature it produced to align "
+            "the log (e.g. a clapper on the artifact it made)."
+        )
+        self.logAlignButton.clicked.connect(self._align_selected_log_entry)
+        box.addWidget(self.logAlignButton)
+
+        self.logGroup = group
+        return group
 
     def _build_shortcuts(self) -> None:
         """Window-wide paging on PageUp/PageDown, plus M to drop a point mark.
@@ -1107,6 +1204,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             widget.setEnabled(loaded)
         for button in self._palette_buttons:  # no recording → nothing to mark
             button.setEnabled(loaded)
+        self._update_log_controls()  # log loading is gated on a recording too
 
     # ----- quick-mark palette (#181) ---------------------------------------------
 
@@ -1201,8 +1299,16 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._blind = config
         self._refresh_blind_button()
         self._rebuild_palette_buttons()  # a config may carry its own palette
+        # Drop the log overlay the instant blind is entered, before the reload —
+        # a blind review must never show the cue/portcode log, and _load only
+        # clears it at the very end, after several early-return points (a moved
+        # recording, an unreadable truth sidecar) that would otherwise leave the
+        # cue ticks on screen under a blind preset.
+        if config is not None:
+            self._clear_log_overlay()
         if self._recording is not None:
             self._load(self._recording.path)  # re-resolve marks under the new mode
+        self._update_log_controls()  # the Load-log button follows the blind state
         self._refresh_title()
 
     def _load_blind_config(self) -> None:
@@ -1298,6 +1404,298 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             self._hidden_raters.add(rater_id)
         self._apply_overlays()
 
+    # ----- session-log overlay (#125) --------------------------------------------
+
+    def _can_overlay_log(self) -> bool:
+        """True when a log may be overlaid: a recording is open and not blinded.
+
+        A blind review never shows the log — it records every cue and portcode,
+        which would unblind the rater (the same invariant as the peer overlays).
+        """
+        return self._recording is not None and self._blind is None
+
+    def _load_session_log(self) -> None:
+        """Pick a SMACC ``.log`` and overlay its parsed entries (#125)."""
+        if not self._can_overlay_log():
+            return
+        prefs = preferences.load_preferences(preferences_path)
+        start_dir = prefs.get("eeg_last_log_dir") or (
+            str(self._recording.path.parent)
+            if self._recording is not None
+            else str(Path.home())
+        )
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Open session log", str(start_dir), "SMACC log (*.log);;All files (*)"
+        )
+        if not path:
+            return
+        try:
+            entries = sessionlog.read_session_log(path)
+        except OSError as exc:
+            self._error("Could not read the session log.", str(exc))
+            return
+        if not entries:
+            self._error(
+                "That log has no timestamped entries.",
+                "It may be empty or not a SMACC session log.",
+            )
+            return
+        preferences.update_preferences(
+            preferences_path, {"eeg_last_log_dir": str(Path(path).parent)}
+        )
+        # A pairing armed against the previous log would otherwise hijack the
+        # next click with a stale entry; cancel it before swapping logs.
+        self._end_pairing()
+        self._log_entries = entries
+        self._log_path = Path(path)
+        self._log_offset = 0.0
+        self._log_levels = {
+            level for level in _LOG_DEFAULT_LEVELS if self._log_has_level(level)
+        } or {e.level for e in entries}
+        self.logOffsetSpin.blockSignals(True)
+        self.logOffsetSpin.setValue(0.0)
+        self.logOffsetSpin.blockSignals(False)
+        self._rebuild_log_level_checks()
+        self._refresh_log_overlay()
+        self._update_log_controls()
+
+    def _log_has_level(self, level: str) -> bool:
+        return any(e.level == level for e in self._log_entries)
+
+    def _clear_log_overlay(self) -> None:
+        """Drop the overlaid log (a new recording, or a blind switch)."""
+        self._end_pairing()
+        self._log_entries = []
+        self._log_path = None
+        self._visible_log = []
+        self._log_slide_base = None
+        self.logList.blockSignals(True)
+        self.logList.clear()
+        self.logList.blockSignals(False)
+        self._rebuild_log_level_checks()
+        self.view.set_log_marks([])
+        self._update_log_controls()
+        self._update_log_status()  # clear the stale "log: …" status label
+
+    def _log_origin(self) -> datetime | None:
+        """The wall-clock instant of data-second 0, for placing log entries.
+
+        The recording's start (format-aware, via :func:`wall_time`) when it has
+        one; otherwise the log's own first entry, so the overlay still draws and
+        the manual offset slides it into place (no absolute anchor exists).
+        """
+        if self._recording is not None:
+            started = wall_time(self._recording, 0.0)
+            if started is not None:
+                return started
+        return self._log_entries[0].timestamp if self._log_entries else None
+
+    def _rebuild_log_level_checks(self) -> None:
+        """Rebuild the per-level checkboxes from the levels present in the log."""
+        while self.logLevelsLayout.count():
+            item = self.logLevelsLayout.takeAt(0)
+            widget = item.widget() if item is not None else None
+            if widget is not None:
+                widget.deleteLater()
+        self._log_level_checks = {}
+        if not self._log_entries:
+            return
+        for level in _LOG_LEVELS:
+            if not self._log_has_level(level):
+                continue
+            check = QtWidgets.QCheckBox(level.title(), self)
+            check.setChecked(level in self._log_levels)
+            check.setStatusTip(f"Show or hide {level} log entries.")
+            check.toggled.connect(
+                lambda on, name=level: self._on_log_level_toggled(name, on)
+            )
+            self.logLevelsLayout.addWidget(check)
+            self._log_level_checks[level] = check
+        self.logLevelsLayout.addStretch(1)
+
+    def _on_log_level_toggled(self, level: str, on: bool) -> None:
+        if on:
+            self._log_levels.add(level)
+        else:
+            self._log_levels.discard(level)
+        self._refresh_log_overlay()
+
+    def _refresh_log_overlay(self) -> None:
+        """Recompute the overlay marks and the entry list from the current offset.
+
+        Filters by the enabled levels, places each entry on the EEG timeline via
+        the recording origin and the manual offset, and pushes the result to the
+        view; the list mirrors the same filtered, placed entries.
+        """
+        origin = self._log_origin()
+        self._visible_log = [
+            e for e in self._log_entries if e.level in self._log_levels
+        ]
+        if origin is None:
+            self.view.set_log_marks([])
+        else:
+            self.view.set_log_marks(
+                [
+                    LogMark(
+                        sessionlog.seconds_at(entry, origin, self._log_offset),
+                        entry.level,
+                        self._log_tooltip(entry),
+                    )
+                    for entry in self._visible_log
+                ]
+            )
+        self._refresh_log_list()
+        self._update_log_status()
+
+    def _log_tooltip(self, entry: LogEntry) -> str:
+        """Hover text for a log mark: clock time, level, and the message."""
+        clock = entry.timestamp.strftime("%H:%M:%S")
+        return f"{clock} · {entry.level} · {entry.message}"
+
+    def _refresh_log_list(self) -> None:
+        self.logList.blockSignals(True)
+        self.logList.clear()
+        for entry in self._visible_log:
+            clock = entry.timestamp.strftime("%H:%M:%S")
+            self.logList.addItem(f"{clock}  {entry.message}")
+        self.logList.blockSignals(False)
+
+    def _on_log_list_selection(self, _row: int) -> None:
+        self._update_log_controls()
+
+    def _go_to_log_entry(self) -> None:
+        """Jump the view so the selected log entry sits a quarter-window in."""
+        row = self.logList.currentRow()
+        origin = self._log_origin()
+        if origin is None or not 0 <= row < len(self._visible_log):
+            return
+        seconds = sessionlog.seconds_at(
+            self._visible_log[row], origin, self._log_offset
+        )
+        self._jump_to(seconds - self.view.window_seconds / 4)
+
+    # ----- manual alignment: offset, drag, pairing -------------------------------
+
+    def _set_log_offset(self, value: float) -> None:
+        """Set the clock-skew offset, syncing the spin box and the overlay."""
+        self._log_offset = value
+        self.logOffsetSpin.blockSignals(True)
+        self.logOffsetSpin.setValue(value)
+        self.logOffsetSpin.blockSignals(False)
+        self._refresh_log_overlay()
+
+    def _on_log_offset_changed(self, value: float) -> None:
+        self._log_offset = value
+        self._refresh_log_overlay()
+
+    def _on_log_slide_started(self) -> None:
+        """Capture the offset each gesture starts from (every drag re-bases here).
+
+        Keying the base to the drag's *start* — rather than to ``base is None``
+        on the first move — means a dropped finish (a lost release event) can
+        never strand a stale base into the next slide: the next gesture always
+        re-bases from the current offset.
+        """
+        self._log_slide_base = self._log_offset
+
+    def _on_log_slide_moved(self, delta: float) -> None:
+        """Live feedback while dragging the log lane: slide by ``delta`` seconds."""
+        base = (
+            self._log_offset if self._log_slide_base is None else self._log_slide_base
+        )
+        self._set_log_offset(base + delta)
+
+    def _on_log_slide_finished(self, delta: float) -> None:
+        """On release, settle the dragged offset and snap to a nearby mark."""
+        base = (
+            self._log_offset if self._log_slide_base is None else self._log_slide_base
+        )
+        self._log_slide_base = None
+        self._set_log_offset(self._snap_offset(base + delta))
+
+    def _snap_offset(self, offset: float) -> float:
+        """Snap ``offset`` so a visible log mark lands on a nearby reviewer mark.
+
+        Considers only entries and annotations inside the current window, so a
+        clapper dragged near the artifact it produced clicks exactly onto it;
+        nothing within tolerance leaves the offset untouched.
+        """
+        origin = self._log_origin()
+        if origin is None or not self._annotations:
+            return offset
+        lo = self.view.window_start
+        hi = lo + self.view.window_seconds
+        onsets = [a.onset for a in self._annotations if lo <= a.onset <= hi]
+        if not onsets:
+            return offset
+        best: float | None = None
+        for entry in self._visible_log:
+            placed = sessionlog.seconds_at(entry, origin, offset)
+            if not lo <= placed <= hi:
+                continue
+            for onset in onsets:
+                gap = onset - placed
+                if best is None or abs(gap) < abs(best):
+                    best = gap
+        if best is not None and abs(best) <= _LOG_SNAP_SECONDS:
+            return offset + best
+        return offset
+
+    def _align_selected_log_entry(self) -> None:
+        """Begin pairing: the next click on the traces aligns the selected entry."""
+        row = self.logList.currentRow()
+        if not 0 <= row < len(self._visible_log):
+            self._error(
+                "Select a log entry first.",
+                "Pick the entry in the list whose EEG feature you'll click.",
+            )
+            return
+        self._pairing_entry = self._visible_log[row]
+        self.view.set_pick_mode(True)
+        status_bar = self.statusBar()
+        assert status_bar is not None
+        status_bar.showMessage(
+            "Click the EEG feature this entry produced to align the log "
+            "(Esc to cancel)."
+        )
+
+    def _on_time_picked(self, seconds: float) -> None:
+        """Finish pairing: offset the log so the paired entry lands at ``seconds``."""
+        entry = self._pairing_entry
+        origin = self._log_origin()
+        self._end_pairing()
+        if entry is None or origin is None:
+            return
+        # Solve for the offset that puts this entry at the clicked time.
+        self._set_log_offset(seconds - sessionlog.seconds_at(entry, origin, 0.0))
+        status_bar = self.statusBar()
+        assert status_bar is not None
+        status_bar.showMessage("Log aligned to the clicked feature.", 4000)
+
+    def _end_pairing(self) -> None:
+        """Leave pairing mode (paired, cancelled, or a new log loaded)."""
+        self._pairing_entry = None
+        self.view.set_pick_mode(False)
+
+    def _update_log_controls(self) -> None:
+        """Enable the log controls by state (recording open, log loaded, blind)."""
+        has_log = bool(self._log_entries)
+        self.loadLogButton.setEnabled(self._can_overlay_log())
+        self.logList.setEnabled(has_log)
+        self.logOffsetSpin.setEnabled(has_log)
+        self.logAlignButton.setEnabled(
+            has_log and 0 <= self.logList.currentRow() < len(self._visible_log)
+        )
+
+    def _update_log_status(self) -> None:
+        """Show the loaded log and its offset in the permanent status area."""
+        if not self._log_entries or self._log_path is None:
+            self.logInfoLabel.clear()
+            return
+        self.logInfoLabel.setText(
+            f"log: {self._log_path.name} · offset {self._log_offset:+.2f} s"
+        )
+
     # ----- opening a recording ---------------------------------------------------
 
     def open_file(self) -> None:
@@ -1386,6 +1784,10 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             f"{recording.sfreq:g} Hz · {recording.duration:.0f} s{clock}"
         )
         self._load_overlays()
+        # A loaded log belonged to the previous recording (its origin/offset no
+        # longer apply, and the view already dropped its marks); the reviewer
+        # re-loads it for the new file if wanted.
+        self._clear_log_overlay()
         self._check_for_recovery(tsv_path)
 
     def _fresh_annotations(
@@ -1749,17 +2151,29 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         """Route epoch/amplitude keys to the view regardless of which child has focus.
 
         Installed on the application so the keys work without first clicking the
-        traces; scoped to this window being active (so a modal dialog keeps them)
-        and to a recording being loaded.
+        traces; scoped to this window being the active window — a modal dialog
+        becomes active instead, so the keys are deliberately yielded to it — and
+        (for the nav/palette keys) to a recording being loaded.
         """
         if (
             isinstance(event, QtGui.QKeyEvent)
             and event.type() == QtCore.QEvent.Type.KeyPress
             and self.isActiveWindow()
-            and self._recording is not None
-            and (self._handle_nav_key(event) or self._handle_palette_key(event))
         ):
-            return True
+            # Esc cancels an in-progress log-entry pairing before anything else.
+            if (
+                event.key() == QtCore.Qt.Key.Key_Escape
+                and self._pairing_entry is not None
+            ):
+                self._end_pairing()
+                status_bar = self.statusBar()
+                if status_bar is not None:
+                    status_bar.showMessage("Alignment cancelled.", 3000)
+                return True
+            if self._recording is not None and (
+                self._handle_nav_key(event) or self._handle_palette_key(event)
+            ):
+                return True
         return super().eventFilter(obj, event)
 
     def _handle_palette_key(self, event: QtGui.QKeyEvent) -> bool:

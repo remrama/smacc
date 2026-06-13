@@ -23,6 +23,7 @@ no MNE and nothing from the wider app.
 
 from __future__ import annotations
 
+import bisect
 import math
 from datetime import datetime, timedelta
 from typing import Any, NamedTuple, Protocol
@@ -85,6 +86,40 @@ _EPOCH_PEN = pg.mkPen((128, 128, 128, 110), width=1, style=QtCore.Qt.PenStyle.Da
 _EPOCH_LABEL_COLOR = (128, 128, 128, 200)
 # The standard polysomnography scoring epoch; the sleep default everywhere.
 DEFAULT_EPOCH_SECONDS = 30.0
+
+# Session-log overlay (#125): the parsed log is drawn as a read-only reference
+# track in a thin lane across the top of the plot, kept clear of the traces and
+# the editable/peer marks below it. A log mark is an instantaneous tick spanning
+# only this lane (the top _LOG_LANE_FRAC..1.0 of the viewbox height), so a
+# left-drag that starts up here slides the whole log instead of drawing a span.
+_LOG_LANE_FRAC = 0.92
+# Per-level tick colour, keyed by logging level name. Markers (INFO) are the
+# common case and read in a calm slate; warnings/errors escalate to amber/red so
+# a mid-session fault stands out even as reference context. z below the peer
+# overlays (5) and editable marks (10), above the epoch grid (2).
+_LOG_LEVEL_COLORS: dict[str, tuple[int, int, int]] = {
+    "DEBUG": (150, 150, 150),
+    "INFO": (70, 90, 130),
+    "WARNING": (200, 150, 0),
+    "ERROR": (200, 60, 60),
+    "CRITICAL": (200, 60, 60),
+}
+_LOG_DEFAULT_COLOR = (70, 90, 130)
+_LOG_Z = 4
+
+
+class LogMark(NamedTuple):
+    """One session-log entry placed on the EEG timeline for the overlay (#125).
+
+    ``seconds`` is the data-second the entry aligns to (the window computes it
+    from the log time, the recording origin, and the clock-skew offset);
+    ``level`` selects the tick colour; ``tooltip`` is the hover text (clock time,
+    level, and the log message). Read-only — the view never selects or edits it.
+    """
+
+    seconds: float
+    level: str
+    tooltip: str
 
 
 class RaterOverlay(NamedTuple):
@@ -182,18 +217,66 @@ class _AnnotateViewBox(pg.ViewBox):
     dragFinished = QtCore.pyqtSignal(float, float)  # span in data seconds
     clicked = QtCore.pyqtSignal(float)  # click time in data seconds
     markRequested = QtCore.pyqtSignal(float)  # ctrl-click: drop a point mark here
+    logSlideStarted = QtCore.pyqtSignal()  # a log-lane drag began (#125)
+    logSlideMoved = QtCore.pyqtSignal(float)  # live log-lane drag delta (seconds)
+    logSlideFinished = QtCore.pyqtSignal(float)  # log-lane drag released (seconds)
 
     def __init__(self) -> None:
         super().__init__(enableMouse=False, enableMenu=False)
         self._preview: pg.LinearRegionItem | None = None
+        # When a session log is overlaid (#125), a drag that *starts* in its top
+        # lane slides the log instead of drawing a span. Off by default, so with
+        # no log loaded the whole plot draws annotations as before.
+        self._log_lane_active = False
+        self._sliding = False
+        # Pick mode (#125 manual alignment): every gesture only reports a time
+        # to pair with a log entry — no span is drawn, no mark dropped — so an
+        # accidental drag while aiming can't edit the rater's own annotations.
+        self._pick_active = False
+
+    def set_log_lane_active(self, active: bool) -> None:
+        """Enable the top-lane log slide (only while a log overlay is loaded)."""
+        self._log_lane_active = active
+        if not active:
+            self._sliding = False  # never strand a slide when the lane is dropped
+
+    def set_pick_active(self, active: bool) -> None:
+        """Enter/leave pick mode: gestures only pick a time, never edit marks."""
+        self._pick_active = active
+
+    def _in_log_lane(self, local_pos: Any) -> bool:
+        """True if ``local_pos`` (item coords) is in the top log lane."""
+        rect = self.boundingRect()
+        return (local_pos.y() - rect.top()) <= rect.height() * (1.0 - _LOG_LANE_FRAC)
 
     def mouseDragEvent(self, ev: Any, axis: int | None = None) -> None:
         if ev.button() != QtCore.Qt.MouseButton.LeftButton:
             ev.ignore()
             return
         ev.accept()
+        # In pick mode a drag must not draw a span or slide — the whole gesture
+        # is reserved for picking a time (the click path reports it). Swallow it.
+        if self._pick_active:
+            return
         start = float(self.mapToView(ev.buttonDownPos()).x())
         current = float(self.mapToView(ev.pos()).x())
+        # Decide the gesture once, at the drag's start, and hold it: a drag that
+        # began in the log lane slides the log for its whole duration even as the
+        # cursor leaves the lane.
+        if ev.isStart():
+            self._sliding = self._log_lane_active and self._in_log_lane(
+                ev.buttonDownPos()
+            )
+            if self._sliding:
+                self.logSlideStarted.emit()  # the window re-bases its offset here
+        if self._sliding:
+            delta = current - start
+            if ev.isFinish():
+                self._sliding = False
+                self.logSlideFinished.emit(delta)
+            else:
+                self.logSlideMoved.emit(delta)
+            return
         lo, hi = sorted((start, current))
         if self._preview is None:
             self._preview = pg.LinearRegionItem(
@@ -213,6 +296,11 @@ class _AnnotateViewBox(pg.ViewBox):
             return
         ev.accept()
         seconds = float(self.mapToView(ev.pos()).x())
+        # In pick mode every click (modifier or not) just reports its time; the
+        # ctrl-modifier never drops a mark while the rater is aiming an alignment.
+        if self._pick_active:
+            self.clicked.emit(seconds)
+            return
         # Ctrl+click drops a point mark; a plain click selects. The modifier
         # keeps the frequent selection-click from ever creating stray markers.
         if ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
@@ -248,6 +336,10 @@ class TraceView(pg.PlotWidget):
       window can sync its scrollbar.
     * ``cursorMoved(seconds)`` — mouse position, for the status-bar clock.
     * ``pointMarkRequested(seconds)`` — ctrl-click asked for a point mark here.
+    * ``logSlideMoved/Finished(delta)`` — a drag in the log lane is sliding/has
+      slid the overlay by ``delta`` seconds (#125 manual alignment).
+    * ``timePicked(seconds)`` — a click while in pick mode chose this time (used
+      to pair a log entry with the EEG feature it produced).
     """
 
     regionDrawn = QtCore.pyqtSignal(float, float)
@@ -255,6 +347,10 @@ class TraceView(pg.PlotWidget):
     windowChanged = QtCore.pyqtSignal(float)
     cursorMoved = QtCore.pyqtSignal(float)
     pointMarkRequested = QtCore.pyqtSignal(float)
+    logSlideStarted = QtCore.pyqtSignal()
+    logSlideMoved = QtCore.pyqtSignal(float)
+    logSlideFinished = QtCore.pyqtSignal(float)
+    timePicked = QtCore.pyqtSignal(float)
 
     def __init__(self) -> None:
         self._viewbox = _AnnotateViewBox()
@@ -287,11 +383,21 @@ class TraceView(pg.PlotWidget):
         # Other raters' read-only marks, drawn behind the editable layer (#181d).
         self._overlays: list[RaterOverlay] = []
         self._overlay_items: list[pg.LinearRegionItem | pg.InfiniteLine] = []
+        # Session-log overlay (#125): read-only ticks in the top lane, kept sorted
+        # by time so only the visible window is drawn on each scroll.
+        self._log_marks: list[LogMark] = []
+        self._log_items: list[pg.InfiniteLine] = []
+        # Pick mode: a click reports its time (to pair a log entry to an EEG
+        # feature) instead of selecting an annotation.
+        self._pick_mode = False
         self._curves: list[pg.PlotDataItem] = []
 
         self._viewbox.dragFinished.connect(self._on_drag_finished)
         self._viewbox.clicked.connect(self._on_clicked)
         self._viewbox.markRequested.connect(self._on_mark_requested)
+        self._viewbox.logSlideStarted.connect(self.logSlideStarted)
+        self._viewbox.logSlideMoved.connect(self.logSlideMoved)
+        self._viewbox.logSlideFinished.connect(self.logSlideFinished)
         # Keyboard navigation is owned by the window (a single app-level filter,
         # so it works without first clicking the traces — see window.py); the
         # view only exposes the navigation primitives it drives.
@@ -338,12 +444,15 @@ class TraceView(pg.PlotWidget):
         self._window_start = 0.0
         self._epoch_anchor = 0.0  # a new recording starts epoch 1 at its start
         self._overlays = []  # peers belong to the previous recording; window reloads
+        self._log_marks = []  # the log belongs to the previous recording too
+        self._viewbox.set_log_lane_active(False)
         # Show every channel in file order by default; a profile may narrow this.
         self._visible = list(range(len(provider.ch_names))) if provider else []
         self._build_curves()
         self._refresh_data()
         self._refresh_annotations()
         self._refresh_epochs()
+        self._refresh_log_marks()
 
     def set_spec(self, spec: dsp.FilterSpec) -> None:
         self._spec = spec
@@ -444,6 +553,7 @@ class TraceView(pg.PlotWidget):
         self._refresh_data()
         self._refresh_annotations()
         self._refresh_epochs()
+        self._refresh_log_marks()
 
     def build_snapshot(
         self,
@@ -515,6 +625,7 @@ class TraceView(pg.PlotWidget):
         self._refresh_data()
         self._refresh_annotations()
         self._refresh_epochs()
+        self._refresh_log_marks()
 
     def set_window_start(self, seconds: float) -> None:
         self._window_start = seconds
@@ -522,6 +633,7 @@ class TraceView(pg.PlotWidget):
         self._refresh_data()
         self._refresh_annotations()
         self._refresh_epochs()
+        self._refresh_log_marks()
 
     def set_epoch_seconds(self, seconds: float) -> None:
         """Set the scoring-epoch length (≥ 1 s); redraws the epoch grid."""
@@ -581,6 +693,29 @@ class TraceView(pg.PlotWidget):
         self._overlays = list(overlays)
         self._refresh_overlays()
 
+    def set_log_marks(self, marks: list[LogMark]) -> None:
+        """Replace the read-only session-log overlay in the top lane (#125).
+
+        Marks are kept sorted by time so each scroll redraws only the handful in
+        view (an overnight log has thousands of entries). A non-empty list arms
+        the top-lane slide, so a drag up there aligns the log instead of drawing
+        a span; an empty list disarms it.
+        """
+        self._log_marks = sorted(marks, key=lambda m: m.seconds)
+        self._viewbox.set_log_lane_active(bool(self._log_marks))
+        self._refresh_log_marks()
+
+    def set_pick_mode(self, enabled: bool) -> None:
+        """In pick mode a click reports its time via ``timePicked`` (for pairing).
+
+        While enabled a plain click does not select an annotation — it answers
+        the "click the EEG feature this log entry caused" prompt — and a drag or
+        ctrl-click can't slip through to edit a mark either (the viewbox swallows
+        them), so the manual alignment never disturbs the rater's own work.
+        """
+        self._pick_mode = bool(enabled)
+        self._viewbox.set_pick_active(self._pick_mode)
+
     # ----- interaction ---------------------------------------------------------
 
     def _on_drag_finished(self, lo: float, hi: float) -> None:
@@ -599,6 +734,13 @@ class TraceView(pg.PlotWidget):
         self.pointMarkRequested.emit(seconds)
 
     def _on_clicked(self, seconds: float) -> None:
+        # Pick mode (manual log alignment): the click chooses a time to pair with
+        # a log entry, not an annotation to select.
+        if self._pick_mode:
+            if self._provider is not None:
+                clamped = min(max(0.0, seconds), self._provider.duration)
+                self.timePicked.emit(clamped)
+            return
         index = self._annotation_at(seconds)
         self._selected = index
         self._refresh_annotations()
@@ -810,6 +952,40 @@ class TraceView(pg.PlotWidget):
                 item.setZValue(_OVERLAY_Z)
                 plot_item.addItem(item)
                 self._overlay_items.append(item)
+
+    def _refresh_log_marks(self) -> None:
+        """Redraw the session-log overlay ticks in the top lane (#125).
+
+        Each mark is an instantaneous tick spanning only the top lane, coloured
+        by its log level. The marks are time-sorted, so a binary search bounds
+        the redraw to the entries inside the visible window — cheap on scroll
+        even for an all-night log with thousands of entries.
+        """
+        plot_item = self.getPlotItem()
+        assert plot_item is not None
+        for old in self._log_items:
+            plot_item.removeItem(old)
+        self._log_items = []
+        if self._provider is None or not self._log_marks:
+            return
+        lo = self._window_start
+        hi = self._window_start + self._window_seconds
+        seconds = [m.seconds for m in self._log_marks]
+        start = bisect.bisect_left(seconds, lo)
+        stop = bisect.bisect_right(seconds, hi)
+        for mark in self._log_marks[start:stop]:
+            color = _LOG_LEVEL_COLORS.get(mark.level, _LOG_DEFAULT_COLOR)
+            line = pg.InfiniteLine(
+                pos=mark.seconds,
+                angle=90,
+                movable=False,
+                pen=pg.mkPen(color, width=2),
+                span=(_LOG_LANE_FRAC, 1.0),  # the top lane only
+            )
+            line.setToolTip(mark.tooltip)
+            line.setZValue(_LOG_Z)
+            plot_item.addItem(line)
+            self._log_items.append(line)
 
     def _refresh_epochs(self) -> None:
         """Redraw the epoch boundary gridlines for the visible window.

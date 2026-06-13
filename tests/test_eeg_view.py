@@ -229,6 +229,140 @@ def test_set_provider_clears_overlays(loaded):
     assert view._overlay_items == []
 
 
+# ----- session-log overlay (#125) -------------------------------------------
+
+
+def _log_mark(seconds, level="INFO", tooltip="x"):
+    from smacc.eeg.view import LogMark
+
+    return LogMark(seconds, level, tooltip)
+
+
+def test_log_marks_draw_only_inside_the_window(loaded):
+    view, _ = loaded
+    view.set_log_marks([_log_mark(5.0), _log_mark(15.0), _log_mark(45.0, "WARNING")])
+    # The 0–30 s window holds the first two; the 45 s mark is offscreen.
+    assert len(view._log_items) == 2
+    assert all(isinstance(item, pg.InfiniteLine) for item in view._log_items)
+
+
+def test_log_marks_redraw_on_scroll(loaded):
+    view, _ = loaded
+    view.set_log_marks([_log_mark(45.0)])
+    assert view._log_items == []  # outside the 0–30 s window
+    view.set_window_start(35.0)
+    assert len(view._log_items) == 1
+
+
+def test_log_marks_are_not_click_selectable(loaded):
+    view, _ = loaded
+    view.set_annotations([Annotation(20.0, 0.0, "mine")])
+    view.set_log_marks([_log_mark(10.0)])
+    # A log mark is read-only context: a click near it selects no annotation.
+    assert view._annotation_at(10.0) == -1
+    assert view._annotation_at(20.0) == 0
+
+
+def test_set_log_marks_arms_the_lane_slide(loaded):
+    view, _ = loaded
+    assert view._viewbox._log_lane_active is False
+    view.set_log_marks([_log_mark(5.0)])
+    assert view._viewbox._log_lane_active is True
+    view.set_log_marks([])  # cleared → slide disarmed
+    assert view._viewbox._log_lane_active is False
+
+
+def test_set_provider_clears_log_marks(loaded):
+    view, _ = loaded
+    view.set_log_marks([_log_mark(5.0)])
+    assert view._log_items
+    view.set_provider(FakeProvider())
+    assert view._log_marks == []
+    assert view._log_items == []
+
+
+def test_pick_mode_emits_time_instead_of_selecting(loaded):
+    view, _ = loaded
+    view.set_annotations([Annotation(6.0, 0.0, "mine")])
+    picked: list[float] = []
+    selections: list[int] = []
+    view.timePicked.connect(picked.append)
+    view.annotationSelected.connect(selections.append)
+    view.set_pick_mode(True)
+    view._on_clicked(6.0)
+    assert picked == [6.0]
+    assert selections == []  # no annotation selection while picking
+    assert view.selected == -1
+    view.set_pick_mode(False)
+    view._on_clicked(6.0)
+    assert selections == [0]  # normal selection resumes
+
+
+def test_pick_mode_swallows_drags_and_ctrl_clicks(exposed):
+    # A drag or ctrl-click while aiming an alignment must not edit the rater's
+    # marks: pick mode swallows both (no region, no point mark).
+    view, _ = exposed
+    drawn: list[tuple[float, float]] = []
+    marks: list[float] = []
+    view.regionDrawn.connect(lambda lo, hi: drawn.append((lo, hi)))
+    view.pointMarkRequested.connect(marks.append)
+    view.set_pick_mode(True)
+    viewbox = view._viewbox
+    viewbox.mouseDragEvent(
+        _FakeMouseEvent(viewbox, 5.0, 8.0, start=True, finish=False, down_y=-1.0)
+    )
+    viewbox.mouseDragEvent(_FakeMouseEvent(viewbox, 5.0, 8.0, finish=True, down_y=-1.0))
+    assert drawn == []  # no stray annotation while pairing
+    ctrl = _FakeMouseEvent(
+        viewbox, 6.0, 6.0, modifiers=QtCore.Qt.KeyboardModifier.ControlModifier
+    )
+    picked: list[float] = []
+    view.timePicked.connect(picked.append)
+    viewbox.mouseClickEvent(ctrl)
+    assert marks == []  # ctrl-click drops no mark in pick mode
+    assert picked == [pytest.approx(6.0, abs=0.05)]  # it picks the time instead
+
+
+def test_disarming_the_lane_clears_a_stale_slide_flag(loaded):
+    view, _ = loaded
+    view.set_log_marks([_log_mark(5.0)])
+    view._viewbox._sliding = True  # as if a finish were lost mid-drag
+    view.set_log_marks([])  # disarming the lane must reset the flag
+    assert view._viewbox._sliding is False
+
+
+def test_lane_drag_slides_the_log_not_a_region(exposed):
+    view, _ = exposed
+    view.set_log_marks([_log_mark(5.0)])
+    slid: list[float] = []
+    drawn: list[tuple[float, float]] = []
+    view.logSlideFinished.connect(slid.append)
+    view.regionDrawn.connect(lambda lo, hi: drawn.append((lo, hi)))
+    viewbox = view._viewbox
+    # A drag starting in the top log lane (down_y near the 0.6 top of the range)
+    # slides the log by the dragged seconds; no region is drawn.
+    viewbox.mouseDragEvent(
+        _FakeMouseEvent(viewbox, 5.0, 9.0, start=True, finish=False, down_y=0.55)
+    )
+    viewbox.mouseDragEvent(_FakeMouseEvent(viewbox, 5.0, 9.0, finish=True, down_y=0.55))
+    assert drawn == []
+    assert len(slid) == 1
+    assert slid[0] == pytest.approx(4.0, abs=0.1)  # dragged +4 s
+
+
+def test_drag_below_the_lane_still_draws_a_region(exposed):
+    view, _ = exposed
+    view.set_log_marks([_log_mark(5.0)])  # lane armed, but the drag starts below it
+    drawn: list[tuple[float, float]] = []
+    view.regionDrawn.connect(lambda lo, hi: drawn.append((lo, hi)))
+    viewbox = view._viewbox
+    viewbox.mouseDragEvent(
+        _FakeMouseEvent(viewbox, 5.0, 8.0, start=True, finish=False, down_y=-1.0)
+    )
+    viewbox.mouseDragEvent(_FakeMouseEvent(viewbox, 5.0, 8.0, finish=True, down_y=-1.0))
+    assert len(drawn) == 1  # ordinary annotation drag, not a slide
+
+
 def test_click_selects_and_signals(loaded):
     view, _ = loaded
     view.set_annotations([Annotation(5.0, 2.0, "region")])
@@ -305,13 +439,16 @@ class _FakeMouseEvent:
         x: float,
         *,
         finish=True,
+        start=False,
+        down_y: float = 0.0,
         button=None,
         modifiers=None,
     ):
         self._button = button or QtCore.Qt.MouseButton.LeftButton
-        self._down = viewbox.mapFromView(pg.Point(down_x, 0.0))
-        self._pos = viewbox.mapFromView(pg.Point(x, 0.0))
+        self._down = viewbox.mapFromView(pg.Point(down_x, down_y))
+        self._pos = viewbox.mapFromView(pg.Point(x, down_y))
         self._finish = finish
+        self._start = start
         self._modifiers = modifiers or QtCore.Qt.KeyboardModifier.NoModifier
         self.accepted = False
         self.ignored = False
@@ -330,6 +467,9 @@ class _FakeMouseEvent:
 
     def isFinish(self):
         return self._finish
+
+    def isStart(self):
+        return self._start
 
     def accept(self):
         self.accepted = True
