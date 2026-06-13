@@ -79,6 +79,28 @@ def test_record_start_to_stop_writes_the_report_wav(
     window.cleanup()
 
 
+def test_dream_report_marker_names_its_recording(
+    qtbot, live_session, monkeypatch, silence_dialogs
+):
+    # The DreamReportStarted line carries its WAV name (report-NN), so the EEG
+    # annotator can tie the log entry back to report-NN.wav (#125). With no
+    # recording-start marker, the detail is just the report name (untimed).
+    _stub_recorder(monkeypatch)
+    live_session.devices.bindings["bedroom_mic_1"] = "Mic (Test)"
+    window = RecordingWindow(live_session)
+    qtbot.addWidget(window)
+    emitted = []
+    monkeypatch.setattr(
+        live_session,
+        "emit_event",
+        lambda key, detail=None, **k: emitted.append((key, detail)),
+    )
+    window.micrecordButton.setChecked(True)
+    window.start_or_stop_recording()
+    assert emitted == [("DreamReportStarted", "report-01")]
+    window.cleanup()
+
+
 def test_failed_start_reverts_button_and_leaves_no_numbering_gap(
     qtbot, live_session, monkeypatch, silence_dialogs
 ):

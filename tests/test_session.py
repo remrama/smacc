@@ -1,11 +1,30 @@
 """Tests for the session-folder helper and emit_event routing (no LSL/GUI needed)."""
 
 import logging
+import re
 from dataclasses import replace
 from datetime import datetime
 
-from smacc import events, triggers
-from smacc.session import SmaccSession, make_session_dir
+from smacc import bids, events, triggers
+from smacc.session import SmaccSession, _LogFormatter, make_session_dir
+
+
+def test_log_formatter_stamps_offset_and_round_trips_through_parse_log():
+    # Each line carries the machine's UTC offset (#215) in a form bids.parse_log
+    # reads back, so the annotator can place the night on an absolute timeline.
+    record = logging.LogRecord(
+        "smacc", logging.INFO, "(smacc)", 0, "Lights off - portcode 47", (), None
+    )
+    line = _LogFormatter().format(record)
+    timestamp, level, message = line.split(", ", 2)
+    assert level == "INFO"
+    assert message == "Lights off - portcode 47"
+    # YYYY-MM-DD HH:MM:SS.mmm±HHMM — millisecond precision, then the offset.
+    assert re.fullmatch(
+        r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{4}", timestamp
+    )
+    when = bids.parse_timestamp(timestamp)
+    assert when is not None and when.tzinfo is not None
 
 
 def test_make_session_dir_uses_timestamp_stem(tmp_path):

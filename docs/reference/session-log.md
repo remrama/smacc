@@ -11,24 +11,31 @@ and two embedded snapshots of the full settings the run used. The study *designe
 Each line is three comma-separated fields:
 
 ```text
-YYYY-MM-DD HH:MM:SS.mmm, LEVEL, message
+YYYY-MM-DD HH:MM:SS.mmm±HHMM, LEVEL, message
 ```
 
-- **timestamp** — local wall-clock, millisecond precision.
+- **timestamp** — local wall-clock, millisecond precision, with the machine's UTC
+    offset (e.g. `-0500`). The offset lets a reader place the night on an absolute
+    timeline — for example when overlaying the log on an EEG recording whose clock
+    sits in another zone. Logs written before SMACC recorded the offset are
+    timezone-naive (no `±HHMM`); both forms are read back the same way.
 - **LEVEL** — a Python logging level: `DEBUG`, `INFO`, `WARNING`, `ERROR`, or
     `CRITICAL`. The file records every level; the live on-screen preview shows only a
     configurable subset.
 - **message** — the log text. An **event-marker** line ends in `" - portcode N"`:
 
 ```text
-2026-06-09 22:14:01.003, INFO, Opened SMACC v0.0.7
-2026-06-09 22:14:05.221, INFO, Lights off - portcode 47
-2026-06-09 22:18:30.880, INFO, Dream report started - portcode 201
-2026-06-09 22:19:02.114, INFO, Cue volume set to 0.40
+2026-06-09 22:14:01.003-0500, INFO, Opened SMACC v0.0.7
+2026-06-09 22:14:05.221-0500, INFO, Lights off - portcode 47
+2026-06-09 22:18:30.880-0500, INFO, Dream report started: report-01, t+00:04:29 - portcode 201
+2026-06-09 22:19:02.114-0500, INFO, Cue volume set to 0.40
 ```
 
 A marker line is `"{label} - portcode {code}"` when the event drives a trigger, or
-just `"{label}"` when it does not. The code-to-event map is the study's
+just `"{label}"` when it does not. A dream-report start names its recording
+(`report-NN`, matching `report-NN.wav` in the run folder) and its time since the
+recording-start marker, so the entry can be tied back to both its audio and its
+place in the EEG. The code-to-event map is the study's
 [`event_codes`](settings-file.md#event_codes) registry; see the
 [default code catalog](../triggers.md#default-event-codes).
 
@@ -56,8 +63,8 @@ marker lines up with the sound rather than SMACC's buffer (see
 `DEBUG` line:
 
 ```text
-2026-06-09 22:18:30.858, DEBUG, Cue started: Piano cue: software trigger at 22:18:30.858, marker advanced +22.0 ms to estimated onset (output latency)
-2026-06-09 22:18:30.880, INFO, Cue started: Piano cue - portcode 60
+2026-06-09 22:18:30.858-0500, DEBUG, Cue started: Piano cue: software trigger at 22:18:30.858, marker advanced +22.0 ms to estimated onset (output latency)
+2026-06-09 22:18:30.880-0500, INFO, Cue started: Piano cue - portcode 60
 ```
 
 That `DEBUG` line is deliberately **not** a `" - portcode N"` line, so the
@@ -70,8 +77,8 @@ line, one per message — in the file for the record, out of the live preview an
 the BIDS export by default:
 
 ```text
-2026-06-09 23:41:12.402, DEBUG, Chat to participant: Are you comfortable?
-2026-06-09 23:41:35.118, DEBUG, Chat from participant: yes
+2026-06-09 23:41:12.402-0500, DEBUG, Chat to participant: Are you comfortable?
+2026-06-09 23:41:35.118-0500, DEBUG, Chat from participant: yes
 ```
 
 If a study flips the chat events' triggers on, the marker lines fire alongside —

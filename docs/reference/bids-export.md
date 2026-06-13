@@ -12,7 +12,7 @@ Tab-separated, one header row plus one row per marker:
 ```text
 onset	duration	trial_type	value
 5.5	n/a	Lights off	47
-283.9	n/a	Dream report started	201
+1810.25	n/a	REM detected	41
 ```
 
 | Column       | Type             | Meaning                                                                |
