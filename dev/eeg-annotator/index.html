@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://remrama.github.io/smacc/dev/eeg-review/">
+        <link rel="canonical" href="https://remrama.github.io/smacc/dev/eeg-annotator/">
       
       
         <link rel="prev" href="../triggers/">
@@ -27,7 +27,7 @@
     
     
       
-        <title>EEG review - SMACC</title>
+        <title>EEG Annotator - SMACC</title>
       
     
     
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#eeg-review" class="md-skip">
+        <a href="#eeg-annotator" class="md-skip">
           Skip to content
         </a>
       
@@ -119,7 +119,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              EEG review
+              EEG Annotator
             
           </span>
         </div>
@@ -550,7 +550,7 @@
   <span class="md-ellipsis">
     
   
-    EEG review
+    EEG Annotator
   
 
     
@@ -568,7 +568,7 @@
   <span class="md-ellipsis">
     
   
-    EEG review
+    EEG Annotator
   
 
     
@@ -612,6 +612,34 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Viewing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#keyboard-navigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keyboard navigation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-epoch-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The epoch model
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -984,6 +1012,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Viewing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#keyboard-navigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keyboard navigation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-epoch-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The epoch model
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1072,24 +1128,40 @@
   
 
 
-<h1 id="eeg-review">EEG review</h1>
-<p>SMACC's <strong>EEG review tool</strong> is a post-hoc viewer for recorded EEG: open a
+<h1 id="eeg-annotator">EEG Annotator</h1>
+<p>The <strong>EEG Annotator</strong> is SMACC's post-hoc viewer for recorded EEG: open a
 file, scroll through the night, apply display filters, and place named
 annotations — saved as a small sidecar file next to the recording, which is
 <strong>never modified</strong>. It is a review tool, not a real-time display; nothing
 about it runs during a live session.</p>
-<p>It opens from the Launcher's <strong>Review EEG</strong> button, from its own Start-menu
-entry (<strong>SMACC EEG review</strong>), and always runs as its own window and process —
+<p>It opens from the Launcher's <strong>EEG Annotator</strong> button, from its own Start-menu
+entry (<strong>SMACC EEG Annotator</strong>), and always runs as its own window and process —
 you can keep reviewing last night's file while tonight's session runs.</p>
+<p><strong>How it differs from a generic EEG viewer.</strong> The Annotator is built for the
+overnight cueing workflow, not for clinical reading:</p>
+<ul>
+<li>It is <strong>read-only by contract</strong> — the recording is never written; every mark,
+    stage score, and overlay lives in a small sidecar beside it.</li>
+<li>It is <strong>SMACC-aware</strong> — it imports SMACC's own portcodes off the recording and
+    can overlay a night's <a href="#session-log-overlay">session log</a> (cues, dream
+    reports, even the recorded report audio), so you see <em>what SMACC did</em> on the
+    same timeline.</li>
+<li>It has <strong>blind, multi-rater scoring</strong> built in (see
+    <a href="#blind-rater-mode">blind-rater mode</a>) — for objective signal and stage
+    scoring, not an afterthought.</li>
+<li>Its <strong><a href="#the-epoch-model">epoch model</a></strong> is decoupled from the on-screen window
+    and can be anchored to any feature.</li>
+<li>Recordings are <strong>memory-mapped</strong>, so an 8-hour high-density night opens in
+    seconds and scrolls smoothly regardless of file size.</li>
+</ul>
 <div class="admonition note">
 <p class="admonition-title">An optional component</p>
-<p>The viewer ships as the installer's <strong>EEG Review Tools</strong> component, off by
-default (it carries the MNE library, which would triple the install for
-labs that only run sessions). To add it later, re-run the
-<a href="../installation/">installer</a> and pick <strong>Full installation</strong> — the existing
-install is upgraded in place. When the component is missing, the
-Launcher's button is shown disabled with a hint, so you always know the
-tool exists.</p>
+<p>The Annotator ships as the installer's <strong>EEG Annotator</strong> component, <strong>checked
+by default</strong>. It carries the MNE library (a heavyweight dependency), so labs
+that only run sessions can <strong>uncheck it during setup</strong> to skip it; re-run the
+<a href="../installation/">installer</a> later to add or remove it on an existing install.
+When the component is missing, the Launcher's button is shown disabled with a
+hint, so you always know the tool exists.</p>
 </div>
 <h2 id="supported-recordings">Supported recordings</h2>
 <table>
@@ -1112,41 +1184,118 @@ tool exists.</p>
 <td>FIF (MNE / Elekta)</td>
 <td><code>.fif</code></td>
 </tr>
+<tr>
+<td>Neuroscan</td>
+<td><code>.cnt</code></td>
+</tr>
+<tr>
+<td>EEGLAB</td>
+<td><code>.set</code> (continuous recordings only)</td>
+</tr>
 </tbody>
 </table>
-<p>Recordings are memory-mapped, never loaded whole: an 8-hour high-density
-night opens in seconds and scrolling stays smooth regardless of file size.</p>
+<p>The open dialog's file filter is generated from this list, so it never drifts
+from what the tool can actually read. An <em>epoched</em> <code>.set</code> is not a continuous
+recording and is rejected with MNE's own message. Recordings are memory-mapped,
+never loaded whole: an 8-hour high-density night opens in seconds and scrolling
+stays smooth regardless of file size.</p>
 <h2 id="viewing">Viewing</h2>
 <ul>
-<li><strong>Window length</strong> — 10/30/60/120 s pages; <strong>30 s</strong> (one scoring epoch) is
-    the default. PageUp/PageDown page; the mouse wheel and scrollbar scroll;
-    click the traces and the arrow keys nudge, Home/End jump.</li>
+<li><strong>Window length</strong> — 10/30/60/120 s pages; <strong>30 s</strong> is the default. This is the
+    <em>on-screen</em> window, separate from the <a href="#the-epoch-model">scoring epoch</a>.</li>
 <li><strong>Filters</strong> — high-pass, low-pass, and a 50/60 Hz notch, applied to the
     <em>display only</em> (zero-phase, so nothing shifts in time). Recordings open
     <strong>unfiltered</strong> — the usual sleep view is two clicks away (HP 0.3 Hz, LP
     35 Hz).</li>
 <li><strong>Scale</strong> — microvolts per channel lane; smaller numbers mean bigger
     traces. Trigger/stim channels are auto-fit to their lane.</li>
+<li><strong>Channels…</strong> picks which channels are shown and reorders them; each channel
+    type (EEG, EOG, EMG, …) scales on its own. <strong>Save profile…</strong> stores the whole
+    montage — channels, filters, scale, and the window/epoch lengths — to a file,
+    and <strong>Load profile…</strong> applies it to any recording, so a lab's house view is
+    one click on every night.</li>
+<li><strong>Export figure…</strong> writes the current window to a publication-ready <strong>PNG, PDF,
+    or SVG</strong>.</li>
 <li>The status bar shows the cursor's time from recording start <strong>and the
     wall-clock time</strong>, so events line up with the night's session log.</li>
+</ul>
+<h3 id="keyboard-navigation">Keyboard navigation</h3>
+<p>The arrow keys drive the view from anywhere in the window — you do <strong>not</strong> have
+to click the traces first:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>←</code> / <code>→</code></td>
+<td>step back / forward one <strong>epoch</strong></td>
+</tr>
+<tr>
+<td><code>Shift</code>+<code>←</code> / <code>→</code></td>
+<td>nudge 1 s, to peek across a boundary</td>
+</tr>
+<tr>
+<td><code>↑</code> / <code>↓</code></td>
+<td>bigger / smaller traces (<code>Shift</code> = fine)</td>
+</tr>
+<tr>
+<td><code>Home</code> / <code>End</code></td>
+<td>jump to the start / end of the recording</td>
+</tr>
+<tr>
+<td><code>PageUp</code> / <code>PageDown</code></td>
+<td>page back / forward one window</td>
+</tr>
+</tbody>
+</table>
+<p>The mouse wheel and scrollbar scroll as well.</p>
+<h3 id="the-epoch-model">The epoch model</h3>
+<p>The <strong>scoring epoch</strong> is a first-class concept, deliberately <em>separate</em> from the
+on-screen window — a 30 s epoch can be inspected inside a 60 s window, and the
+arrow keys step by epoch regardless of how much is on screen.</p>
+<ul>
+<li><strong>Epoch</strong> length is set in seconds (default <strong>30 s</strong>, the polysomnography
+    standard; 1–300 s).</li>
+<li><strong>Epoch grid</strong> draws faint, <strong>numbered</strong> epoch boundaries over the traces.</li>
+<li><strong>Anchor epochs to view</strong> starts an epoch at the left edge of the current view
+    and back/front-fills the whole grid from there (boundaries fall at
+    <code>anchor + k·epoch</code>) — so you can line the grid up with lights-out or any
+    feature in the record. <strong>Reset anchor</strong> puts epoch 1 back at the recording
+    start.</li>
+<li><strong>Time axis</strong> labels the x-axis as wall-clock <strong>Clock</strong> time or <strong>Elapsed</strong>
+    seconds from the start. Clock needs a recording start time; an anonymized file
+    that has none falls back to elapsed.</li>
 </ul>
 <h2 id="annotating">Annotating</h2>
 <ol>
 <li><strong>Drag</strong> across the traces to mark a span (drag never pans — the time
-    axis only moves when you ask it to).</li>
+    axis only moves when you ask it to). To drop a <strong>point</strong> instead,
+    <strong>Ctrl+click</strong> (or press <strong>M</strong>) at the cursor.</li>
 <li>Name it in the label dialog — recent labels and common marks (LRLR,
     arousal, artifact, cue response) are one click; free text always works.
     Tick <strong>instantaneous</strong> to keep just the moment instead of the dragged span.</li>
-<li><strong>Click</strong> an annotation to select it; use the side list to rename,
+<li>A plain <strong>click</strong> on an annotation selects it; use the side list to rename,
     delete, or jump to one (double-click).</li>
 <li><strong>Save annotations</strong> writes the sidecar next to the recording:
     <code>night1.edf</code> → <code>night1.annotations.tsv</code> (+ a small <code>.json</code> describing it).
-    Unsaved changes star the title and prompt before closing.</li>
+    The recording itself is <strong>never modified</strong>. Unsaved changes star the title
+    and prompt before closing, and saving over a sidecar <strong>this review did not
+    open</strong> asks first — so you never clobber another file by accident.</li>
 </ol>
 <p>For fast signal scoring, the <strong>Quick marks</strong> row drops a labeled point mark at
 the cursor in one click — or press <strong>1–9</strong> for the first nine. Use <strong>Edit
 palette…</strong> to set the buttons; the palette defaults to the lucid eye-signal
 vocabulary (LRLR, LRLRx2, LRLRx3, IEIE).</p>
+<p><strong>Autosave &amp; recovery.</strong> A couple of seconds after you stop editing, your work
+autosaves to a distinct <code>night1.annotations.autosave.tsv</code> (a per-rater file when
+a <a href="#multiple-raters">rater id</a> is set). It is purely a crash net — if the tool
+finds one when a recording opens, a non-modal banner offers to <strong>Restore</strong> or
+<strong>Dismiss</strong> it; nothing is ever applied silently, and your real sidecar is
+untouched until you Save.</p>
 <p>Events already stored <strong>inside</strong> the recording — amp markers, SMACC's own
 trigger codes — are imported automatically the <em>first</em> time a file is
 reviewed, so your cues appear on the traces alongside your new marks. Once a
