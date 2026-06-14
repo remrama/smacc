@@ -1,4 +1,4 @@
-"""Tests for the EEG review window (#136) — offscreen, no MNE.
+"""Tests for the EEG Annotator window (#136) — offscreen, no MNE.
 
 ``io.open_recording``/``io.embedded_annotations`` are monkeypatched with a
 fake recording, so the window's whole flow — open, sidecar precedence,
@@ -50,7 +50,7 @@ from smacc.eeg.staging import (
     write_stages_json,
     write_stages_tsv,
 )
-from smacc.eeg.window import SEED_LABELS, EegReviewWindow, LabelDialog
+from smacc.eeg.window import SEED_LABELS, EegAnnotatorWindow, LabelDialog
 
 SFREQ = 100.0
 DURATION = 600.0
@@ -78,7 +78,7 @@ class FakeRecording:
 
 @pytest.fixture
 def window(qtbot, tmp_path, monkeypatch):
-    """An EegReviewWindow over faked IO, isolated prefs, and silent dialogs."""
+    """An EegAnnotatorWindow over faked IO, isolated prefs, and silent dialogs."""
     monkeypatch.setattr(window_mod, "preferences_path", tmp_path / "prefs.yaml")
     monkeypatch.setattr(window_mod.io, "open_recording", FakeRecording)
     monkeypatch.setattr(window_mod.io, "embedded_annotations", lambda rec: [])
@@ -98,7 +98,7 @@ def window(qtbot, tmp_path, monkeypatch):
         "question",
         lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Discard,
     )
-    win = EegReviewWindow()
+    win = EegAnnotatorWindow()
     qtbot.addWidget(win)
     win.show()
     win._prefs_path = tmp_path / "prefs.yaml"  # test convenience handle
@@ -910,7 +910,7 @@ def test_geometry_is_persisted_on_close(window, recording_path):
     }
     assert window.close()
     prefs = preferences.load_preferences(window._prefs_path)
-    assert preferences.window_geometry(prefs, "eeg-review") == expected
+    assert preferences.window_geometry(prefs, "eeg-annotator") == expected
 
 
 def test_recent_labels_are_capped_and_deduplicated(window):
@@ -1058,7 +1058,7 @@ def test_selftest_round_trips_through_mne():
 
 @pytest.fixture
 def make_window(qtbot, tmp_path, monkeypatch):
-    """Build EegReviewWindows (optionally with a rater id) over the faked IO,
+    """Build EegAnnotatorWindows (optionally with a rater id) over the faked IO,
     isolated prefs, and auto-answered dialogs the ``window`` fixture uses."""
     monkeypatch.setattr(window_mod, "preferences_path", tmp_path / "prefs.yaml")
     monkeypatch.setattr(window_mod.io, "open_recording", FakeRecording)
@@ -1072,8 +1072,8 @@ def make_window(qtbot, tmp_path, monkeypatch):
 
     def build(
         rater_id: str | None = None, blind_spec: str | None = None
-    ) -> EegReviewWindow:
-        win = EegReviewWindow(rater_id=rater_id, blind_spec=blind_spec)
+    ) -> EegAnnotatorWindow:
+        win = EegAnnotatorWindow(rater_id=rater_id, blind_spec=blind_spec)
         qtbot.addWidget(win)
         win.show()
         win._prefs_path = tmp_path / "prefs.yaml"  # test convenience handle
@@ -1877,7 +1877,7 @@ def test_constructor_log_path_loads_standalone(qtbot, tmp_path, monkeypatch):
     monkeypatch.setattr(window_mod.io, "recorded_trigger_events", lambda rec: [])
     log = tmp_path / "boot.log"
     log.write_text(LOG_TEXT, encoding="utf-8")
-    win = EegReviewWindow(log_path=log)
+    win = EegAnnotatorWindow(log_path=log)
     qtbot.addWidget(win)
     win.show()
     qtbot.waitUntil(lambda: bool(win._log_entries), timeout=2000)  # deferred load

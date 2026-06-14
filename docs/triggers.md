@@ -180,7 +180,7 @@ register cleanly.
 
 ## Configuring trigger output in SMACC
 
-1. Open the **Markers** window from the Tools column (available both in a live
+1. Open the **Markers** window from the Panels column (available both in a live
     Session and in the Editor) and find its **Hardware TTL transport** section.
 1. Tick **Enable hardware trigger output**.
 1. Choose a **Transport**:

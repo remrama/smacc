@@ -1,4 +1,4 @@
-"""Tests for the Cue designer window (#77).
+"""Tests for the Audio Cue Designer window (#77).
 
 Headless Qt (offscreen, via conftest). Preview would open a sounddevice stream, so
 the one preview test stubs ``sd.OutputStream``/``sd.query_devices``; everything else

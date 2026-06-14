@@ -273,7 +273,7 @@ class SmaccWindow(ToolWindow):
     }
 
     def _build_launcher_buttons(self) -> QtWidgets.QLayout:
-        """Build the 'Tools' column: panel launchers + the lights toggle.
+        """Build the 'Panels' column: panel launchers + the lights toggle.
 
         The lights toggle is pinned to the bottom of the column at a fixed,
         reasonable size (the stretch above absorbs extra height), so enlarging
@@ -281,7 +281,7 @@ class SmaccWindow(ToolWindow):
         sends the lights event marker and flips the dark theme.
         """
         layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(self._make_section_title("Tools"))
+        layout.addWidget(self._make_section_title("Panels"))
         for key, label in self.PANEL_LABELS.items():
             if key not in self.panels:
                 continue

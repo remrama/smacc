@@ -50,20 +50,21 @@ SolidCompression=yes
 ; Desktop shortcut is opt-in (unchecked by default); the Start menu entry is always created.
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
-; The EEG Review Tools (#136) are an optional component: the SMACC-EEG.exe
-; bundle carries the full MNE/pyqtgraph stack, so labs that only run sessions
-; skip it. The first [Types] entry ("standard", without it) is the default for
-; a fresh install; on upgrades Inno preselects whatever was chosen before, so
-; the pair stays in sync. A silent install adds it with /COMPONENTS="core,eeg",
-; and re-running the installer later can add it to an existing install.
+; The EEG Annotator (#136) is an optional component: the SMACC-EEG.exe bundle
+; carries the full MNE/pyqtgraph stack, so labs that only run sessions can skip
+; it. It installs by default by being part of the default "full" type (the first
+; [Types] entry, so a silent install with no /COMPONENTS uses it); unchecking it
+; switches the setup type to "custom". A [Types] section is required: without it
+; a silent install selects no components at all (not even fixed "core"). A silent
+; install can pin the set with /COMPONENTS="core" or "core,eeg", and re-running
+; the installer later can add or drop the component on an existing install.
 [Types]
-Name: "standard"; Description: "Standard installation"
-Name: "full"; Description: "Full installation (with EEG Review Tools)"
+Name: "full"; Description: "Full installation"
 Name: "custom"; Description: "Custom installation"; Flags: iscustom
 
 [Components]
-Name: "core"; Description: "SMACC"; Types: standard full custom; Flags: fixed
-Name: "eeg"; Description: "EEG Review Tools (view and annotate recordings)"; Types: full
+Name: "core"; Description: "SMACC"; Types: full custom; Flags: fixed
+Name: "eeg"; Description: "EEG Annotator (view and annotate recordings)"; Types: full
 
 [Files]
 Source: "..\dist\SMACC.exe"; DestDir: "{app}"; Components: core; Flags: ignoreversion
@@ -75,13 +76,13 @@ Source: "..\dist\SMACC-EEG.exe"; DestDir: "{app}"; Components: eeg; Flags: ignor
 ; SMACC-EEG.exe behind, which the launcher's availability probe would still
 ; detect and happily run.
 Type: files; Name: "{app}\SMACC-EEG.exe"; Components: not eeg
-Type: files; Name: "{autoprograms}\SMACC EEG review.lnk"; Components: not eeg
+Type: files; Name: "{autoprograms}\SMACC EEG Annotator.lnk"; Components: not eeg
 
 [Icons]
 Name: "{autoprograms}\SMACC"; Filename: "{app}\SMACC.exe"
-; The EEG viewer is also launchable from inside SMACC, but a reviewer doing
+; The EEG Annotator is also launchable from inside SMACC, but a reviewer doing
 ; daytime analysis shouldn't have to open the session app to get there.
-Name: "{autoprograms}\SMACC EEG review"; Filename: "{app}\SMACC-EEG.exe"; Components: eeg
+Name: "{autoprograms}\SMACC EEG Annotator"; Filename: "{app}\SMACC-EEG.exe"; Components: eeg
 Name: "{autodesktop}\SMACC"; Filename: "{app}\SMACC.exe"; Tasks: desktopicon
 
 [Registry]

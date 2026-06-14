@@ -1,9 +1,9 @@
-"""The EEG review tool: post-hoc trace viewing and annotation (#136).
+"""The EEG Annotator: post-hoc trace viewing and annotation (#136).
 
 This subpackage is SMACC's *optional* EEG component. It opens a recorded EEG
 file (EDF, BrainVision, FIF), scrolls its traces, applies display-only filters,
 and saves named annotations to a TSV sidecar — the source file is never
-modified. It is a review tool, not a real-time display: nothing here runs
+modified. It is an annotation tool, not a real-time display: nothing here runs
 during a live session, and nothing in the live-session path imports from here.
 
 The component always runs as its own process with its own ``QApplication``.
@@ -29,7 +29,7 @@ from importlib.util import find_spec
 from pathlib import Path
 
 # The frozen EEG component, installed beside SMACC.exe by the installer's
-# optional "EEG Review Tools" component (see tools/smacc.iss).
+# optional "EEG Annotator" component (see tools/smacc.iss).
 EXE_NAME = "SMACC-EEG.exe"
 
 
@@ -39,7 +39,7 @@ def component_exe() -> Path:
 
 
 def available() -> bool:
-    """True when the EEG review tool can be launched from this install.
+    """True when the EEG Annotator can be launched from this install.
 
     Packaged build: the installer component dropped ``SMACC-EEG.exe`` next to
     ``SMACC.exe``. Development: the ``eeg`` extra (mne + pyqtgraph) is in the
@@ -52,13 +52,13 @@ def available() -> bool:
 
 
 def launch(args: list[str] | None = None) -> bool:
-    """Start the EEG review tool as its own detached process; True if started.
+    """Start the EEG Annotator as its own detached process; True if started.
 
     Detached on purpose: the viewer outlives the launcher (or a session) and
     never shares a process with them — see the isolation rationale above. The
     development path runs ``python -m smacc.eeg`` with the current
     interpreter, the packaged path runs the installed exe. ``args`` are extra
-    command-line arguments (e.g. ``["--log", path]`` for the Analyze handoff),
+    command-line arguments (e.g. ``["--log", path]`` for the Analyzer handoff),
     appended after the module/exe so both paths receive them identically.
     """
     from PyQt6 import QtCore  # deferred: keep this module import-light

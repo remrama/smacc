@@ -1,4 +1,4 @@
-"""The multichannel trace view for the EEG review tool (#136).
+"""The multichannel trace view for the EEG Annotator (#136).
 
 One pyqtgraph ``PlotWidget``, all channels stacked in a single ViewBox by
 vertical offset (channel *i* centered at ``y = -i``), channel names as y-axis

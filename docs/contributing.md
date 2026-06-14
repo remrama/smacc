@@ -116,7 +116,7 @@ PyYAML (settings export/import) is pure Python and is picked up automatically by
 PyInstaller; if a frozen build ever fails to import `yaml`, add
 `--hidden-import yaml`.
 
-The optional EEG review component (#136) is a second frozen exe with its own
+The optional EEG Annotator component (#136) is a second frozen exe with its own
 entry point — it carries the MNE/pyqtgraph stack the base exe deliberately
 doesn't (requires `uv sync --extra dev --extra eeg`):
 

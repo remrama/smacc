@@ -33,10 +33,10 @@ Session for it directly). In the Launcher you:
     noise, visual, event codes, surveys), choose a data directory, and save it
     anywhere.
 - **Edit** — reopen the selected SMACC file in the Editor.
-- **Design cues** — open the standalone **Cue designer** to build a simple tone cue
+- **Audio Cue Designer** — open the standalone tool to build a simple tone cue
     and export it as a WAV into a study's `cues/` folder, ready to use from the Audio
     cue board (see [Designing a cue](#designing-a-cue)).
-- **Analyze** — open a past session (a `.log`, a session folder, or a
+- **Analyzer** — open a past session (a `.log`, a session folder, or a
     zipped session) to see a summary (events, duration, subject/session, dream
     reports), export its events to a BIDS `events.tsv`, or recover its settings to a
     `.smacc` — all without starting a new session.
@@ -56,7 +56,7 @@ add or remove cues to match a protocol (one minimum, up to 20).
 
 ### Designing a cue
 
-No sound file ready? Open **Design cues** from the Launcher to build a simple cue
+No sound file ready? Open the **Audio Cue Designer** from the Launcher to build a simple cue
 inside SMACC — no external audio editor needed. Lay out a sequence of **tone** and
 **silence** segments (each tone has a frequency, duration, and level, with an
 optional bell-like **decay**), or start from a **preset** (a single chime, a pip
@@ -221,7 +221,7 @@ matching line to the session log, keeping cue delivery and your neural data in s
 
 ### Configuring codes
 
-Open the **Markers** window from the **Tools** column (in a Session or in the
+Open the **Markers** window from the **Panels** column (in a Session or in the
 Editor). It is the definitive home for everything about event signaling: a
 **routing legend** (what the log file, the live preview, LSL, and TTL each
 receive, and which switch governs it), the full event registry grouped by
@@ -266,7 +266,7 @@ and fade changes — as plain log lines (no port code), so the session record is
 
 The manual event buttons (the sleep-stage family, Signal observed, Sleep onset, Note,
 your custom events, …) live in the **Event logging** panel — open it from the session
-window's **Tools** column. The sleep-stage buttons take a fixed keypad — **0** Wake,
+window's **Panels** column. The sleep-stage buttons take a fixed keypad — **0** Wake,
 **1** N1, **2** N2, **3** N3, **4** REM — and the remaining buttons take **5**–**9** in
 order; the shortcuts are active while the panel is focused. The **Lights** toggle stays
 on the main window (it also flips the dark theme).
@@ -290,7 +290,7 @@ mid-session.
 
 Every run writes a detailed `.log` to its own timestamped folder under the SMACC
 file's **data directory** (e.g. `~/SMACC/data/`), capturing the events and settings
-for that session. Open one later from the Launcher's **Analyze** to see a
+for that session. Open one later from the Launcher's **Analyzer** to see a
 summary, export its events to BIDS, or recover its settings.
 
 ### If SMACC crashes
@@ -328,7 +328,7 @@ with **File › Save SMACC file as…** in a Session.
 
 Tool windows close with **Ctrl+W** (or **File › Close window**) — that
 only hides the window, with its state intact; the session keeps running and the
-Session window's Tools column reopens it.
+Session window's Panels column reopens it.
 
 Separately, the machine remembers window positions and sizes and your recent files in
 `~/SMACC/preferences.yaml`, restored on the next launch.

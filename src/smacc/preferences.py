@@ -49,26 +49,26 @@ DEFAULTS: dict[str, Any] = {
     # ISO timestamps with a UTC offset; this changes only the on-screen preview.
     # See CLOCK_FORMATS and log_preview_clock().
     "log_preview_clock": "24h",
-    # EEG review tool (#136): recently used annotation labels (most-recent
+    # EEG Annotator (#136): recently used annotation labels (most-recent
     # first, seeding the label dialog's dropdown) and the last folder a
     # recording was opened from. Note loading only round-trips keys present
     # here, so the EEG window's keys must stay in DEFAULTS even though the
     # tool is an optional component.
     "eeg_recent_labels": [],
     "eeg_last_dir": None,
-    # The folder the EEG review tool last saved/loaded a view profile from (#177).
+    # The folder the EEG Annotator last saved/loaded a view profile from (#177).
     "eeg_last_profile_dir": None,
-    # The folder the EEG review tool last exported a figure to (#180).
+    # The folder the EEG Annotator last exported a figure to (#180).
     "eeg_last_export_dir": None,
-    # The rater id the EEG review tool saves under (#181): when set, annotations
+    # The rater id the EEG Annotator saves under (#181): when set, annotations
     # save to a per-rater sidecar (night1.annotations.<id>.tsv); None means an
     # ordinary single-rater review writing the plain sidecar.
     "eeg_rater_id": None,
-    # The EEG review tool's quick-mark palette (#181): one-click buttons that drop
+    # The EEG Annotator's quick-mark palette (#181): one-click buttons that drop
     # a labeled point mark at the cursor. Defaults to the lucid eye-signal
     # vocabulary; editable in the tool, and the first nine get number keys 1–9.
     "eeg_palette_labels": ["LRLR", "LRLRx2", "LRLRx3", "IEIE"],
-    # The folder the EEG review tool last loaded a blind config from (#181).
+    # The folder the EEG Annotator last loaded a blind config from (#181).
     "eeg_last_blind_dir": None,
 }
 

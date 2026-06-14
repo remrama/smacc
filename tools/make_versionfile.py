@@ -10,7 +10,7 @@ exe (the optional EEG component, #136, is a second frozen exe)::
 
     uv run python tools/make_versionfile.py version_info.txt
     uv run python tools/make_versionfile.py version_info_eeg.txt \\
-        --product SMACC-EEG --description "SMACC EEG review tool"
+        --product SMACC-EEG --description "SMACC EEG Annotator"
 """
 
 from __future__ import annotations

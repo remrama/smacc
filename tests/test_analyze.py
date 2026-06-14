@@ -64,7 +64,7 @@ def test_extract_zip_rejects_path_traversal(tmp_path):
     assert not (tmp_path / "escape.txt").exists()
 
 
-# ----- the EEG annotator handoff (#125d) ------------------------------------
+# ----- the EEG Annotator handoff (#125d) ------------------------------------
 
 A_LOG = (
     "2026-06-05 22:00:00.000-0500, INFO, Opened SMACC v0.0.7\n"

@@ -55,7 +55,7 @@ jobs:
       - uses: astral-sh/setup-uv@v8.2.0
         with:
           enable-cache: true
-      # --extra eeg pulls mne/pyqtgraph so the optional EEG review tests run
+      # --extra eeg pulls mne/pyqtgraph so the optional EEG Annotator tests run
       # too (#136); they importorskip, so a base env still passes without it.
       - name: Run tests
         run: uv run --extra dev --extra eeg pytest --cov=smacc --cov-report=xml --cov-report=term-missing

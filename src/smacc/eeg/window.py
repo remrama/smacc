@@ -1,4 +1,4 @@
-"""The EEG review window: open a recording, scroll it, annotate it (#136).
+"""The EEG Annotator window: open a recording, scroll it, annotate it (#136).
 
 A standalone top-level window with its own process and ``QApplication`` (see
 the package docstring) — not a launcher-managed :class:`~smacc.toolwindow
@@ -76,7 +76,7 @@ if TYPE_CHECKING:  # matplotlib is heavy: import the export module only on deman
     from .export import ExportOptions
 
 # Stable id for this window's geometry entry in the per-window prefs map.
-_EEG_WINDOW_ID = "eeg-review"
+_EEG_WINDOW_ID = "eeg-annotator"
 
 # Starting points for the label dropdown before an operator has any recents:
 # the marks dream-engineering reviewers actually place (see the
@@ -617,7 +617,7 @@ class ExportDialog(QtWidgets.QDialog):
         return dialog.result_values()
 
 
-class EegReviewWindow(QtWidgets.QMainWindow):
+class EegAnnotatorWindow(QtWidgets.QMainWindow):
     """Review and annotate one recording; the EEG component's main window."""
 
     def __init__(
@@ -706,7 +706,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         self._stage_dirty = False
         self._owns_stage_sidecar = False
         self._recovery_stages: list[StageEpoch] | None = None
-        self.setWindowTitle("SMACC — EEG review")
+        self.setWindowTitle("SMACC EEG Annotator")
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
         self._build()
@@ -730,8 +730,8 @@ class EegReviewWindow(QtWidgets.QMainWindow):
             # open-error dialog (and a long load doesn't block the first paint).
             QtCore.QTimer.singleShot(0, lambda: self._load(Path(file_path)))
         if log_path is not None:
-            # Open a session log too (or on its own, standalone — the Analyze
-            # window's "open in annotator" handoff uses this). Deferred for the
+            # Open a session log too (or on its own, standalone — the Analyzer
+            # "open in annotator" handoff uses this). Deferred for the
             # same reason; runs after the recording load so it overlays when both
             # are given.
             QtCore.QTimer.singleShot(0, lambda: self.load_session_log(Path(log_path)))
@@ -870,7 +870,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         layout = QtWidgets.QVBoxLayout(central)
         layout.setContentsMargins(12, 8, 12, 8)
         layout.setSpacing(8)
-        layout.addWidget(_section_title("EEG review"))
+        layout.addWidget(_section_title("EEG Annotator"))
         layout.addWidget(self._build_contract_caption())
         layout.addWidget(self._build_recovery_banner())
         layout.addLayout(self._build_controls_row())
@@ -2736,7 +2736,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
         rater = f" · rater {self._rater_id}" if self._rater_id else ""
         blinded = f" · blind:{self._blind.preset}" if self._blind is not None else ""
         star = " *" if self._dirty or self._stage_dirty else ""
-        self.setWindowTitle(f"SMACC — EEG review{name}{rater}{blinded}{star}")
+        self.setWindowTitle(f"SMACC EEG Annotator{name}{rater}{blinded}{star}")
 
     def _recent_labels(self) -> list[str]:
         prefs = preferences.load_preferences(preferences_path)
@@ -3403,7 +3403,7 @@ class EegReviewWindow(QtWidgets.QMainWindow):
     def _error(self, short: str, detail: str | None = None) -> None:
         box = QtWidgets.QMessageBox(self)
         box.setIcon(QtWidgets.QMessageBox.Icon.Warning)
-        box.setWindowTitle("EEG review")
+        box.setWindowTitle("EEG Annotator")
         box.setText(short)
         if detail is not None:
             box.setInformativeText(detail)

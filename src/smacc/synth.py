@@ -1,7 +1,7 @@
-"""Tone synthesis for the Cue designer (#77): build a cue from simple segments.
+"""Tone synthesis for the Audio Cue Designer (#77): build a cue from simple segments.
 
 Pure, hardware-free DSP — no Qt, no streams — so it is unit-testable on its own. The
-Cue designer (:mod:`smacc.cuedesigner`) assembles a list of **segments** (a pure
+Audio Cue Designer (:mod:`smacc.cuedesigner`) assembles a list of **segments** (a pure
 tone or a gap of silence), renders them into one mono float32 buffer in ``[-1, 1]``,
 and exports a PCM-16 WAV that drops straight into a study's ``cues`` folder.
 
@@ -183,7 +183,7 @@ DESIGN_VERSION = 1
 class CueDesign:
     """A complete, serializable cue design: segment pattern plus master settings.
 
-    This is the unit the Cue designer saves and reopens as a JSON design file
+    This is the unit the Audio Cue Designer saves and reopens as a JSON design file
     (#137). The exported WAV stays the lab-facing artifact the cue board plays;
     the design file is what keeps a cue editable. The pattern repeats
     ``repeat_count`` times with ``repeat_gap`` seconds of silence between repeats,

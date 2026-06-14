@@ -1,4 +1,4 @@
-"""Display filtering for the EEG review tool (#136).
+"""Display filtering for the EEG Annotator (#136).
 
 The viewer filters only the *visible slice* of the recording, never the whole
 file. ``mne.io.Raw.filter`` requires preloading the entire recording — an

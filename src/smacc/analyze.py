@@ -1,6 +1,6 @@
-"""The Analyze window: post-hoc tools over a past session, with no live session.
+"""The Analyzer window: post-hoc tools over a past session, with no live session.
 
-Reached from the launcher's **Analyze session**. Point it at a session — a
+Reached from the launcher's **Analyzer**. Point it at a session — a
 ``.log`` file, a session folder (its log is found automatically), or a zipped
 session — and it shows a summary (events, duration, subject/session, dream
 reports) and offers to export the events to BIDS or recover the settings from the
@@ -81,7 +81,7 @@ class AnalyzeWindow(ToolWindow):
         self._log_path: Path | None = None
         self._base_dir: Path | None = None
         self._temp_dirs: list[Path] = []  # extracted zips, cleaned up on close
-        self.setWindowTitle("SMACC — Analyze session")
+        self.setWindowTitle("SMACC Analyzer")
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
         self._build()
@@ -94,7 +94,7 @@ class AnalyzeWindow(ToolWindow):
         layout = QtWidgets.QVBoxLayout(central)
         layout.setContentsMargins(16, 12, 16, 12)
         layout.setSpacing(10)
-        layout.addWidget(make_section_title("Analyze session"))
+        layout.addWidget(make_section_title("Analyzer"))
 
         openFileButton = QtWidgets.QPushButton("Open log / zip…", self)
         openFileButton.setStatusTip("Open a SMACC .log file or a zipped session.")
@@ -137,11 +137,11 @@ class AnalyzeWindow(ToolWindow):
         self.revealButton = QtWidgets.QPushButton("Open session folder", self)
         self.revealButton.setStatusTip("Open the session's folder in the file browser.")
         self.revealButton.clicked.connect(self.reveal_folder)
-        # Hand the session to the EEG annotator, which overlays this log on the
+        # Hand the session to the EEG Annotator, which overlays this log on the
         # timeline (#125). Shown only where the annotator component is available.
-        self.annotateButton = QtWidgets.QPushButton("Open log in EEG annotator", self)
+        self.annotateButton = QtWidgets.QPushButton("Open log in EEG Annotator", self)
         self.annotateButton.setStatusTip(
-            "Open this session log in the EEG annotator (overlaid on a recording, "
+            "Open this session log in the EEG Annotator (overlaid on a recording, "
             "or on its own time axis)."
         )
         self.annotateButton.clicked.connect(self.open_in_annotator)
@@ -261,7 +261,7 @@ class AnalyzeWindow(ToolWindow):
             self._error("Could not export events.", str(exc))
             return
         QtWidgets.QMessageBox.information(
-            self, "Analyze", f"Exported {count} events to\n{out_path}"
+            self, "Analyzer", f"Exported {count} events to\n{out_path}"
         )
 
     def recover_settings(self) -> None:
@@ -303,7 +303,7 @@ class AnalyzeWindow(ToolWindow):
             self._error("Could not save the settings.", str(exc))
             return
         QtWidgets.QMessageBox.information(
-            self, "Analyze", f"Saved recovered settings to\n{out_path}"
+            self, "Analyzer", f"Saved recovered settings to\n{out_path}"
         )
 
     def reveal_folder(self) -> None:
@@ -313,19 +313,19 @@ class AnalyzeWindow(ToolWindow):
             )
 
     def open_in_annotator(self) -> None:
-        """Hand this session's log to the EEG annotator as its own process (#125).
+        """Hand this session's log to the EEG Annotator as its own process (#125).
 
-        Analyze stays the no-EEG summary/BIDS tool; the annotator is where the log
+        The Analyzer stays the no-EEG summary/BIDS tool; the annotator is where the log
         is seen on a timeline (overlaid on a recording, or standalone). Launched
-        detached, like the launcher's Review-EEG button.
+        detached, like the launcher's EEG Annotator button.
         """
         if self._log_path is None:
             return
         if not eeg.launch(["--log", str(self._log_for_handoff())]):
             self._error(
-                "Could not start the EEG annotator.",
-                "Re-running the SMACC installer and selecting the EEG Review "
-                "Tools component may fix this.",
+                "Could not start the EEG Annotator.",
+                "Re-running the SMACC installer and selecting the EEG Annotator "
+                "component may fix this.",
             )
 
     def _log_for_handoff(self) -> Path:
@@ -351,7 +351,7 @@ class AnalyzeWindow(ToolWindow):
     def _error(self, short: str, detail: str | None = None) -> None:
         box = QtWidgets.QMessageBox(self)
         box.setIcon(QtWidgets.QMessageBox.Icon.Warning)
-        box.setWindowTitle("Analyze")
+        box.setWindowTitle("Analyzer")
         box.setText(short)
         if detail is not None:
             box.setInformativeText(detail)

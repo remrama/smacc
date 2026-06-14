@@ -1,6 +1,6 @@
 """Restore and capture window geometry uniformly across every SMACC window.
 
-The launcher, the main session window, each tool window, and the Analyze window
+The launcher, the main session window, each tool window, and the Analyzer window
 all reopen where they were last left. The geometry itself is stored machine-local
 in ``preferences.yaml`` as a per-window map (see :mod:`smacc.preferences`); these
 small Qt helpers are the bridge between that pure data and a live ``QWidget``.
