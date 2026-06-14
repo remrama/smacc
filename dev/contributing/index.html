@@ -89,6 +89,34 @@
     
       <div data-md-color-scheme="default" data-md-component="outdated" hidden>
         
+          <aside class="md-banner md-banner--warning">
+            <div class="md-banner__inner md-grid md-typeset">
+              
+  <span data-smacc-banner="outdated">
+    You're reading docs for an old version of SMACC.
+    <a href="../.."><strong>Go to the current release.</strong></a>
+  </span>
+  <span data-smacc-banner="dev" hidden>
+    You're reading the development docs for the next, unreleased SMACC.
+    <a href="../.."><strong>Go to the current release.</strong></a>
+  </span>
+  <script>
+    (function () {
+      if (location.pathname.split("/").includes("dev")) {
+        document
+          .querySelectorAll('[data-smacc-banner="outdated"]')
+          .forEach(function (el) { el.hidden = true; });
+        document
+          .querySelectorAll('[data-smacc-banner="dev"]')
+          .forEach(function (el) { el.hidden = false; });
+      }
+    })();
+  </script>
+
+            </div>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL(".."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
+          </aside>
+        
       </div>
     
     
@@ -839,6 +867,33 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../release-notes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     
     
     
@@ -848,10 +903,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
         
           
-          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
             
   
   
@@ -869,8 +924,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_8">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1211,6 +1266,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#versioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Versioning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#project-notes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1341,6 +1407,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#versioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Versioning
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1503,7 +1580,7 @@ MNE is imported lazily, so it only loads when a recording is actually touched.</
 <code>usb.core</code> is missing — that is BlinkStick's non-Windows backend, which SMACC
 never uses, so the warning is harmless. If a frozen build ever fails to import
 the driver, add <code>--hidden-import pywinusb</code>.</p>
-<p>Releases are built automatically: pushing a <code>v*</code> tag (e.g. <code>v0.0.11</code>) triggers the
+<p>Releases are built automatically: pushing a <code>v*</code> tag (e.g. <code>v0.1.0</code>) triggers the
 <a href="https://github.com/remrama/smacc/blob/main/.github/workflows/release.yml">release workflow</a>,
 which checks the tag against <code>smacc.__version__</code>, builds <code>SMACC.exe</code> and
 <code>SMACC-EEG.exe</code> (each stamped with version metadata from
@@ -1527,9 +1604,12 @@ uv<span class="w"> </span>run<span class="w"> </span>--extra<span class="w"> </s
 uv<span class="w"> </span>run<span class="w"> </span>--extra<span class="w"> </span>docs<span class="w"> </span>mike<span class="w"> </span>serve<span class="w">            </span><span class="c1"># preview the versioned site</span>
 </code></pre></div>
 <p>The <a href="https://github.com/remrama/smacc/blob/main/.github/workflows/docs.yml">docs workflow</a>
-runs <code>mkdocs build --strict</code> on every pull request, deploys a <code>dev</code> version on
-pushes to <code>main</code>, and publishes a numbered version (updating the <code>latest</code> alias)
-on each <code>v*</code> release tag.</p>
+runs <code>mkdocs build --strict</code> on every pull request and deploys a <code>dev</code> version on
+pushes to <code>main</code>. A final release tag (<code>v0.1.0</code>) publishes a numbered version and
+moves the <code>latest</code> alias; a pre-release tag (<code>v1.0.0-rc.1</code>) routes to the <code>dev</code> site
+and leaves <code>latest</code> untouched. Visitors on an old version see an "outdated" banner
+and the <code>dev</code> site shows an "unreleased" banner, both from
+<a href="https://github.com/remrama/smacc/blob/main/overrides/main.html"><code>overrides/main.html</code></a>.</p>
 <h3 id="pdf-manual">PDF manual</h3>
 <p>A single-file <strong>PDF manual</strong> (the whole site in nav order) is produced by the
 <a href="https://github.com/orzih/mkdocs-with-pdf"><code>mkdocs-with-pdf</code></a> plugin and published
@@ -1542,6 +1622,27 @@ working on every platform. CI installs those libraries and builds with the PDF c
 To build the manual locally, install WeasyPrint's dependencies, then:</p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>--extra<span class="w"> </span>docs<span class="w"> </span>mkdocs<span class="w"> </span>build<span class="w"> </span>-f<span class="w"> </span>mkdocs-pdf.yml
 </code></pre></div>
+<h2 id="versioning">Versioning</h2>
+<p>SMACC follows <a href="https://semver.org/">semantic versioning</a>.</p>
+<ul>
+<li><strong>Pre-1.0, the app is not stable.</strong> Settings files, marker codes, the UI, and
+    behavior may change between releases, and there are no compatibility shims. Pin
+    one version for the duration of a study.</li>
+<li><strong>Versions are <code>0.x.y</code> until 1.0.0.</strong> A new <code>0.x.0</code> collects features and <code>0.x.y</code>
+    is a smaller follow-up; no pre-1.0 bump is a stability promise.</li>
+<li><strong><code>0.1.0</code> is the first published release</strong> — the first with installers attached, a
+    <a href="../release-notes/">release-notes</a> entry, and a working in-app update check.
+    Earlier <code>0.0.x</code> tags predate it and are not in the release notes.</li>
+<li><strong><code>1.0.0-rc.N</code> tags are reserved for the run-up to a real 1.0.</strong> They are marked
+    <em>Pre-release</em> on GitHub (so the update check ignores them) and their docs publish
+    to the <strong>dev</strong> site, not <code>latest</code>. There is no <code>0.x</code>-era <code>-dev</code>/<code>-alpha</code> series.</li>
+<li><strong>1.0.0 is the first stable release.</strong> From then on semantic versioning is binding
+    (backward-compatible changes bump the minor/patch, breaking changes bump the
+    major), and the pre-1.0 docs are dropped from the version switcher.</li>
+</ul>
+<p>Cutting a release: bump <code>__version__</code> in <code>src/smacc/__init__.py</code> and push a matching
+<code>vX.Y.Z</code> tag. CI checks the tag equals <code>__version__</code>, builds and smoke-tests the
+installer, attaches it to the GitHub Release, and publishes the docs.</p>
 <h2 id="project-notes">Project notes</h2>
 <ul>
 <li><code>src/</code> layout: the package lives in <code>src/smacc/</code>.</li>

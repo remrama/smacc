@@ -91,6 +91,34 @@
     
       <div data-md-color-scheme="default" data-md-component="outdated" hidden>
         
+          <aside class="md-banner md-banner--warning">
+            <div class="md-banner__inner md-grid md-typeset">
+              
+  <span data-smacc-banner="outdated">
+    You're reading docs for an old version of SMACC.
+    <a href="../../.."><strong>Go to the current release.</strong></a>
+  </span>
+  <span data-smacc-banner="dev" hidden>
+    You're reading the development docs for the next, unreleased SMACC.
+    <a href="../../.."><strong>Go to the current release.</strong></a>
+  </span>
+  <script>
+    (function () {
+      if (location.pathname.split("/").includes("dev")) {
+        document
+          .querySelectorAll('[data-smacc-banner="outdated"]')
+          .forEach(function (el) { el.hidden = true; });
+        document
+          .querySelectorAll('[data-smacc-banner="dev"]')
+          .forEach(function (el) { el.hidden = false; });
+      }
+    })();
+  </script>
+
+            </div>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("../.."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
+          </aside>
+        
       </div>
     
     
@@ -839,6 +867,33 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../../release-notes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -852,10 +907,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
         
           
-          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
             
   
   
@@ -873,8 +928,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_8">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1467,7 +1522,7 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># SMACC settings — YAML (.smacc). Edit with care.</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">smacc/settings</span>
 <span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
-<span class="nt">smacc_version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0.0.10&quot;</span>
+<span class="nt">smacc_version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0.1.0&quot;</span>
 <span class="nt">metadata</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">subject</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;001&quot;</span>
 <span class="w">  </span><span class="nt">session</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1&quot;</span>
@@ -1916,7 +1971,7 @@ folder stays valid when moved, copied, or zipped.</p>
 <tbody>
 <tr>
 <td>1</td>
-<td>Introduced as the v0.0.9 baseline (numbering restarted; pre-release schemas were retired without migration); still current as of v0.0.10. Envelope (<code>kind</code> / <code>schema_version</code> / <code>smacc_version</code> / <code>metadata</code> / <code>settings</code>); panel state; the <code>biocals</code>, <code>devices</code>, <code>event_codes</code> + <code>event_code_safe_max</code>, <code>trigger_output</code>, <code>data_directory</code>, <code>preview_levels</code>, <code>always_on_top</code>, and <code>tool_always_on_top</code> blocks.</td>
+<td>Introduced as the v0.0.9 baseline (numbering restarted; pre-release schemas were retired without migration); still current as of v0.1.0. Envelope (<code>kind</code> / <code>schema_version</code> / <code>smacc_version</code> / <code>metadata</code> / <code>settings</code>); panel state; the <code>biocals</code>, <code>devices</code>, <code>event_codes</code> + <code>event_code_safe_max</code>, <code>trigger_output</code>, <code>data_directory</code>, <code>preview_levels</code>, <code>always_on_top</code>, and <code>tool_always_on_top</code> blocks.</td>
 </tr>
 </tbody>
 </table>
