@@ -1085,7 +1085,7 @@ choosing between the two devices, and the safety notes that come with flashing
 light at sleeping people. For plugging the devices in and binding them, see
 <a href="../devices/">Devices</a>.</p>
 <h2 id="the-visual-cue-board">The visual cue board</h2>
-<p>The <strong>Visual cue</strong> window (in the <em>Tools</em> column) is the light sibling of the
+<p>The <strong>Visual cue</strong> window (in the <strong>Panels</strong> column) is the light sibling of the
 <a href="../usage/#audio-cues">Audio cue board</a>: one row per cue, each kept configured and
 ready so that firing the right light at 3 a.m. is a single click.</p>
 <p>Each row holds a <strong>name</strong> (it travels into the event log with every start/stop
@@ -1130,7 +1130,7 @@ events, each carrying the cue's name. Two details matter for analysis:</p>
 <li><strong><code>VisualStarted</code> fires after the first frame is committed to the device.</strong> On a
     BlinkStick the USB write takes ~1–2 ms, so the marker trails the photons by
     about that much. On Hue, "committed" means the bridge accepted the command — the
-    bulb itself transitions over the following ~100–200 ms, so the marker <em>leads</em>
+    bulb itself transitions over the following ~100 ms, so the marker <em>leads</em>
     the photons by that lag (and it varies). Time-locked analyses should use the
     BlinkStick.</li>
 <li><strong><code>VisualStopped</code> fires once the light is actually dark</strong> — after the fade-out
@@ -1173,11 +1173,11 @@ over a sleeping participant.</p>
 <tr>
 <td>Cue onset</td>
 <td>~1–2 ms after the marker</td>
-<td>~100–200 ms of lag and jitter</td>
+<td>~100 ms of lag and jitter</td>
 </tr>
 <tr>
 <td>Patterns</td>
-<td>Steady, pulse, and flash (up to 20 Hz)</td>
+<td>Steady, plus pulse and flash up to 20 Hz</td>
 <td>Steady and slow pulse; <strong>flash is refused</strong> (the bridge rate-limits commands far below a square wave)</td>
 </tr>
 <tr>

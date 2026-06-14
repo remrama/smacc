@@ -964,7 +964,7 @@
 
 <h1 id="smacc-files">SMACC files</h1>
 <p>A <strong>SMACC file</strong> (<code>.smacc</code>) is the study's configuration: cue files, volumes,
-noise, visual cues, biocals, survey presets, event codes, the display choices
+noise, visual cues, biocals, survey presets, event markers, the display choices
 that apply to a session (always-on-top and log-preview levels), and the <strong>data
 directory</strong> where runs are written. It plays the same role for a SMACC study
 that a montage file plays for an EEG setup — configure it once, then reuse it
@@ -986,10 +986,10 @@ format, see the <a href="../reference/settings-file/">SMACC file reference</a>.<
 <p>There are two ways to make one:</p>
 <ul>
 <li><strong>From scratch, in the Editor.</strong> In the <a href="../usage/#opening-smacc">Launcher</a>,
-    click <strong>Create</strong> to open the <strong>Editor</strong> on a fresh configuration (or select an
-    existing SMACC file and click <strong>Edit</strong>). Configure each tool on the left, set
-    the data directory, and <strong>Save as…</strong> to a new <code>.smacc</code> anywhere you like. The
-    Editor never records a run — it only authors configuration.</li>
+    click <strong>Editor…</strong>. In the dialog, choose <strong>New SMACC file</strong> for a blank
+    configuration (or pick an existing file to edit). Configure each panel on the
+    left, set the data directory, and <strong>Save SMACC file as…</strong> to a new <code>.smacc</code>
+    anywhere you like. The Editor never records a run — it only authors configuration.</li>
 <li><strong>From a live session.</strong> In a running <strong>Session</strong>, use <strong>File › Save
     SMACC file as…</strong> to snapshot the session's <em>current</em> settings — including any
     mid-session tweaks (volumes, device routing, event-code edits) — to a new
@@ -1012,12 +1012,13 @@ determines where a night's data ends up.</p>
 <h2 id="opening-a-smacc-file">Opening a SMACC file</h2>
 <p>Opening a SMACC file starts a new session configured by it:</p>
 <ul>
-<li><strong>Double-click the file</strong> (Windows build): SMACC launches straight into a
-    Session for it. The first launch offers to set up this file association; you
-    can (re)enable it any time from <strong>File › Associate .smacc files
-    (Windows)</strong> in the Launcher.</li>
-<li><strong>From the Launcher</strong>: pick the file in the <strong>Settings</strong> dropdown (recent
-    files are listed; <strong>Browse…</strong> finds any other), then click <strong>Start</strong>.</li>
+<li><strong>Double-click the file</strong> (Windows build): SMACC opens the <strong>Start a session</strong>
+    dialog with that file preselected, so you confirm the subject/session and click
+    <strong>OK</strong> to start. Enable or repair the file association any time from <strong>File ›
+    Associate .smacc files (Windows)</strong> in the Launcher.</li>
+<li><strong>From the Launcher</strong>: click <strong>Session…</strong>, then pick the file in the <strong>Start a
+    session</strong> dialog (recent files are listed; <strong>Browse…</strong> finds any other) and click
+    <strong>OK</strong>.</li>
 <li><strong>From a terminal</strong>: <code>SMACC path/to/file.smacc</code>.</li>
 </ul>
 

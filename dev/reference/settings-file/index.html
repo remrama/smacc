@@ -1176,8 +1176,8 @@
 
 <h1 id="smacc-file-smacc">SMACC file (<code>.smacc</code>)</h1>
 <p>A <strong>SMACC file</strong> is a <strong>portable study configuration</strong>: it lets a researcher set
-SMACC up once — cue sounds and volumes, noise, the visual cue, surveys, event codes,
-device routing, optional hardware triggers — and reload it each session so the setup
+SMACC up once — cue sounds and volumes, noise, the visual cue, survey selection, event
+codes, device routing, optional hardware triggers — and reload it each session so the setup
 stays consistent across nights and researchers. It is plain YAML you can read and
 edit. The user-facing extension is <code>.smacc</code>, but the <code>kind</code> stays <code>smacc/settings</code>.</p>
 <p>See <a href="../../smacc-files/">SMACC files</a> for the task-level
@@ -1186,7 +1186,7 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># SMACC settings — YAML (.smacc). Edit with care.</span>
 <span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">smacc/settings</span>
 <span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
-<span class="nt">smacc_version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0.0.9&quot;</span>
+<span class="nt">smacc_version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0.0.10&quot;</span>
 <span class="nt">metadata</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">subject</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;001&quot;</span>
 <span class="w">  </span><span class="nt">session</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1&quot;</span>
@@ -1214,7 +1214,7 @@ guide (creating, editing, sharing). This page is the field reference.</p>
 <span class="w">  </span><span class="c1"># --- Participant text chat ---------------------------------------------------</span>
 <span class="w">  </span><span class="nt">chat_font_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">18</span>
 <span class="w">  </span><span class="nt">chat_red_text</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
-<span class="w">  </span><span class="nt">chat_experimenter_presets</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;Are</span><span class="nv"> </span><span class="s">you</span><span class="nv"> </span><span class="s">awake?&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;Going</span><span class="nv"> </span><span class="s">back</span><span class="nv"> </span><span class="s">to</span><span class="nv"> </span><span class="s">sleep</span><span class="nv"> </span><span class="s">now.&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">chat_experimenter_presets</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;Please</span><span class="nv"> </span><span class="s">describe</span><span class="nv"> </span><span class="s">everything</span><span class="nv"> </span><span class="s">that</span><span class="nv"> </span><span class="s">was</span><span class="nv"> </span><span class="s">going</span><span class="nv"> </span><span class="s">through</span><span class="nv"> </span><span class="s">your</span><span class="nv"> </span><span class="s">mind</span><span class="nv"> </span><span class="s">before</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">alarm.&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;Are</span><span class="nv"> </span><span class="s">you</span><span class="nv"> </span><span class="s">awake?&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;Going</span><span class="nv"> </span><span class="s">back</span><span class="nv"> </span><span class="s">to</span><span class="nv"> </span><span class="s">sleep</span><span class="nv"> </span><span class="s">now.&quot;</span><span class="p p-Indicator">]</span>
 <span class="w">  </span><span class="nt">chat_participant_presets</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;Got</span><span class="nv"> </span><span class="s">it&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;I&#39;m</span><span class="nv"> </span><span class="s">awake&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;Yes&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;No&quot;</span><span class="p p-Indicator">]</span>
 <span class="w">  </span><span class="c1"># --- Biocals ---------------------------------------------------------------</span>
 <span class="w">  </span><span class="nt">biocals</span><span class="p">:</span>
@@ -1635,7 +1635,7 @@ folder stays valid when moved, copied, or zipped.</p>
 <tbody>
 <tr>
 <td>1</td>
-<td>The v0.0.9 baseline (numbering restarted; pre-release schemas were retired without migration). Envelope (<code>kind</code> / <code>schema_version</code> / <code>smacc_version</code> / <code>metadata</code> / <code>settings</code>); panel state; the <code>biocals</code>, <code>devices</code>, <code>event_codes</code> + <code>event_code_safe_max</code>, <code>trigger_output</code>, <code>data_directory</code>, <code>preview_levels</code>, <code>always_on_top</code>, and <code>tool_always_on_top</code> blocks.</td>
+<td>Introduced as the v0.0.9 baseline (numbering restarted; pre-release schemas were retired without migration); still current as of v0.0.10. Envelope (<code>kind</code> / <code>schema_version</code> / <code>smacc_version</code> / <code>metadata</code> / <code>settings</code>); panel state; the <code>biocals</code>, <code>devices</code>, <code>event_codes</code> + <code>event_code_safe_max</code>, <code>trigger_output</code>, <code>data_directory</code>, <code>preview_levels</code>, <code>always_on_top</code>, and <code>tool_always_on_top</code> blocks.</td>
 </tr>
 </tbody>
 </table>

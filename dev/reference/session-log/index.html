@@ -1024,7 +1024,7 @@
 <p>Every live run writes one plain-text log to its own timestamped folder
 (<code>smacc-YYYYmmdd-HHMMSS/</code>) under the study's data directory. It is the session's
 record: every event marker, the soft interactions (volume / colour / device changes),
-and two embedded snapshots of the full settings the run used. The study <em>designer</em>
+and two embedded snapshots of the full settings the run used. The <strong>Editor</strong>
 (which records nothing) writes no log.</p>
 <h2 id="line-format">Line format</h2>
 <p>Each line is three comma-separated fields:</p>
@@ -1044,16 +1044,16 @@ and two embedded snapshots of the full settings the run used. The study <em>desi
     configurable subset.</li>
 <li><strong>message</strong> — the log text. An <strong>event-marker</strong> line ends in <code>" - portcode N"</code>:</li>
 </ul>
-<div class="highlight"><pre><span></span><code>2026-06-09 22:14:01.003-0500, INFO, Opened SMACC v0.0.7
+<div class="highlight"><pre><span></span><code>2026-06-09 22:14:01.003-0500, INFO, Opened SMACC v0.0.10
 2026-06-09 22:14:05.221-0500, INFO, Lights off - portcode 47
 2026-06-09 22:18:30.880-0500, INFO, Dream report started: report-01, t+00:04:29 - portcode 201
-2026-06-09 22:19:02.114-0500, INFO, Cue volume set to 0.40
+2026-06-09 22:19:02.114-0500, INFO, REM detected - portcode 41
 </code></pre></div>
 <p>A marker line is <code>"{label} - portcode {code}"</code> when the event drives a trigger, or
 just <code>"{label}"</code> when it does not. A dream-report start names its recording
-(<code>report-NN</code>, matching <code>report-NN.wav</code> in the run folder) and its time since the
-recording-start marker, so the entry can be tied back to both its audio and its
-place in the EEG. The code-to-event map is the study's
+(<code>report-NN</code>, matching <code>report-NN.wav</code> in the run folder) and, once the
+recording-start marker has been set, its time since that marker, so the entry can be
+tied back to both its audio and its place in the EEG. The code-to-event map is the study's
 <a href="../settings-file/#event_codes"><code>event_codes</code></a> registry; see the
 <a href="../../triggers/#default-event-codes">default code catalog</a>.</p>
 <h2 id="log-levels">Log levels</h2>
@@ -1120,7 +1120,7 @@ fenced by sentinels, so log parsers skip it entirely:</p>
 <div class="highlight"><pre><span></span><code># --8&lt;-- smacc/settings initial
 # kind: smacc/settings
 # schema_version: 1
-# smacc_version: 0.0.7
+# smacc_version: 0.0.10
 # metadata:
 #   subject: &#39;001&#39;
 #   ...
@@ -1129,8 +1129,8 @@ fenced by sentinels, so log parsers skip it entirely:</p>
 # --8&lt;-- end smacc/settings initial
 </code></pre></div>
 <p>Two snapshots are written: <strong><code>initial</code></strong> (at startup) and <strong><code>final</code></strong> (appended at
-quit). The <code>final</code> block may be absent if a session crashed before quitting. Analyze
-can recover a <code>.smacc</code> from either block.</p>
+quit). The <code>final</code> block may be absent if a session crashed before quitting. The
+<strong>Analyzer</strong> can recover a <code>.smacc</code> from either block.</p>
 <div class="admonition note">
 <p class="admonition-title">No separate version</p>
 <p>The log itself isn't versioned; its embedded blocks carry the

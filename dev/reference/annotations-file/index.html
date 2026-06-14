@@ -1042,13 +1042,15 @@ column count, so a corrupted file is reported instead of silently losing rows.</
 <span class="w">  </span><span class="nt">&quot;SourceFile&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;night1.edf&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;MeasurementDate&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-06-05T22:00:00+00:00&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;Rater&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;GeneratedBy&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;Name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;SMACC&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;Version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1.0.0&quot;</span><span class="p">}</span>
+<span class="w">  </span><span class="nt">&quot;GeneratedBy&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;Name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;SMACC&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;Version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0.0.10&quot;</span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
 <p><code>MeasurementDate</code> is the recording's start as stored in the file — combined
 with the data-relative onsets it reconstructs clock time. It is <code>null</code> when
 the format or anonymization dropped it. <code>Rater</code> names the reviewer for a
-per-rater sidecar (see below) and is <code>null</code> for an ordinary single-rater review.</p>
+per-rater sidecar (see below) and is <code>null</code> for an ordinary single-rater review.
+<code>GeneratedBy.Version</code> is the SMACC app version that wrote the file; the sidecar
+carries no schema version of its own (it tracks the BIDS columns).</p>
 <h2 id="multiple-raters">Multiple raters</h2>
 <p>Objective signal scoring often uses several reviewers. Give each a <strong>rater id</strong>
 — from the Rater button, or by launching with <code>--rater &lt;id&gt;</code> — and that

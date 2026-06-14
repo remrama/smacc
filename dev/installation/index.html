@@ -1091,11 +1091,12 @@ double-click <code>SMACC-Setup.exe</code> and click through. The installer:</p>
 <ul>
 <li>installs SMACC <strong>per-user</strong> — no administrator rights or IT involvement needed;</li>
 <li>adds a <strong>Start menu</strong> entry (and, if you opt in, a desktop shortcut);</li>
-<li>associates <strong><code>.smacc</code> files</strong>, so double-clicking a SMACC file opens a session
-    with it;</li>
+<li>associates <strong><code>.smacc</code> files</strong>, so double-clicking one opens the <strong>Start a session</strong>
+    dialog with it preselected;</li>
 <li>installs the <strong>EEG Annotator</strong> — the post-hoc
     <a href="../eeg-annotator/">EEG viewer/annotator</a>. Included by default; uncheck it during
-    setup to skip the heavyweight MNE library, or re-run the installer later to
+    setup to skip the heavyweight EEG component (which bundles the MNE library), or
+    re-run the installer later to
     add or remove it;</li>
 <li>registers an uninstaller — remove SMACC from <strong>Settings › Apps</strong> like any other
     program. Uninstalling never touches your data: SMACC files, recordings, and
@@ -1177,17 +1178,18 @@ itself remembers window positions and sizes and your recent files in
 <h3 id="smacc-files-smacc">SMACC files (<code>.smacc</code>)</h3>
 <p>Your reusable setup is saved to a portable SMACC file (see
 <a href="../smacc-files/">SMACC files</a>). The installer associates <code>.smacc</code> files so you can
-<strong>double-click one to open SMACC and run a session with it</strong>. With the portable
+<strong>double-click one to open the Start-a-session dialog with it preselected</strong>. With the portable
 <code>SMACC.exe</code>, enable (or repair) the association any time from
 <strong>File › Associate .smacc files (Windows)</strong> in the Launcher.</p>
 <h3 id="audio-cues">Audio cues</h3>
 <p>SMACC seeds a few <code>demo-*</code> cue files into the default data directory's <code>cues/</code>
 folder (restored if you delete them, and refreshed when you upgrade SMACC), so
 there is always something to test with. You can also place your own sound files
-there — <code>.wav</code>, <code>.mp3</code>, <code>.flac</code>, <code>.ogg</code>, and <code>.aiff</code> are all supported; only the
+there — common formats such as <code>.wav</code>, <code>.mp3</code>, <code>.flac</code>, <code>.ogg</code>, and <code>.aiff</code> are
+accepted; only the
 <code>demo-</code> files are managed by SMACC, so your own are never touched.</p>
 <h3 id="dream-report-survey">Dream report survey</h3>
-<p>The <strong>Record Dream Report</strong> button can optionally pop open a survey — one of the
+<p>The <strong>Record dream report</strong> button can optionally pop open a survey — one of the
 built-in dream questionnaires (opened in a SMACC window, responses saved into the
 run folder) or a survey URL hosted on e.g. Qualtrics or REDCap (opened in the
 browser). Manage them from the Dream-recording panel's <strong>Manage…</strong> button; saved
@@ -1196,7 +1198,7 @@ automatically when recording starts, or open any survey on its own from
 <strong>File › Surveys</strong>. See <a href="../surveys/">Surveys</a>.</p>
 <h3 id="recording-device">Recording device</h3>
 <p>If you plan to record dreams, bind your mic to <strong>Bedroom mic 1</strong> in the
-<strong>Devices</strong> window (in the <em>Tools</em> column); the dream-report recorder uses it.</p>
+<strong>Devices</strong> window (in the <strong>Panels</strong> column); the dream-report recorder uses it.</p>
 
 
 

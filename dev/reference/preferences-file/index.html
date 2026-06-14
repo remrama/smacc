@@ -759,6 +759,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#eeg-annotator-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EEG Annotator keys
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -962,6 +973,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#eeg-annotator-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EEG Annotator keys
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1000,7 +1022,9 @@
 
 <h1 id="preferences-file-preferencesyaml">Preferences file (<code>preferences.yaml</code>)</h1>
 <p><code>preferences.yaml</code> holds <strong>per-machine operator preferences</strong> — where each window was
-last placed and the Launcher's recent-files list. It is the machine layer, kept
+last placed, the Launcher's recent-files list, the live log-preview options, and the
+EEG Annotator's per-machine state (recent labels, last-used folders, rater id,
+quick-mark palette). It is the machine layer, kept
 separate from a portable <a href="../settings-file/">SMACC file</a> (which a researcher shares
 between rigs) and from a per-run <a href="../session-log/">session log</a>.</p>
 <p>It lives in the SMACC directory (<code>$SMACC_DIRECTORY</code>, else <code>~/SMACC/preferences.yaml</code>),
@@ -1019,6 +1043,7 @@ or corrupt file falls back to the built-in defaults, and saving swallows errors.
 <span class="w">  </span><span class="nt">last_settings</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">C:\Users\you\SMACC\peter.smacc</span>
 <span class="w">  </span><span class="nt">log_preview_max_lines</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1000</span>
 <span class="w">  </span><span class="nt">log_preview_clock</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">24h</span>
+<span class="w">  </span><span class="nt">eeg_palette_labels</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">LRLR</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">LRLRx2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">LRLRx3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">IEIE</span><span class="p p-Indicator">]</span>
 </code></pre></div>
 <h2 id="fields">Fields</h2>
 <table>
@@ -1060,7 +1085,7 @@ or corrupt file falls back to the built-in defaults, and saving swallows errors.
 <tr>
 <td><code>windows</code></td>
 <td>mapping</td>
-<td>Per-window geometry, keyed by a stable window id → <code>{x, y, w, h}</code>. Ids include <code>launcher</code>, <code>main</code> (the Session window), the analyze window, and each tool window. An absent/<code>null</code> <code>x</code>/<code>y</code> means "no saved position — open at a default".</td>
+<td>Per-window geometry, keyed by a stable window id → <code>{x, y, w, h}</code>. Ids include <code>launcher</code>, <code>main</code> (the Session window), <code>analyze</code> (the Analyzer), <code>eeg-annotator</code> (the EEG Annotator), and one entry per tool window (keyed by its panel key). An absent/<code>null</code> <code>x</code>/<code>y</code> means "no saved position — open at a default".</td>
 </tr>
 <tr>
 <td><code>recent_settings</code></td>
@@ -1070,7 +1095,7 @@ or corrupt file falls back to the built-in defaults, and saving swallows errors.
 <tr>
 <td><code>last_settings</code></td>
 <td>path or <code>null</code></td>
-<td>The last <code>.smacc</code> opened, so the Launcher can preselect it.</td>
+<td>The last <code>.smacc</code> opened, used to preselect it in the Session…/Editor… file picker.</td>
 </tr>
 <tr>
 <td><code>log_preview_max_lines</code></td>
@@ -1090,6 +1115,55 @@ or corrupt file falls back to the built-in defaults, and saving swallows errors.
 yields every key. There is no cross-version migration; only <code>schema_version: 1</code>
 is current.</p>
 </div>
+<h3 id="eeg-annotator-keys">EEG Annotator keys</h3>
+<p>The <a href="../../eeg-annotator/">EEG Annotator</a> runs as its own process but writes its
+per-machine state into the same <code>preferences.yaml</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>eeg_recent_labels</code></td>
+<td>list</td>
+<td>Recent annotation labels, seeding the label dialog.</td>
+</tr>
+<tr>
+<td><code>eeg_rater_id</code></td>
+<td>string or <code>null</code></td>
+<td>The active rater id for per-rater sidecars.</td>
+</tr>
+<tr>
+<td><code>eeg_palette_labels</code></td>
+<td>list</td>
+<td>Quick-mark palette (default <code>[LRLR, LRLRx2, LRLRx3, IEIE]</code>).</td>
+</tr>
+<tr>
+<td><code>eeg_last_dir</code></td>
+<td>path or <code>null</code></td>
+<td>Last folder a recording was opened from.</td>
+</tr>
+<tr>
+<td><code>eeg_last_profile_dir</code></td>
+<td>path or <code>null</code></td>
+<td>Last view-profile folder.</td>
+</tr>
+<tr>
+<td><code>eeg_last_export_dir</code></td>
+<td>path or <code>null</code></td>
+<td>Last figure-export folder.</td>
+</tr>
+<tr>
+<td><code>eeg_last_blind_dir</code></td>
+<td>path or <code>null</code></td>
+<td>Last blind-config folder.</td>
+</tr>
+</tbody>
+</table>
 <h2 id="version-history">Version history</h2>
 <table>
 <thead>
@@ -1101,7 +1175,7 @@ is current.</p>
 <tbody>
 <tr>
 <td>1</td>
-<td>First stable schema: <code>windows</code>, <code>recent_settings</code>, <code>last_settings</code>. (The pre-release <code>association_prompted</code> key was dropped along with the first-run association prompt — the installer owns the association now; a leftover key in an old file is ignored.)</td>
+<td>First (and current) stable schema, covering window geometry, recents/last-used, the log-preview options, and the EEG Annotator keys. (The pre-release <code>association_prompted</code> key was dropped along with the first-run association prompt — the installer owns the association now; a leftover key in an old file is ignored.)</td>
 </tr>
 </tbody>
 </table>

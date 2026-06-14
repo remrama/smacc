@@ -1161,7 +1161,7 @@ response file and logs a <code>SurveySubmitted</code> event (code 71) — log-on
 since the survey happens after the awakening; tick its <strong>LSL</strong>/<strong>TTL</strong> boxes in
 the <a href="../usage/#configuring-codes">Markers window</a> if your protocol wants it in
 the trigger channel.</p>
-<p>In the study designer (and the read-only previews in the Manage dialog) a survey
+<p>In the Editor (and the read-only previews in the Manage dialog) a survey
 renders but cannot be submitted — there is no run folder to save into.</p>
 <h2 id="response-files">Response files</h2>
 <p>One JSON file per administration, in the run folder:</p>
@@ -1171,7 +1171,7 @@ renders but cannot be submitted — there is no run folder to save into.</p>
 <li><code>survey-01-lusk.json</code> — opened standalone; standalone administrations are
     numbered in their own sequence.</li>
 </ul>
-<p>The payload records the survey's key, title, and content version, the optional
+<p>The payload records the SMACC version, the survey's key, name, title, and content version, the optional
 subject/session metadata, opened/submitted timestamps, the time since the
 <strong>Start recording</strong> marker (like the dream-report stamp), the linked report
 number (or <code>null</code>), the shared scale with its anchors, one
@@ -1181,7 +1181,8 @@ warns first); <code>label</code> is its human reading (the Likert anchor or the 
 dropdown option). Display-only headings collect nothing and are omitted:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;smacc/survey-response&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;survey&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;dlq&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;...&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;smacc_version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0.0.10&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;survey&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;dlq&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;DLQ&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;builtin&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;...&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">},</span>
 <span class="w">  </span><span class="nt">&quot;report_number&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;time_since_recording_start&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;02:14:09&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;responses&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>

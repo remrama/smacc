@@ -1153,7 +1153,7 @@ Negotiated [high]:  22.0 ms   (SMACC stamps the marker this far ahead of the str
     which SMACC doesn't use today. <strong>Don't assume Low helps — measure it.</strong></li>
 </ol>
 <h2 id="the-low-high-setting">The Low / High setting</h2>
-<p>The Volume window has an <strong>Output latency</strong> choice, saved in the <code>.smacc</code>
+<p>The Volume window has a <strong>Latency</strong> choice (High / Low), saved in the <code>.smacc</code>
 (<a href="../reference/settings-file/"><code>output_latency</code></a>):</p>
 <ul>
 <li><strong>High</strong> (default) — PortAudio's robust buffer. Fewer underruns; the safe choice
@@ -1190,8 +1190,8 @@ rig</strong>. To characterise yours:</p>
 <p><strong>Against the EEG, per session (authoritative).</strong> Record the real stimulus onset on
     a spare amplifier channel — a microphone for the cue, a photodiode for the light —
     alongside the LSL port code. The difference between the port code and the recorded
-    onset, across the night, is the true distribution, and it can be visualised in the
-    Analyze tool. This needs a spare channel and is tracked in
+    onset, across the night, is the true distribution. SMACC does not plot this itself
+    yet; a per-session view of it needs a spare channel and is tracked in
     <a href="https://github.com/remrama/smacc/issues/104">#104</a>.</p>
 </li>
 </ul>

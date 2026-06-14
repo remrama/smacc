@@ -1138,7 +1138,7 @@ any Qt import, so the GUI tests (built on
 display and no popups — there's no extra setup on your part. Hardware access (audio
 device enumeration, the Windows volume read-out) is stubbed in fixtures, so tests don't
 depend on the machine's audio setup.</p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>--cov<span class="o">=</span>smacc<span class="w"> </span>--cov-report<span class="o">=</span>term-missing<span class="w">   </span><span class="c1"># the coverage flags CI runs</span>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>--extra<span class="w"> </span>dev<span class="w"> </span>--extra<span class="w"> </span>eeg<span class="w"> </span>pytest<span class="w"> </span>--cov<span class="o">=</span>smacc<span class="w"> </span>--cov-report<span class="o">=</span>term-missing<span class="w">   </span><span class="c1"># CI also adds --cov-report=xml</span>
 </code></pre></div>
 <p>To actually watch a test render, override the platform for that run (Windows:
 <code>$env:QT_QPA_PLATFORM = "windows"</code> before <code>uv run pytest</code>).</p>
@@ -1159,20 +1159,22 @@ window/taskbar icon, which SMACC resolves via <code>sys._MEIPASS</code>. On Wind
 PyInstaller; if a frozen build ever fails to import <code>yaml</code>, add
 <code>--hidden-import yaml</code>.</p>
 <p>The optional EEG Annotator component (#136) is a second frozen exe with its own
-entry point — it carries the MNE/pyqtgraph stack the base exe deliberately
+entry point — it carries the MNE/pyqtgraph/matplotlib stack the base exe deliberately
 doesn't (requires <code>uv sync --extra dev --extra eeg</code>):</p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>pyinstaller<span class="w"> </span>entry_eeg.py<span class="w"> </span>--name<span class="w"> </span>SMACC-EEG<span class="w"> </span>--onefile<span class="w"> </span>--noconsole<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--icon<span class="w"> </span>src/smacc/assets/icon.ico<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--add-data<span class="w"> </span><span class="s2">&quot;src/smacc/assets/icon.png:smacc/assets&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--collect-submodules<span class="w"> </span>mne<span class="w"> </span>--collect-data<span class="w"> </span>mne
+<span class="w">  </span>--collect-submodules<span class="w"> </span>mne<span class="w"> </span>--collect-data<span class="w"> </span>mne<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--collect-submodules<span class="w"> </span>matplotlib.backends
 </code></pre></div>
 <p>The <code>--collect-*</code> flags matter: MNE uses <code>lazy_loader</code>, which imports
 submodules by name at runtime and reads the package's <code>.pyi</code> stubs — both
 invisible to PyInstaller's static analysis. Without them the exe builds
-cleanly and dies on first MNE use. Don't try <code>--exclude-module matplotlib</code>
-to slim the bundle: the viewer never plots with it, but MNE's IO layer
-transitively imports <code>mne.viz.ui_events</code> (→ matplotlib) at import time, so
-the exclusion breaks <code>read_raw_*</code>.</p>
+cleanly and dies on first MNE use. matplotlib is a real dependency too — the
+figure export (<code>eeg/export.py</code>, #180) writes PDF/SVG via <code>savefig</code>, and MNE's IO
+layer imports <code>mne.viz.ui_events</code> (→ matplotlib) at import time — so
+<code>--collect-submodules matplotlib.backends</code> bundles its PDF/SVG backends, and
+<code>--exclude-module matplotlib</code> would break both <code>read_raw_*</code> and the export.</p>
 <p>Verify a built <code>SMACC-EEG.exe</code> with <code>--selftest</code> (the check is exit code 0):
 it round-trips a synthetic recording through MNE, the display filters, and the
 annotation sidecar. <code>--version</code> alone would not catch a broken MNE bundling —
@@ -1182,7 +1184,7 @@ MNE is imported lazily, so it only loads when a recording is actually touched.</
 <code>usb.core</code> is missing — that is BlinkStick's non-Windows backend, which SMACC
 never uses, so the warning is harmless. If a frozen build ever fails to import
 the driver, add <code>--hidden-import pywinusb</code>.</p>
-<p>Releases are built automatically: pushing a <code>v*</code> tag (e.g. <code>v0.0.7</code>) triggers the
+<p>Releases are built automatically: pushing a <code>v*</code> tag (e.g. <code>v0.0.11</code>) triggers the
 <a href="https://github.com/remrama/smacc/blob/main/.github/workflows/release.yaml">release workflow</a>,
 which checks the tag against <code>smacc.__version__</code>, builds <code>SMACC.exe</code> and
 <code>SMACC-EEG.exe</code> (each stamped with version metadata from
@@ -1221,7 +1223,8 @@ on each <code>v*</code> release tag.</p>
 <li>SMACC is distributed only as a frozen <code>SMACC.exe</code> (no PyPI), so CI tests what
     ships rather than a version range: the <code>test</code> job in <code>ci.yaml</code> runs on the same
     <code>windows-2022</code> + Python 3.13 + locked dependencies as the release build
-    (<code>release.yaml</code>), in a single job rather than a multi-version matrix.</li>
+    (<code>release.yaml</code>), across <code>windows-2022</code> and <code>windows-latest</code> rather than a
+    Python-version matrix.</li>
 </ul>
 
 
