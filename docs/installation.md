@@ -10,7 +10,7 @@ double-click `SMACC-Setup.exe` and click through. The installer:
 - associates **`.smacc` files**, so double-clicking a SMACC file opens a session
     with it;
 - installs the **EEG Annotator** — the post-hoc
-    [EEG viewer/annotator](eeg-review.md). Included by default; uncheck it during
+    [EEG viewer/annotator](eeg-annotator.md). Included by default; uncheck it during
     setup to skip the heavyweight MNE library, or re-run the installer later to
     add or remove it;
 - registers an uninstaller — remove SMACC from **Settings › Apps** like any other
@@ -57,7 +57,7 @@ where nothing may be installed, and quick tests. The portable build skips the
 installer's conveniences (Start menu entry, uninstaller, the `.smacc`
 file association) — you can associate `.smacc` files from the Launcher's File
 menu instead (see below). The
-[EEG Annotator](eeg-review.md) is likewise available portable as
+[EEG Annotator](eeg-annotator.md) is likewise available portable as
 `SMACC-EEG.exe` — put it **next to** `SMACC.exe` and the Launcher's *EEG
 Annotator* button lights up (it also runs standalone).
 

@@ -1,6 +1,6 @@
 # Annotations sidecar
 
-The [EEG Annotator](../eeg-review.md) saves annotations as a **TSV + JSON
+The [EEG Annotator](../eeg-annotator.md) saves annotations as a **TSV + JSON
 sidecar pair** next to the source recording, which is never modified:
 
 ```

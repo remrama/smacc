@@ -1,24 +1,40 @@
-# EEG review
+# EEG Annotator
 
-SMACC's **EEG review tool** is a post-hoc viewer for recorded EEG: open a
+The **EEG Annotator** is SMACC's post-hoc viewer for recorded EEG: open a
 file, scroll through the night, apply display filters, and place named
 annotations — saved as a small sidecar file next to the recording, which is
 **never modified**. It is a review tool, not a real-time display; nothing
 about it runs during a live session.
 
-It opens from the Launcher's **Review EEG** button, from its own Start-menu
-entry (**SMACC EEG review**), and always runs as its own window and process —
+It opens from the Launcher's **EEG Annotator** button, from its own Start-menu
+entry (**SMACC EEG Annotator**), and always runs as its own window and process —
 you can keep reviewing last night's file while tonight's session runs.
+
+**How it differs from a generic EEG viewer.** The Annotator is built for the
+overnight cueing workflow, not for clinical reading:
+
+- It is **read-only by contract** — the recording is never written; every mark,
+    stage score, and overlay lives in a small sidecar beside it.
+- It is **SMACC-aware** — it imports SMACC's own portcodes off the recording and
+    can overlay a night's [session log](#session-log-overlay) (cues, dream
+    reports, even the recorded report audio), so you see *what SMACC did* on the
+    same timeline.
+- It has **blind, multi-rater scoring** built in (see
+    [blind-rater mode](#blind-rater-mode)) — for objective signal and stage
+    scoring, not an afterthought.
+- Its **[epoch model](#the-epoch-model)** is decoupled from the on-screen window
+    and can be anchored to any feature.
+- Recordings are **memory-mapped**, so an 8-hour high-density night opens in
+    seconds and scrolls smoothly regardless of file size.
 
 !!! note "An optional component"
 
-    The viewer ships as the installer's **EEG Review Tools** component, off by
-    default (it carries the MNE library, which would triple the install for
-    labs that only run sessions). To add it later, re-run the
-    [installer](installation.md) and pick **Full installation** — the existing
-    install is upgraded in place. When the component is missing, the
-    Launcher's button is shown disabled with a hint, so you always know the
-    tool exists.
+    The Annotator ships as the installer's **EEG Annotator** component, **checked
+    by default**. It carries the MNE library (a heavyweight dependency), so labs
+    that only run sessions can **uncheck it during setup** to skip it; re-run the
+    [installer](installation.md) later to add or remove it on an existing install.
+    When the component is missing, the Launcher's button is shown disabled with a
+    hint, so you always know the tool exists.
 
 ## Supported recordings
 
@@ -27,41 +43,95 @@ you can keep reviewing last night's file while tonight's session runs.
 | European Data Format | `.edf`                                          |
 | BrainVision          | `.vhdr` (of the `.vhdr`/`.eeg`/`.vmrk` triplet) |
 | FIF (MNE / Elekta)   | `.fif`                                          |
+| Neuroscan            | `.cnt`                                          |
+| EEGLAB               | `.set` (continuous recordings only)             |
 
-Recordings are memory-mapped, never loaded whole: an 8-hour high-density
-night opens in seconds and scrolling stays smooth regardless of file size.
+The open dialog's file filter is generated from this list, so it never drifts
+from what the tool can actually read. An *epoched* `.set` is not a continuous
+recording and is rejected with MNE's own message. Recordings are memory-mapped,
+never loaded whole: an 8-hour high-density night opens in seconds and scrolling
+stays smooth regardless of file size.
 
 ## Viewing
 
-- **Window length** — 10/30/60/120 s pages; **30 s** (one scoring epoch) is
-    the default. PageUp/PageDown page; the mouse wheel and scrollbar scroll;
-    click the traces and the arrow keys nudge, Home/End jump.
+- **Window length** — 10/30/60/120 s pages; **30 s** is the default. This is the
+    *on-screen* window, separate from the [scoring epoch](#the-epoch-model).
 - **Filters** — high-pass, low-pass, and a 50/60 Hz notch, applied to the
     *display only* (zero-phase, so nothing shifts in time). Recordings open
     **unfiltered** — the usual sleep view is two clicks away (HP 0.3 Hz, LP
     35 Hz).
 - **Scale** — microvolts per channel lane; smaller numbers mean bigger
     traces. Trigger/stim channels are auto-fit to their lane.
+- **Channels…** picks which channels are shown and reorders them; each channel
+    type (EEG, EOG, EMG, …) scales on its own. **Save profile…** stores the whole
+    montage — channels, filters, scale, and the window/epoch lengths — to a file,
+    and **Load profile…** applies it to any recording, so a lab's house view is
+    one click on every night.
+- **Export figure…** writes the current window to a publication-ready **PNG, PDF,
+    or SVG**.
 - The status bar shows the cursor's time from recording start **and the
     wall-clock time**, so events line up with the night's session log.
+
+### Keyboard navigation
+
+The arrow keys drive the view from anywhere in the window — you do **not** have
+to click the traces first:
+
+| Key                   | Action                                   |
+| --------------------- | ---------------------------------------- |
+| `←` / `→`             | step back / forward one **epoch**        |
+| `Shift`+`←` / `→`     | nudge 1 s, to peek across a boundary     |
+| `↑` / `↓`             | bigger / smaller traces (`Shift` = fine) |
+| `Home` / `End`        | jump to the start / end of the recording |
+| `PageUp` / `PageDown` | page back / forward one window           |
+
+The mouse wheel and scrollbar scroll as well.
+
+### The epoch model
+
+The **scoring epoch** is a first-class concept, deliberately *separate* from the
+on-screen window — a 30 s epoch can be inspected inside a 60 s window, and the
+arrow keys step by epoch regardless of how much is on screen.
+
+- **Epoch** length is set in seconds (default **30 s**, the polysomnography
+    standard; 1–300 s).
+- **Epoch grid** draws faint, **numbered** epoch boundaries over the traces.
+- **Anchor epochs to view** starts an epoch at the left edge of the current view
+    and back/front-fills the whole grid from there (boundaries fall at
+    `anchor + k·epoch`) — so you can line the grid up with lights-out or any
+    feature in the record. **Reset anchor** puts epoch 1 back at the recording
+    start.
+- **Time axis** labels the x-axis as wall-clock **Clock** time or **Elapsed**
+    seconds from the start. Clock needs a recording start time; an anonymized file
+    that has none falls back to elapsed.
 
 ## Annotating
 
 1. **Drag** across the traces to mark a span (drag never pans — the time
-    axis only moves when you ask it to).
+    axis only moves when you ask it to). To drop a **point** instead,
+    **Ctrl+click** (or press **M**) at the cursor.
 1. Name it in the label dialog — recent labels and common marks (LRLR,
     arousal, artifact, cue response) are one click; free text always works.
     Tick **instantaneous** to keep just the moment instead of the dragged span.
-1. **Click** an annotation to select it; use the side list to rename,
+1. A plain **click** on an annotation selects it; use the side list to rename,
     delete, or jump to one (double-click).
 1. **Save annotations** writes the sidecar next to the recording:
     `night1.edf` → `night1.annotations.tsv` (+ a small `.json` describing it).
-    Unsaved changes star the title and prompt before closing.
+    The recording itself is **never modified**. Unsaved changes star the title
+    and prompt before closing, and saving over a sidecar **this review did not
+    open** asks first — so you never clobber another file by accident.
 
 For fast signal scoring, the **Quick marks** row drops a labeled point mark at
 the cursor in one click — or press **1–9** for the first nine. Use **Edit
 palette…** to set the buttons; the palette defaults to the lucid eye-signal
 vocabulary (LRLR, LRLRx2, LRLRx3, IEIE).
+
+**Autosave & recovery.** A couple of seconds after you stop editing, your work
+autosaves to a distinct `night1.annotations.autosave.tsv` (a per-rater file when
+a [rater id](#multiple-raters) is set). It is purely a crash net — if the tool
+finds one when a recording opens, a non-modal banner offers to **Restore** or
+**Dismiss** it; nothing is ever applied silently, and your real sidecar is
+untouched until you Save.
 
 Events already stored **inside** the recording — amp markers, SMACC's own
 trigger codes — are imported automatically the *first* time a file is
