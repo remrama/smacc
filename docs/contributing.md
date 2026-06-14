@@ -153,7 +153,7 @@ never uses, so the warning is harmless. If a frozen build ever fails to import
 the driver, add `--hidden-import pywinusb`.
 
 Releases are built automatically: pushing a `v*` tag (e.g. `v0.0.11`) triggers the
-[release workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/release.yaml),
+[release workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/release.yml),
 which checks the tag against `smacc.__version__`, builds `SMACC.exe` and
 `SMACC-EEG.exe` (each stamped with version metadata from
 `tools/make_versionfile.py`), wraps them in an Inno Setup installer
@@ -180,7 +180,7 @@ uv run --extra docs mkdocs build --strict # the exact build the PR CI runs
 uv run --extra docs mike serve            # preview the versioned site
 ```
 
-The [docs workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/docs.yaml)
+The [docs workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/docs.yml)
 runs `mkdocs build --strict` on every pull request, deploys a `dev` version on
 pushes to `main`, and publishes a numbered version (updating the `latest` alias)
 on each `v*` release tag.
@@ -190,15 +190,15 @@ on each `v*` release tag.
 A single-file **PDF manual** (the whole site in nav order) is produced by the
 [`mkdocs-with-pdf`](https://github.com/orzih/mkdocs-with-pdf) plugin and published
 alongside the site at `…/pdf/smacc-manual.pdf`. It is built from a separate config,
-`mkdocs-pdf.yaml`, which inherits the base config and adds the plugin. The base
-`mkdocs.yaml` deliberately omits it: the plugin imports
+`mkdocs-pdf.yml`, which inherits the base config and adds the plugin. The base
+`mkdocs.yml` deliberately omits it: the plugin imports
 [WeasyPrint](https://weasyprint.org/) at load time, and WeasyPrint needs system
 libraries (Pango), so leaving it out keeps an ordinary `mkdocs build` / `mkdocs serve`
 working on every platform. CI installs those libraries and builds with the PDF config.
 To build the manual locally, install WeasyPrint's dependencies, then:
 
 ```sh
-uv run --extra docs mkdocs build -f mkdocs-pdf.yaml
+uv run --extra docs mkdocs build -f mkdocs-pdf.yml
 ```
 
 ## Project notes
@@ -211,7 +211,7 @@ uv run --extra docs mkdocs build -f mkdocs-pdf.yaml
     minimum OS is **Windows 10**, set by Qt 6 (PyQt6) — Qt 5 was the last line that
     still ran on Windows 8.1. Keep the pin unless you intend to move the Python floor.
 - SMACC is distributed only as a frozen `SMACC.exe` (no PyPI), so CI tests what
-    ships rather than a version range: the `test` job in `ci.yaml` runs on the same
+    ships rather than a version range: the `test` job in `ci.yml` runs on the same
     `windows-2022` + Python 3.13 + locked dependencies as the release build
-    (`release.yaml`), across `windows-2022` and `windows-latest` rather than a
+    (`release.yml`), across `windows-2022` and `windows-latest` rather than a
     Python-version matrix.

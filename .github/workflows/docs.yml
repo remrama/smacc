@@ -37,7 +37,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           uv run --extra docs mkdocs build --strict
-          uv run --extra docs mkdocs build -f mkdocs-pdf.yaml
+          uv run --extra docs mkdocs build -f mkdocs-pdf.yml
 
       - name: Configure git
         if: github.event_name == 'push'
@@ -48,12 +48,12 @@ jobs:
       # Pushes to main: publish the development version.
       - name: Deploy dev docs
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')
-        run: uv run --extra docs mike deploy --push -F mkdocs-pdf.yaml dev
+        run: uv run --extra docs mike deploy --push -F mkdocs-pdf.yml dev
 
       # Release tags: publish the numbered version and update the latest alias.
       - name: Deploy release docs
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          uv run --extra docs mike deploy --push -F mkdocs-pdf.yaml --update-aliases "$VERSION" latest
+          uv run --extra docs mike deploy --push -F mkdocs-pdf.yml --update-aliases "$VERSION" latest
           uv run --extra docs mike set-default --push latest

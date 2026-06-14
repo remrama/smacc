@@ -34,7 +34,7 @@ jobs:
         run: uv run --extra dev mypy
 
   test:
-    # windows-2022 mirrors the release build (release.yaml) — same OS, Python
+    # windows-2022 mirrors the release build (release.yml) — same OS, Python
     # (3.13, via .python-version), and locked deps — so CI exercises exactly what
     # gets frozen into SMACC.exe. windows-latest runs alongside as a
     # forward-compatibility canary (it tracks the newest hosted image, e.g. the
@@ -63,7 +63,7 @@ jobs:
         # Upload only from the release-mirror runner, and only when the tests passed
         # (`success()` — an explicit `if:` otherwise overrides the implicit
         # run-on-success). One upload keeps the coverage signal and the Codecov gate
-        # (see codecov.yaml) stable rather than double-counting across matrix legs.
+        # (see codecov.yml) stable rather than double-counting across matrix legs.
         # Strict: an upload error fails the build rather than passing silently.
         if: success() && matrix.os == 'windows-2022'
         uses: codecov/codecov-action@v7
