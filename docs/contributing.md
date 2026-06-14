@@ -185,6 +185,22 @@ runs `mkdocs build --strict` on every pull request, deploys a `dev` version on
 pushes to `main`, and publishes a numbered version (updating the `latest` alias)
 on each `v*` release tag.
 
+### PDF manual
+
+A single-file **PDF manual** (the whole site in nav order) is produced by the
+[`mkdocs-with-pdf`](https://github.com/orzih/mkdocs-with-pdf) plugin and published
+alongside the site at `…/pdf/smacc-manual.pdf`. It is built from a separate config,
+`mkdocs-pdf.yaml`, which inherits the base config and adds the plugin. The base
+`mkdocs.yaml` deliberately omits it: the plugin imports
+[WeasyPrint](https://weasyprint.org/) at load time, and WeasyPrint needs system
+libraries (Pango), so leaving it out keeps an ordinary `mkdocs build` / `mkdocs serve`
+working on every platform. CI installs those libraries and builds with the PDF config.
+To build the manual locally, install WeasyPrint's dependencies, then:
+
+```sh
+uv run --extra docs mkdocs build -f mkdocs-pdf.yaml
+```
+
 ## Project notes
 
 - `src/` layout: the package lives in `src/smacc/`.
