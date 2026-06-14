@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - ".github/workflows/release.yaml"
+      - ".github/workflows/release.yml"
       - "tools/smacc.iss"
       - "tools/make_versionfile.py"
       - "entry.py"
@@ -31,7 +31,7 @@ jobs:
   build-exe:
     # Pinned (not windows-latest) for a reproducible build and the oldest hosted
     # Windows runner, maximizing compatibility for labs on older Windows. CI's
-    # test job (ci.yaml) uses the same runner so it validates this exact env.
+    # test job (ci.yml) uses the same runner so it validates this exact env.
     runs-on: windows-2022
     # Backstop the whole job: a healthy run is ~6 min (two onefile builds plus
     # the smoke tests), but a crashed --noconsole exe pops a "Failed to execute
