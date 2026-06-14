@@ -18,6 +18,7 @@ the check is the exit code, not the output.
 from __future__ import annotations
 
 import sys
+import traceback
 
 from PyQt6.QtWidgets import QApplication
 
@@ -230,7 +231,16 @@ def main() -> None:
         print(f"SMACC EEG review v{VERSION}")
         sys.exit(0)
     if "--selftest" in sys.argv:
-        sys.exit(selftest())
+        # A windowed (--noconsole) build pops a *blocking* "Failed to execute
+        # script" dialog on an unhandled exception, which hangs a headless CI
+        # runner until the smoke-test timeout instead of failing fast. Catch
+        # everything and exit non-zero so a broken bundle (a missing lazy
+        # submodule, a dropped data file) surfaces as an error, not a 300s hang.
+        try:
+            sys.exit(selftest())
+        except Exception:
+            traceback.print_exc()
+            sys.exit(1)
     app = QApplication(sys.argv)
     app.setApplicationName("SMACC EEG review")
     window = EegReviewWindow(

@@ -85,10 +85,15 @@ jobs:
       # the exe builds fine and dies on first MNE use). matplotlib must ship
       # even though the viewer renders with pyqtgraph: MNE's IO layer
       # transitively imports mne.viz.ui_events (-> matplotlib) at import time,
-      # so excluding it kills read_raw_*. The --selftest smoke below proves
-      # all of this end to end.
+      # so excluding it kills read_raw_*. Figure export (#180) additionally
+      # writes PDF/SVG, whose matplotlib backends are imported by name at
+      # savefig time — invisible to static analysis, exactly like MNE's lazy
+      # submodules — so collect matplotlib.backends too (without it PDF/SVG
+      # export raises ModuleNotFoundError; PNG/Agg is already pulled in via the
+      # explicit canvas import). The --selftest smoke below proves all of this
+      # end to end.
       - name: Build SMACC-EEG.exe
-        run: uv run pyinstaller entry_eeg.py --name SMACC-EEG --onefile --noconsole --icon src/smacc/assets/icon.ico --version-file version_info_eeg.txt --add-data "src/smacc/assets/icon.png;smacc/assets" --collect-submodules mne --collect-data mne
+        run: uv run pyinstaller entry_eeg.py --name SMACC-EEG --onefile --noconsole --icon src/smacc/assets/icon.ico --version-file version_info_eeg.txt --add-data "src/smacc/assets/icon.png;smacc/assets" --collect-submodules mne --collect-data mne --collect-submodules matplotlib.backends
       # A broken bundle (missing data file, import error) otherwise ships silently:
       # the exes are windowed (--noconsole), so PowerShell won't wait for them on
       # their own and there is no stdout — Start-Process -Wait + the exit code is
