@@ -45,6 +45,16 @@ ChangesAssociations=yes
 WizardStyle=modern
 Compression=lzma2
 SolidCompression=yes
+; Disable Inno's Restart Manager (#234). On a second, in-place install it
+; enumerates processes holding handles to the exes it's about to replace or
+; [InstallDelete], and can block on a lingering OS/Defender scan handle to the
+; just-written binary even under /VERYSILENT /SUPPRESSMSGBOXES - which hung the
+; release workflow's opt-out smoke test to the job timeout. SMACC is a small
+; per-user tool with no need to gracefully close running apps mid-upgrade;
+; users close it before updating (the manual update-check flow prompts them).
+; This also turns RM off in the uninstaller: uninstalling while SMACC is running
+; falls back to the legacy file-in-use path instead of RM's close-and-restart page.
+CloseApplications=no
 
 [Tasks]
 ; Desktop shortcut is opt-in (unchecked by default); the Start menu entry is always created.

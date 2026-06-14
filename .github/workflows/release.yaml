@@ -145,16 +145,11 @@ jobs:
       # Same idea as the exe smoke test, one level up: a broken installer (bad
       # source path, registry section typo) would otherwise ship silently. The
       # default install now INCLUDES the EEG Annotator (checked by default); this
-      # verifies SMACC.exe and SMACC-EEG.exe land and the .smacc association
-      # registers. It only *verifies* the EEG exe was placed (a size floor), it
-      # does not run it — the dist copy is byte-identical and already ran
-      # --selftest above, and a third 120 MB extract/scan here intermittently
-      # thrashed the runner into a timeout.
-      #
-      # The opt-out path (a /COMPONENTS="core" install dropping the EEG exe via
-      # [InstallDelete]) is not smoke-tested here: a second, in-place install
-      # reliably hangs the runner (an Inno Restart-Manager wait, not Defender).
-      # Tracked in #234, which will fix the upgrade hang and restore that check.
+      # verifies SMACC.exe and SMACC-EEG.exe land, the EEG Start-menu shortcut is
+      # created, and the .smacc association registers. It only *verifies* the EEG
+      # exe was placed (a size floor), it does not run it — the dist copy is
+      # byte-identical and already ran --selftest above, and a third 120 MB
+      # extract/scan here intermittently thrashed the runner into a timeout.
       - name: Smoke-test the installer (default - includes the EEG Annotator)
         run: |
           $p = Start-Process -FilePath dist/SMACC-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER' -PassThru
@@ -173,6 +168,28 @@ jobs:
           # above); a size floor catches a truncated/partial install.
           $size = (Get-Item $eeg).Length
           if ($size -lt 50MB) { throw "Installed SMACC-EEG.exe is implausibly small ($size bytes) - partial copy?" }
+          # The EEG component also creates a Start-menu shortcut; assert it exists
+          # so the opt-out step below can prove [InstallDelete] removes it.
+          $lnk = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\SMACC EEG Annotator.lnk"
+          if (-not (Test-Path $lnk)) { throw "Default install must create the EEG Annotator shortcut at $lnk" }
+      # Opt-out path (#234): a second, in-place install with the EEG component
+      # deselected must drop the previously-installed SMACC-EEG.exe and its
+      # Start-menu shortcut via [InstallDelete]. CloseApplications=no (smacc.iss)
+      # stops Inno's Restart Manager from hanging this in-place upgrade; the
+      # WaitForExit cap fails a regression in ~3 min instead of stalling to the
+      # job timeout. /COMPONENTS=core needs no quoting (single component, no comma).
+      - name: Smoke-test the installer (opt-out - EEG Annotator deselected)
+        run: |
+          $p = Start-Process -FilePath dist/SMACC-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/COMPONENTS=core' -PassThru
+          if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "Core-only SMACC-Setup.exe did not exit within 180s" }
+          if ($p.ExitCode -ne 0) { throw "Core-only SMACC-Setup.exe exited with code $($p.ExitCode)" }
+          $base = "$env:LOCALAPPDATA\Programs\SMACC"
+          if (-not (Test-Path "$base\SMACC.exe")) { throw "Core-only install missing SMACC.exe" }
+          if (Test-Path "$base\SMACC-EEG.exe") { throw "[InstallDelete] did not remove SMACC-EEG.exe on EEG deselect" }
+          $lnk = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\SMACC EEG Annotator.lnk"
+          if (Test-Path $lnk) { throw "[InstallDelete] did not remove the EEG Annotator shortcut on EEG deselect" }
+          $progid = (Get-ItemProperty -Path 'HKCU:\Software\Classes\.smacc').'(default)'
+          if ($progid -ne 'SMACC.Study') { throw ".smacc association lost after in-place upgrade (got '$progid')" }
       # Every run leaves the build products behind as workflow artifacts, so a
       # verification run's exes/installer can be downloaded and inspected
       # without publishing anything.
