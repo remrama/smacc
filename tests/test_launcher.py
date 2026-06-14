@@ -1,10 +1,43 @@
-"""Tests for launcher logic that needs no GUI (initial-settings resolution)."""
+"""Tests for launcher logic: initial-settings resolution and the tool buttons.
+
+File selection + the validate-then-remember rule (#186) and metadata prefill
+(#184) now live in the launcher's dialogs (smacc.dialogs) and are covered in
+tests/test_dialogs.py; here we cover what the launcher itself does with the
+dialogs' results.
+"""
 
 from __future__ import annotations
 
 from smacc import launcher
 from smacc.cuedesigner import CueDesignerWindow
 from smacc.launcher import LauncherWindow, resolve_initial_settings
+from smacc.toolwindow import ToolWindow
+
+
+def _patch_prefs(monkeypatch, tmp_path):
+    """Point both launcher and dialogs at a throwaway preferences file."""
+    from smacc import dialogs
+
+    prefs_path = tmp_path / "preferences.yaml"
+    monkeypatch.setattr(launcher, "preferences_path", prefs_path)
+    monkeypatch.setattr(dialogs, "preferences_path", prefs_path)
+    return prefs_path
+
+
+def _silence_critical(monkeypatch):
+    """Replace the blocking error popup with a recorder; returns the call list."""
+    from PyQt6 import QtWidgets
+
+    calls: list[tuple] = []
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox,
+        "critical",
+        lambda *a, **k: calls.append(a) or QtWidgets.QMessageBox.StandardButton.Ok,
+    )
+    return calls
+
+
+# ----- initial-settings resolution -------------------------------------------
 
 
 def test_resolve_initial_settings_prefers_last_used(tmp_path):
@@ -29,10 +62,12 @@ def test_resolve_initial_settings_none_when_nothing_available(tmp_path, monkeypa
     )
 
 
+# ----- a tool button opens its tool and hides the launcher --------------------
+
+
 def test_design_cues_button_opens_the_cue_designer(qtbot, tmp_path, monkeypatch):
-    # Point preferences at a temp file so building the launcher can't touch real prefs.
-    monkeypatch.setattr(launcher, "preferences_path", tmp_path / "preferences.yaml")
-    win = LauncherWindow(settings_path=None)
+    _patch_prefs(monkeypatch, tmp_path)
+    win = LauncherWindow()
     qtbot.addWidget(win)
     win.show()
     win.design_cues()
@@ -43,108 +78,17 @@ def test_design_cues_button_opens_the_cue_designer(qtbot, tmp_path, monkeypatch)
     assert win.isVisible()
 
 
-# ----- a .smacc must load before it is opened or remembered (#186) ------------
+# ----- Session…: open the dialog, then run a session with its result ----------
 
 
-def _silence_critical(monkeypatch):
-    """Replace the blocking error popup with a recorder; returns the call list."""
-    from PyQt6 import QtWidgets
-
-    calls: list[tuple] = []
-    monkeypatch.setattr(
-        QtWidgets.QMessageBox,
-        "critical",
-        lambda *a, **k: calls.append(a) or QtWidgets.QMessageBox.StandardButton.Ok,
-    )
-    return calls
-
-
-def _write_incompatible(path):
-    path.write_text(
-        "kind: smacc/settings\nschema_version: 99\nsettings: {}\n", encoding="utf-8"
-    )
-
-
-def test_incompatible_launch_file_is_rejected_and_kept_out_of_recents(
+def test_open_session_starts_with_the_chosen_file_and_metadata(
     qtbot, tmp_path, monkeypatch
 ):
-    from smacc import preferences
+    from smacc import dialogs, settings
 
-    prefs_path = tmp_path / "preferences.yaml"
-    monkeypatch.setattr(launcher, "preferences_path", prefs_path)
-    bad = tmp_path / "old.smacc"
-    _write_incompatible(bad)
-    popups = _silence_critical(monkeypatch)
-    win = LauncherWindow(settings_path=str(bad))
-    qtbot.addWidget(win)
-    assert win.settings_path is None  # rejected → built-in defaults stay selected
-    assert len(popups) == 1  # and the user was told why
-    recents = preferences.load_preferences(prefs_path).get("recent_settings", [])
-    assert str(bad) not in recents
-
-
-def test_valid_launch_file_is_selected_and_remembered(qtbot, tmp_path, monkeypatch):
-    from smacc import preferences, settings
-
-    prefs_path = tmp_path / "preferences.yaml"
-    monkeypatch.setattr(launcher, "preferences_path", prefs_path)
+    _patch_prefs(monkeypatch, tmp_path)
     good = tmp_path / "study.smacc"
     settings.save_settings(good, {}, {})
-    win = LauncherWindow(settings_path=str(good))
-    qtbot.addWidget(win)
-    assert win.settings_path == str(good)
-    recents = preferences.load_preferences(prefs_path).get("recent_settings", [])
-    assert str(good) in recents
-
-
-def test_failed_selection_drops_a_stale_entry_from_recents(
-    qtbot, tmp_path, monkeypatch
-):
-    from smacc import preferences
-
-    # A file that was fine when remembered but is incompatible now must not
-    # keep resurfacing in the dropdown.
-    prefs_path = tmp_path / "preferences.yaml"
-    monkeypatch.setattr(launcher, "preferences_path", prefs_path)
-    bad = tmp_path / "old.smacc"
-    _write_incompatible(bad)
-    preferences.update_preferences(prefs_path, {"recent_settings": [str(bad)]})
-    _silence_critical(monkeypatch)
-    win = LauncherWindow(settings_path=None)
-    qtbot.addWidget(win)
-    win._set_settings(str(bad))  # e.g. picked from the recents dropdown
-    assert win.settings_path is None  # the selection did not change
-    recents = preferences.load_preferences(prefs_path).get("recent_settings", [])
-    assert str(bad) not in recents
-
-
-def test_start_session_aborts_when_the_file_breaks_after_selection(
-    qtbot, tmp_path, monkeypatch
-):
-    from smacc import settings
-
-    monkeypatch.setattr(launcher, "preferences_path", tmp_path / "preferences.yaml")
-    good = tmp_path / "study.smacc"
-    settings.save_settings(good, {}, {})
-    _silence_critical(monkeypatch)
-    win = LauncherWindow(settings_path=str(good))
-    qtbot.addWidget(win)
-    good.write_text("not: [valid", encoding="utf-8")  # corrupted after selection
-    win.start_session()
-    assert win._tool is None  # no session window was constructed
-    assert win.settings_path is None  # selection fell back to the defaults
-    # The double-click flow starts a session before the launcher is ever shown;
-    # on rejection the launcher must come up rather than leave no window at all.
-    assert win.isVisible()
-
-
-# ----- the start-of-session metadata prompt (#184) ----------------------------
-
-
-def test_start_session_prompts_and_passes_metadata(qtbot, tmp_path, monkeypatch):
-    from smacc.toolwindow import ToolWindow
-
-    monkeypatch.setattr(launcher, "preferences_path", tmp_path / "preferences.yaml")
     captured = {}
 
     class FakeSession:
@@ -155,42 +99,111 @@ def test_start_session_prompts_and_passes_metadata(qtbot, tmp_path, monkeypatch)
     monkeypatch.setattr(
         launcher, "SmaccWindow", lambda session, settings_path=None: ToolWindow()
     )
-    entered = {"subject": "sub-001", "session": "ses-02", "notes": "first night"}
+    monkeypatch.setattr(dialogs.StartSessionDialog, "exec", lambda self: True)
     monkeypatch.setattr(
-        LauncherWindow, "_prompt_session_info", lambda self: dict(entered)
+        dialogs.StartSessionDialog, "chosen_path", lambda self: str(good)
     )
-    win = LauncherWindow(settings_path=None)
+    monkeypatch.setattr(
+        dialogs.StartSessionDialog,
+        "get_inputs",
+        lambda self: ("sub-001", "ses-02", "first night"),
+    )
+    win = LauncherWindow()
     qtbot.addWidget(win)
-    win.start_session()
-    assert captured["metadata"] == entered
+    win._open_session()
+    assert captured["metadata"] == {
+        "subject": "sub-001",
+        "session": "ses-02",
+        "notes": "first night",
+    }
     assert win._tool is not None  # the session window was opened
 
 
-def test_start_session_cancelled_prompt_aborts(qtbot, tmp_path, monkeypatch):
-    monkeypatch.setattr(launcher, "preferences_path", tmp_path / "preferences.yaml")
-    monkeypatch.setattr(LauncherWindow, "_prompt_session_info", lambda self: None)
-    win = LauncherWindow(settings_path=None)
+def test_open_session_cancelled_aborts_and_shows_the_launcher(
+    qtbot, tmp_path, monkeypatch
+):
+    from smacc import dialogs
+
+    _patch_prefs(monkeypatch, tmp_path)
+    monkeypatch.setattr(dialogs.StartSessionDialog, "exec", lambda self: False)
+    win = LauncherWindow()
     qtbot.addWidget(win)
-    win.start_session()
-    assert win._tool is None  # no session was started
-    # The double-click flow prompts before the launcher is ever shown; on Cancel
-    # the launcher must come up rather than leave no window at all.
+    win._open_session()
+    assert win._tool is None  # no session started
+    # The double-click flow opens this dialog before the launcher is shown; on
+    # Cancel the launcher must come up rather than leave no window at all.
     assert win.isVisible()
 
 
-def test_prompt_session_info_prefills_from_the_smacc_file(qtbot, tmp_path, monkeypatch):
+def test_open_session_aborts_when_the_chosen_file_breaks_after_the_dialog(
+    qtbot, tmp_path, monkeypatch
+):
     from smacc import dialogs, settings
 
-    monkeypatch.setattr(launcher, "preferences_path", tmp_path / "preferences.yaml")
+    _patch_prefs(monkeypatch, tmp_path)
     good = tmp_path / "study.smacc"
-    settings.save_settings(
-        good, {}, {"subject": "sub-001", "session": "ses-02", "notes": "template"}
+    settings.save_settings(good, {}, {})
+    _silence_critical(monkeypatch)
+    monkeypatch.setattr(dialogs.StartSessionDialog, "exec", lambda self: True)
+    monkeypatch.setattr(
+        dialogs.StartSessionDialog, "chosen_path", lambda self: str(good)
     )
-    monkeypatch.setattr(dialogs.SessionInfoDialog, "exec", lambda self: True)
-    win = LauncherWindow(settings_path=str(good))
+    win = LauncherWindow()
     qtbot.addWidget(win)
-    assert win._prompt_session_info() == {
-        "subject": "sub-001",
-        "session": "ses-02",
-        "notes": "template",
-    }
+    good.write_text("not: [valid", encoding="utf-8")  # corrupted after the dialog
+    win._open_session()
+    assert win._tool is None  # the re-check (#186) blocked the session
+    assert win.isVisible()
+
+
+# ----- Editor…: New file vs an existing one -----------------------------------
+
+
+def test_open_editor_new_opens_a_blank_editor(qtbot, tmp_path, monkeypatch):
+    from smacc import dialogs
+
+    _patch_prefs(monkeypatch, tmp_path)
+    captured = {}
+    monkeypatch.setattr(
+        launcher, "SmaccSession", lambda data_dir, design=False: object()
+    )
+    monkeypatch.setattr(
+        launcher,
+        "SmaccWindow",
+        lambda session, settings_path=None: (
+            captured.update(path=settings_path) or ToolWindow()
+        ),
+    )
+    monkeypatch.setattr(dialogs.EditorFileDialog, "exec", lambda self: True)
+    monkeypatch.setattr(dialogs.EditorFileDialog, "is_new", lambda self: True)
+    win = LauncherWindow()
+    qtbot.addWidget(win)
+    win._open_editor()
+    assert captured["path"] is None  # New → a fresh file (Save-As)
+    assert win._tool is not None
+
+
+def test_open_editor_existing_opens_that_file(qtbot, tmp_path, monkeypatch):
+    from smacc import dialogs, settings
+
+    _patch_prefs(monkeypatch, tmp_path)
+    good = tmp_path / "study.smacc"
+    settings.save_settings(good, {}, {})
+    captured = {}
+    monkeypatch.setattr(
+        launcher, "SmaccSession", lambda data_dir, design=False: object()
+    )
+    monkeypatch.setattr(
+        launcher,
+        "SmaccWindow",
+        lambda session, settings_path=None: (
+            captured.update(path=settings_path) or ToolWindow()
+        ),
+    )
+    monkeypatch.setattr(dialogs.EditorFileDialog, "exec", lambda self: True)
+    monkeypatch.setattr(dialogs.EditorFileDialog, "is_new", lambda self: False)
+    monkeypatch.setattr(dialogs.EditorFileDialog, "chosen_path", lambda self: str(good))
+    win = LauncherWindow()
+    qtbot.addWidget(win)
+    win._open_editor()
+    assert captured["path"] == str(good)

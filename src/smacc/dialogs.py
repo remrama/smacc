@@ -1,10 +1,12 @@
 """Dialogs shown by SMACC outside the main window."""
 
+from pathlib import Path
 from typing import cast
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from . import config, events, hue, surveys
+from . import config, events, hue, preferences, settings, surveys
+from .paths import DEFAULT_SETTINGS_PATH, preferences_path
 from .utils import normalize_survey_url
 
 
@@ -86,6 +88,254 @@ class SessionInfoDialog(QtWidgets.QDialog):
     def get_inputs(self) -> tuple[str, str, str]:
         """Return the edited subject, session, and notes as strings."""
         return self.subject_id.text(), self.session_id.text(), self.notes.text()
+
+
+# ----- SMACC-file selection (launcher Session… / Editor… dialogs) ------------
+
+# Item-data sentinels for the file combo's non-path entries (vs. a path string).
+_BROWSE_SENTINEL = "\x00browse"
+_NEW_SENTINEL = "\x00new"
+
+
+def load_recent_settings() -> list[str]:
+    """The persisted recent-SMACC-file list (paths, most-recent first)."""
+    prefs = preferences.load_preferences(preferences_path)
+    return [r for r in prefs.get("recent_settings", []) if isinstance(r, str)]
+
+
+def remember_settings(path: str) -> None:
+    """Push ``path`` onto the persisted recent-settings list (most-recent first)."""
+    recents = preferences.push_recent(load_recent_settings(), str(path))
+    preferences.update_preferences(preferences_path, {"recent_settings": recents})
+
+
+def forget_settings(path: str) -> None:
+    """Drop ``path`` from the persisted recent-settings list (it failed to load)."""
+    recents = [r for r in load_recent_settings() if r != str(path)]
+    preferences.update_preferences(preferences_path, {"recent_settings": recents})
+
+
+def validate_settings_file(path: str, parent=None) -> bool:
+    """True if ``path`` loads as a compatible SMACC file; report it otherwise (#186).
+
+    A file that fails is also dropped from recents, so a stale or corrupted entry
+    doesn't keep resurfacing in the picker.
+    """
+    try:
+        settings.load_settings(path)
+    except (OSError, ValueError) as exc:
+        forget_settings(path)
+        QtWidgets.QMessageBox.critical(
+            parent, "Open SMACC file", f"Could not open {Path(path).name}.\n\n{exc}"
+        )
+        return False
+    return True
+
+
+class SmaccFileCombo(QtWidgets.QComboBox):
+    """A dropdown for choosing a SMACC file: default / recents / Browse….
+
+    Encapsulates the validate-then-remember rule (#186): a file picked via
+    Browse… or a recent entry that no longer loads is reported and dropped, and
+    the selection reverts. ``fileChanged`` fires when the chosen file actually
+    changes. With ``allow_new=True`` a leading "New SMACC file" entry is offered
+    (its :meth:`chosen_path` is ``None``, distinguished by :meth:`is_new`).
+    Programmatic population never validates; only a user activation does, matching
+    the launcher's old combo.
+    """
+
+    fileChanged = QtCore.pyqtSignal()
+
+    def __init__(
+        self, preselect: str | None = None, allow_new: bool = False, parent=None
+    ):
+        super().__init__(parent)
+        self._allow_new = allow_new
+        self._path: str | None = None  # chosen .smacc, or None for built-in defaults
+        self._is_new = False
+        self.setStatusTip("Choose the SMACC file (or Browse… for one not listed).")
+        self.activated.connect(self._on_activated)
+        self._populate(preselect)
+
+    def chosen_path(self) -> str | None:
+        """The selected .smacc path, or ``None`` for built-in defaults / a new file."""
+        return self._path
+
+    def is_new(self) -> bool:
+        """True when the "New SMACC file" entry is selected (allow_new only)."""
+        return self._is_new
+
+    def _populate(self, target: str | None) -> None:
+        """Rebuild the list ([New], default, recents, Browse…) and select ``target``."""
+        default = str(DEFAULT_SETTINGS_PATH)
+        recents = load_recent_settings()
+        # A preselect that isn't a recent (e.g. a freshly double-clicked file) is
+        # offered too, so it can actually be selected rather than silently dropping
+        # to "default".
+        if (
+            target
+            and target != default
+            and target not in recents
+            and Path(target).is_file()
+        ):
+            recents = [target, *recents]
+        self.blockSignals(True)  # programmatic fill: don't fire activated
+        self.clear()
+        if self._allow_new:
+            self.addItem("New SMACC file", _NEW_SENTINEL)
+        self.addItem("default", default)
+        self.setItemData(
+            self.count() - 1, default, QtCore.Qt.ItemDataRole.ToolTipRole
+        )  # full path on hover
+        seen = {default}
+        for path in recents:
+            if path in seen:
+                continue
+            seen.add(path)
+            self.addItem(Path(path).stem, path)  # name only — no extension/path
+            self.setItemData(self.count() - 1, path, QtCore.Qt.ItemDataRole.ToolTipRole)
+        self.insertSeparator(self.count())
+        self.addItem("Browse…", _BROWSE_SENTINEL)
+        index = self.findData(target) if target else -1
+        if index < 0:
+            index = 0  # the first real entry (New if allowed, else default)
+        self.setCurrentIndex(index)
+        self._sync(self.currentIndex())
+        self.blockSignals(False)
+
+    def _sync(self, index: int) -> None:
+        """Set ``_path``/``_is_new`` from item ``index`` without validating."""
+        data = self.itemData(index)
+        if data == _NEW_SENTINEL:
+            self._is_new, self._path = True, None
+            return
+        self._is_new = False
+        # The "default" entry maps to the seeded default.smacc, or to built-in
+        # defaults (None) when that file is absent.
+        if data == str(DEFAULT_SETTINGS_PATH) and not Path(data).is_file():
+            self._path = None
+        else:
+            self._path = data
+
+    def _on_activated(self, index: int) -> None:
+        """User picked an entry: Browse… opens a dialog; others validate-then-set."""
+        data = self.itemData(index)
+        if data == _BROWSE_SENTINEL:
+            self._browse()
+            return
+        if data == _NEW_SENTINEL:
+            self._sync(index)
+            self.fileChanged.emit()
+            return
+        # The "default" entry maps to the seeded default.smacc, or to built-in
+        # defaults (None) when it is absent — never an error.
+        if data == str(DEFAULT_SETTINGS_PATH) and not Path(data).is_file():
+            self._sync(index)
+            self.fileChanged.emit()
+            return
+        if not Path(data).is_file():  # a recent that has since disappeared
+            QtWidgets.QMessageBox.warning(
+                self, "SMACC file", "That settings file no longer exists."
+            )
+            forget_settings(data)
+            self._populate(self._path)
+            return
+        if not validate_settings_file(data, self):  # exists but no longer loads
+            self._populate(self._path)  # revert to the last good selection
+            return
+        self._path, self._is_new = data, False
+        self.fileChanged.emit()
+
+    def _browse(self) -> None:
+        """Pick a .smacc not already listed; validate-then-remember, else revert."""
+        start = self._path or str(DEFAULT_SETTINGS_PATH)
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Open SMACC file", start, "SMACC file (*.smacc)"
+        )
+        if not path:
+            self._populate(self._path)  # cancelled: keep the previous selection
+            return
+        if not validate_settings_file(path, self):
+            self._populate(self._path)
+            return
+        remember_settings(path)
+        self._path, self._is_new = path, False
+        self._populate(path)
+        self.fileChanged.emit()
+
+
+class StartSessionDialog(SessionInfoDialog):
+    """Pick a SMACC file and confirm subject/session/notes, then start a session.
+
+    The launcher's "Session…" entry. A SMACC-file row (default / recents /
+    Browse…, preselected from the last-used file) sits above the optional
+    metadata fields inherited from :class:`SessionInfoDialog` (#184). Choosing a
+    file (re)prefills the metadata from that file's stored values — clearing a
+    field afterwards sticks, since the launcher does not re-merge the file's
+    values. :meth:`chosen_path` is the selected file; :meth:`get_inputs` is the
+    metadata, exactly as for a plain session-info prompt.
+    """
+
+    def __init__(self, preselect: str | None = None, parent=None):
+        super().__init__(parent=parent)
+        self.setWindowTitle("Start a session")
+        self.fileCombo = SmaccFileCombo(preselect=preselect, parent=self)
+        form = cast(QtWidgets.QFormLayout, self.layout())
+        form.insertRow(0, "SMACC file", self.fileCombo)
+        self.fileCombo.fileChanged.connect(self._prefill_from_file)
+        self._prefill_from_file()
+
+    def chosen_path(self) -> str | None:
+        """The selected .smacc file (``None`` = built-in defaults)."""
+        return self.fileCombo.chosen_path()
+
+    def _prefill_from_file(self) -> None:
+        """Fill subject/session/notes from the selected file's stored metadata."""
+        stored: dict = {}
+        path = self.fileCombo.chosen_path()
+        if path:
+            try:
+                _, stored = settings.load_settings(path)
+            except (OSError, ValueError):
+                stored = {}  # an unloadable file is reported by the combo's validation
+        self.subject_id.setText(str(stored.get("subject") or ""))
+        self.session_id.setText(str(stored.get("session") or ""))
+        self.notes.setText(str(stored.get("notes") or ""))
+
+
+class EditorFileDialog(QtWidgets.QDialog):
+    """Pick a SMACC file to edit, or start a new one — the launcher's "Editor…" entry.
+
+    Offers "New SMACC file" plus the default / recents / Browse… picker.
+    :meth:`is_new` is True for a fresh file (then :meth:`chosen_path` is ``None``);
+    otherwise :meth:`chosen_path` is the file to open in the Editor.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Open in the Editor")
+        self.setWindowFlags(
+            self.windowFlags() ^ QtCore.Qt.WindowType.WindowContextHelpButtonHint
+        )
+        self.fileCombo = SmaccFileCombo(allow_new=True, parent=self)
+        buttonBox = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            self,
+        )
+        buttonBox.accepted.connect(self.accept)
+        buttonBox.rejected.connect(self.reject)
+        layout = QtWidgets.QFormLayout(self)
+        layout.addRow("SMACC file", self.fileCombo)
+        layout.addWidget(buttonBox)
+
+    def chosen_path(self) -> str | None:
+        """The file to edit (``None`` for a new file or absent built-in defaults)."""
+        return self.fileCombo.chosen_path()
+
+    def is_new(self) -> bool:
+        """True when "New SMACC file" is selected."""
+        return self.fileCombo.is_new()
 
 
 class SurveyDialog(QtWidgets.QDialog):
