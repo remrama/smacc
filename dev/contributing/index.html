@@ -1191,6 +1191,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Building the docs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pdf-manual" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PDF manual
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1307,6 +1324,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Building the docs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pdf-manual" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PDF manual
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1496,6 +1530,18 @@ uv<span class="w"> </span>run<span class="w"> </span>--extra<span class="w"> </s
 runs <code>mkdocs build --strict</code> on every pull request, deploys a <code>dev</code> version on
 pushes to <code>main</code>, and publishes a numbered version (updating the <code>latest</code> alias)
 on each <code>v*</code> release tag.</p>
+<h3 id="pdf-manual">PDF manual</h3>
+<p>A single-file <strong>PDF manual</strong> (the whole site in nav order) is produced by the
+<a href="https://github.com/orzih/mkdocs-with-pdf"><code>mkdocs-with-pdf</code></a> plugin and published
+alongside the site at <code>…/pdf/smacc-manual.pdf</code>. It is built from a separate config,
+<code>mkdocs-pdf.yaml</code>, which inherits the base config and adds the plugin. The base
+<code>mkdocs.yaml</code> deliberately omits it: the plugin imports
+<a href="https://weasyprint.org/">WeasyPrint</a> at load time, and WeasyPrint needs system
+libraries (Pango), so leaving it out keeps an ordinary <code>mkdocs build</code> / <code>mkdocs serve</code>
+working on every platform. CI installs those libraries and builds with the PDF config.
+To build the manual locally, install WeasyPrint's dependencies, then:</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>--extra<span class="w"> </span>docs<span class="w"> </span>mkdocs<span class="w"> </span>build<span class="w"> </span>-f<span class="w"> </span>mkdocs-pdf.yaml
+</code></pre></div>
 <h2 id="project-notes">Project notes</h2>
 <ul>
 <li><code>src/</code> layout: the package lives in <code>src/smacc/</code>.</li>
