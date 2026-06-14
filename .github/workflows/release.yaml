@@ -33,11 +33,13 @@ jobs:
     # Windows runner, maximizing compatibility for labs on older Windows. CI's
     # test job (ci.yaml) uses the same runner so it validates this exact env.
     runs-on: windows-2022
-    # A crashed --noconsole exe shows PyInstaller's "Failed to execute script"
-    # MessageBox, which Start-Process -Wait sits behind forever — exactly the
-    # failure the smoke tests exist to catch would otherwise hang the job for
-    # GitHub's default 6 hours instead of failing fast.
-    timeout-minutes: 30
+    # Backstop the whole job: a healthy run is ~6 min (two onefile builds plus
+    # the smoke tests), but a crashed --noconsole exe pops a "Failed to execute
+    # script" MessageBox that Start-Process sits behind forever, and Defender
+    # scanning the big onefiles can occasionally thrash the runner into a stall.
+    # 18 min is ~3x a healthy run — clear of a slow-but-fine build, but it nearly
+    # halves a stalled run's wasted time versus the old 30 (and GitHub's 6h default).
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.2.0
@@ -97,23 +99,20 @@ jobs:
       # A broken bundle (missing data file, import error) otherwise ships silently:
       # the exes are windowed (--noconsole), so PowerShell won't wait for them on
       # their own and there is no stdout — Start-Process -Wait + the exit code is
-      # the test. For the EEG exe, --version only proves the import tree (MNE is
-      # imported lazily), so --selftest additionally round-trips a synthetic
-      # recording through MNE, the filters, and the annotation sidecar.
+      # the test. For the EEG exe we run only --selftest: it resolves the full
+      # import tree AND round-trips a synthetic recording through MNE, the
+      # filters, and the annotation sidecar — a superset of --version, so a
+      # separate --version run (another 120 MB onefile extraction) is redundant.
       # Every Start-Process below is bounded like the crash-log test's: -Wait
-      # would sit behind any stray window/prompt until the 30-minute job
-      # timeout, reporting nothing about which command hung. A kill + throw
-      # names the culprit within minutes instead. 300s covers the slowest
-      # legitimate case (the MNE onefile extracting + importing on a runner
-      # under Defender's real-time scan).
+      # would sit behind any stray window/prompt until the job timeout, reporting
+      # nothing about which command hung. A kill + throw names the culprit within
+      # minutes instead. 300s covers the slowest legitimate case (the MNE onefile
+      # extracting + importing on a runner under Defender's real-time scan).
       - name: Smoke-test the exes
         run: |
           $p = Start-Process -FilePath dist/SMACC.exe -ArgumentList '--version' -PassThru
           if (-not $p.WaitForExit(120000)) { $p.Kill(); throw "SMACC.exe --version did not exit within 120s" }
           if ($p.ExitCode -ne 0) { throw "SMACC.exe --version exited with code $($p.ExitCode)" }
-          $p = Start-Process -FilePath dist/SMACC-EEG.exe -ArgumentList '--version' -PassThru
-          if (-not $p.WaitForExit(300000)) { $p.Kill(); throw "SMACC-EEG.exe --version did not exit within 300s" }
-          if ($p.ExitCode -ne 0) { throw "SMACC-EEG.exe --version exited with code $($p.ExitCode)" }
           $p = Start-Process -FilePath dist/SMACC-EEG.exe -ArgumentList '--selftest' -PassThru
           if (-not $p.WaitForExit(300000)) { $p.Kill(); throw "SMACC-EEG.exe --selftest did not exit within 300s" }
           if ($p.ExitCode -ne 0) { throw "SMACC-EEG.exe --selftest exited with code $($p.ExitCode)" }
@@ -145,9 +144,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "ISCC exited with code $LASTEXITCODE" }
       # Same idea as the exe smoke test, one level up: a broken installer (bad
       # source path, registry section typo) would otherwise ship silently. Both
-      # component configurations are exercised: the default (standard) install
-      # must NOT drop the EEG exe, then an explicit core+eeg install (the same
-      # in-place upgrade path a lab uses to add the component later) must.
+      # component configurations are exercised: the default install must exclude
+      # the EEG exe, then an explicit core+eeg install (the in-place upgrade path
+      # a lab uses to add the component later) must place it. The core+eeg case
+      # only *verifies* the EEG exe was placed (a size floor), it does not run it
+      # — the dist copy is byte-identical and already ran --selftest above, and a
+      # third 120 MB extract/scan of it here intermittently thrashed the runner
+      # into a timeout.
       - name: Smoke-test the installer (default - no EEG component)
         run: |
           $p = Start-Process -FilePath dist/SMACC-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER' -PassThru
@@ -161,16 +164,17 @@ jobs:
           $progid = (Get-ItemProperty -Path 'HKCU:\Software\Classes\.smacc').'(default)'
           if ($progid -ne 'SMACC.Study') { throw ".smacc association not registered (got '$progid')" }
           if (Test-Path "$env:LOCALAPPDATA\Programs\SMACC\SMACC-EEG.exe") { throw "Default install must not include SMACC-EEG.exe" }
-      - name: Smoke-test the installer (adding the EEG component)
+      - name: Verify the installer adds the EEG component
         run: |
           $p = Start-Process -FilePath dist/SMACC-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/COMPONENTS="core,eeg"' -PassThru
           if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "SMACC-Setup.exe (core,eeg) did not exit within 180s" }
           if ($p.ExitCode -ne 0) { throw "SMACC-Setup.exe (core,eeg) exited with code $($p.ExitCode)" }
           $eeg = "$env:LOCALAPPDATA\Programs\SMACC\SMACC-EEG.exe"
           if (-not (Test-Path $eeg)) { throw "Installed EEG exe not found at $eeg" }
-          $p = Start-Process -FilePath $eeg -ArgumentList '--selftest' -PassThru
-          if (-not $p.WaitForExit(300000)) { $p.Kill(); throw "Installed SMACC-EEG.exe --selftest did not exit within 300s" }
-          if ($p.ExitCode -ne 0) { throw "Installed SMACC-EEG.exe --selftest exited with code $($p.ExitCode)" }
+          # Verify the whole onefile was copied, but do not run it (see comment
+          # above); a size floor catches a truncated/partial install.
+          $size = (Get-Item $eeg).Length
+          if ($size -lt 50MB) { throw "Installed SMACC-EEG.exe is implausibly small ($size bytes) - partial copy?" }
       # Every run leaves the build products behind as workflow artifacts, so a
       # verification run's exes/installer can be downloaded and inspected
       # without publishing anything.
