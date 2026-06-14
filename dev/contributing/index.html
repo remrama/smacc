@@ -1158,7 +1158,7 @@ window/taskbar icon, which SMACC resolves via <code>sys._MEIPASS</code>. On Wind
 <p>PyYAML (settings export/import) is pure Python and is picked up automatically by
 PyInstaller; if a frozen build ever fails to import <code>yaml</code>, add
 <code>--hidden-import yaml</code>.</p>
-<p>The optional EEG review component (#136) is a second frozen exe with its own
+<p>The optional EEG Annotator component (#136) is a second frozen exe with its own
 entry point — it carries the MNE/pyqtgraph stack the base exe deliberately
 doesn't (requires <code>uv sync --extra dev --extra eeg</code>):</p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>pyinstaller<span class="w"> </span>entry_eeg.py<span class="w"> </span>--name<span class="w"> </span>SMACC-EEG<span class="w"> </span>--onefile<span class="w"> </span>--noconsole<span class="w"> </span><span class="se">\</span>

@@ -1093,10 +1093,10 @@ double-click <code>SMACC-Setup.exe</code> and click through. The installer:</p>
 <li>adds a <strong>Start menu</strong> entry (and, if you opt in, a desktop shortcut);</li>
 <li>associates <strong><code>.smacc</code> files</strong>, so double-clicking a SMACC file opens a session
     with it;</li>
-<li>optionally installs the <strong>EEG Review Tools</strong> — the post-hoc
-    <a href="../eeg-review/">EEG viewer/annotator</a>. Off by default (it carries the
-    heavyweight MNE library); choose <strong>Full installation</strong> to include it, or
-    re-run the installer later to add it;</li>
+<li>installs the <strong>EEG Annotator</strong> — the post-hoc
+    <a href="../eeg-review/">EEG viewer/annotator</a>. Included by default; uncheck it during
+    setup to skip the heavyweight MNE library, or re-run the installer later to
+    add or remove it;</li>
 <li>registers an uninstaller — remove SMACC from <strong>Settings › Apps</strong> like any other
     program. Uninstalling never touches your data: SMACC files, recordings, and
     logs under <code>~/SMACC</code> (or your data directories) all stay put. The
@@ -1138,9 +1138,9 @@ where nothing may be installed, and quick tests. The portable build skips the
 installer's conveniences (Start menu entry, uninstaller, the <code>.smacc</code>
 file association) — you can associate <code>.smacc</code> files from the Launcher's File
 menu instead (see below). The
-<a href="../eeg-review/">EEG review tool</a> is likewise available portable as
-<code>SMACC-EEG.exe</code> — put it <strong>next to</strong> <code>SMACC.exe</code> and the Launcher's <em>Review
-EEG</em> button lights up (it also runs standalone).</p>
+<a href="../eeg-review/">EEG Annotator</a> is likewise available portable as
+<code>SMACC-EEG.exe</code> — put it <strong>next to</strong> <code>SMACC.exe</code> and the Launcher's <em>EEG
+Annotator</em> button lights up (it also runs standalone).</p>
 <div class="admonition note">
 <p class="admonition-title">For IT departments</p>
 <p>The default install is per-user (under <code>%LOCALAPPDATA%\Programs\SMACC</code>, no
