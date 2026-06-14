@@ -52,7 +52,7 @@ Documents each column (BIDS-style) and records provenance:
   "SourceFile": "night1.edf",
   "MeasurementDate": "2026-06-05T22:00:00+00:00",
   "Rater": null,
-  "GeneratedBy": {"Name": "SMACC", "Version": "0.0.10"}
+  "GeneratedBy": {"Name": "SMACC", "Version": "0.1.0"}
 }
 ```
 

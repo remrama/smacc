@@ -122,7 +122,7 @@ dropdown option). Display-only headings collect nothing and are omitted:
 ```json
 {
   "kind": "smacc/survey-response",
-  "smacc_version": "0.0.10",
+  "smacc_version": "0.1.0",
   "survey": {"key": "dlq", "name": "DLQ", "version": "1.0", "builtin": true, "...": "..."},
   "report_number": 2,
   "time_since_recording_start": "02:14:09",

@@ -207,6 +207,12 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
+          # A tag with a pre-release suffix (e.g. v1.0.0-rc.1) is published as a
+          # GitHub Pre-release, so /releases/latest skips it and the in-app update
+          # check (updates.py) never nags users toward a release candidate. A final
+          # tag (v0.1.0) is a full release — the homepage download button and the
+          # update check both resolve to it.
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             dist/SMACC.exe
             dist/SMACC-EEG.exe

@@ -152,7 +152,7 @@ The `blinkstick` driver (BlinkStick visual cues) and its Windows backend
 never uses, so the warning is harmless. If a frozen build ever fails to import
 the driver, add `--hidden-import pywinusb`.
 
-Releases are built automatically: pushing a `v*` tag (e.g. `v0.0.11`) triggers the
+Releases are built automatically: pushing a `v*` tag (e.g. `v0.1.0`) triggers the
 [release workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/release.yml),
 which checks the tag against `smacc.__version__`, builds `SMACC.exe` and
 `SMACC-EEG.exe` (each stamped with version metadata from
@@ -181,9 +181,12 @@ uv run --extra docs mike serve            # preview the versioned site
 ```
 
 The [docs workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/docs.yml)
-runs `mkdocs build --strict` on every pull request, deploys a `dev` version on
-pushes to `main`, and publishes a numbered version (updating the `latest` alias)
-on each `v*` release tag.
+runs `mkdocs build --strict` on every pull request and deploys a `dev` version on
+pushes to `main`. A final release tag (`v0.1.0`) publishes a numbered version and
+moves the `latest` alias; a pre-release tag (`v1.0.0-rc.1`) routes to the `dev` site
+and leaves `latest` untouched. Visitors on an old version see an "outdated" banner
+and the `dev` site shows an "unreleased" banner, both from
+[`overrides/main.html`](https://github.com/remrama/smacc/blob/main/overrides/main.html).
 
 ### PDF manual
 
@@ -200,6 +203,29 @@ To build the manual locally, install WeasyPrint's dependencies, then:
 ```sh
 uv run --extra docs mkdocs build -f mkdocs-pdf.yml
 ```
+
+## Versioning
+
+SMACC follows [semantic versioning](https://semver.org/).
+
+- **Pre-1.0, the app is not stable.** Settings files, marker codes, the UI, and
+    behavior may change between releases, and there are no compatibility shims. Pin
+    one version for the duration of a study.
+- **Versions are `0.x.y` until 1.0.0.** A new `0.x.0` collects features and `0.x.y`
+    is a smaller follow-up; no pre-1.0 bump is a stability promise.
+- **`0.1.0` is the first published release** — the first with installers attached, a
+    [release-notes](release-notes.md) entry, and a working in-app update check.
+    Earlier `0.0.x` tags predate it and are not in the release notes.
+- **`1.0.0-rc.N` tags are reserved for the run-up to a real 1.0.** They are marked
+    *Pre-release* on GitHub (so the update check ignores them) and their docs publish
+    to the **dev** site, not `latest`. There is no `0.x`-era `-dev`/`-alpha` series.
+- **1.0.0 is the first stable release.** From then on semantic versioning is binding
+    (backward-compatible changes bump the minor/patch, breaking changes bump the
+    major), and the pre-1.0 docs are dropped from the version switcher.
+
+Cutting a release: bump `__version__` in `src/smacc/__init__.py` and push a matching
+`vX.Y.Z` tag. CI checks the tag equals `__version__`, builds and smoke-tests the
+installer, attaches it to the GitHub Release, and publishes the docs.
 
 ## Project notes
 

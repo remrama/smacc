@@ -10,7 +10,7 @@ The on-disk shape (a ``.smacc`` file is YAML text with a leading comment header)
 
     kind: smacc/settings
     schema_version: 1
-    smacc_version: "0.0.9"
+    smacc_version: "0.1.0"
     metadata: {subject: "", session: "", notes: "", created: "..."}
     settings: { ...the panel state from SmaccWindow.gather_settings()... }
 

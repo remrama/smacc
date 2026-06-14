@@ -54,8 +54,14 @@ _DEFAULT_DESCRIPTION = "Sleep Manipulation and Communication Clickything"
 
 
 def version_tuple(version: str) -> tuple[int, int, int, int]:
-    """``"0.1.0"`` → ``(0, 1, 0, 0)`` — the four-part numeric form VS_FIXEDFILEINFO needs."""
-    parts = [int(part) for part in version.split(".")]
+    """``"0.1.0"`` → ``(0, 1, 0, 0)`` — the four-part numeric form VS_FIXEDFILEINFO needs.
+
+    A pre-release suffix is dropped first (``"1.0.0-rc.1"`` → ``(1, 0, 0, 0)``):
+    VS_FIXEDFILEINFO is numeric-only. The suffix is preserved in the string
+    ``FileVersion``/``ProductVersion`` fields, which take arbitrary text.
+    """
+    core = version.split("-", 1)[0]
+    parts = [int(part) for part in core.split(".")]
     return tuple(parts + [0] * (4 - len(parts)))[:4]  # type: ignore[return-value]
 
 

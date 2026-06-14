@@ -28,7 +28,7 @@ YYYY-MM-DD HH:MM:SS.mmm±HHMM, LEVEL, message
 - **message** — the log text. An **event-marker** line ends in `" - portcode N"`:
 
 ```text
-2026-06-09 22:14:01.003-0500, INFO, Opened SMACC v0.0.10
+2026-06-09 22:14:01.003-0500, INFO, Opened SMACC v0.1.0
 2026-06-09 22:14:05.221-0500, INFO, Lights off - portcode 47
 2026-06-09 22:18:30.880-0500, INFO, Dream report started: report-01, t+00:04:29 - portcode 201
 2026-06-09 22:19:02.114-0500, INFO, REM detected - portcode 41
@@ -99,7 +99,7 @@ fenced by sentinels, so log parsers skip it entirely:
 # --8<-- smacc/settings initial
 # kind: smacc/settings
 # schema_version: 1
-# smacc_version: 0.0.10
+# smacc_version: 0.1.0
 # metadata:
 #   subject: '001'
 #   ...
