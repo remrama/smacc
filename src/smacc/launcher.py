@@ -1,11 +1,11 @@
-"""The SMACC Launcher: pick a SMACC file and choose what to do.
+"""The SMACC Launcher: a flat list of tools to open.
 
-This is the FSL-style opening menu. Instead of dropping straight into a session,
-SMACC opens this small window so the operator first picks (or creates) a **SMACC
-file** (`.smacc`), then chooses to **Start**, **Create**, or **Edit** (or analyze
-a past run). Each SMACC file names the **data directory** its runs are written
-to; with none chosen, SMACC uses built-in defaults and the default data
-directory.
+SMACC opens this small window first rather than dropping straight into a session.
+It is a list of the SMACC tools — **Session**, **Editor**, **Analyzer**, **Audio
+Cue Designer**, and **EEG Annotator**. Choosing a SMACC file (`.smacc`) is not done
+up front: the Session and Editor entries each prompt for one when opened (a file
+names the **data directory** its runs are written to), since the other tools don't
+need a file.
 
 The launcher is the app's persistent root window: opening a tool hides it, and
 closing the tool brings it back (via the tool's ``closed`` signal) — except a live
@@ -19,18 +19,14 @@ from pathlib import Path
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from . import eeg, preferences, settings, updates, winassoc, windowstate
+from . import dialogs, eeg, preferences, settings, updates, winassoc, windowstate
 from .analyze import AnalyzeWindow
 from .config import VERSION
 from .cuedesigner import CueDesignerWindow
-from .dialogs import SessionInfoDialog
 from .gui import SmaccWindow
 from .paths import DEFAULT_DATA_DIR, DEFAULT_SETTINGS_PATH, LOGO_PATH, preferences_path
 from .session import SmaccSession
 from .toolwindow import ToolWindow
-
-# Sentinel item-data for the Settings dropdown's "Browse…" entry (vs. a path str).
-_BROWSE_SENTINEL = "\x00browse"
 
 # Stable id for the launcher's geometry entry in the per-window preferences map.
 _LAUNCHER_WINDOW_ID = "launcher"
@@ -51,36 +47,18 @@ def resolve_initial_settings(prefs: dict) -> str | None:
 
 
 class LauncherWindow(QtWidgets.QMainWindow):
-    """Small hub: pick a SMACC file, then start / create / edit / analyze."""
+    """Small hub: a button per SMACC tool (Session / Editor / Analyzer / …)."""
 
-    def __init__(self, settings_path: str | None) -> None:
+    def __init__(self, settings_path: str | None = None) -> None:
         super().__init__()
-        self._settings_path: str | None = None  # current .smacc, or None for defaults
         self._tool: ToolWindow | None = None
+        # A .smacc given at launch (a double-clicked file) preselects the Session
+        # dialog the first time it opens; it is consumed there, then None.
+        self._launch_file = settings_path
         self.setWindowTitle("SMACC")
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
         self._build()
-        # A file given at launch (double-clicked .smacc, or the last-used one) must
-        # load before it becomes the selection — an incompatible file is reported
-        # and stays out of recents (#186), leaving the built-in defaults selected.
-        if settings_path:
-            self._set_settings(settings_path)
-        else:
-            self._populate_settings_combo()
-
-    @property
-    def settings_path(self) -> str | None:
-        """The currently selected .smacc file (None = SMACC's built-in defaults)."""
-        return self._settings_path
-
-    # ----- current-settings helpers ----------------------------------------
-
-    def _data_dir(self) -> Path:
-        """The data directory of the current settings file (default when none)."""
-        if self._settings_path:
-            return settings.load_data_directory(self._settings_path, DEFAULT_DATA_DIR)
-        return DEFAULT_DATA_DIR
 
     # ----- UI construction --------------------------------------------------
 
@@ -108,49 +86,54 @@ class LauncherWindow(QtWidgets.QMainWindow):
         title.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
-        # One row to choose the settings, then Start / Edit / New acting on it.
-        layout.addLayout(self._build_settings_row())
-        layout.addLayout(self._build_action_row())
+        # One button per tool. Session and Editor prompt for a SMACC file when
+        # opened (the trailing "…" signals that); the rest open straight away.
+        def tool_button(label: str, tip: str, slot) -> QtWidgets.QPushButton:
+            button = QtWidgets.QPushButton(label, self)
+            button.setMinimumHeight(44)
+            button.setStatusTip(tip)
+            button.clicked.connect(slot)
+            layout.addWidget(button)
+            return button
 
-        # Standalone tools that don't act on the selected settings: design a cue
-        # WAV, or analyze a past session. Each opens from here and returns on close.
-        layout.addSpacing(8)
-        designButton = QtWidgets.QPushButton("Audio Cue Designer", self)
-        designButton.setMinimumHeight(40)
-        designButton.setStatusTip("Create a tone cue and export it as a WAV file.")
-        designButton.clicked.connect(self.design_cues)
-        layout.addWidget(designButton)
-
-        analyzeButton = QtWidgets.QPushButton("Analyzer", self)
-        analyzeButton.setMinimumHeight(40)
-        analyzeButton.setStatusTip(
-            "Summarize a past session, export its events, or recover its settings."
+        tool_button(
+            "Session…",
+            "Start a session: choose a SMACC file, confirm the subject/session.",
+            self._open_session,
         )
-        analyzeButton.clicked.connect(self.analyze_session)
-        layout.addWidget(analyzeButton)
-
-        # The optional EEG Annotator component (#136). Shown disabled (not
-        # hidden) when absent, so a lab knows the tool exists and how to get
-        # it — the same surface-don't-hide approach as missing trigger
-        # hardware (#147). Availability is probed once, here: installing the
-        # component mid-run requires closing SMACC anyway (the installer
-        # replaces the locked exe), and a stale True is already handled by
-        # the launch-failure dialog.
-        reviewEegButton = QtWidgets.QPushButton("EEG Annotator", self)
-        reviewEegButton.setMinimumHeight(40)
-        if eeg.available():
-            reviewEegButton.setStatusTip(
-                "Open the EEG Annotator in its own window (annotate a recording)."
-            )
-        else:
-            reviewEegButton.setEnabled(False)
-            reviewEegButton.setStatusTip(
+        tool_button(
+            "Editor…",
+            "Create a new SMACC file or edit an existing one.",
+            self._open_editor,
+        )
+        layout.addSpacing(8)  # group the file-acting tools above the rest
+        tool_button(
+            "Analyzer",
+            "Summarize a past session, export its events, or recover its settings.",
+            self.analyze_session,
+        )
+        tool_button(
+            "Audio Cue Designer",
+            "Create a tone cue and export it as a WAV file.",
+            self.design_cues,
+        )
+        # The optional EEG Annotator component (#136). Shown disabled (not hidden)
+        # when absent, so a lab knows the tool exists and how to get it — the same
+        # surface-don't-hide approach as missing trigger hardware (#147).
+        # Availability is probed once, here: installing the component mid-run
+        # requires closing SMACC anyway (the installer replaces the locked exe),
+        # and a stale True is already handled by the launch-failure dialog.
+        self.reviewEegButton = tool_button(
+            "EEG Annotator",
+            "Open the EEG Annotator in its own window (annotate a recording).",
+            self.review_eeg,
+        )
+        if not eeg.available():
+            self.reviewEegButton.setEnabled(False)
+            self.reviewEegButton.setStatusTip(
                 "The EEG Annotator is not installed — re-run the SMACC "
                 "installer and select the component."
             )
-        reviewEegButton.clicked.connect(self.review_eeg)
-        self.reviewEegButton = reviewEegButton
-        layout.addWidget(reviewEegButton)
 
         layout.addStretch(1)
         # Link to the documentation site (not the repo), hyperlinked. Rich text +
@@ -236,218 +219,64 @@ class LauncherWindow(QtWidgets.QMainWindow):
         quitAction.setStatusTip("Quit SMACC.")
         quitAction.triggered.connect(self.close)
 
-    def _build_settings_row(self) -> QtWidgets.QLayout:
-        """One row: 'SMACC file:' + a dropdown of default / recents / Browse…."""
-        row = QtWidgets.QHBoxLayout()
-        row.addWidget(QtWidgets.QLabel("SMACC file:", self))
-        self.settingsCombo = QtWidgets.QComboBox(self)
-        self.settingsCombo.setStatusTip(
-            "Choose the SMACC file to start, edit, or analyze."
-        )
-        self.settingsCombo.activated.connect(self._on_settings_selected)
-        row.addWidget(self.settingsCombo, 1)
-        return row
-
-    def _build_action_row(self) -> QtWidgets.QLayout:
-        """Three buttons acting on the selected SMACC file: Start / Create / Edit."""
-        row = QtWidgets.QHBoxLayout()
-        for label, slot, tip in (
-            (
-                "Start",
-                self.start_session,
-                "Start a session with the selected SMACC file.",
-            ),
-            ("Create", self.create_settings, "Create a new SMACC file."),
-            ("Edit", self.edit_settings, "Edit the selected SMACC file."),
-        ):
-            button = QtWidgets.QPushButton(label, self)
-            button.setMinimumHeight(44)
-            button.setStatusTip(tip)
-            button.clicked.connect(slot)
-            row.addWidget(button)
-        return row
-
-    # ----- settings selection ----------------------------------------------
-
-    def _populate_settings_combo(self) -> None:
-        """Fill the Settings dropdown: 'default', recents (no .smacc/path), Browse…."""
-        prefs = preferences.load_preferences(preferences_path)
-        recents = [r for r in prefs.get("recent_settings", []) if isinstance(r, str)]
-        default = str(DEFAULT_SETTINGS_PATH)
-        combo = self.settingsCombo
-        combo.blockSignals(True)  # programmatic fill: don't fire activated
-        combo.clear()
-        combo.addItem("default", default)
-        combo.setItemData(
-            0, default, QtCore.Qt.ItemDataRole.ToolTipRole
-        )  # full path on hover
-        seen = {default}
-        for path in recents:
-            if path in seen:
-                continue
-            seen.add(path)
-            combo.addItem(Path(path).stem, path)  # name only — no extension/path
-            combo.setItemData(
-                combo.count() - 1, path, QtCore.Qt.ItemDataRole.ToolTipRole
-            )
-        combo.insertSeparator(combo.count())
-        combo.addItem("Browse…", _BROWSE_SENTINEL)
-        target = self._settings_path or default
-        index = combo.findData(target)
-        combo.setCurrentIndex(index if index >= 0 else 0)
-        combo.blockSignals(False)
-
-    def _on_settings_selected(self, index: int) -> None:
-        data = self.settingsCombo.itemData(index)
-        if data == _BROWSE_SENTINEL:
-            self.open_settings()  # may set a new file; re-sync the dropdown either way
-            self._populate_settings_combo()
-            return
-        if not data:
-            return
-        if not Path(data).is_file():
-            if data == str(DEFAULT_SETTINGS_PATH):
-                self._set_settings(None)  # default absent → SMACC's built-in defaults
-            else:
-                QtWidgets.QMessageBox.warning(
-                    self, "Settings", "That settings file no longer exists."
-                )
-                self._populate_settings_combo()
-            return
-        self._set_settings(data)
-
-    def _set_settings(self, path: str | None) -> None:
-        """Make ``path`` the current SMACC file — only if it actually loads (#186).
-
-        An incompatible file is reported and the previous selection stays; only a
-        successfully loading file is remembered in recents.
-        """
-        if path is not None and not self._check_loadable(path):
-            self._populate_settings_combo()  # re-sync the dropdown to the selection
-            return
-        self._settings_path = path
-        if path:
-            self._remember(path)
-        self._populate_settings_combo()
-
-    def _check_loadable(self, path: str) -> bool:
-        """True if ``path`` loads as a compatible SMACC file; report it otherwise.
-
-        A file that fails is also dropped from recents, so a stale or corrupted
-        entry doesn't keep resurfacing in the dropdown.
-        """
-        try:
-            settings.load_settings(path)
-        except (OSError, ValueError) as exc:
-            self._forget(path)
-            QtWidgets.QMessageBox.critical(
-                self,
-                "Open SMACC file",
-                f"Could not open {Path(path).name}.\n\n{exc}",
-            )
-            return False
-        return True
-
-    def _remember(self, path: str) -> None:
-        """Push ``path`` onto the persisted recent-settings list (most-recent first)."""
-        prefs = preferences.load_preferences(preferences_path)
-        recents = [r for r in prefs.get("recent_settings", []) if isinstance(r, str)]
-        recents = preferences.push_recent(recents, str(path))
-        preferences.update_preferences(preferences_path, {"recent_settings": recents})
-
-    def _forget(self, path: str) -> None:
-        """Drop ``path`` from the persisted recent-settings list (it failed to load)."""
-        prefs = preferences.load_preferences(preferences_path)
-        recents = [
-            r
-            for r in prefs.get("recent_settings", [])
-            if isinstance(r, str) and r != str(path)
-        ]
-        preferences.update_preferences(preferences_path, {"recent_settings": recents})
-
-    def open_settings(self) -> None:
-        """Browse for a .smacc not already in the dropdown and make it current."""
-        path, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self,
-            "Open SMACC file",
-            str(self._data_dir()),
-            "SMACC file (*.smacc)",
-        )
-        if path:
-            self._set_settings(path)
-
     # ----- actions ----------------------------------------------------------
 
-    def start_session(self) -> None:
-        """Run a session using the current settings (writing to its data directory)."""
-        # Re-check right before committing: the file may have changed on disk since
-        # it was selected, and an incompatible file must never get a session window.
-        if self._settings_path and not self._check_loadable(self._settings_path):
-            self._set_settings(None)  # fall back to the built-in defaults
-            self.show()  # the double-click flow starts before the launcher is shown
+    def _open_session(self) -> None:
+        """Choose a SMACC file + metadata, then start a session in its data dir.
+
+        Opened from "Session…" (and from a double-clicked .smacc, which preselects
+        that file the first time). Cancel backs out — and, since the double-click
+        flow runs before the launcher is shown, brings the launcher up rather than
+        leaving no window. The chosen file is re-checked before committing (#186):
+        it may have changed on disk since the dialog selected it.
+        """
+        preselect = self._launch_file or resolve_initial_settings(
+            preferences.load_preferences(preferences_path)
+        )
+        self._launch_file = None  # a launch file preselects only the first time
+        dialog = dialogs.StartSessionDialog(preselect=preselect, parent=self)
+        if not dialog.exec():
+            self.show()
             return
-        # Capture subject/session/notes before the session window opens (#184):
-        # metadata not entered at the start is usually lost. The fields stay
-        # optional — OK with blanks is a conscious skip — but Cancel backs out
-        # of starting the session at all.
-        metadata = self._prompt_session_info()
-        if metadata is None:
-            self.show()  # the double-click flow starts before the launcher is shown
+        path = dialog.chosen_path()
+        if path and not dialogs.validate_settings_file(path, self):
+            self.show()
             return
-        session = SmaccSession(self._data_dir(), metadata=metadata)
-        window = SmaccWindow(session, settings_path=self._settings_path)
-        if self._settings_path:
-            preferences.update_preferences(
-                preferences_path, {"last_settings": self._settings_path}
-            )
+        subject, session_id, notes = dialog.get_inputs()
+        metadata = {"subject": subject, "session": session_id, "notes": notes}
+        data_dir = (
+            settings.load_data_directory(path, DEFAULT_DATA_DIR)
+            if path
+            else DEFAULT_DATA_DIR
+        )
+        session = SmaccSession(data_dir, metadata=metadata)
+        window = SmaccWindow(session, settings_path=path)
+        if path:
+            dialogs.remember_settings(path)  # a started file joins the recents
+            preferences.update_preferences(preferences_path, {"last_settings": path})
         self._open_tool(window)
 
-    def _prompt_session_info(self) -> dict[str, str] | None:
-        """Ask for the optional subject/session/notes; None means Cancel.
-
-        Prefilled from the metadata stored in the selected SMACC file, so a study
-        template's values are offered for confirmation rather than retyped. The
-        prompt's result is the session's metadata — the file's stored values are
-        deliberately not re-merged after this (see SmaccWindow._apply_loaded_settings),
-        so clearing a prefilled field here sticks.
-        """
-        stored: dict = {}
-        if self._settings_path:
-            try:
-                _, stored = settings.load_settings(self._settings_path)
-            except (OSError, ValueError):
-                stored = {}  # already reported by the pre-start check
-        dialog = SessionInfoDialog(
-            str(stored.get("subject") or ""),
-            str(stored.get("session") or ""),
-            str(stored.get("notes") or ""),
-            parent=self,
-        )
+    def _open_editor(self) -> None:
+        """Open the Editor on a new SMACC file or an existing one (from "Editor…")."""
+        dialog = dialogs.EditorFileDialog(parent=self)
         if not dialog.exec():
-            return None
-        subject, session, notes = dialog.get_inputs()
-        return {"subject": subject, "session": session, "notes": notes}
-
-    def create_settings(self) -> None:
-        """Open the editor on a fresh settings file (built-in defaults; Save-As)."""
-        session = SmaccSession(DEFAULT_DATA_DIR, design=True)
-        self._open_tool(SmaccWindow(session, settings_path=None))
-
-    def edit_settings(self) -> None:
-        """Open the editor on the current settings file."""
-        if self._settings_path and not self._check_loadable(self._settings_path):
-            self._set_settings(None)  # fall back to the built-in defaults
             return
-        session = SmaccSession(self._data_dir(), design=True)
-        self._open_tool(SmaccWindow(session, settings_path=self._settings_path))
+        path = None if dialog.is_new() else dialog.chosen_path()
+        data_dir = (
+            settings.load_data_directory(path, DEFAULT_DATA_DIR)
+            if path
+            else DEFAULT_DATA_DIR
+        )
+        session = SmaccSession(data_dir, design=True)
+        self._open_tool(SmaccWindow(session, settings_path=path))
 
     def design_cues(self) -> None:
-        """Open the standalone Audio Cue Designer (exports WAVs to a study's cues folder)."""
-        self._open_tool(CueDesignerWindow(self._data_dir() / "cues"))
+        """Open the standalone Audio Cue Designer (exports WAVs to the cues folder)."""
+        self._open_tool(CueDesignerWindow(DEFAULT_DATA_DIR / "cues"))
 
     def analyze_session(self) -> None:
-        """Open the analyze window over the current settings' data directory."""
-        self._open_tool(AnalyzeWindow(self._data_dir()))
+        """Open the Analyzer over the default data directory."""
+        self._open_tool(AnalyzeWindow(DEFAULT_DATA_DIR))
 
     def review_eeg(self) -> None:
         """Launch the EEG Annotator as its own detached process.
@@ -549,20 +378,23 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self.hide()
 
     def _on_tool_closed(self) -> None:
-        """Bring the launcher back; adopt a settings file the editor may have saved.
+        """Bring the launcher back after a tool closes.
 
         Ending a live session is the exception: a night's run is over, so SMACC
         quits outright rather than reopening the launcher. The editor and the
-        standalone tools still return here.
+        standalone tools still return here. An editor that saved a file is
+        remembered (recents + last_settings) so the next Session… or Editor…
+        dialog offers and preselects it.
         """
         tool = self._tool
         if isinstance(tool, SmaccWindow) and not tool.design:
             self.close()  # persists launcher geometry, then quits the app
             return
         if isinstance(tool, SmaccWindow) and tool.settings_path:
-            self._set_settings(tool.settings_path)
-        else:
-            self._populate_settings_combo()
+            dialogs.remember_settings(tool.settings_path)
+            preferences.update_preferences(
+                preferences_path, {"last_settings": tool.settings_path}
+            )
         # The dark theme is a per-session "lights off" state; a session that ended
         # dark shouldn't leave the launcher dark, so reset to light on return.
         hints = QtGui.QGuiApplication.styleHints()

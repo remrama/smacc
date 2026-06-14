@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 from PyQt6 import QtWidgets
 
-from smacc import config, dialogs, surveys
+from smacc import config, dialogs, settings, surveys
 
 # ----- ask_initial_or_final --------------------------------------------------
 
@@ -47,6 +47,109 @@ def test_session_info_dialog_returns_inputs(qtbot):
     assert dialog.get_inputs() == ("001", "2", "a note")
     dialog.subject_id.setText("042")
     assert dialog.get_inputs() == ("042", "2", "a note")
+
+
+# ----- SMACC-file selection (the launcher's Session… / Editor… dialogs) -------
+
+
+def _write_incompatible(path):
+    path.write_text(
+        "kind: smacc/settings\nschema_version: 99\nsettings: {}\n", encoding="utf-8"
+    )
+
+
+def test_validate_settings_file_accepts_a_loadable_file(qtbot, tmp_path, monkeypatch):
+    monkeypatch.setattr(dialogs, "preferences_path", tmp_path / "preferences.yaml")
+    good = tmp_path / "study.smacc"
+    settings.save_settings(good, {}, {})
+    assert dialogs.validate_settings_file(str(good)) is True
+
+
+def test_validate_settings_file_rejects_and_drops_from_recents(
+    qtbot, tmp_path, monkeypatch
+):
+    from smacc import preferences
+
+    prefs_path = tmp_path / "preferences.yaml"
+    monkeypatch.setattr(dialogs, "preferences_path", prefs_path)
+    bad = tmp_path / "old.smacc"
+    _write_incompatible(bad)
+    preferences.update_preferences(prefs_path, {"recent_settings": [str(bad)]})
+    calls: list[tuple] = []
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox, "critical", lambda *a, **k: calls.append(a)
+    )
+    assert dialogs.validate_settings_file(str(bad)) is False  # #186
+    assert calls  # the user was told why
+    recents = preferences.load_preferences(prefs_path).get("recent_settings", [])
+    assert str(bad) not in recents  # and it won't keep resurfacing in the picker
+
+
+def test_file_combo_browse_validates_and_remembers(qtbot, tmp_path, monkeypatch):
+    from smacc import preferences
+
+    prefs_path = tmp_path / "preferences.yaml"
+    monkeypatch.setattr(dialogs, "preferences_path", prefs_path)
+    good = tmp_path / "study.smacc"
+    settings.save_settings(good, {}, {})
+    monkeypatch.setattr(
+        QtWidgets.QFileDialog, "getOpenFileName", lambda *a, **k: (str(good), "")
+    )
+    combo = dialogs.SmaccFileCombo()
+    qtbot.addWidget(combo)
+    combo._browse()  # the Browse… entry's handler
+    assert combo.chosen_path() == str(good)
+    recents = preferences.load_preferences(prefs_path).get("recent_settings", [])
+    assert str(good) in recents
+
+
+def test_file_combo_surfaces_a_preselect_that_is_not_a_recent(
+    qtbot, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(dialogs, "preferences_path", tmp_path / "preferences.yaml")
+    good = tmp_path / "study.smacc"
+    settings.save_settings(good, {}, {})
+    # A freshly double-clicked file isn't in recents yet; it must still be the
+    # selection rather than silently dropping to "default".
+    combo = dialogs.SmaccFileCombo(preselect=str(good))
+    qtbot.addWidget(combo)
+    assert combo.chosen_path() == str(good)
+
+
+def test_start_session_dialog_prefills_metadata_from_the_file(
+    qtbot, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(dialogs, "preferences_path", tmp_path / "preferences.yaml")
+    good = tmp_path / "study.smacc"
+    settings.save_settings(
+        good, {}, {"subject": "sub-001", "session": "ses-02", "notes": "template"}
+    )
+    dialog = dialogs.StartSessionDialog(preselect=str(good))
+    qtbot.addWidget(dialog)
+    assert dialog.chosen_path() == str(good)
+    assert dialog.get_inputs() == ("sub-001", "ses-02", "template")  # #184
+
+
+def test_start_session_dialog_tolerates_an_unloadable_preselect(
+    qtbot, tmp_path, monkeypatch
+):
+    # A last-used file that has since become corrupt is still selectable, but its
+    # metadata can't be read; the dialog must degrade to blank fields, not crash
+    # (the launcher re-validates and blocks the start before a session opens).
+    monkeypatch.setattr(dialogs, "preferences_path", tmp_path / "preferences.yaml")
+    broken = tmp_path / "broken.smacc"
+    _write_incompatible(broken)
+    dialog = dialogs.StartSessionDialog(preselect=str(broken))
+    qtbot.addWidget(dialog)
+    assert dialog.get_inputs() == ("", "", "")
+
+
+def test_editor_file_dialog_defaults_to_new(qtbot, tmp_path, monkeypatch):
+    monkeypatch.setattr(dialogs, "preferences_path", tmp_path / "preferences.yaml")
+    dialog = dialogs.EditorFileDialog()
+    qtbot.addWidget(dialog)
+    assert dialog.is_new() is True  # "New SMACC file" leads the list
+    assert dialog.chosen_path() is None
 
 
 # ----- SurveyDialog ----------------------------------------------------------

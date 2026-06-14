@@ -14,9 +14,9 @@ from PyQt6.QtCore import Qt, QTimer, QUrl
 from PyQt6.QtGui import QDesktopServices, QIcon
 from PyQt6.QtWidgets import QApplication, QMessageBox, QPushButton
 
-from . import crashlog, preferences
+from . import crashlog
 from .config import VERSION
-from .launcher import LauncherWindow, resolve_initial_settings
+from .launcher import LauncherWindow
 from .paths import (
     BUNDLED_CUES_DIR,
     BUNDLED_DEFAULT_SETTINGS,
@@ -24,7 +24,6 @@ from .paths import (
     DEFAULT_DATA_DIR,
     DEFAULT_SETTINGS_PATH,
     LOGO_PATH,
-    preferences_path,
 )
 from .utils import seed_default_settings, seed_demo_cues
 
@@ -257,20 +256,14 @@ def main() -> None:
     seed_demo_cues(DEFAULT_DATA_DIR / "cues", BUNDLED_CUES_DIR)
     file_arg = pick_settings_path(app.arguments())
     if file_arg:
-        # A double-clicked / CLI .smacc opens straight into a session for it;
-        # ending that session quits SMACC (see LauncherWindow._on_tool_closed).
-        # The launcher validates the file on construction (#186): an incompatible
-        # one is reported and rejected there, so show the launcher (with the
-        # built-in defaults selected) instead of starting a session it never
-        # asked for.
+        # A double-clicked / CLI .smacc opens straight into the Session dialog with
+        # that file preselected. The dialog validates it (#186); on Cancel or an
+        # incompatible file it falls back to showing the launcher, so we never leave
+        # no window. Ending the started session quits SMACC (see _on_tool_closed).
         launcher = LauncherWindow(file_arg)
-        if launcher.settings_path:
-            launcher.start_session()
-        else:
-            launcher.show()
+        launcher._open_session()
     else:
-        prefs = preferences.load_preferences(preferences_path)
-        launcher = LauncherWindow(resolve_initial_settings(prefs))
+        launcher = LauncherWindow()
         launcher.show()
     # Hidden QA hook: crash on purpose right after startup (see pick_crash_test).
     _schedule_crash_test(pick_crash_test(sys.argv[1:]))
