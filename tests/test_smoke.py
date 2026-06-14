@@ -8,7 +8,9 @@ from smacc import config, events
 
 def test_package_exposes_version():
     assert isinstance(smacc.__version__, str)
-    assert smacc.__version__.count(".") == 2  # e.g. "0.0.7"
+    # X.Y.Z, with an optional pre-release suffix (e.g. "1.0.0-rc.1").
+    core = smacc.__version__.split("-", 1)[0]
+    assert core.count(".") == 2
 
 
 def test_config_version_is_single_sourced():

@@ -15,7 +15,7 @@ guide (creating, editing, sharing). This page is the field reference.
 # SMACC settings — YAML (.smacc). Edit with care.
 kind: smacc/settings
 schema_version: 1
-smacc_version: "0.0.10"
+smacc_version: "0.1.0"
 metadata:
   subject: "001"
   session: "1"
@@ -219,6 +219,6 @@ folder stays valid when moved, copied, or zipped.
 
 ## Version history
 
-| Version | Changes                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1       | Introduced as the v0.0.9 baseline (numbering restarted; pre-release schemas were retired without migration); still current as of v0.0.10. Envelope (`kind` / `schema_version` / `smacc_version` / `metadata` / `settings`); panel state; the `biocals`, `devices`, `event_codes` + `event_code_safe_max`, `trigger_output`, `data_directory`, `preview_levels`, `always_on_top`, and `tool_always_on_top` blocks. |
+| Version | Changes                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1       | Introduced as the v0.0.9 baseline (numbering restarted; pre-release schemas were retired without migration); still current as of v0.1.0. Envelope (`kind` / `schema_version` / `smacc_version` / `metadata` / `settings`); panel state; the `biocals`, `devices`, `event_codes` + `event_code_safe_max`, `trigger_output`, `data_directory`, `preview_levels`, `always_on_top`, and `tool_always_on_top` blocks. |

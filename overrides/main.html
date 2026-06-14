@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+<!--
+  Version-warning banners (#191).
+
+  Material for MkDocs renders the `outdated` block only when the visitor is on a
+  version other than the one aliased `latest` (the default), so the current
+  release shows no banner. We split that one block into two messages: the `dev`
+  build (served under /dev/) gets an "unreleased" notice; any older numbered
+  version gets an "outdated" notice. Both link back to the current release.
+
+  The choice is made client-side because the override is shared by every build and
+  cannot know at build time which version it is serving. Running once on load is
+  enough: a version's dev/old status is constant, and crossing to another version
+  is always a full page load (instant navigation only works within one version),
+  which re-runs this script.
+-->
+{% block outdated %}
+  <span data-smacc-banner="outdated">
+    You're reading docs for an old version of SMACC.
+    <a href="{{ '../' ~ base_url }}"><strong>Go to the current release.</strong></a>
+  </span>
+  <span data-smacc-banner="dev" hidden>
+    You're reading the development docs for the next, unreleased SMACC.
+    <a href="{{ '../' ~ base_url }}"><strong>Go to the current release.</strong></a>
+  </span>
+  <script>
+    (function () {
+      if (location.pathname.split("/").includes("dev")) {
+        document
+          .querySelectorAll('[data-smacc-banner="outdated"]')
+          .forEach(function (el) { el.hidden = true; });
+        document
+          .querySelectorAll('[data-smacc-banner="dev"]')
+          .forEach(function (el) { el.hidden = false; });
+      }
+    })();
+  </script>
+{% endblock %}

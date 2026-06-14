@@ -7,6 +7,7 @@ docs_dir: docs
 
 theme:
   name: material
+  custom_dir: overrides  # version-warning banners; see overrides/main.html (#191)
   logo: assets/icon.png
   favicon: assets/icon.png
   icon:
@@ -62,6 +63,7 @@ nav:
   - Volume & latency: latency.md
   - EEG Annotator: eeg-annotator.md
   - Troubleshooting: troubleshooting.md
+  - Release notes: release-notes.md
   - Reference:
     - File formats: reference/index.md
     - SMACC file (.smacc): reference/settings-file.md
