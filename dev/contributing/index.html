@@ -1504,7 +1504,7 @@ MNE is imported lazily, so it only loads when a recording is actually touched.</
 never uses, so the warning is harmless. If a frozen build ever fails to import
 the driver, add <code>--hidden-import pywinusb</code>.</p>
 <p>Releases are built automatically: pushing a <code>v*</code> tag (e.g. <code>v0.0.11</code>) triggers the
-<a href="https://github.com/remrama/smacc/blob/main/.github/workflows/release.yaml">release workflow</a>,
+<a href="https://github.com/remrama/smacc/blob/main/.github/workflows/release.yml">release workflow</a>,
 which checks the tag against <code>smacc.__version__</code>, builds <code>SMACC.exe</code> and
 <code>SMACC-EEG.exe</code> (each stamped with version metadata from
 <code>tools/make_versionfile.py</code>), wraps them in an Inno Setup installer
@@ -1526,7 +1526,7 @@ installed build sees the association as already registered);
 uv<span class="w"> </span>run<span class="w"> </span>--extra<span class="w"> </span>docs<span class="w"> </span>mkdocs<span class="w"> </span>build<span class="w"> </span>--strict<span class="w"> </span><span class="c1"># the exact build the PR CI runs</span>
 uv<span class="w"> </span>run<span class="w"> </span>--extra<span class="w"> </span>docs<span class="w"> </span>mike<span class="w"> </span>serve<span class="w">            </span><span class="c1"># preview the versioned site</span>
 </code></pre></div>
-<p>The <a href="https://github.com/remrama/smacc/blob/main/.github/workflows/docs.yaml">docs workflow</a>
+<p>The <a href="https://github.com/remrama/smacc/blob/main/.github/workflows/docs.yml">docs workflow</a>
 runs <code>mkdocs build --strict</code> on every pull request, deploys a <code>dev</code> version on
 pushes to <code>main</code>, and publishes a numbered version (updating the <code>latest</code> alias)
 on each <code>v*</code> release tag.</p>
@@ -1534,13 +1534,13 @@ on each <code>v*</code> release tag.</p>
 <p>A single-file <strong>PDF manual</strong> (the whole site in nav order) is produced by the
 <a href="https://github.com/orzih/mkdocs-with-pdf"><code>mkdocs-with-pdf</code></a> plugin and published
 alongside the site at <code>…/pdf/smacc-manual.pdf</code>. It is built from a separate config,
-<code>mkdocs-pdf.yaml</code>, which inherits the base config and adds the plugin. The base
-<code>mkdocs.yaml</code> deliberately omits it: the plugin imports
+<code>mkdocs-pdf.yml</code>, which inherits the base config and adds the plugin. The base
+<code>mkdocs.yml</code> deliberately omits it: the plugin imports
 <a href="https://weasyprint.org/">WeasyPrint</a> at load time, and WeasyPrint needs system
 libraries (Pango), so leaving it out keeps an ordinary <code>mkdocs build</code> / <code>mkdocs serve</code>
 working on every platform. CI installs those libraries and builds with the PDF config.
 To build the manual locally, install WeasyPrint's dependencies, then:</p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>--extra<span class="w"> </span>docs<span class="w"> </span>mkdocs<span class="w"> </span>build<span class="w"> </span>-f<span class="w"> </span>mkdocs-pdf.yaml
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>--extra<span class="w"> </span>docs<span class="w"> </span>mkdocs<span class="w"> </span>build<span class="w"> </span>-f<span class="w"> </span>mkdocs-pdf.yml
 </code></pre></div>
 <h2 id="project-notes">Project notes</h2>
 <ul>
@@ -1552,9 +1552,9 @@ To build the manual locally, install WeasyPrint's dependencies, then:</p>
     minimum OS is <strong>Windows 10</strong>, set by Qt 6 (PyQt6) — Qt 5 was the last line that
     still ran on Windows 8.1. Keep the pin unless you intend to move the Python floor.</li>
 <li>SMACC is distributed only as a frozen <code>SMACC.exe</code> (no PyPI), so CI tests what
-    ships rather than a version range: the <code>test</code> job in <code>ci.yaml</code> runs on the same
+    ships rather than a version range: the <code>test</code> job in <code>ci.yml</code> runs on the same
     <code>windows-2022</code> + Python 3.13 + locked dependencies as the release build
-    (<code>release.yaml</code>), across <code>windows-2022</code> and <code>windows-latest</code> rather than a
+    (<code>release.yml</code>), across <code>windows-2022</code> and <code>windows-latest</code> rather than a
     Python-version matrix.</li>
 </ul>
 
