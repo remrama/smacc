@@ -115,17 +115,17 @@ Any key may be omitted — each falls back to its default.
 | `visual_attack`             | seconds             | Brightness fade-in applied to a starting visual cue.                                                                                                                                                                         |
 | `visual_release`            | seconds             | Brightness fade-out applied to a stopping visual cue.                                                                                                                                                                        |
 | `survey_url`                | string              | The selected survey: a web URL, or `smacc://survey/<key>` for an in-app survey.                                                                                                                                              |
-| `survey_options`            | mapping             | Named *web* survey presets: label → URL. In-app surveys (built-in or custom) are not persisted here — they come from survey definition files (see [Surveys](../surveys.md)).                                                 |
+| `survey_options`            | mapping             | Named *web* survey presets: label → URL. In-app surveys (built-in or custom) are not persisted here — they come from survey definition files (see [Dream reports & surveys](../surveys.md)).                                 |
 | `chat_font_size`            | integer             | Participant chat window text size, in points (8–72).                                                                                                                                                                         |
 | `chat_red_text`             | boolean             | Red-shifted night text in the participant chat window.                                                                                                                                                                       |
 | `chat_experimenter_presets` | list                | Intercom quick-reply prompts the experimenter sends with one click (verbatim, like a typed message). Omitted → seeded defaults; an empty list is respected.                                                                  |
 | `chat_participant_presets`  | list                | Participant quick replies, shown as numbered chips and sent with the number keys 1–9 (max 9). Omitted → seeded defaults; an empty list is respected.                                                                         |
 | `volume_cap`                | 0–1                 | Master output safety cap multiplied into every stimulus (`1.0` = no cap).                                                                                                                                                    |
-| `output_latency`            | `high` \| `low`     | Output buffer for the cue + noise streams: `high` is robust (default), `low` trims marker-to-sound delay where the device allows it (often unchanged on shared-mode WASAPI). See [Latency](../latency.md).                   |
+| `output_latency`            | `high` \| `low`     | Output buffer for the cue + noise streams: `high` is robust (default), `low` trims marker-to-sound delay where the device allows it (often unchanged on shared-mode WASAPI). See [Volume & latency](../latency.md).          |
 
 ### `biocals`
 
-The Biocals window's stack (see [Usage › Biocals](../usage.md#biocals)):
+The Biocals window's stack (see [Biocals](../biocals.md)):
 `voice_volume` (0–1, the shared instruction volume) plus one `rows` entry per
 stack row, in display order. Rows may repeat a biocal (e.g. eyes-closed twice in
 the played sequence). A missing block — or a block without `rows` — loads the
@@ -169,7 +169,7 @@ for TTL-routed codes (LSL carries any code).
 
 ### `devices`
 
-Equipment → device bindings plus action → equipment routing (see [Audio & routing](../audio.md)
+Equipment → device bindings plus action → equipment routing (see [Audio routing](../audio.md)
 and [Devices](../devices.md)).
 
 | Key        | Type    | Meaning                                                                                                                                                                                                                                                                   |
@@ -182,12 +182,12 @@ no devices bound). When a live session starts (or loads a study) with
 `bedroom_speaker`, `bedroom_mic_1`, or `control_mic` unbound, SMACC binds the
 current Windows default device explicitly, by name, and logs the choice — there is
 no "system default" pseudo-selection (see
-[Audio & routing](../audio.md#no-system-default)).
+[Audio routing](../audio.md#no-system-default)).
 
 ### `trigger_output`
 
 Optional hardware TTL trigger output, mirrored alongside the always-on LSL stream
-(see [Triggers & port codes](../triggers.md)).
+(see [Markers & port codes](../triggers.md)).
 
 | Field       | Type                   | Meaning                                                         |
 | ----------- | ---------------------- | --------------------------------------------------------------- |

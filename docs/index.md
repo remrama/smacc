@@ -1,19 +1,17 @@
 # SMACC
 
-**Sleep Manipulation And Communication Clickything** (SMACC) is a downloadable
-executable file for running sleep and dream manipulation studies — experiments in
-which you control dream content during sleep and collect dream reports. It provides
-a simple, clickable interface and is commonly used in dream engineering research.
+**Sleep Manipulation And Communication Clickything** (SMACC) is a Windows desktop
+app for running sleep and dream studies — presenting cues to a sleeping participant,
+communicating with them, marking events on the EEG, and collecting dream reports.
 
-- Trigger audio cues
-- Trigger visual cues (BlinkStick or Philips Hue)
-- Collect dream reports
-- Trigger EEG port codes
-- Save a detailed event log
-- and more!
+In a dream-engineering session the experimenter has to deliver a precisely-timed cue
+to a sleeping participant, mark each event so it lines up with the EEG, talk with the
+sleeper, and collect a dream report — all from a dark control room, late at night, on
+whatever hardware the lab has. SMACC is the clickable control surface for that work:
+one window per job, glanceable in the dark, with a volume safety cap and explicit
+device routing so a misclick can't blast or mislead a sleeping participant.
 
-<!-- Add a screenshot of the main window here once available, e.g.:
-![SMACC main window](assets/screenshot-main.png) -->
+<!-- Add a screenshot of the SMACC Session window here once available. -->
 
 [Download SMACC](https://github.com/remrama/smacc/releases/latest/download/SMACC-Setup.exe){ .md-button .md-button--primary }
 [Installation guide](installation.md){ .md-button }
@@ -24,15 +22,42 @@ single file with no install? A portable `SMACC.exe` ships with every release —
 [Installation](installation.md), which also covers the Windows SmartScreen warning on
 the unsigned download and how to get older versions.
 
+## What SMACC does
+
+- Trigger **audio cues** (and design them in-app with the Audio Cue Designer)
+- Trigger **visual cues** on a BlinkStick or Philips Hue light
+- Play masking **background noise**
+- Run **biocalibrations** as timed, marked tasks
+- Record **dream reports** and administer **surveys**
+- **Talk, listen, and type** with the participant over an intercom
+- Mark events with **EEG port codes** over LSL or a hardware TTL trigger
+- Review and score recordings in the **EEG Annotator**
+- Save a detailed **event log** for every run
+
 ## Get started
 
+**Getting started**
+
 - [Installation](installation.md) — download and run SMACC.
-- [Usage](usage.md) — trigger cues, record dream reports, send port codes, and more.
 - [SMACC files](smacc-files.md) — create and reuse a study's configuration (`.smacc`).
-- [Audio & routing](audio.md) — bind the rig's equipment to devices, route cues/noise/intercom, and set volume.
-- [Visual cues](visual.md) — light cues on a BlinkStick or Philips Hue: patterns, timing, and safety.
-- [Devices](devices.md) — connect compatible hardware such as a BlinkStick or a Hue bridge.
-- [Contributing](contributing.md) — develop SMACC and build these docs locally.
+
+**Running a session**
+
+- [Overview](usage.md) — the Launcher, the Session window, and the tools.
+- [Audio cues](audio-cues.md) · [Visual cues](visual.md) · [Biocals](biocals.md) ·
+    [Dream reports & surveys](surveys.md) · [Intercom & chat](intercom.md) ·
+    [Markers & port codes](triggers.md)
+
+**Devices, volume & timing**
+
+- [Audio routing](audio.md) · [Compatible devices](devices.md) ·
+    [Volume & latency](latency.md)
+
+**After the night**
+
+- [EEG Annotator](eeg-annotator.md) — review and score recorded EEG.
+- [Troubleshooting](troubleshooting.md) · [Reference](reference/index.md) ·
+    [Contributing](contributing.md)
 
 ## Used by
 

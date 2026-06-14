@@ -79,57 +79,22 @@ usually pin one version for their whole run, so checking is always an explicit
 click. If you use the portable `SMACC.exe`, download the new one and replace
 your old copy.
 
-## Optional setup
+## After installing
 
-### Data directory
+By default SMACC stores everything under `~/SMACC`. To use a different location, set
+the environment variable `SMACC_DIRECTORY` to the directory you want; SMACC creates
+it and its subfolders on first run.
 
-By default SMACC stores everything under `~/SMACC`. To use a different location,
-set an environment variable called `SMACC_DIRECTORY` to whatever directory you
-want. SMACC will create it and all of the subfolders (if not already present).
+The rest of setup is covered on the relevant pages:
 
-Your reusable setup lives in a **SMACC file** (`.smacc`): cue files, volumes,
-event codes, and the **data directory** where its runs are written. SMACC seeds a
-`default.smacc` in the SMACC directory (with data directory `~/SMACC/data`) and
-opens it when you don't pick another, so it works out of the box. You can keep your
-own SMACC files anywhere. See [SMACC files](smacc-files.md).
-
-Each run gets its own timestamped folder under the SMACC file's data directory
-(e.g. `smacc-20260607-223015/`) holding that run's `.log`, dream-report recordings,
-and any exports. Subject/session are optional metadata (set from **File ›
-Session info…**) recorded inside the log/exports rather than in filenames. Display
-choices that apply to a session — **always-on-top** and which **log-preview** levels
-show — are stored in the SMACC file too, so they travel with the study. The machine
-itself remembers window positions and sizes and your recent files in
-`~/SMACC/preferences.yaml`, restored on the next launch.
-
-### SMACC files (`.smacc`)
-
-Your reusable setup is saved to a portable SMACC file (see
-[SMACC files](smacc-files.md)). The installer associates `.smacc` files so you can
-**double-click one to open the Start-a-session dialog with it preselected**. With the portable
-`SMACC.exe`, enable (or repair) the association any time from
-**File › Associate .smacc files (Windows)** in the Launcher.
-
-### Audio cues
-
-SMACC seeds a few `demo-*` cue files into the default data directory's `cues/`
-folder (restored if you delete them, and refreshed when you upgrade SMACC), so
-there is always something to test with. You can also place your own sound files
-there — common formats such as `.wav`, `.mp3`, `.flac`, `.ogg`, and `.aiff` are
-accepted; only the
-`demo-` files are managed by SMACC, so your own are never touched.
-
-### Dream report survey
-
-The **Record dream report** button can optionally pop open a survey — one of the
-built-in dream questionnaires (opened in a SMACC window, responses saved into the
-run folder) or a survey URL hosted on e.g. Qualtrics or REDCap (opened in the
-browser). Manage them from the Dream-recording panel's **Manage…** button; saved
-URLs persist in your SMACC file. Pick one from the survey dropdown to open it
-automatically when recording starts, or open any survey on its own from
-**File › Surveys**. See [Surveys](surveys.md).
-
-### Recording device
-
-If you plan to record dreams, bind your mic to **Bedroom mic 1** in the
-**Devices** window (in the **Panels** column); the dream-report recorder uses it.
+- **Your study configuration** lives in a portable [SMACC file](smacc-files.md).
+    SMACC seeds a `default.smacc` and opens it when you don't pick another, so it
+    works out of the box. The installer associates `.smacc` files; with the portable
+    build, enable or repair the association from **File › Associate .smacc files
+    (Windows)** in the Launcher.
+- **Audio cues** go in the data directory's `cues/` folder, alongside the seeded
+    `demo-*` cues — see [Audio cues](audio-cues.md).
+- **Dream-report surveys** are managed from the Dream recording panel — see
+    [Dream reports & surveys](surveys.md).
+- **A recording mic:** to record dreams, bind your mic to **Bedroom mic 1** in the
+    **Devices** window (the **Panels** column) — see [Audio routing](audio.md).
