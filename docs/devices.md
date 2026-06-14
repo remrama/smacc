@@ -3,7 +3,7 @@
 SMACC can drive a small number of external devices for cueing. This page lists
 the supported hardware and what each one needs. For how SMACC *assigns and routes*
 devices — equipment, the Devices window, and volume — see
-[Audio & device routing](audio.md); for using the light devices — patterns,
+[Audio routing](audio.md); for using the light devices — patterns,
 timing, choosing between them, and safety — see [Visual cues](visual.md).
 
 ## BlinkStick

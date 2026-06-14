@@ -2,7 +2,7 @@
 
 SMACC reads and writes a handful of files. This section is the **reference** for
 each one — its on-disk shape, every field, and how it is versioned — as distinct
-from the task-oriented [Usage](../usage.md) guide.
+from the task-oriented [Overview](../usage.md) guide.
 
 | File                                            | What it is                                | Format     | Version              |
 | ----------------------------------------------- | ----------------------------------------- | ---------- | -------------------- |

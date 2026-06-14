@@ -62,7 +62,7 @@ Most markers are stamped when SMACC fires them. **Audio cue and noise** markers 
 the exception: their timestamp — in the log line *and* the LSL stream — is the
 *estimated onset* (the fire time plus the output stream's reported latency), so the
 marker lines up with the sound rather than SMACC's buffer (see
-[Latency](../latency.md)). The raw software-trigger instant rides alongside on a
+[Volume & latency](../latency.md)). The raw software-trigger instant rides alongside on a
 `DEBUG` line:
 
 ```text
@@ -75,7 +75,7 @@ That `DEBUG` line is deliberately **not** a `" - portcode N"` line, so the
 
 ### Text-chat transcript
 
-Each [text-chat](../usage.md#text-chat) message is written verbatim to a `DEBUG`
+Each [text-chat](../intercom.md#text-chat) message is written verbatim to a `DEBUG`
 line, one per message — in the file for the record, out of the live preview and
 the BIDS export by default:
 

@@ -1,22 +1,39 @@
-# Surveys
+# Dream reports & surveys
 
-After an awakening, a dream report is often followed by a questionnaire — how
-lucid was the dream, what did it contain, how confident is the participant. SMACC
-handles these two ways:
+After an awakening the participant gives a **dream report**: recorded audio, often
+followed by a questionnaire. SMACC records the audio and can open a survey alongside
+it.
 
-- **In-app surveys** render in a SMACC window and save their responses straight
-    into the run folder, next to the dream-report WAV they accompany. SMACC ships
-    the standard lucid-dreaming instruments, and you can build your own.
-- **Web surveys** (e.g. a questionnaire hosted on Qualtrics or REDCap) open in
-    the browser, exactly as before — add them by URL.
+## Recording a dream report
 
-In-app surveys exist because the night shift is a bad place for a hosted form:
-sleep labs are often offline, response data belongs with the night's recording
-(not in a third-party account), and overnight questionnaires are frequently
-administered *verbally over the intercom* — the participant stays in bed, in the
-dark, while the experimenter reads the items and records the answers. The survey
-window is non-modal for the same reason: the intercom stays reachable while it is
-open.
+Use the **Record dream report** button (in the **Dream recording** panel) to record
+from the mic bound to the **Bedroom mic 1** equipment in the **Devices** window.
+Recordings are saved into the current session folder as `report-NN.wav`. Each report
+is stamped with the time elapsed since you pressed **Start recording** (in the
+[Event logging panel](triggers.md#event-logging-panel)), so it is easy to locate in
+the EEG file. If recording has not been marked yet, the report is still logged and
+SMACC reminds you to mark it.
+
+<!-- Add a screenshot of the Dream recording panel here once available: the Record
+dream report button with the survey dropdown and Manage… button. -->
+
+## Surveys
+
+A dream report is often followed by a questionnaire: how lucid was the dream, what
+did it contain, how confident is the participant. SMACC handles these two ways:
+
+- **In-app surveys** render in a SMACC window and save their responses straight into
+    the run folder, next to the dream-report WAV they accompany. SMACC ships the
+    standard lucid-dreaming instruments, and you can build your own.
+- **Web surveys** (for example a questionnaire hosted on Qualtrics or REDCap) open in
+    the browser; add them by URL.
+
+In-app surveys exist because the night shift is a bad place for a hosted form: sleep
+labs are often offline, response data belongs with the night's recording rather than
+a third-party account, and overnight questionnaires are frequently administered
+*verbally over the intercom*, with the participant in bed in the dark while the
+experimenter reads the items and records the answers. The survey window is non-modal
+for the same reason, so the intercom stays reachable while it is open.
 
 ## Built-in surveys
 
@@ -78,7 +95,7 @@ response file is named after it. Any survey can also be opened standalone from
 Every open logs a `SurveyOpened` event. Submitting an in-app survey writes the
 response file and logs a `SurveySubmitted` event (code 71) — log-only by default,
 since the survey happens after the awakening; tick its **LSL**/**TTL** boxes in
-the [Markers window](usage.md#configuring-codes) if your protocol wants it in
+the [Markers window](triggers.md#configuring-codes) if your protocol wants it in
 the trigger channel.
 
 In the Editor (and the read-only previews in the Manage dialog) a survey

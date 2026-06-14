@@ -1,4 +1,4 @@
-# Audio & device routing
+# Audio routing
 
 An overnight cueing study can run several audio streams at once: a cue in the
 bedroom, white noise in the bedroom, your voice over an intercom, the participant's
@@ -7,9 +7,10 @@ more than one physical device and two rooms. On Windows, the same speaker can al
 appear under several names, and the level that reaches the participant is the product
 of several controls spread across the OS.
 
-This page describes how SMACC handles devices, routing, and volume.
+This page describes how SMACC handles devices and routing. For the output safety cap
+and stimulus timing, see [Volume & latency](latency.md).
 
-## Equipment, not per-window device pickers
+## Equipment and actions
 
 Instead of picking a device separately in every window, SMACC has one **Devices
 window** (in the **Panels** column) where you do two things:
@@ -78,13 +79,14 @@ Three optional routes cover the things you reach for mid-study:
 - **Listen to participant.** The intercom is two-way: **Speak to participant**
     sends your voice — picked up by the **Control-room mic** — to the participant
     (and is marked in the EEG record), while **Listen to participant** brings the
-    participant's mic to your control-room speaker. The intercom also has a typed [text-chat mode](usage.md#text-chat)
-    (no audio device involved) for hearing-impaired participants.
+    participant's mic to your control-room speaker. The intercom also has a typed
+    [text-chat mode](intercom.md#text-chat) (no audio device involved) for
+    hearing-impaired participants.
 - **Monitor bedroom noise.** A microphone meter in the Audio cue window that
     confirms a cue is audible in the bedroom (see
-    [below](#is-the-cue-reaching-the-bedroom)). It defaults to **Bedroom mic 1**, or
-    bind a dedicated, more sensitive **Bedroom mic 2** and route *Monitor bedroom
-    noise* to it.
+    [Audio cues](audio-cues.md#is-the-cue-reaching-the-bedroom)). It defaults to
+    **Bedroom mic 1**, or bind a dedicated, more sensitive **Bedroom mic 2** and route
+    *Monitor bedroom noise* to it.
 
 ## One audio engine
 
@@ -115,64 +117,13 @@ source.
 automatically, with no restart needed. You can also force a rescan with the
 **Refresh devices (F5)** button in the Devices window.
 
-## Is the cue reaching the bedroom?
+## Monitoring and volume
 
-A cue you can hear in the control room isn't proof the *participant* heard it — the
-bedroom speaker could be muted, unplugged, or turned down at the hardware. The
-**Audio cue** window's **Monitoring** section shows two meters so you can tell:
-
-- **Sending** — the level SMACC is emitting to the cue output, the moment it plays.
-    It's exact, but it only confirms SMACC is *playing*; it's blind to everything
-    downstream (Windows volume, the speaker's power switch, the cable). Treat it as a
-    diagnostic: if *Sending* is dark, the problem is on SMACC's side (wrong cue, the
-    per-cue volume or the safety cap at zero); if it's lit but the room is silent, the
-    problem is the speaker.
-- **Bedroom** — the level a microphone actually picks up in the room. This is the
-    objective check: it only moves when sound really happens in the bedroom. Tick the
-    box beside it to start monitoring. Because a faint cue can sit close to a cheap
-    mic's noise floor, the meter also shows the **rise above the room's resting level**
-    (the `+N` next to the reading), so even a small bump stands out.
-
-!!! tip "A dedicated monitoring mic"
-
-    The *Bedroom* meter listens on the **Monitor bedroom noise** route, which
-    defaults to **Bedroom mic 1**. For the most reliable check — especially for the
-    very quiet cues a study often starts at — bind a separate, sensitive
-    **Bedroom mic 2** in the Devices window and route *Monitor bedroom noise* to
-    it. That keeps verification independent of the (often cheaper,
-    voice-activated) dream-report mic.
-
-!!! warning "A quiet mic isn't proof of silence"
-
-    A cheap or voice-activated mic may not register a very faint cue even when it is
-    playing, so a dark *Bedroom* meter is a prompt to check — not proof the cue
-    failed. Read it together with *Sending*.
-
-## Volume you can see
-
-On Windows, the level reaching the participant is a product of several controls:
-
-```text
-per-cue volume  ×  output safety cap  ×  Windows app volume  ×  Windows device volume  ×  hardware knob
-```
-
-Three of those live in the OS and are invisible from most apps. SMACC makes its own
-gain explicit and adds a safety limit, in the **Volume** window:
-
-- **Output safety cap.** A single master ceiling, applied as the last gain stage on
-    every cue and noise output. However loud an individual cue is set, the cap is a
-    hard limit, so a full-volume looped cue on a calibrated rig can't suddenly blast a
-    sleeping participant.
-- **A read-only view of the Windows stages.** The window shows the current **System
-    volume** (the Windows output endpoint) and **App volume** (SMACC's own level) in
-    the Windows Volume Mixer, so the
-    hidden OS stages are visible.
-
-!!! tip "Calibrating cue level"
-
-    For levels that reproduce across nights and participants, set the Windows device
-    and app volumes to 100%, then calibrate with the per-cue volumes and the safety
-    cap inside SMACC. That way one place, SMACC, determines how loud a cue is.
+To confirm a cue actually reaches the bedroom, use the Audio cue window's
+**Monitoring** meters — see
+[Audio cues](audio-cues.md#is-the-cue-reaching-the-bedroom). For the output safety
+cap, the per-cue gains, and how the Windows volume stages combine, see
+[Volume & latency](latency.md).
 
 ## Windows only
 

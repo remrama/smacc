@@ -1,9 +1,43 @@
-# Latency
+# Volume & latency
 
-How long is it from clicking **Play** (or firing a cue) to the participant
-actually hearing the sound or seeing the light — and how well does the event
-marker line up with it? This page answers that, shows how to measure it on your own
-rig, and explains what SMACC does to keep markers honest.
+The **Volume** window holds two things that shape every cue: how loud it can get
+(the output safety cap and the visible OS volume stages) and the output **latency**
+setting. This page covers both.
+
+## Volume
+
+On Windows, the level reaching the participant is a product of several controls:
+
+```text
+per-cue volume  ×  output safety cap  ×  Windows app volume  ×  Windows device volume  ×  hardware knob
+```
+
+Three of those live in the OS and are invisible from most apps. SMACC makes its own
+gain explicit and adds a safety limit, in the **Volume** window:
+
+- **Output safety cap.** A single master ceiling, applied as the last gain stage on
+    every cue and noise output. However loud an individual cue is set, the cap is a
+    hard limit, so a full-volume looped cue on a calibrated rig cannot suddenly blast
+    a sleeping participant.
+- **A read-only view of the Windows stages.** The window shows the current **System
+    volume** (the Windows output endpoint) and **App volume** (SMACC's own level) in
+    the Windows Volume Mixer, so the hidden OS stages are visible.
+
+!!! tip "Calibrating cue level"
+
+    For levels that reproduce across nights and participants, set the Windows device
+    and app volumes to 100%, then calibrate with the per-cue volumes and the safety
+    cap inside SMACC. That way one place, SMACC, determines how loud a cue is.
+
+<!-- Add a screenshot of the Volume window here once available: the safety cap, the
+Latency choice, and the System volume / App volume readouts. -->
+
+## Latency
+
+How long is it from clicking **Play** (or firing a cue) to the participant actually
+hearing the sound or seeing the light, and how well does the event marker line up
+with it? This section answers that, shows how to measure it on your own rig, and
+explains what SMACC does to keep markers honest.
 
 !!! note "The short version"
 

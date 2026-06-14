@@ -1,4 +1,4 @@
-# Triggers & port codes
+# Markers & port codes
 
 This page explains what EEG **triggers** and **port codes** are, the ways SMACC can
 send them, and how to configure each one. If you just want the steps, jump to
@@ -17,7 +17,7 @@ events by their code — e.g. "every 41 is an observed REM onset."
 A port code is an **8-bit value**, so it is always an integer from **1 to 255**. That
 range follows from the hardware: a trigger is physically **eight on/off lines** (eight
 bits), and the amplifier reads them as one byte. SMACC keeps every code inside 1–255
-for this reason. See [Configuring codes](usage.md#configuring-codes) for how to view
+for this reason. See [Configuring codes](#configuring-codes) for how to view
 and edit which event sends which code.
 
 ## Terminology
@@ -105,6 +105,74 @@ study can retune any code in the **Markers** window; the change travels in its
 Codes are integers in **1–255** and must be unique among events routed to a
 transport (LSL or TTL).
 
+## Configuring codes
+
+Open the **Markers** window from the **Panels** column (in a Session or in the
+Editor). It is the home for everything about event signaling: a **routing legend**
+(what the log file, the live preview, LSL, and TTL each receive, and which switch
+governs it), the full event registry grouped by category (including the events with
+no grid button — lights, panel controls, biocals, chat, system), and the
+[hardware TTL transport](#configuring-trigger-output-in-smacc). For each event you
+can set:
+
+- **Code** — the 8-bit port code (1–255) sent when the event triggers.
+- **LSL** — whether a firing sends the code over the LSL marker stream.
+- **TTL** — whether a firing sends the code over the hardware TTL trigger. The
+    column is grayed out until a transport is enabled in the window's **Hardware TTL
+    transport** section (the ticks are kept and re-arm with it). An event with neither
+    LSL nor TTL ticked is log-only.
+- **Preview** — whether the event shows in the live log preview. The session log
+    *file* always records every event regardless; this only controls the on-screen
+    preview.
+- **Increment** — give an event a unique, increasing code on each firing (for
+    example **dream reports**: 201, 202, 203, …) so individual occurrences are
+    findable in the trigger channel. Off uses one fixed code each time.
+
+**TTL safe max code** raises a soft warning for TTL-routed codes above it, handy when
+your trigger hardware accepts only a limited range (some older systems do; LSL
+carries any code). Codes must be unique among routed events and within 1–255; the
+window blocks anything else.
+
+**Custom events.** Use **Add event…** — in the **Event logging** panel itself, or in
+the Markers window — to create your own button events (a label and a code). They
+appear in the Event logging panel alongside the built-ins and can be removed again
+with the Markers window's **Remove**. Built-in events can be retuned but not removed
+or renamed.
+
+Edits are staged until you press **Apply** (which validates them first); **Revert**
+re-reads the session's current setup. The window stays available throughout a
+session. If you change a code mid-session, the change is written to the log with a
+timestamp, so the code-to-event mapping for that session is always recoverable.
+
+Beyond port codes, SMACC logs the important interactions too — volume, colour,
+device, and fade changes — as plain log lines (no port code), so the session record
+is complete.
+
+## Event logging panel
+
+The manual event buttons (the sleep-stage family, Signal observed, Sleep onset,
+Note, your custom events, and so on) live in the **Event logging** panel — open it
+from the Session window's **Panels** column. The sleep-stage buttons take a fixed
+keypad — **0** Wake, **1** N1, **2** N2, **3** N3, **4** REM — and the remaining
+buttons take **5**–**9** in order; the shortcuts are active while the panel is
+focused. The **Lights** toggle stays on the main window (it also flips the dark
+theme).
+
+**Signal observed.** One button covers every lucidity/communication signal a study
+uses (LRLR, sniff, facial, …), so you do not need a separate button per signal. Pick
+the **signal** type (the box is editable — type your own and it is remembered for the
+rest of the session) and a **confidence** (certain / probable / possible) beside the
+button. Pressing it fires the marker immediately and logs your selection as the
+detail, so the marker's timing tracks the observation. Confidence is recorded as a
+comment; it never changes whether the marker reaches the EEG.
+
+## Where codes live
+
+Your codes are saved in the SMACC file (so they travel with it) and written into
+every session `.log` (both the initial and final settings blocks), so any session is
+self-documenting: you can decode its markers later even if the codes changed
+mid-session.
+
 ## How SMACC sends triggers
 
 SMACC emits markers over **LSL** (Lab Streaming Layer), a network marker stream. On
@@ -133,7 +201,7 @@ neither is log-only).
     Most studies leave every event on both transports. Per-event routing earns its
     keep when the TTL hardware is restricted — an older amplifier that only accepts
     a limited code range can keep its key events on TTL (inside the
-    [safe max](usage.md#configuring-codes)) while chattier or higher-coded events
+    [safe max](#configuring-codes)) while chattier or higher-coded events
     still reach the LSL stream.
 
 ### What is the baud rate?

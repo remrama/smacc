@@ -1,11 +1,10 @@
 # Visual cues
 
-Light is the second cueing modality in SMACC, next to sound. In dream-engineering
-work it earns its place for two reasons: closed eyelids transmit light, so a lamp
-can reach a sleeping (or dreaming) participant directly — flashing lights during
-REM are the classic lucidity-induction signal — and light is silent, so it layers
-cleanly over masking noise or an auditory protocol without touching the
-soundscape. SMACC drives light cues on a USB **BlinkStick** or on **Philips Hue**
+Light is SMACC's second cueing modality, and it earns its place for two reasons.
+Closed eyelids still transmit light, so a lamp can reach a sleeping (or dreaming)
+participant directly; flashing light during REM is the classic lucidity-induction
+signal. And light is silent, so it layers over masking noise or an auditory protocol
+without touching the soundscape. SMACC drives light cues on a USB **BlinkStick** or on **Philips Hue**
 bulbs, from one window, with the same marker discipline as audio.
 
 This page covers the Visual cue board, the patterns, what the markers mean,
@@ -16,7 +15,7 @@ light at sleeping people. For plugging the devices in and binding them, see
 ## The visual cue board
 
 The **Visual cue** window (in the **Panels** column) is the light sibling of the
-[Audio cue board](usage.md#audio-cues): one row per cue, each kept configured and
+[Audio cue board](audio-cues.md#the-cue-board): one row per cue, each kept configured and
 ready so that firing the right light at 3 a.m. is a single click.
 
 Each row holds a **name** (it travels into the event log with every start/stop
@@ -53,10 +52,9 @@ proof, that's what the bedroom camera (or your own eyes) is for.
     [the comparison](#blinkstick-or-philips-hue) and [Safety](#safety).
 
 The rate is set in **Hz**, the unit your methods section wants. The fades stay
-separate from the pattern on purpose: the pattern *is* the stimulus, while the
-fades are how politely it arrives and leaves. Pattern timing is computed from
-elapsed time rather than accumulated per frame, so a busy GUI moment can't drift
-the flicker.
+separate from the pattern: the pattern is the stimulus, and the fades only shape how
+it ramps in and out. Pattern timing is computed from elapsed time rather than
+accumulated per frame, so a busy GUI moment can't drift the flicker.
 
 ## What the markers mean
 
