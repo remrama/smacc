@@ -46,7 +46,7 @@ study can retune any code in the **Markers** window; the change travels in its
 
 | Code | Event                   | Key                     | Notes                                                                                  |
 | ---- | ----------------------- | ----------------------- | -------------------------------------------------------------------------------------- |
-| 41   | REM detected            | `REMDetected`           |                                                                                        |
+| 41   | REM detected            | `REMDetected`           | sleep-stage observation (keypad 4 in the Event logging window)                         |
 | 42   | Tech in room            | `TechInRoom`            |                                                                                        |
 | 43   | Training start          | `TrainingStart`         | start of a training/learning phase (TMR cue learning, TLR practice)                    |
 | 44   | Training end            | `TrainingEnd`           |                                                                                        |

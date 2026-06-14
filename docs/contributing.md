@@ -88,7 +88,7 @@ device enumeration, the Windows volume read-out) is stubbed in fixtures, so test
 depend on the machine's audio setup.
 
 ```sh
-uv run pytest --cov=smacc --cov-report=term-missing   # the coverage flags CI runs
+uv run --extra dev --extra eeg pytest --cov=smacc --cov-report=term-missing   # CI also adds --cov-report=xml
 ```
 
 To actually watch a test render, override the platform for that run (Windows:
@@ -117,23 +117,25 @@ PyInstaller; if a frozen build ever fails to import `yaml`, add
 `--hidden-import yaml`.
 
 The optional EEG Annotator component (#136) is a second frozen exe with its own
-entry point — it carries the MNE/pyqtgraph stack the base exe deliberately
+entry point — it carries the MNE/pyqtgraph/matplotlib stack the base exe deliberately
 doesn't (requires `uv sync --extra dev --extra eeg`):
 
 ```sh
 uv run pyinstaller entry_eeg.py --name SMACC-EEG --onefile --noconsole \
   --icon src/smacc/assets/icon.ico \
   --add-data "src/smacc/assets/icon.png:smacc/assets" \
-  --collect-submodules mne --collect-data mne
+  --collect-submodules mne --collect-data mne \
+  --collect-submodules matplotlib.backends
 ```
 
 The `--collect-*` flags matter: MNE uses `lazy_loader`, which imports
 submodules by name at runtime and reads the package's `.pyi` stubs — both
 invisible to PyInstaller's static analysis. Without them the exe builds
-cleanly and dies on first MNE use. Don't try `--exclude-module matplotlib`
-to slim the bundle: the viewer never plots with it, but MNE's IO layer
-transitively imports `mne.viz.ui_events` (→ matplotlib) at import time, so
-the exclusion breaks `read_raw_*`.
+cleanly and dies on first MNE use. matplotlib is a real dependency too — the
+figure export (`eeg/export.py`, #180) writes PDF/SVG via `savefig`, and MNE's IO
+layer imports `mne.viz.ui_events` (→ matplotlib) at import time — so
+`--collect-submodules matplotlib.backends` bundles its PDF/SVG backends, and
+`--exclude-module matplotlib` would break both `read_raw_*` and the export.
 
 Verify a built `SMACC-EEG.exe` with `--selftest` (the check is exit code 0):
 it round-trips a synthetic recording through MNE, the display filters, and the
@@ -146,7 +148,7 @@ The `blinkstick` driver (BlinkStick visual cues) and its Windows backend
 never uses, so the warning is harmless. If a frozen build ever fails to import
 the driver, add `--hidden-import pywinusb`.
 
-Releases are built automatically: pushing a `v*` tag (e.g. `v0.0.7`) triggers the
+Releases are built automatically: pushing a `v*` tag (e.g. `v0.0.11`) triggers the
 [release workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/release.yaml),
 which checks the tag against `smacc.__version__`, builds `SMACC.exe` and
 `SMACC-EEG.exe` (each stamped with version metadata from
@@ -191,4 +193,5 @@ on each `v*` release tag.
 - SMACC is distributed only as a frozen `SMACC.exe` (no PyPI), so CI tests what
     ships rather than a version range: the `test` job in `ci.yaml` runs on the same
     `windows-2022` + Python 3.13 + locked dependencies as the release build
-    (`release.yaml`), in a single job rather than a multi-version matrix.
+    (`release.yaml`), across `windows-2022` and `windows-latest` rather than a
+    Python-version matrix.

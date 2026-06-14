@@ -23,10 +23,11 @@ from the task-oriented [Usage](../usage.md) guide.
 - Each **run** gets its own timestamped folder (`smacc-YYYYmmdd-HHMMSS/`) under that
     data directory, holding the session `.log`, any dream-report audio, survey
     responses, and exports.
-- **Custom survey definitions** live in the SMACC directory's `surveys/` folder;
-    built-in ones ship inside SMACC itself.
+- **Custom survey definitions** live in the SMACC directory's `surveys/` folder
+    (created when you first build or save one); built-in ones ship inside SMACC itself.
 - **Bundled assets refresh on upgrade.** `default.smacc` (a read-only template) and
-    the `demo-` cues are re-seeded from the bundle when they change, so a newer
+    the `demo-` cues (seeded into the data directory's `cues/` folder) are re-seeded
+    from the bundle when they change, so a newer
     SMACC's improvements reach an existing directory; your own files are untouched.
     Biocal voice recordings are read straight from the bundle, with the SMACC
     directory's `biocals/` folder as an optional per-recording override.
@@ -34,11 +35,13 @@ from the task-oriented [Usage](../usage.md) guide.
 ## Stability promise
 
 `.smacc` and `preferences.yaml` each carry an integer `schema_version`, currently
-**1** — the first stable release schema. SMACC loads only the current version; it
-does **not** migrate older or unknown versions. Missing *optional* keys are always
-tolerated (each falls back to a default), so a partial or hand-edited file still
-loads.
+**1** — the first stable release schema. A `.smacc` loads only at the matching
+version (any other is rejected); `preferences.yaml` never blocks startup — it ignores
+the version and merges the keys it recognizes over the defaults. Either way, missing
+*optional* keys fall back to a default, so a partial or hand-edited file still loads.
 
-The format will not change incompatibly without **bumping `schema_version`** and
-adding a row to that file's version-history table. The `kind` discriminator
-(`smacc/settings`, `smacc/preferences`) lets SMACC reject files that aren't its own.
+The `.smacc` format will not change incompatibly without **bumping `schema_version`**
+and adding a row to its version-history table. The `kind` discriminator
+(`smacc/settings`, `smacc/preferences`, `smacc/survey`, `smacc/survey-response`) lets
+SMACC reject a file that isn't its own: a `.smacc` with a *different* kind is rejected,
+while a missing kind is tolerated.

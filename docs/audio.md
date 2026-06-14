@@ -12,7 +12,7 @@ This page describes how SMACC handles devices, routing, and volume.
 ## Equipment, not per-window device pickers
 
 Instead of picking a device separately in every window, SMACC has one **Devices
-window** (in the *Tools* column) where you do two things:
+window** (in the **Panels** column) where you do two things:
 
 1. **Bind each piece of _equipment_ to a device, once.** Equipment entries are
     the physical endpoints of a rig, named by place: **Bedroom speaker**, **Control-room speaker**, **Bedroom
@@ -163,8 +163,9 @@ gain explicit and adds a safety limit, in the **Volume** window:
     every cue and noise output. However loud an individual cue is set, the cap is a
     hard limit, so a full-volume looped cue on a calibrated rig can't suddenly blast a
     sleeping participant.
-- **A read-only view of the Windows stages.** The window shows the current **system
-    output volume** and **SMACC's own level** in the Windows Volume Mixer, so the
+- **A read-only view of the Windows stages.** The window shows the current **System
+    volume** (the Windows output endpoint) and **App volume** (SMACC's own level) in
+    the Windows Volume Mixer, so the
     hidden OS stages are visible.
 
 !!! tip "Calibrating cue level"

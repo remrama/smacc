@@ -2,8 +2,9 @@
 
 SMACC can convert a session [log](session-log.md) into a
 [BIDS](https://bids.neuroimaging.io/) events file — a tab-separated `events.tsv` plus
-a JSON sidecar describing its columns. Export one from the **Analyzer**, or from a live
-session's exporters. Only event-marker lines (`" - portcode N"`) become rows.
+a JSON sidecar describing its columns. Export one from the **Analyzer** with its
+**Export events (BIDS)…** button. Only event-marker lines (`" - portcode N"`) become
+rows.
 
 ## `events.tsv`
 

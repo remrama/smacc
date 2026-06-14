@@ -81,7 +81,7 @@ since the survey happens after the awakening; tick its **LSL**/**TTL** boxes in
 the [Markers window](usage.md#configuring-codes) if your protocol wants it in
 the trigger channel.
 
-In the study designer (and the read-only previews in the Manage dialog) a survey
+In the Editor (and the read-only previews in the Manage dialog) a survey
 renders but cannot be submitted — there is no run folder to save into.
 
 ## Response files
@@ -93,7 +93,7 @@ One JSON file per administration, in the run folder:
 - `survey-01-lusk.json` — opened standalone; standalone administrations are
     numbered in their own sequence.
 
-The payload records the survey's key, title, and content version, the optional
+The payload records the SMACC version, the survey's key, name, title, and content version, the optional
 subject/session metadata, opened/submitted timestamps, the time since the
 **Start recording** marker (like the dream-report stamp), the linked report
 number (or `null`), the shared scale with its anchors, one
@@ -105,7 +105,8 @@ dropdown option). Display-only headings collect nothing and are omitted:
 ```json
 {
   "kind": "smacc/survey-response",
-  "survey": {"key": "dlq", "version": "1.0", "...": "..."},
+  "smacc_version": "0.0.10",
+  "survey": {"key": "dlq", "name": "DLQ", "version": "1.0", "builtin": true, "...": "..."},
   "report_number": 2,
   "time_since_recording_start": "02:14:09",
   "responses": [
