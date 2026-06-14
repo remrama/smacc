@@ -1,0 +1,19 @@
+# Docs config for the single-file PDF manual (#230).
+#
+# This inherits everything from mkdocs.yaml and only adds the `with-pdf` plugin,
+# which renders the whole site (in nav order) to one PDF via WeasyPrint. It lives in
+# a separate config on purpose: the plugin imports WeasyPrint at load time, and
+# WeasyPrint needs system libraries (Pango) that the base config must not require —
+# so an ordinary `mkdocs build` / `mkdocs serve` on any platform stays unaffected.
+#
+# CI builds with this file (`mkdocs build -f mkdocs-pdf.yaml`); the PDF is published
+# alongside the site at `…/pdf/smacc-manual.pdf`.
+INHERIT: mkdocs.yaml
+
+plugins:
+  - search
+  - with-pdf:
+      output_path: pdf/smacc-manual.pdf
+      cover_title: SMACC
+      cover_subtitle: "Sleep Manipulation And Communication Clickything — manual"
+      author: SMACC

@@ -22,6 +22,8 @@ single file with no install? A portable `SMACC.exe` ships with every release —
 [Installation](installation.md), which also covers the Windows SmartScreen warning on
 the unsigned download and how to get older versions.
 
+Working offline? [Download these docs as a single PDF](https://remrama.github.io/smacc/latest/pdf/smacc-manual.pdf).
+
 ## What SMACC does
 
 - Trigger **audio cues** (and design them in-app with the Audio Cue Designer)
