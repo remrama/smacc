@@ -200,8 +200,8 @@ annotations.
 
 You can load a log **with or without a recording open**. With one, it overlays
 and aligns to *that* recording's clock. With none, it opens **standalone** on a
-bare time axis — for inspecting a log on its own (the **Analyze** window's *Open
-log in EEG annotator* hands a session off this way). Opening a recording while a
+bare time axis — for inspecting a log on its own (the **Analyzer**'s *Open log in
+EEG Annotator* hands a session off this way). Opening a recording while a
 standalone log is shown switches to the overlaid view.
 
 **Artifacts.** Selecting a dream-report entry lets you **Play** its recorded

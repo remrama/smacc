@@ -1,8 +1,8 @@
 # SMACC file (`.smacc`)
 
 A **SMACC file** is a **portable study configuration**: it lets a researcher set
-SMACC up once — cue sounds and volumes, noise, the visual cue, surveys, event codes,
-device routing, optional hardware triggers — and reload it each session so the setup
+SMACC up once — cue sounds and volumes, noise, the visual cue, survey selection, event
+codes, device routing, optional hardware triggers — and reload it each session so the setup
 stays consistent across nights and researchers. It is plain YAML you can read and
 edit. The user-facing extension is `.smacc`, but the `kind` stays `smacc/settings`.
 
@@ -15,7 +15,7 @@ guide (creating, editing, sharing). This page is the field reference.
 # SMACC settings — YAML (.smacc). Edit with care.
 kind: smacc/settings
 schema_version: 1
-smacc_version: "0.0.9"
+smacc_version: "0.0.10"
 metadata:
   subject: "001"
   session: "1"
@@ -43,7 +43,7 @@ settings:
   # --- Participant text chat ---------------------------------------------------
   chat_font_size: 18
   chat_red_text: false
-  chat_experimenter_presets: ["Are you awake?", "Going back to sleep now."]
+  chat_experimenter_presets: ["Please describe everything that was going through your mind before the alarm.", "Are you awake?", "Going back to sleep now."]
   chat_participant_presets: ["Got it", "I'm awake", "Yes", "No"]
   # --- Biocals ---------------------------------------------------------------
   biocals:
@@ -219,6 +219,6 @@ folder stays valid when moved, copied, or zipped.
 
 ## Version history
 
-| Version | Changes                                                                                                                                                                                                                                                                                                                                                                |
-| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1       | The v0.0.9 baseline (numbering restarted; pre-release schemas were retired without migration). Envelope (`kind` / `schema_version` / `smacc_version` / `metadata` / `settings`); panel state; the `biocals`, `devices`, `event_codes` + `event_code_safe_max`, `trigger_output`, `data_directory`, `preview_levels`, `always_on_top`, and `tool_always_on_top` blocks. |
+| Version | Changes                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1       | Introduced as the v0.0.9 baseline (numbering restarted; pre-release schemas were retired without migration); still current as of v0.0.10. Envelope (`kind` / `schema_version` / `smacc_version` / `metadata` / `settings`); panel state; the `biocals`, `devices`, `event_codes` + `event_code_safe_max`, `trigger_output`, `data_directory`, `preview_levels`, `always_on_top`, and `tool_always_on_top` blocks. |

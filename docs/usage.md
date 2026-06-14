@@ -1,55 +1,63 @@
 # Usage
 
-SMACC opens to its **Launcher**, where you pick a **SMACC file** and choose what
-to do; from there you run a live **Session** for collecting data. This page walks
-through the main features.
+SMACC opens to its **Launcher** — a list of the SMACC tools. Click a tool and SMACC
+asks for the **SMACC file** to use, then opens it. To run a night you open a live
+**Session**. This page walks through the main features.
 
-SMACC has three main windows, named consistently throughout these docs:
+The Launcher's tools (its title bar reads **SMACC**):
 
-- the **SMACC Launcher** (*Launcher* for short) — the small hub that opens when
-    you start the app;
-- the **SMACC Session** window (*Session*) — the live interface for running a
-    night and collecting data;
-- the **SMACC Editor** window (*Editor*) — where you create or edit a
-    [SMACC file](smacc-files.md) without recording anything.
+- **Session…** — run a live **Session** for collecting data, the interface for
+    running a night. SMACC prompts for a [SMACC file](smacc-files.md) first.
+- **Editor…** — create or edit a [SMACC file](smacc-files.md) in the **Editor**,
+    without recording anything.
+- **Analyzer** — inspect a past session.
+- **Audio Cue Designer** — build a tone cue and export it as a WAV.
+- **EEG Annotator** — review and annotate a recorded EEG (see
+    [EEG Annotator](eeg-annotator.md)); disabled when its optional component is not
+    installed.
+
+The **Session** and the **Editor** are the same window in two modes — running a
+night versus authoring a SMACC file.
 
 <!-- Add an annotated screenshot of the Launcher + Session window here once
 available, e.g.: ![SMACC Session window](assets/screenshot-session.png) -->
 
 ## Opening SMACC
 
-Open the app itself to get the Launcher — SMACC never drops straight into a
-session (the one exception: double-clicking a `.smacc` file, which starts a
-Session for it directly). In the Launcher you:
+Open the app to get the Launcher. SMACC never drops straight into a session; the one
+exception is double-clicking a `.smacc` file, which opens the **Start a session**
+dialog with that file preselected. From the Launcher:
 
-- **pick a SMACC file** — the dropdown lists the seeded `default.smacc`, your
-    recent files, and **Browse…** to find any other. With none chosen, SMACC uses
-    built-in defaults, so it works out of the box. (See
-    [SMACC files](smacc-files.md) for what one holds.)
-- **Start** — open a live Session using the selected SMACC file, writing runs to
-    that file's **data directory**. The run folder and log are created only now,
-    when the session starts.
-- **Create** — build a new SMACC file in the Editor: configure the tools (cues,
-    noise, visual, event codes, surveys), choose a data directory, and save it
-    anywhere.
-- **Edit** — reopen the selected SMACC file in the Editor.
-- **Audio Cue Designer** — open the standalone tool to build a simple tone cue
-    and export it as a WAV into a study's `cues/` folder, ready to use from the Audio
-    cue board (see [Designing a cue](#designing-a-cue)).
-- **Analyzer** — open a past session (a `.log`, a session folder, or a
-    zipped session) to see a summary (events, duration, subject/session, dream
-    reports), export its events to a BIDS `events.tsv`, or recover its settings to a
-    `.smacc` — all without starting a new session.
+- **Session…** — opens the **Start a session** dialog. Pick the **SMACC file** (the
+    picker lists recent files, the seeded `default`, and **Browse…** for any other),
+    confirm the optional subject/session/notes, and click **OK** to start. Runs are
+    written to that file's **data directory**; the run folder and log are created only
+    when the session starts. (See [SMACC files](smacc-files.md) for what a SMACC file
+    holds.)
+- **Editor…** — opens the **Open in the Editor** dialog. Choose **New SMACC file**
+    for a blank configuration, or an existing file (recents / **Browse…**) to edit.
+    The Editor configures the panels (cues, noise, visual, markers, surveys), sets a
+    data directory, and saves with **Save SMACC file as…**; it never records a run.
+- **Analyzer** — open a past session (a `.log`, a session folder, or a zipped
+    session) to see a summary (events, duration, subject/session, dream reports),
+    export its events to a BIDS `events.tsv`, or recover its settings to a `.smacc` —
+    all without starting a new session.
+- **Audio Cue Designer** — open the standalone tool to build a simple tone cue and
+    export it as a WAV into a study's `cues/` folder, ready to use from the Audio cue
+    board (see [Designing a cue](#designing-a-cue)).
+- **EEG Annotator** — open the post-hoc [EEG Annotator](eeg-annotator.md) to review a
+    recorded night and place annotations. It runs as its own window and process, so it
+    stays available while a session runs.
 
 Closing the Editor or a standalone tool returns you to the Launcher. Ending a
-Session quits SMACC entirely — the night is over. Closing the Launcher also
-quits SMACC.
+Session quits SMACC entirely — the night is over. Closing the Launcher also quits
+SMACC.
 
 ## Audio cues
 
 Place sound files where your settings expect them — by default the data directory's
-`cues/` folder (e.g. `~/SMACC/data/cues/`; `.wav`, `.mp3`, `.flac`, `.ogg`, and
-`.aiff` are supported) — and trigger them from the cue controls. SMACC seeds a few
+`cues/` folder (e.g. `~/SMACC/data/cues/`; common formats such as `.wav`, `.mp3`,
+`.flac`, `.ogg`, and `.aiff` are accepted) — and trigger them from the cue controls. SMACC seeds a few
 `demo-*` cues there so there is always something to test with. You start with one
 cue — prefilled with a random demo — and use **+ Add cue** and each row's **✕** to
 add or remove cues to match a protocol (one minimum, up to 20).
@@ -93,7 +101,7 @@ BlinkStick-vs-Hue comparison, marker timing, and the photosensitivity notes.
 
 ## Dream reports
 
-Use the **Record Dream Report** button to record from the mic bound to the
+Use the **Record dream report** button to record from the mic bound to the
 **Bedroom mic 1** equipment in the **Devices** window.
 Recordings are saved into the current session folder. Each report is also stamped
 with the time elapsed since you pressed **Start recording** (in the Event logging
@@ -311,7 +319,7 @@ launch once it grows large (one older `crash.log.1` generation is kept).
 A **SMACC file** captures your study's whole configuration — cue files, volumes,
 noise, visual cues, survey presets, event codes, display choices, and the **data
 directory** where runs are written — in a single portable `.smacc`. Create one in
-the Editor (the Launcher's **Create**/**Edit** buttons) or snapshot a running
+the Editor (the Launcher's **Editor…** button) or snapshot a running
 Session with **File › Save SMACC file as…**. Opening one starts a new
 session with that configuration. See [SMACC files](smacc-files.md) for the full
 story (creating, the data directory, opening by double-click), and the
@@ -321,7 +329,7 @@ story (creating, the data directory, opening by double-click), and the
 
 Some display choices apply to a session and travel with the study in the SMACC
 file: **always-on-top** (toggled per window — the Session window's **File**
-menu, or each tool window's **View** menu, or **Ctrl+T** in whichever window is
+menu, or each tool window's **File** menu, or **Ctrl+T** in whichever window is
 active) and which **log levels** show in the preview (the checkboxes above the
 log preview). Save them with the rest of the configuration from the Editor or
 with **File › Save SMACC file as…** in a Session.

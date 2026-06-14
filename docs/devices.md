@@ -26,9 +26,9 @@ sleep and lucid-dreaming experiments.
 ### Using it in SMACC
 
 1. Plug the BlinkStick into a USB port, then launch SMACC.
-1. Click **Visual cue** in the *Tools* column.
+1. Click **Visual cue** in the **Panels** column.
 1. Bind your BlinkStick to the **BlinkStick light** equipment in the **Devices** window
-    (in the *Tools* column). Plug one in after launch and it's detected
+    (in the **Panels** column). Plug one in after launch and it's detected
     automatically, or click **Refresh devices (F5)** in the Devices window to rescan.
 1. Configure a light cue — color, brightness, pattern (steady, or a pulse/flash at
     a rate in Hz), and length (or **Loop** until stopped) — and add more cues with

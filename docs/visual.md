@@ -15,7 +15,7 @@ light at sleeping people. For plugging the devices in and binding them, see
 
 ## The visual cue board
 
-The **Visual cue** window (in the *Tools* column) is the light sibling of the
+The **Visual cue** window (in the **Panels** column) is the light sibling of the
 [Audio cue board](usage.md#audio-cues): one row per cue, each kept configured and
 ready so that firing the right light at 3 a.m. is a single click.
 
@@ -67,7 +67,7 @@ events, each carrying the cue's name. Two details matter for analysis:
 - **`VisualStarted` fires after the first frame is committed to the device.** On a
     BlinkStick the USB write takes ~1–2 ms, so the marker trails the photons by
     about that much. On Hue, "committed" means the bridge accepted the command — the
-    bulb itself transitions over the following ~100–200 ms, so the marker *leads*
+    bulb itself transitions over the following ~100 ms, so the marker *leads*
     the photons by that lag (and it varies). Time-locked analyses should use the
     BlinkStick.
 - **`VisualStopped` fires once the light is actually dark** — after the fade-out
@@ -86,8 +86,8 @@ over a sleeping participant.
 | Connection | One USB cable, no network                          | Bridge on the rig's LAN; bulbs via Zigbee                                                             |
 | Buying     | [blinkstick.com](https://www.blinkstick.com/) only | Retail everywhere, but pricier                                                                        |
 | Setup      | Plug in, bind, done                                | Pair once with the bridge's link button ([Devices › Philips Hue](devices.md#philips-hue))             |
-| Cue onset  | ~1–2 ms after the marker                           | ~100–200 ms of lag and jitter                                                                         |
-| Patterns   | Steady, pulse, and flash (up to 20 Hz)             | Steady and slow pulse; **flash is refused** (the bridge rate-limits commands far below a square wave) |
+| Cue onset  | ~1–2 ms after the marker                           | ~100 ms of lag and jitter                                                                             |
+| Patterns   | Steady, plus pulse and flash up to 20 Hz           | Steady and slow pulse; **flash is refused** (the bridge rate-limits commands far below a square wave) |
 | Coverage   | A point source near the bed                        | Whole-room illumination, or a group of rooms                                                          |
 | Fails when | The USB cable/port acts up                         | The bridge IP changes or the network drops                                                            |
 

@@ -3,7 +3,7 @@
 Every live run writes one plain-text log to its own timestamped folder
 (`smacc-YYYYmmdd-HHMMSS/`) under the study's data directory. It is the session's
 record: every event marker, the soft interactions (volume / colour / device changes),
-and two embedded snapshots of the full settings the run used. The study *designer*
+and two embedded snapshots of the full settings the run used. The **Editor**
 (which records nothing) writes no log.
 
 ## Line format
@@ -28,17 +28,17 @@ YYYY-MM-DD HH:MM:SS.mmm±HHMM, LEVEL, message
 - **message** — the log text. An **event-marker** line ends in `" - portcode N"`:
 
 ```text
-2026-06-09 22:14:01.003-0500, INFO, Opened SMACC v0.0.7
+2026-06-09 22:14:01.003-0500, INFO, Opened SMACC v0.0.10
 2026-06-09 22:14:05.221-0500, INFO, Lights off - portcode 47
 2026-06-09 22:18:30.880-0500, INFO, Dream report started: report-01, t+00:04:29 - portcode 201
-2026-06-09 22:19:02.114-0500, INFO, Cue volume set to 0.40
+2026-06-09 22:19:02.114-0500, INFO, REM detected - portcode 41
 ```
 
 A marker line is `"{label} - portcode {code}"` when the event drives a trigger, or
 just `"{label}"` when it does not. A dream-report start names its recording
-(`report-NN`, matching `report-NN.wav` in the run folder) and its time since the
-recording-start marker, so the entry can be tied back to both its audio and its
-place in the EEG. The code-to-event map is the study's
+(`report-NN`, matching `report-NN.wav` in the run folder) and, once the
+recording-start marker has been set, its time since that marker, so the entry can be
+tied back to both its audio and its place in the EEG. The code-to-event map is the study's
 [`event_codes`](settings-file.md#event_codes) registry; see the
 [default code catalog](../triggers.md#default-event-codes).
 
@@ -99,7 +99,7 @@ fenced by sentinels, so log parsers skip it entirely:
 # --8<-- smacc/settings initial
 # kind: smacc/settings
 # schema_version: 1
-# smacc_version: 0.0.7
+# smacc_version: 0.0.10
 # metadata:
 #   subject: '001'
 #   ...
@@ -109,8 +109,8 @@ fenced by sentinels, so log parsers skip it entirely:
 ```
 
 Two snapshots are written: **`initial`** (at startup) and **`final`** (appended at
-quit). The `final` block may be absent if a session crashed before quitting. Analyze
-can recover a `.smacc` from either block.
+quit). The `final` block may be absent if a session crashed before quitting. The
+**Analyzer** can recover a `.smacc` from either block.
 
 !!! note "No separate version"
 

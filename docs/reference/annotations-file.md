@@ -52,7 +52,7 @@ Documents each column (BIDS-style) and records provenance:
   "SourceFile": "night1.edf",
   "MeasurementDate": "2026-06-05T22:00:00+00:00",
   "Rater": null,
-  "GeneratedBy": {"Name": "SMACC", "Version": "1.0.0"}
+  "GeneratedBy": {"Name": "SMACC", "Version": "0.0.10"}
 }
 ```
 
@@ -60,6 +60,8 @@ Documents each column (BIDS-style) and records provenance:
 with the data-relative onsets it reconstructs clock time. It is `null` when
 the format or anonymization dropped it. `Rater` names the reviewer for a
 per-rater sidecar (see below) and is `null` for an ordinary single-rater review.
+`GeneratedBy.Version` is the SMACC app version that wrote the file; the sidecar
+carries no schema version of its own (it tracks the BIDS columns).
 
 ## Multiple raters
 

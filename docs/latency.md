@@ -86,7 +86,7 @@ Two things to take from this:
 
 ## The Low / High setting
 
-The Volume window has an **Output latency** choice, saved in the `.smacc`
+The Volume window has a **Latency** choice (High / Low), saved in the `.smacc`
 ([`output_latency`](reference/settings-file.md)):
 
 - **High** (default) — PortAudio's robust buffer. Fewer underruns; the safe choice
@@ -127,8 +127,8 @@ rig**. To characterise yours:
 - **Against the EEG, per session (authoritative).** Record the real stimulus onset on
     a spare amplifier channel — a microphone for the cue, a photodiode for the light —
     alongside the LSL port code. The difference between the port code and the recorded
-    onset, across the night, is the true distribution, and it can be visualised in the
-    Analyze tool. This needs a spare channel and is tracked in
+    onset, across the night, is the true distribution. SMACC does not plot this itself
+    yet; a per-session view of it needs a spare channel and is tracked in
     [#104](https://github.com/remrama/smacc/issues/104).
 
 !!! note "Why the log can't give you this"
