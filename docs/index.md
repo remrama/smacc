@@ -11,8 +11,6 @@ whatever hardware the lab has. SMACC is the clickable control surface for that w
 one window per job, glanceable in the dark, with a volume safety cap and explicit
 device routing so a misclick can't blast or mislead a sleeping participant.
 
-![The SMACC Session window: the Panels column on the left, the live Log preview on the right.](assets/screenshot-session.png){ .shot .shot--wide }
-
 [Download SMACC](https://github.com/remrama/smacc/releases/latest/download/SMACC-Setup.exe){ .md-button .md-button--primary }
 [Installation guide](installation.md){ .md-button }
 
