@@ -86,6 +86,7 @@ class AnalyzeWindow(ToolWindow):
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
         self._build()
         self._set_loaded(False)
+        self.show()  # the launcher hides itself and relies on the tool showing itself
 
     # ----- UI construction --------------------------------------------------
 

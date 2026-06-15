@@ -81,6 +81,13 @@ def analyze_window(qtbot, tmp_path, monkeypatch):
     return win
 
 
+def test_window_shows_itself_on_construction(analyze_window):
+    # The launcher hides itself in _open_tool and relies on the tool showing
+    # itself (#249); a window that builds but never shows reads to a user as
+    # "the Analyzer crashed on opening."
+    assert analyze_window.isVisible()
+
+
 def test_open_in_annotator_launches_with_the_log(analyze_window, tmp_path, monkeypatch):
     monkeypatch.setattr(eeg, "available", lambda: True)
     calls: list[list[str] | None] = []
