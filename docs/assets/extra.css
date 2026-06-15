@@ -10,23 +10,29 @@
 
 /* Documentation screenshots (scripts/screenshots.py). The captures are the window
    client area only — no OS title bar — so a subtle frame makes them read as windows.
-   Centered and sized to the window's shape: the default suits a medium tool window,
-   `--wide` is for the two-column Session/Editor/Devices, `--narrow` for the small
-   single-column tools (Launcher, chat, Volume, …) so they aren't upscaled. */
-.shot {
+   Kept modest so they sit within the prose rather than dominating the page; the
+   captures are 2x (retina) so they stay sharp downscaled. The default suits a medium
+   tool window, `--wide` is for the two-column Session/Editor, `--narrow` for the
+   small single-column tools (Launcher, chat, Volume, …). The `.md-typeset img`
+   qualifier is required: Material's own `.md-typeset img { max-width: 100% }` would
+   otherwise out-specify a bare `.shot` and stretch every shot to the full column. */
+.md-typeset img.shot {
   display: block;
   margin: 1.2em auto;
-  max-width: 560px;
+  /* `width` sets the target; `max-width: 100%` keeps it from overflowing a narrow
+     (mobile) content column. The shots are 2x, so a downscaled width stays sharp. */
+  width: 440px;
+  max-width: 100%;
   height: auto;
   border: 1px solid var(--md-default-fg-color--lighter);
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
-.shot--wide {
-  max-width: 100%;
+.md-typeset img.shot--wide {
+  width: 540px;
 }
 
-.shot--narrow {
-  max-width: 320px;
+.md-typeset img.shot--narrow {
+  width: 240px;
 }

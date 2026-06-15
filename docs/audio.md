@@ -31,7 +31,7 @@ window shows a read-only indicator of where it resolves, for example
 same resolution beside each route — a route pointed at equipment with nothing
 bound reads **→ no device** instead of looking configured.
 
-![The Devices window: the Equipment → devices bindings on top, the Actions → equipment routes below, each showing the device it resolves to.](assets/screenshot-devices.png){ .shot .shot--wide }
+![The Devices window: the Equipment → devices bindings on top, the Actions → equipment routes below, each showing the device it resolves to.](assets/screenshot-devices.png){ .shot }
 
 ```text
 Bedroom speaker       Speakers (USB Audio)
