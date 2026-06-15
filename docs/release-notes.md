@@ -9,7 +9,12 @@
 
 <!-- Newest release first. Set the date when a version is tagged. -->
 
-## 0.1.0
+## 0.1.1 — 2026-06-15
+
+- Fixed the Analyzer vanishing on open — clicking **Analyzer** hid the
+    launcher but never showed the Analyzer window.
+
+## 0.1.0 — 2026-06-15
 
 The first published release of SMACC — a Windows control surface for running
 sleep and dream studies. It includes:
