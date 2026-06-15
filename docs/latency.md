@@ -29,8 +29,7 @@ gain explicit and adds a safety limit, in the **Volume** window:
     and app volumes to 100%, then calibrate with the per-cue volumes and the safety
     cap inside SMACC. That way one place, SMACC, determines how loud a cue is.
 
-<!-- Add a screenshot of the Volume window here once available: the safety cap, the
-Latency choice, and the System volume / App volume readouts. -->
+![The Volume window: the safety cap, the latency choice, and the read-only System volume and App volume levels.](assets/screenshot-volume.png){ .shot .shot--narrow }
 
 ## Latency
 

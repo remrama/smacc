@@ -19,8 +19,7 @@ sit beside it — so a self-contained study folder stays valid if you move, copy
 or zip it — and **absolute** when they point elsewhere. For the exact on-disk
 format, see the [SMACC file reference](reference/settings-file.md).
 
-<!-- Add a screenshot of the Editor here once available, e.g.:
-![SMACC Editor](assets/screenshot-editor.png) -->
+![The SMACC Editor: the editing banner, the Panels column, the data directory, and the save panel.](assets/screenshot-editor.png){ .shot .shot--wide }
 
 ## Creating a SMACC file
 
