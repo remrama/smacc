@@ -18,6 +18,8 @@ The **Visual cue** window (in the **Panels** column) is the light sibling of the
 [Audio cue board](audio-cues.md#the-cue-board): one row per cue, each kept configured and
 ready so that firing the right light at 3 a.m. is a single click.
 
+![The Visual cue window: a cue row with its color, brightness, pattern, length, and loop controls, and the Sending swatch below.](assets/screenshot-visual.png){ .shot }
+
 Each row holds a **name** (it travels into the event log with every start/stop
 marker), a **color**, a **brightness** (0–1 — the visual volume), a **pattern**
 with its **rate**, a **length** in seconds, and a **loop** checkbox that keeps the

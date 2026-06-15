@@ -59,6 +59,13 @@ jobs:
       # too (#136); they importorskip, so a base env still passes without it.
       - name: Run tests
         run: uv run --extra dev --extra eeg pytest --cov=smacc --cov-report=xml --cov-report=term-missing
+      # Smoke-test the docs screenshot harness so a renamed widget or removed window
+      # fails CI instead of silently rotting the committed images. Offscreen
+      # (QT_QPA_PLATFORM above) into a temp dir, in the base env that mirrors the
+      # shipped exe; regenerate the real shots locally on the native platform.
+      - name: Smoke-test the screenshot harness
+        if: matrix.os == 'windows-2022'
+        run: uv run python scripts/screenshots.py --headless --out ${{ runner.temp }}/shots
       - name: Upload coverage to Codecov
         # Upload only from the release-mirror runner, and only when the tests passed
         # (`success()` — an explicit `if:` otherwise overrides the implicit

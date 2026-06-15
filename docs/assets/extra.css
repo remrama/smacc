@@ -7,3 +7,26 @@
   --md-primary-fg-color--light: #5561c4;
   --md-primary-fg-color--dark: #2e3884;
 }
+
+/* Documentation screenshots (scripts/screenshots.py). The captures are the window
+   client area only — no OS title bar — so a subtle frame makes them read as windows.
+   Centered and sized to the window's shape: the default suits a medium tool window,
+   `--wide` is for the two-column Session/Editor/Devices, `--narrow` for the small
+   single-column tools (Launcher, chat, Volume, …) so they aren't upscaled. */
+.shot {
+  display: block;
+  margin: 1.2em auto;
+  max-width: 560px;
+  height: auto;
+  border: 1px solid var(--md-default-fg-color--lighter);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.shot--wide {
+  max-width: 100%;
+}
+
+.shot--narrow {
+  max-width: 320px;
+}
