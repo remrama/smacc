@@ -13,8 +13,7 @@ The Launcher's tools (its title bar reads **SMACC**):
 - **Analyzer** — inspect a past session.
 - **Audio Cue Designer** — build a tone cue and export it as a WAV.
 - **EEG Annotator** — review and annotate a recorded EEG (see
-    [EEG Annotator](eeg-annotator.md)); disabled when its optional component is not
-    installed.
+    [EEG Annotator](eeg-annotator.md)).
 
 The **Session** and the **Editor** are the same window in two modes — running a
 night versus authoring a SMACC file.

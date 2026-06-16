@@ -19,11 +19,11 @@ Used for dream engineering by the [Paller Lab](https://sites.northwestern.edu/pa
 
 ## Installation
 
-To install SMACC, go to the [releases page](https://github.com/remrama/smacc/releases), click the _Assets_ dropdown for the latest release, and download SMACC (a single portable file — no installer). Once downloaded, double-clicking it will run SMACC.
+To install SMACC, go to the [releases page](https://github.com/remrama/smacc/releases), download `SMACC-Setup.exe` from the latest release's _Assets_, and run it. It installs per-user (no administrator rights needed), adds a Start menu entry, and associates `.smacc` files so double-clicking one opens it. Full details — older versions, machine-wide/IT installs, and the Windows SmartScreen prompt — are in the [installation guide](https://remrama.github.io/smacc/installation/).
 
 SMACC requires 64-bit Windows 10 or later.
 
-Note that for some features, you will need to open SMACC with Administrator privileges (Right-click to open and select `Run as administrator`).
+Note that for some features, you will need to open SMACC with Administrator privileges (right-click the Start menu entry and select `Run as administrator`).
 
 ## Optional setup
 

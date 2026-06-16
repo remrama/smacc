@@ -6,9 +6,9 @@ annotations — saved as a small sidecar file next to the recording, which is
 **never modified**. It is a review tool, not a real-time display; nothing
 about it runs during a live session.
 
-It opens from the Launcher's **EEG Annotator** button, from its own Start-menu
-entry (**SMACC EEG Annotator**), and always runs as its own window and process —
-you can keep reviewing last night's file while tonight's session runs.
+It opens from the Launcher's **EEG Annotator** button and always runs as its own
+window and process — so you can keep reviewing last night's file while tonight's
+session runs.
 
 **How it differs from a generic EEG viewer.** The Annotator is built for the
 overnight cueing workflow, not for clinical reading:
@@ -27,14 +27,12 @@ overnight cueing workflow, not for clinical reading:
 - Recordings are **memory-mapped**, so an 8-hour high-density night opens in
     seconds and scrolls smoothly regardless of file size.
 
-!!! note "An optional component"
+!!! note "Built in, runs in its own process"
 
-    The Annotator ships as the installer's **EEG Annotator** component, **checked
-    by default**. It carries the MNE library (a heavyweight dependency), so labs
-    that only run sessions can **uncheck it during setup** to skip it; re-run the
-    [installer](installation.md) later to add or remove it on an existing install.
-    When the component is missing, the Launcher's button is shown disabled with a
-    hint, so you always know the tool exists.
+    The Annotator is part of SMACC — there is nothing extra to install. It opens
+    in its own process, so it can outlive the Launcher and a heavy recording can
+    never disturb a running session; that is why it appears as a separate window
+    rather than a panel inside the session app.
 
 ## Supported recordings
 
@@ -289,7 +287,7 @@ quick-mark palette) as a shareable `study.smacc-blind.json` and hand out a
 one-click command:
 
 ```sh
-SMACC-EEG.exe --rater alice --blind study.smacc-blind.json night1.edf
+SMACC.exe --eeg --rater alice --blind study.smacc-blind.json night1.edf
 ```
 
 Blinding is a workflow aid, not a security boundary: the guarantee is that the
@@ -298,9 +296,9 @@ recording or the truth sidecar directly.
 
 ## For developers
 
-Run it from a source checkout with the `eeg` extra:
+Run it from a source checkout:
 
 ```sh
-uv sync --extra dev --extra eeg
+uv sync --extra dev
 uv run python -m smacc.eeg [recording.edf]
 ```

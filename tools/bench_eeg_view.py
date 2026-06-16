@@ -1,7 +1,7 @@
 # Benchmark the EEG TraceView against the #136 performance target:
 # an 8 h x 32 ch x 512 Hz overnight recording must scroll smoothly.
 #
-#   > uv run --extra eeg python tools/bench_eeg_view.py
+#   > uv run python tools/bench_eeg_view.py
 #
 # A synthetic provider generates EEG-shaped data on demand (so the bench needs
 # no gigabyte fixture file); each "refresh" is what one scroll step costs:

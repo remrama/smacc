@@ -27,9 +27,9 @@ jobs:
       # #168. --extra docs is where mdformat + its mkdocs/gfm/frontmatter plugins live.
       - name: Markdown format check
         run: uv run --extra docs mdformat --check .
-      # mypy doesn't need the eeg extra: neither mne nor pyqtgraph ships
-      # py.typed, so installing them adds no type information (and
-      # ignore_missing_imports already covers their absence).
+      # mne, matplotlib and pyqtgraph ship no py.typed, so they add no type
+      # information even though --extra dev now installs them (they are core
+      # dependencies); ignore_missing_imports covers them either way.
       - name: Type check
         run: uv run --extra dev mypy
 
@@ -55,10 +55,10 @@ jobs:
       - uses: astral-sh/setup-uv@v8.2.0
         with:
           enable-cache: true
-      # --extra eeg pulls mne/pyqtgraph so the optional EEG Annotator tests run
-      # too (#136); they importorskip, so a base env still passes without it.
+      # The EEG stack (mne/pyqtgraph) is a core dependency now, so the EEG
+      # Annotator tests (#136) always run — no extra needed.
       - name: Run tests
-        run: uv run --extra dev --extra eeg pytest --cov=smacc --cov-report=xml --cov-report=term-missing
+        run: uv run --extra dev pytest --cov=smacc --cov-report=xml --cov-report=term-missing
       # Smoke-test the docs screenshot harness so a renamed widget or removed window
       # fails CI instead of silently rotting the committed images. Offscreen
       # (QT_QPA_PLATFORM above) into a temp dir, in the base env that mirrors the

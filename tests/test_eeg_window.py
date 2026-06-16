@@ -1008,10 +1008,10 @@ def test_wall_time_without_meas_date_is_none(tmp_path):
 
 
 def test_eeg_window_never_imports_the_live_session_stack():
-    # The EEG tool runs as its own process and the frozen SMACC-EEG.exe will
-    # not ship the live-session stack — importing it here (e.g. panels.base,
-    # which imports sounddevice and SmaccSession at module scope) would break
-    # the packaged build and the documented process isolation.
+    # The Annotator runs as its own process (SMACC.exe --eeg). It must not pull
+    # in the live-session stack — importing it here (e.g. panels.base, which
+    # imports sounddevice and SmaccSession at module scope) would break the
+    # documented process isolation and bloat the Annotator process.
     code = (
         "import sys; import smacc.eeg.window; "
         "leaks = [m for m in ('sounddevice', 'smacc.session', 'smacc.devices', "
@@ -1025,8 +1025,9 @@ def test_eeg_window_never_imports_the_live_session_stack():
 
 
 def test_version_flag_exits_zero_without_a_window():
-    # The release workflow smoke-tests the frozen SMACC-EEG.exe with exactly
-    # this invocation; the import tree resolving and exit code 0 are the test.
+    # The Annotator's --version (dev entry); the import tree resolving and exit
+    # code 0 are the test. The release workflow smoke-tests the frozen build
+    # with SMACC.exe --eeg --selftest (a superset that also exercises MNE).
     proc = subprocess.run(
         [sys.executable, "-m", "smacc.eeg", "--version"],
         capture_output=True,

@@ -15,8 +15,7 @@ device routing so a misclick can't blast or mislead a sleeping participant.
 [Installation guide](installation.md){ .md-button }
 
 The button downloads the installer (`SMACC-Setup.exe`) for the latest version, which
-installs per-user (no admin rights) and runs on 64-bit Windows 10 or later. Prefer a
-single file with no install? A portable `SMACC.exe` ships with every release — see
+installs per-user (no admin rights) and runs on 64-bit Windows 10 or later. See
 [Installation](installation.md), which also covers the Windows SmartScreen warning on
 the unsigned download and how to get older versions.
 

@@ -117,23 +117,14 @@ class LauncherWindow(QtWidgets.QMainWindow):
             "Create a tone cue and export it as a WAV file.",
             self.design_cues,
         )
-        # The optional EEG Annotator component (#136). Shown disabled (not hidden)
-        # when absent, so a lab knows the tool exists and how to get it — the same
-        # surface-don't-hide approach as missing trigger hardware (#147).
-        # Availability is probed once, here: installing the component mid-run
-        # requires closing SMACC anyway (the installer replaces the locked exe),
-        # and a stale True is already handled by the launch-failure dialog.
+        # The EEG Annotator (#136) opens in its own process so it can outlive a
+        # session (see review_eeg). MNE ships inside the one SMACC binary, so the
+        # tool is always present — the button is never gated.
         self.reviewEegButton = tool_button(
             "EEG Annotator",
             "Open the EEG Annotator in its own window (annotate a recording).",
             self.review_eeg,
         )
-        if not eeg.available():
-            self.reviewEegButton.setEnabled(False)
-            self.reviewEegButton.setStatusTip(
-                "The EEG Annotator is not installed — re-run the SMACC "
-                "installer and select the component."
-            )
 
         layout.addStretch(1)
         # Link to the documentation site (not the repo), hyperlinked. Rich text +
@@ -279,12 +270,11 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self._open_tool(AnalyzeWindow(DEFAULT_DATA_DIR))
 
     def review_eeg(self) -> None:
-        """Launch the EEG Annotator as its own detached process.
+        """Open the EEG Annotator in its own process (this binary, re-exec'd).
 
         Unlike the launcher-managed tools this never hides the launcher: the
-        viewer is a sibling app in a separate process (the frozen build can't
-        run it in-process — MNE isn't bundled in SMACC.exe), so there is no
-        ``closed`` signal to bring the launcher back.
+        Annotator runs in a separate process so it can outlive the launcher (or
+        a session), so there is no ``closed`` signal to bring the launcher back.
         """
         if eeg.launch():
             bar = self.statusBar()
@@ -294,9 +284,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
         QtWidgets.QMessageBox.warning(
             self,
             "EEG Annotator",
-            "Could not start the EEG Annotator.\n\n"
-            "Re-running the SMACC installer and selecting the EEG Annotator "
-            "component may repair it.",
+            "Could not start the EEG Annotator.",
         )
 
     def associate_files(self) -> None:

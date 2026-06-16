@@ -17,8 +17,8 @@ the title and prompt on close.
 
 This is a *daytime* analysis tool: unlike the session windows there is no dark
 theme, no always-on-top, and nothing here may import from the live-session
-modules (the frozen ``SMACC-EEG.exe`` doesn't ship them all — and review work
-must never share a process with a running night).
+modules — review work must never share a process with a running night (the
+Annotator runs as ``SMACC.exe --eeg``, its own process).
 """
 
 from __future__ import annotations
@@ -164,8 +164,8 @@ def _section_title(text: str) -> QtWidgets.QLabel:
 
     Deliberately duplicated from ``panels.base.make_section_title``: importing
     ``panels.base`` executes ``import sounddevice`` and pulls in the whole
-    live-session stack, which this process must never load (see the module
-    docstring) and the frozen ``SMACC-EEG.exe`` will not ship.
+    live-session stack, which the Annotator process must never load (see the
+    module docstring).
     """
     label = QtWidgets.QLabel(text)
     label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
@@ -680,8 +680,8 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
         self._alignment: align.Alignment | None = None
         # Dream-report audio playback (#125e, folds in #179). Created lazily on
         # first play and kept alive on the window so it isn't GC'd mid-clip.
-        # QtMultimedia, never sounddevice/PortAudio — the frozen SMACC-EEG.exe
-        # ships no live-session audio stack.
+        # QtMultimedia, never sounddevice/PortAudio — the Annotator process
+        # never loads the live-session audio stack.
         self._player: Any = None
         self._audio_output: Any = None
         self._playing_wav: Path | None = None
@@ -2310,8 +2310,8 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
     def _play_or_stop_report(self) -> None:
         """Play the selected dream report's audio, or stop it if it's playing.
 
-        QtMultimedia, never the live-session audio stack: the annotator runs as
-        the frozen ``SMACC-EEG.exe``, which ships no sounddevice/PortAudio.
+        QtMultimedia, never the live-session audio stack: the Annotator runs in
+        its own process and never loads sounddevice/PortAudio.
         """
         from PyQt6.QtMultimedia import QMediaPlayer
 

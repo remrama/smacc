@@ -4,7 +4,7 @@ The EEG annotator can overlay a past session's ``.log`` on its timeline as a
 read-only reference track: every marker, cue, dream report, and survey shown
 where it happened, so a reviewer sees what SMACC *did* alongside the EEG. This
 module is the pure model behind that overlay — no GUI, no MNE — so it is
-directly unit-testable and safe to import in the frozen ``SMACC-EEG.exe``. It
+directly unit-testable and safe to import in the Annotator process. It
 builds on the log parsers in :mod:`smacc.bids` (shared with the Analyzer),
 adding the per-entry classification, dream-report numbering, and the wall-clock
 placement math the overlay needs.

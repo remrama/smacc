@@ -4,7 +4,7 @@ Renders a :class:`~smacc.eeg.snapshot.Snapshot` to PNG / PDF / SVG with
 matplotlib's headless backends — the engine MNE itself uses for static figures,
 and the only one of the available libraries that does PDF and reliable vector
 text (pyqtgraph has no PDF exporter and its SVG exporter mishandles the view's
-stacked transforms). matplotlib already ships inside ``SMACC-EEG.exe`` as an MNE
+stacked transforms). matplotlib already ships in the frozen build as an MNE
 dependency, so this adds no packaging weight.
 
 The figure is built straight on a :class:`matplotlib.figure.Figure` with an

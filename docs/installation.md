@@ -9,11 +9,8 @@ double-click `SMACC-Setup.exe` and click through. The installer:
 - adds a **Start menu** entry (and, if you opt in, a desktop shortcut);
 - associates **`.smacc` files**, so double-clicking one opens the **Start a session**
     dialog with it preselected;
-- installs the **EEG Annotator** — the post-hoc
-    [EEG viewer/annotator](eeg-annotator.md). Included by default; uncheck it during
-    setup to skip the heavyweight EEG component (which bundles the MNE library), or
-    re-run the installer later to
-    add or remove it;
+- includes the **EEG Annotator** — the post-hoc
+    [EEG viewer/annotator](eeg-annotator.md), opened from the Launcher;
 - registers an uninstaller — remove SMACC from **Settings › Apps** like any other
     program. Uninstalling never touches your data: SMACC files, recordings, and
     logs under `~/SMACC` (or your data directories) all stay put. The
@@ -21,8 +18,7 @@ double-click `SMACC-Setup.exe` and click through. The installer:
     finishes, so finding the folder afterwards is expected — delete it manually
     if you no longer need the data.
 
-Installing a newer version over an existing one upgrades it in place, keeping
-whichever components you had chosen.
+Installing a newer version over an existing one upgrades it in place.
 
 To get an older or specific version, browse the
 [releases page](https://github.com/remrama/smacc/releases): pick the release you
@@ -50,18 +46,6 @@ itself come from the releases page.)
     dream reports, LSL markers) you can run SMACC normally, without administrator
     rights.
 
-## Portable SMACC.exe (no install)
-
-Every release also ships the same app as a single portable `SMACC.exe` — download
-it, double-click it, no installation. This suits USB-stick deployment, machines
-where nothing may be installed, and quick tests. The portable build skips the
-installer's conveniences (Start menu entry, uninstaller, the `.smacc`
-file association) — you can associate `.smacc` files from the Launcher's File
-menu instead (see below). The
-[EEG Annotator](eeg-annotator.md) is likewise available portable as
-`SMACC-EEG.exe` — put it **next to** `SMACC.exe` and the Launcher's *EEG
-Annotator* button lights up (it also runs standalone).
-
 !!! note "For IT departments"
 
     The default install is per-user (under `%LOCALAPPDATA%\Programs\SMACC`, no
@@ -76,8 +60,7 @@ newer release exists and, if one does, offers to open the download page in your
 browser — run the new installer and it upgrades the existing install in place.
 SMACC never checks on its own: lab machines are often offline, and studies
 usually pin one version for their whole run, so checking is always an explicit
-click. If you use the portable `SMACC.exe`, download the new one and replace
-your old copy.
+click.
 
 ## After installing
 
@@ -89,9 +72,9 @@ The rest of setup is covered on the relevant pages:
 
 - **Your study configuration** lives in a portable [SMACC file](smacc-files.md).
     SMACC seeds a `default.smacc` and opens it when you don't pick another, so it
-    works out of the box. The installer associates `.smacc` files; with the portable
-    build, enable or repair the association from **File › Associate .smacc files
-    (Windows)** in the Launcher.
+    works out of the box. The installer associates `.smacc` files; enable or repair
+    the association any time from **File › Associate .smacc files (Windows)** in the
+    Launcher.
 - **Audio cues** go in the data directory's `cues/` folder, alongside the seeded
     `demo-*` cues — see [Audio cues](audio-cues.md).
 - **Dream-report surveys** are managed from the Dream recording panel — see
