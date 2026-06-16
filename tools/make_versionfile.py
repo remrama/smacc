@@ -5,12 +5,9 @@ so the exe's Properties dialog (and tools IT departments use to vet binaries)
 show the product name, version, and publisher instead of nothing. The version is
 read from ``smacc.__version__`` — the single source of truth — so the resource
 can never drift from the release tag (the release workflow checks the tag against
-the same attribute). Run by the release workflow before PyInstaller, once per
-exe (the optional EEG component, #136, is a second frozen exe)::
+the same attribute). Run by the release workflow before PyInstaller::
 
     uv run python tools/make_versionfile.py version_info.txt
-    uv run python tools/make_versionfile.py version_info_eeg.txt \\
-        --product SMACC-EEG --description "SMACC EEG Annotator"
 """
 
 from __future__ import annotations
@@ -84,21 +81,9 @@ def main() -> None:
     parser.add_argument(
         "output", type=Path, help="path to write (e.g. version_info.txt)"
     )
-    parser.add_argument(
-        "--product",
-        default="SMACC",
-        help="ProductName / OriginalFilename stem (e.g. SMACC-EEG)",
-    )
-    parser.add_argument(
-        "--description",
-        default=_DEFAULT_DESCRIPTION,
-        help="FileDescription shown in the exe's Properties dialog",
-    )
     args = parser.parse_args()
-    args.output.write_text(
-        render(__version__, args.product, args.description), encoding="utf-8"
-    )
-    print(f"Wrote VSVersionInfo for {args.product} {__version__} to {args.output}")
+    args.output.write_text(render(__version__), encoding="utf-8")
+    print(f"Wrote VSVersionInfo for SMACC {__version__} to {args.output}")
 
 
 if __name__ == "__main__":

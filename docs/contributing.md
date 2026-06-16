@@ -92,7 +92,7 @@ device enumeration, the Windows volume read-out) is stubbed in fixtures, so test
 depend on the machine's audio setup.
 
 ```sh
-uv run --extra dev --extra eeg pytest --cov=smacc --cov-report=term-missing   # CI also adds --cov-report=xml
+uv run --extra dev pytest --cov=smacc --cov-report=term-missing   # CI also adds --cov-report=xml
 ```
 
 To actually watch a test render, override the platform for that run (Windows:
@@ -100,51 +100,48 @@ To actually watch a test render, override the platform for that run (Windows:
 
 ## Building the executable
 
-Build the standalone Windows executable:
+Build the Windows app — one `--onedir` bundle that includes the EEG Annotator:
 
 ```sh
-uv run pyinstaller entry.py --name SMACC --onefile --noconsole \
+uv run pyinstaller entry.py --name SMACC --onedir --noconsole \
   --icon src/smacc/assets/icon.ico \
   --add-data "src/smacc/assets/icon.png:smacc/assets" \
   --add-data "src/smacc/assets/default.smacc:smacc/assets" \
   --add-data "src/smacc/assets/cues:smacc/assets/cues" \
   --add-data "src/smacc/assets/biocals:smacc/assets/biocals" \
-  --add-data "src/smacc/assets/surveys:smacc/assets/surveys"
-```
-
-`--icon` sets the executable's file icon; `--add-data` bundles the runtime
-window/taskbar icon, which SMACC resolves via `sys._MEIPASS`. On Windows the
-`--add-data` separator is `;` rather than `:` (i.e. `...png;smacc/assets`).
-
-PyYAML (settings export/import) is pure Python and is picked up automatically by
-PyInstaller; if a frozen build ever fails to import `yaml`, add
-`--hidden-import yaml`.
-
-The optional EEG Annotator component (#136) is a second frozen exe with its own
-entry point — it carries the MNE/pyqtgraph/matplotlib stack the base exe deliberately
-doesn't (requires `uv sync --extra dev --extra eeg`):
-
-```sh
-uv run pyinstaller entry_eeg.py --name SMACC-EEG --onefile --noconsole \
-  --icon src/smacc/assets/icon.ico \
-  --add-data "src/smacc/assets/icon.png:smacc/assets" \
+  --add-data "src/smacc/assets/surveys:smacc/assets/surveys" \
   --collect-submodules mne --collect-data mne \
   --collect-submodules matplotlib.backends
 ```
 
-The `--collect-*` flags matter: MNE uses `lazy_loader`, which imports
-submodules by name at runtime and reads the package's `.pyi` stubs — both
-invisible to PyInstaller's static analysis. Without them the exe builds
-cleanly and dies on first MNE use. matplotlib is a real dependency too — the
-figure export (`eeg/export.py`, #180) writes PDF/SVG via `savefig`, and MNE's IO
-layer imports `mne.viz.ui_events` (→ matplotlib) at import time — so
-`--collect-submodules matplotlib.backends` bundles its PDF/SVG backends, and
-`--exclude-module matplotlib` would break both `read_raw_*` and the export.
+This produces `dist/SMACC/SMACC.exe` (a folder, not a single file). `--onedir`
+rather than `--onefile` is deliberate: a session launch imports lazily off the
+install folder and never loads the heavy MNE stack, with no per-launch temp
+extraction (and so no ~120 MB blob for antivirus to rescan each run). On Windows
+the `--add-data` separator is `;` rather than `:` (i.e. `...png;smacc/assets`).
+`--icon` sets the executable's file icon; `--add-data` bundles the runtime
+window/taskbar icon, which SMACC resolves via `sys._MEIPASS`.
 
-Verify a built `SMACC-EEG.exe` with `--selftest` (the check is exit code 0):
-it round-trips a synthetic recording through MNE, the display filters, and the
-annotation sidecar. `--version` alone would not catch a broken MNE bundling —
-MNE is imported lazily, so it only loads when a recording is actually touched.
+The EEG Annotator (#136) is a mode of this same binary — `SMACC.exe --eeg`,
+re-exec'd as its own process (see `smacc.eeg.launch`) — so it is built in, not a
+second exe. The `--collect-*` flags are what make its MNE stack survive freezing:
+MNE uses `lazy_loader`, which imports submodules by name at runtime and reads the
+package's `.pyi` stubs — both invisible to PyInstaller's static analysis — so
+without them the build succeeds and dies on first MNE use. matplotlib is a real
+dependency too: figure export (`eeg/export.py`, #180) writes PDF/SVG via
+`savefig`, and MNE's IO layer imports `mne.viz.ui_events` (→ matplotlib) at import
+time — so `--collect-submodules matplotlib.backends` bundles its PDF/SVG
+backends, and `--exclude-module matplotlib` would break both `read_raw_*` and the
+export.
+
+Verify the built app with `SMACC.exe --eeg --selftest` (the check is exit
+code 0): it round-trips a synthetic recording through MNE, the display filters,
+and the annotation sidecar. A plain `--version` would not catch broken MNE
+bundling — MNE is imported lazily, so it only loads when a recording is touched.
+
+PyYAML (settings export/import) is pure Python and is picked up automatically by
+PyInstaller; if a frozen build ever fails to import `yaml`, add
+`--hidden-import yaml`.
 
 The `blinkstick` driver (BlinkStick visual cues) and its Windows backend
 `pywinusb` are pure Python and bundle the same way. PyInstaller may warn that
@@ -154,14 +151,12 @@ the driver, add `--hidden-import pywinusb`.
 
 Releases are built automatically: pushing a `v*` tag (e.g. `v0.1.0`) triggers the
 [release workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/release.yml),
-which checks the tag against `smacc.__version__`, builds `SMACC.exe` and
-`SMACC-EEG.exe` (each stamped with version metadata from
-`tools/make_versionfile.py`), wraps them in an Inno Setup installer
-(`tools/smacc.iss` → `SMACC-Setup.exe`, with the EEG exe as the optional
-component), smoke-tests the exes (`--version`, and `--selftest` for the EEG
-one) and both installer component configurations, and attaches the three
-artifacts to the GitHub Release. The installer's asset name is a stable
-contract — the docs' download button links
+which checks the tag against `smacc.__version__`, builds the onedir
+`SMACC.exe` (stamped with version metadata from `tools/make_versionfile.py`),
+wraps it in an Inno Setup installer (`tools/smacc.iss` → `SMACC-Setup.exe`),
+smoke-tests the app (`--version` and `--eeg --selftest`) and the installer, and
+attaches `SMACC-Setup.exe` to the GitHub Release. The installer's asset name is a
+stable contract — the docs' download button links
 `releases/latest/download/SMACC-Setup.exe` — so don't rename it. The installer's
 `[Registry]` section must mirror `winassoc.association_entries()` exactly (so an
 installed build sees the association as already registered);

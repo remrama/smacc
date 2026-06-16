@@ -89,7 +89,6 @@ def test_window_shows_itself_on_construction(analyze_window):
 
 
 def test_open_in_annotator_launches_with_the_log(analyze_window, tmp_path, monkeypatch):
-    monkeypatch.setattr(eeg, "available", lambda: True)
     calls: list[list[str] | None] = []
     monkeypatch.setattr(eeg, "launch", lambda args=None: calls.append(args) or True)
     log = tmp_path / "smacc-x.log"
@@ -100,14 +99,14 @@ def test_open_in_annotator_launches_with_the_log(analyze_window, tmp_path, monke
     assert calls == [["--log", str(log)]]
 
 
-def test_annotate_button_disabled_without_the_eeg_component(
-    analyze_window, tmp_path, monkeypatch
-):
-    monkeypatch.setattr(eeg, "available", lambda: False)
+def test_annotate_button_disabled_until_a_session_loads(analyze_window, tmp_path):
+    # The handoff has nothing to hand off until a session is loaded; the EEG
+    # Annotator itself is always present (it ships inside the one SMACC binary).
+    assert not analyze_window.annotateButton.isEnabled()
     log = tmp_path / "smacc-y.log"
     log.write_text(A_LOG, encoding="utf-8")
     analyze_window._load_log(log, log.parent)
-    assert not analyze_window.annotateButton.isEnabled()  # component absent
+    assert analyze_window.annotateButton.isEnabled()
 
 
 def test_handoff_copies_a_zip_extracted_log_out_of_temp(
@@ -116,7 +115,6 @@ def test_handoff_copies_a_zip_extracted_log_out_of_temp(
     # A zip-extracted log lives under a temp dir Analyze deletes on close; the
     # detached annotator reads it later, so the handoff must pass a copy that
     # survives that cleanup, not the temp path.
-    monkeypatch.setattr(eeg, "available", lambda: True)
     launched: list[list[str] | None] = []
     monkeypatch.setattr(eeg, "launch", lambda args=None: launched.append(args) or True)
     temp = tmp_path / "smacc-analyze-xyz"
@@ -137,7 +135,6 @@ def test_handoff_copies_a_zip_extracted_log_out_of_temp(
 def test_handoff_passes_a_real_log_path_through_unchanged(
     analyze_window, tmp_path, monkeypatch
 ):
-    monkeypatch.setattr(eeg, "available", lambda: True)
     launched: list[list[str] | None] = []
     monkeypatch.setattr(eeg, "launch", lambda args=None: launched.append(args) or True)
     log = tmp_path / "smacc-z.log"

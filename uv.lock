@@ -1765,10 +1765,13 @@ name = "smacc"
 source = { editable = "." }
 dependencies = [
     { name = "blinkstick", marker = "sys_platform == 'win32'" },
+    { name = "matplotlib" },
+    { name = "mne" },
     { name = "numpy" },
     { name = "pycaw", marker = "sys_platform == 'win32'" },
     { name = "pylsl" },
     { name = "pyqt6" },
+    { name = "pyqtgraph" },
     { name = "pyserial" },
     { name = "pyyaml" },
     { name = "scipy" },
@@ -1797,16 +1800,11 @@ docs = [
     { name = "mkdocs-with-pdf" },
     { name = "weasyprint" },
 ]
-eeg = [
-    { name = "matplotlib" },
-    { name = "mne" },
-    { name = "pyqtgraph" },
-]
 
 [package.metadata]
 requires-dist = [
     { name = "blinkstick", marker = "sys_platform == 'win32'" },
-    { name = "matplotlib", marker = "extra == 'eeg'", specifier = ">=3.7" },
+    { name = "matplotlib", specifier = ">=3.7" },
     { name = "mdformat", marker = "extra == 'docs'" },
     { name = "mdformat-frontmatter", marker = "extra == 'docs'" },
     { name = "mdformat-gfm", marker = "extra == 'docs'" },
@@ -1814,7 +1812,7 @@ requires-dist = [
     { name = "mike", marker = "extra == 'docs'" },
     { name = "mkdocs-material", marker = "extra == 'docs'" },
     { name = "mkdocs-with-pdf", marker = "extra == 'docs'" },
-    { name = "mne", marker = "extra == 'eeg'", specifier = ">=1.6" },
+    { name = "mne", specifier = ">=1.6" },
     { name = "mypy", marker = "extra == 'dev'" },
     { name = "numpy" },
     { name = "pre-commit", marker = "extra == 'dev'" },
@@ -1822,7 +1820,7 @@ requires-dist = [
     { name = "pyinstaller", marker = "extra == 'dev'" },
     { name = "pylsl" },
     { name = "pyqt6" },
-    { name = "pyqtgraph", marker = "extra == 'eeg'", specifier = ">=0.13" },
+    { name = "pyqtgraph", specifier = ">=0.13" },
     { name = "pyserial" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
@@ -1835,7 +1833,7 @@ requires-dist = [
     { name = "types-pyyaml", marker = "extra == 'dev'" },
     { name = "weasyprint", marker = "extra == 'docs'" },
 ]
-provides-extras = ["docs", "eeg", "dev"]
+provides-extras = ["docs", "dev"]
 
 [[package]]
 name = "sounddevice"

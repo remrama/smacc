@@ -15,7 +15,7 @@ from PyQt6.QtGui import QDesktopServices, QIcon
 from PyQt6.QtWidgets import QApplication, QMessageBox, QPushButton
 
 from . import crashlog
-from .config import VERSION
+from .config import VERSION, set_taskbar_app_id
 from .launcher import LauncherWindow
 from .paths import (
     BUNDLED_CUES_DIR,
@@ -219,7 +219,21 @@ def main() -> None:
     release workflow smoke-tests the frozen exe with it — reaching this point
     proves the bundle unpacks and every import resolves. The exe is built
     ``--noconsole`` (no stdout), so the check is the exit code, not the output.
+
+    ``--eeg`` routes to the EEG Annotator: it is a mode of this single binary,
+    run in its own process (see ``smacc.eeg.launch``), not a separate program.
     """
+    if "--eeg" in sys.argv[1:]:
+        # Hand off to the Annotator's entry point, which parses the rest
+        # (--selftest, --version, --log, --rater, --blind, the recording path).
+        # Imported here, not at module top, so the launcher path never pulls in
+        # the MNE/pyqtgraph tree. Strip the routing flag so the Annotator sees
+        # only its own arguments.
+        from smacc.eeg.__main__ import main as eeg_main
+
+        sys.argv = [sys.argv[0], *(a for a in sys.argv[1:] if a != "--eeg")]
+        eeg_main()  # always sys.exit()s; the return guards a future change
+        return
     if "--version" in sys.argv[1:]:
         if sys.stdout is not None:  # absent in a --noconsole build
             print(f"SMACC {VERSION}")
@@ -231,6 +245,7 @@ def main() -> None:
     crashlog.install_qt_message_handler()
     _install_excepthook()
     _quiet_qt_multimedia_logging()  # before QApplication: Qt reads the rule at startup
+    set_taskbar_app_id()  # group with the EEG Annotator under one taskbar app
     app = QApplication(sys.argv)
     # Fusion honors the full QPalette consistently across platforms, which the
     # native Windows style does not — required for the lights-off dark theme.

@@ -43,6 +43,19 @@ def test_version_flag_exits_before_any_window(monkeypatch, capsys):
     assert f"SMACC {VERSION}" in capsys.readouterr().out
 
 
+def test_eeg_flag_routes_to_the_annotator(monkeypatch):
+    # `SMACC --eeg …` is the single binary run in Annotator mode: main() hands
+    # off to the EEG entry point with the routing flag stripped, so the
+    # Annotator sees only its own arguments.
+    import smacc.eeg.__main__ as eeg_main_mod
+
+    seen: dict[str, list[str]] = {}
+    monkeypatch.setattr(eeg_main_mod, "main", lambda: seen.update(argv=list(sys.argv)))
+    monkeypatch.setattr(sys, "argv", ["SMACC.exe", "--eeg", "--log", "night1.log"])
+    main()
+    assert seen["argv"] == ["SMACC.exe", "--log", "night1.log"]
+
+
 # ----- Qt-multimedia logging rule (quiet the FFmpeg startup banner) ----------
 
 

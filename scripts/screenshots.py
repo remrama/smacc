@@ -40,7 +40,7 @@ from pathlib import Path
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from smacc import devices, eeg, winvolume
+from smacc import devices, winvolume
 from smacc.cuedesigner import CueDesignerWindow
 from smacc.gui import SmaccWindow
 from smacc.launcher import LauncherWindow
@@ -81,8 +81,6 @@ def _patch_hardware() -> None:
     winvolume.app_volume = lambda: 1.0
     # The marker outlet would open a network stream in a live session.
     SmaccSession.init_lsl_stream = lambda self, *a, **k: setattr(self, "outlet", None)
-    # Show the EEG Annotator as installed so the Launcher button isn't greyed out.
-    eeg.available = lambda: True
 
 
 # A clean, representative data directory for the Editor shot (the real one is a

@@ -45,54 +45,29 @@ ChangesAssociations=yes
 WizardStyle=modern
 Compression=lzma2
 SolidCompression=yes
-; Disable Inno's Restart Manager (#234). On a second, in-place install it
-; enumerates processes holding handles to the exes it's about to replace or
-; [InstallDelete], and can block on a lingering OS/Defender scan handle to the
-; just-written binary even under /VERYSILENT /SUPPRESSMSGBOXES - which hung the
-; release workflow's opt-out smoke test to the job timeout. SMACC is a small
-; per-user tool with no need to gracefully close running apps mid-upgrade;
-; users close it before updating (the manual update-check flow prompts them).
-; This also turns RM off in the uninstaller: uninstalling while SMACC is running
-; falls back to the legacy file-in-use path instead of RM's close-and-restart page.
+; Disable Inno's Restart Manager (#234). On a second, in-place install (an
+; upgrade over an existing install) it enumerates processes holding handles to
+; the exes it's about to replace and can block on a lingering OS/Defender scan
+; handle to a just-written binary even under /VERYSILENT /SUPPRESSMSGBOXES.
+; SMACC is a small per-user tool with no need to gracefully close running apps
+; mid-upgrade; users close it before updating (the manual update-check flow
+; prompts them). This also turns RM off in the uninstaller: uninstalling while
+; SMACC is running falls back to the legacy file-in-use path instead of RM's
+; close-and-restart page.
 CloseApplications=no
 
 [Tasks]
 ; Desktop shortcut is opt-in (unchecked by default); the Start menu entry is always created.
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
-; The EEG Annotator (#136) is an optional component: the SMACC-EEG.exe bundle
-; carries the full MNE/pyqtgraph stack, so labs that only run sessions can skip
-; it. It installs by default by being part of the default "full" type (the first
-; [Types] entry, so a silent install with no /COMPONENTS uses it); unchecking it
-; switches the setup type to "custom". A [Types] section is required: without it
-; a silent install selects no components at all (not even fixed "core"). A silent
-; install can pin the set with /COMPONENTS="core" or "core,eeg", and re-running
-; the installer later can add or drop the component on an existing install.
-[Types]
-Name: "full"; Description: "Full installation"
-Name: "custom"; Description: "Custom installation"; Flags: iscustom
-
-[Components]
-Name: "core"; Description: "SMACC"; Types: full custom; Flags: fixed
-Name: "eeg"; Description: "EEG Annotator (view and annotate recordings)"; Types: full
-
 [Files]
-Source: "..\dist\SMACC.exe"; DestDir: "{app}"; Components: core; Flags: ignoreversion
-Source: "..\dist\SMACC-EEG.exe"; DestDir: "{app}"; Components: eeg; Flags: ignoreversion
-
-[InstallDelete]
-; Inno never removes a *deselected* component's files on an upgrade — without
-; this, dropping the EEG component would leave a stale, never-again-updated
-; SMACC-EEG.exe behind, which the launcher's availability probe would still
-; detect and happily run.
-Type: files; Name: "{app}\SMACC-EEG.exe"; Components: not eeg
-Type: files; Name: "{autoprograms}\SMACC EEG Annotator.lnk"; Components: not eeg
+; The whole onedir build: SMACC.exe plus its bundled Python/Qt/MNE runtime. The
+; EEG Annotator is a mode of SMACC.exe (re-exec'd with --eeg), not a separate
+; exe, so there are no installer components — every install is the full app.
+Source: "..\dist\SMACC\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{autoprograms}\SMACC"; Filename: "{app}\SMACC.exe"
-; The EEG Annotator is also launchable from inside SMACC, but a reviewer doing
-; daytime analysis shouldn't have to open the session app to get there.
-Name: "{autoprograms}\SMACC EEG Annotator"; Filename: "{app}\SMACC-EEG.exe"; Components: eeg
 Name: "{autodesktop}\SMACC"; Filename: "{app}\SMACC.exe"; Tasks: desktopicon
 
 [Registry]

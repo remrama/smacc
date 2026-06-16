@@ -139,7 +139,7 @@ class AnalyzeWindow(ToolWindow):
         self.revealButton.setStatusTip("Open the session's folder in the file browser.")
         self.revealButton.clicked.connect(self.reveal_folder)
         # Hand the session to the EEG Annotator, which overlays this log on the
-        # timeline (#125). Shown only where the annotator component is available.
+        # timeline (#125).
         self.annotateButton = QtWidgets.QPushButton("Open log in EEG Annotator", self)
         self.annotateButton.setStatusTip(
             "Open this session log in the EEG Annotator (overlaid on a recording, "
@@ -163,10 +163,13 @@ class AnalyzeWindow(ToolWindow):
 
     def _set_loaded(self, loaded: bool) -> None:
         """Enable the action buttons only once a session has been loaded."""
-        for button in (self.exportButton, self.recoverButton, self.revealButton):
+        for button in (
+            self.exportButton,
+            self.recoverButton,
+            self.revealButton,
+            self.annotateButton,
+        ):
             button.setEnabled(loaded)
-        # The annotator handoff also needs the optional EEG component installed.
-        self.annotateButton.setEnabled(loaded and eeg.available())
 
     # ----- opening a session ------------------------------------------------
 

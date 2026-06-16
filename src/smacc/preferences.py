@@ -52,8 +52,8 @@ DEFAULTS: dict[str, Any] = {
     # EEG Annotator (#136): recently used annotation labels (most-recent
     # first, seeding the label dialog's dropdown) and the last folder a
     # recording was opened from. Note loading only round-trips keys present
-    # here, so the EEG window's keys must stay in DEFAULTS even though the
-    # tool is an optional component.
+    # here, so the EEG window's keys must stay in DEFAULTS even though only
+    # the Annotator reads them.
     "eeg_recent_labels": [],
     "eeg_last_dir": None,
     # The folder the EEG Annotator last saved/loaded a view profile from (#177).

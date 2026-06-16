@@ -15,7 +15,10 @@ on:
       - "tools/smacc.iss"
       - "tools/make_versionfile.py"
       - "entry.py"
-      - "entry_eeg.py"
+      # The freeze bundles the core dependencies (incl. MNE), so a direct
+      # dependency change can break the frozen build — verify it here too.
+      # (Not uv.lock: routine transitive relocks would run this heavy job too often.)
+      - "pyproject.toml"
 
 permissions:
   contents: write
@@ -33,23 +36,21 @@ jobs:
     # Windows runner, maximizing compatibility for labs on older Windows. CI's
     # test job (ci.yml) uses the same runner so it validates this exact env.
     runs-on: windows-2022
-    # Backstop the whole job: a healthy run is ~6 min (two onefile builds plus
-    # the smoke tests), but a crashed --noconsole exe pops a "Failed to execute
-    # script" MessageBox that Start-Process sits behind forever, and Defender
-    # scanning the big onefiles can occasionally thrash the runner into a stall.
-    # 18 min is ~3x a healthy run — clear of a slow-but-fine build, but it nearly
-    # halves a stalled run's wasted time versus the old 30 (and GitHub's 6h default).
+    # Backstop the whole job: a healthy run is a single onedir build plus the
+    # smoke tests, but a crashed --noconsole exe pops a "Failed to execute
+    # script" MessageBox that Start-Process sits behind forever. 18 min is well
+    # clear of a slow-but-fine build while nearly halving a stalled run's wasted
+    # time versus the old 30 (and GitHub's 6h default).
     timeout-minutes: 18
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.2.0
         with:
           enable-cache: true
-      # --extra eeg supplies mne/pyqtgraph for the SMACC-EEG.exe build (#136).
-      # It cannot leak into SMACC.exe: PyInstaller traces entry.py's imports,
-      # and nothing reachable from the base app imports the MNE-touching eeg
-      # modules (smacc.eeg's __init__ is import-light by design).
-      - run: uv sync --extra dev --extra eeg
+      # The EEG stack (mne/matplotlib/pyqtgraph) is a core dependency now — the
+      # Annotator ships inside the one SMACC binary — so --extra dev is all the
+      # build needs.
+      - run: uv sync --extra dev
       # The installer is stamped with smacc.__version__ on every run; a
       # dispatch/PR verification run builds whatever version is checked out.
       - name: Read smacc.__version__
@@ -68,54 +69,50 @@ jobs:
           }
       # Embeds product name/version/publisher in the exe's Properties dialog —
       # metadata IT departments look at when vetting or whitelisting a binary.
-      # Each call is checked: the step's result otherwise reflects only the
-      # last command, and a failed first write would surface one step late
-      # (at the SMACC.exe build) misattributed to PyInstaller.
-      - name: Generate the exe version-info resources
+      # Checked explicitly: a failed write would otherwise surface one step late
+      # (at the build) misattributed to PyInstaller.
+      - name: Generate the exe version-info resource
         run: |
           uv run python tools/make_versionfile.py version_info.txt
-          if ($LASTEXITCODE -ne 0) { throw "make_versionfile (SMACC) exited with code $LASTEXITCODE" }
-          uv run python tools/make_versionfile.py version_info_eeg.txt --product SMACC-EEG --description "SMACC EEG Annotator"
-          if ($LASTEXITCODE -ne 0) { throw "make_versionfile (SMACC-EEG) exited with code $LASTEXITCODE" }
-      - name: Build SMACC.exe
-        run: uv run pyinstaller entry.py --name SMACC --onefile --noconsole --icon src/smacc/assets/icon.ico --version-file version_info.txt --add-data "src/smacc/assets/icon.png;smacc/assets" --add-data "src/smacc/assets/default.smacc;smacc/assets" --add-data "src/smacc/assets/cues;smacc/assets/cues" --add-data "src/smacc/assets/biocals;smacc/assets/biocals" --add-data "src/smacc/assets/surveys;smacc/assets/surveys"
-      # The optional EEG Annotator component (#136): a second frozen exe carrying
-      # the MNE/pyqtgraph stack the base exe deliberately doesn't. MNE uses
+          if ($LASTEXITCODE -ne 0) { throw "make_versionfile exited with code $LASTEXITCODE" }
+      # One onedir build is the whole app, EEG Annotator included. --onedir (not
+      # --onefile) means nothing extracts to a temp dir at launch: Python imports
+      # off the install folder lazily, so a session never loads MNE and there is
+      # no 120 MB temp blob for Defender to thrash on. The EEG modules reach the
+      # bundle through smacc.__main__'s `--eeg` dispatch import. MNE itself uses
       # lazy_loader, which imports submodules by name at runtime and reads the
       # package's .pyi stubs — both invisible to PyInstaller's static analysis —
-      # so MNE's submodules and data must be collected explicitly (without them
-      # the exe builds fine and dies on first MNE use). matplotlib must ship
-      # even though the viewer renders with pyqtgraph: MNE's IO layer
-      # transitively imports mne.viz.ui_events (-> matplotlib) at import time,
-      # so excluding it kills read_raw_*. Figure export (#180) additionally
-      # writes PDF/SVG, whose matplotlib backends are imported by name at
-      # savefig time — invisible to static analysis, exactly like MNE's lazy
-      # submodules — so collect matplotlib.backends too (without it PDF/SVG
-      # export raises ModuleNotFoundError; PNG/Agg is already pulled in via the
-      # explicit canvas import). The --selftest smoke below proves all of this
-      # end to end.
-      - name: Build SMACC-EEG.exe
-        run: uv run pyinstaller entry_eeg.py --name SMACC-EEG --onefile --noconsole --icon src/smacc/assets/icon.ico --version-file version_info_eeg.txt --add-data "src/smacc/assets/icon.png;smacc/assets" --collect-submodules mne --collect-data mne --collect-submodules matplotlib.backends
+      # so collect MNE's submodules and data explicitly (without them the build
+      # succeeds and dies on first MNE use). matplotlib must ship even though
+      # traces render with pyqtgraph: MNE's IO layer imports mne.viz.ui_events
+      # (-> matplotlib) at import time, so excluding it kills read_raw_*. Figure
+      # export (#180) writes PDF/SVG, whose matplotlib backends are imported by
+      # name at savefig time — collect matplotlib.backends too (without it PDF/SVG
+      # export raises ModuleNotFoundError; PNG/Agg is pulled in via the explicit
+      # canvas import). The `--eeg --selftest` smoke below proves all of this end
+      # to end.
+      - name: Build SMACC (onedir)
+        run: uv run pyinstaller entry.py --name SMACC --onedir --noconsole --icon src/smacc/assets/icon.ico --version-file version_info.txt --add-data "src/smacc/assets/icon.png;smacc/assets" --add-data "src/smacc/assets/default.smacc;smacc/assets" --add-data "src/smacc/assets/cues;smacc/assets/cues" --add-data "src/smacc/assets/biocals;smacc/assets/biocals" --add-data "src/smacc/assets/surveys;smacc/assets/surveys" --collect-submodules mne --collect-data mne --collect-submodules matplotlib.backends
       # A broken bundle (missing data file, import error) otherwise ships silently:
-      # the exes are windowed (--noconsole), so PowerShell won't wait for them on
-      # their own and there is no stdout — Start-Process -Wait + the exit code is
-      # the test. For the EEG exe we run only --selftest: it resolves the full
-      # import tree AND round-trips a synthetic recording through MNE, the
-      # filters, and the annotation sidecar — a superset of --version, so a
-      # separate --version run (another 120 MB onefile extraction) is redundant.
-      # Every Start-Process below is bounded like the crash-log test's: -Wait
-      # would sit behind any stray window/prompt until the job timeout, reporting
-      # nothing about which command hung. A kill + throw names the culprit within
-      # minutes instead. 300s covers the slowest legitimate case (the MNE onefile
-      # extracting + importing on a runner under Defender's real-time scan).
-      - name: Smoke-test the exes
+      # the exe is windowed (--noconsole), so PowerShell won't wait for it on its
+      # own and there is no stdout — Start-Process + the exit code is the test.
+      # --version proves the bundle unpacks and the base import tree resolves;
+      # `--eeg --selftest` resolves the full MNE/pyqtgraph tree AND round-trips a
+      # synthetic recording through MNE, the filters, and the annotation sidecar
+      # (a superset of an EEG --version). Every Start-Process is bounded: -Wait
+      # would sit behind a stray window/prompt until the job timeout, reporting
+      # nothing about which command hung; a kill + throw names the culprit within
+      # minutes. 300s covers the slowest legitimate selftest (MNE importing on a
+      # runner under Defender's real-time scan).
+      - name: Smoke-test the exe
         run: |
-          $p = Start-Process -FilePath dist/SMACC.exe -ArgumentList '--version' -PassThru
+          $exe = "dist/SMACC/SMACC.exe"
+          $p = Start-Process -FilePath $exe -ArgumentList '--version' -PassThru
           if (-not $p.WaitForExit(120000)) { $p.Kill(); throw "SMACC.exe --version did not exit within 120s" }
           if ($p.ExitCode -ne 0) { throw "SMACC.exe --version exited with code $($p.ExitCode)" }
-          $p = Start-Process -FilePath dist/SMACC-EEG.exe -ArgumentList '--selftest' -PassThru
-          if (-not $p.WaitForExit(300000)) { $p.Kill(); throw "SMACC-EEG.exe --selftest did not exit within 300s" }
-          if ($p.ExitCode -ne 0) { throw "SMACC-EEG.exe --selftest exited with code $($p.ExitCode)" }
+          $p = Start-Process -FilePath $exe -ArgumentList '--eeg','--selftest' -PassThru
+          if (-not $p.WaitForExit(300000)) { $p.Kill(); throw "SMACC.exe --eeg --selftest did not exit within 300s" }
+          if ($p.ExitCode -ne 0) { throw "SMACC.exe --eeg --selftest exited with code $($p.ExitCode)" }
       # The crash-log pipeline (#149) matters most in exactly this windowed build,
       # where nothing else can capture a crash — and it's the one build the test
       # suite can't cover. Crash the exe on purpose (the hidden --crash-test flag,
@@ -125,7 +122,7 @@ jobs:
       - name: Smoke-test the crash-log pipeline
         run: |
           $env:SMACC_DIRECTORY = "$env:RUNNER_TEMP\smacc-crash-test"
-          $p = Start-Process -FilePath dist/SMACC.exe -ArgumentList '--crash-test=native' -PassThru
+          $p = Start-Process -FilePath dist/SMACC/SMACC.exe -ArgumentList '--crash-test=native' -PassThru
           if (-not $p.WaitForExit(60000)) {
             $p.Kill()
             throw "SMACC.exe --crash-test=native did not exit within 60s"
@@ -143,14 +140,10 @@ jobs:
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=$env:VERSION tools\smacc.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC exited with code $LASTEXITCODE" }
       # Same idea as the exe smoke test, one level up: a broken installer (bad
-      # source path, registry section typo) would otherwise ship silently. The
-      # default install now INCLUDES the EEG Annotator (checked by default); this
-      # verifies SMACC.exe and SMACC-EEG.exe land, the EEG Start-menu shortcut is
-      # created, and the .smacc association registers. It only *verifies* the EEG
-      # exe was placed (a size floor), it does not run it — the dist copy is
-      # byte-identical and already ran --selftest above, and a third 120 MB
-      # extract/scan here intermittently thrashed the runner into a timeout.
-      - name: Smoke-test the installer (default - includes the EEG Annotator)
+      # source path, registry section typo) would otherwise ship silently. One
+      # install, one app: verify the onedir tree lands, the installed SMACC.exe
+      # runs, and the .smacc association registers.
+      - name: Smoke-test the installer
         run: |
           $p = Start-Process -FilePath dist/SMACC-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER' -PassThru
           if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "SMACC-Setup.exe did not exit within 180s" }
@@ -162,48 +155,18 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "Installed SMACC.exe --version exited with code $($p.ExitCode)" }
           $progid = (Get-ItemProperty -Path 'HKCU:\Software\Classes\.smacc').'(default)'
           if ($progid -ne 'SMACC.Study') { throw ".smacc association not registered (got '$progid')" }
-          $eeg = "$env:LOCALAPPDATA\Programs\SMACC\SMACC-EEG.exe"
-          if (-not (Test-Path $eeg)) { throw "Default install must include SMACC-EEG.exe (the EEG Annotator is checked by default)" }
-          # Verify the whole onefile was copied, but do not run it (see comment
-          # above); a size floor catches a truncated/partial install.
-          $size = (Get-Item $eeg).Length
-          if ($size -lt 50MB) { throw "Installed SMACC-EEG.exe is implausibly small ($size bytes) - partial copy?" }
-          # The EEG component also creates a Start-menu shortcut; assert it exists
-          # so the opt-out step below can prove [InstallDelete] removes it.
-          $lnk = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\SMACC EEG Annotator.lnk"
-          if (-not (Test-Path $lnk)) { throw "Default install must create the EEG Annotator shortcut at $lnk" }
-      # Opt-out path (#234): a second, in-place install with the EEG component
-      # deselected must drop the previously-installed SMACC-EEG.exe and its
-      # Start-menu shortcut via [InstallDelete]. CloseApplications=no (smacc.iss)
-      # stops Inno's Restart Manager from hanging this in-place upgrade; the
-      # WaitForExit cap fails a regression in ~3 min instead of stalling to the
-      # job timeout. /COMPONENTS=core needs no quoting (single component, no comma).
-      - name: Smoke-test the installer (opt-out - EEG Annotator deselected)
-        run: |
-          $p = Start-Process -FilePath dist/SMACC-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/COMPONENTS=core' -PassThru
-          if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "Core-only SMACC-Setup.exe did not exit within 180s" }
-          if ($p.ExitCode -ne 0) { throw "Core-only SMACC-Setup.exe exited with code $($p.ExitCode)" }
-          $base = "$env:LOCALAPPDATA\Programs\SMACC"
-          if (-not (Test-Path "$base\SMACC.exe")) { throw "Core-only install missing SMACC.exe" }
-          if (Test-Path "$base\SMACC-EEG.exe") { throw "[InstallDelete] did not remove SMACC-EEG.exe on EEG deselect" }
-          $lnk = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\SMACC EEG Annotator.lnk"
-          if (Test-Path $lnk) { throw "[InstallDelete] did not remove the EEG Annotator shortcut on EEG deselect" }
-          $progid = (Get-ItemProperty -Path 'HKCU:\Software\Classes\.smacc').'(default)'
-          if ($progid -ne 'SMACC.Study') { throw ".smacc association lost after in-place upgrade (got '$progid')" }
-      # Every run leaves the build products behind as workflow artifacts, so a
-      # verification run's exes/installer can be downloaded and inspected
-      # without publishing anything.
-      - name: Upload build artifacts
+      # Every run leaves the installer behind as a workflow artifact, so a
+      # verification run's build can be downloaded and inspected without
+      # publishing anything. (The onedir SMACC.exe is not independently
+      # distributable, so only the installer is uploaded.)
+      - name: Upload build artifact
         uses: actions/upload-artifact@v7
         with:
           name: smacc-build-${{ env.VERSION }}
-          path: |
-            dist/SMACC.exe
-            dist/SMACC-EEG.exe
-            dist/SMACC-Setup.exe
+          path: dist/SMACC-Setup.exe
       # Publishing is tag-gated: dispatch/PR verification runs stop at the
       # artifact upload above.
-      - name: Attach exes and installer to release
+      - name: Attach the installer to release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
@@ -213,7 +176,4 @@ jobs:
           # tag (v0.1.0) is a full release — the homepage download button and the
           # update check both resolve to it.
           prerelease: ${{ contains(github.ref_name, '-') }}
-          files: |
-            dist/SMACC.exe
-            dist/SMACC-EEG.exe
-            dist/SMACC-Setup.exe
+          files: dist/SMACC-Setup.exe

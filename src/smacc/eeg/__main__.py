@@ -1,8 +1,9 @@
 """Run the EEG Annotator: ``python -m smacc.eeg [recording]``.
 
-The component's own entry point — its own process and ``QApplication``, never
-sharing one with a live session (see the package docstring). The frozen
-``SMACC-EEG.exe`` targets the same :func:`main` via ``entry_eeg.py``.
+The Annotator's entry point — its own process and ``QApplication``, never
+sharing one with a live session (see the package docstring). In the packaged
+build this same :func:`main` is reached by re-exec'ing the one SMACC binary
+with ``--eeg`` (``smacc.__main__`` routes it here); there is no separate exe.
 
 ``--version`` exits immediately (code 0) without opening any window, mirroring
 the base app: reaching that point proves the bundle unpacks and every import —
@@ -10,9 +11,9 @@ including the pyqtgraph tree — resolves. It does *not* prove MNE works: MNE is
 imported lazily inside :mod:`smacc.eeg.io`, so a bundle missing half of it
 would still print a version. That is what ``--selftest`` is for — it
 round-trips a synthetic recording through MNE, the slice filters, and the
-annotation sidecar, headless, and is what the release workflow runs against
-the frozen ``SMACC-EEG.exe``. The exe is built ``--noconsole`` (no stdout), so
-the check is the exit code, not the output.
+annotation sidecar, headless, and is what the release workflow runs (via
+``SMACC.exe --eeg --selftest``). The exe is built ``--noconsole`` (no stdout),
+so the check is the exit code, not the output.
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ import traceback
 
 from PyQt6.QtWidgets import QApplication
 
-from ..config import VERSION
+from ..config import VERSION, set_taskbar_app_id
 
 # Imported eagerly, on purpose: --version must prove the whole MNE/pyqtgraph
 # import tree resolves in the frozen bundle (that is the point of the smoke
@@ -72,7 +73,7 @@ def pick_rater_id(args: list[str]) -> str | None:
     """Return the ``--rater`` value from CLI args, or ``None``.
 
     Accepts both ``--rater alice`` and ``--rater=alice`` so a coordinator can
-    hand out a one-click command (``SMACC-EEG.exe --rater alice night1.edf``).
+    hand out a one-click command (``SMACC.exe --eeg --rater alice night1.edf``).
     Sanitizing/validation is the window's job — an empty or unusable id falls
     back to single-rater there rather than failing the launch.
     """
@@ -92,7 +93,7 @@ def pick_log_path(args: list[str]) -> str | None:
     """Return the ``--log`` value (a SMACC session log to overlay/show), or ``None``.
 
     Lets the Analyzer hand a session off to the annotator
-    (``SMACC-EEG.exe --log night1.log``): with no recording the log opens
+    (``SMACC.exe --eeg --log night1.log``): with no recording the log opens
     standalone, with one it overlays. Read/parse errors surface as a dialog after
     the window opens, not as a vanishing process.
     """
@@ -241,6 +242,7 @@ def main() -> None:
         except Exception:
             traceback.print_exc()
             sys.exit(1)
+    set_taskbar_app_id()  # share SMACC's taskbar identity (one app, not two)
     app = QApplication(sys.argv)
     app.setApplicationName("SMACC EEG Annotator")
     window = EegAnnotatorWindow(

@@ -1,11 +1,36 @@
 """Configuration constants for SMACC."""
 
+import ctypes
+import sys
+
 from smacc import __version__
 
 VERSION = __version__
 
 DEVELOPMENT_ID = "999"
 DEFAULT_VOLUME = 0.5
+
+# Windows taskbar identity. SMACC is one app, but the EEG Annotator runs in its
+# own re-exec'd process (it keeps reviewing last night's file while a session
+# runs). Giving both processes the same explicit AppUserModelID makes Windows
+# group them under a single taskbar button and one pinnable icon, rather than
+# treating the Annotator window as a separate app.
+APP_USER_MODEL_ID = "Mallett.SMACC"
+
+
+def set_taskbar_app_id() -> None:
+    """Pin SMACC's Windows taskbar identity; a no-op off Windows.
+
+    Call once per process, before creating the QApplication. Best-effort: a
+    failure here only affects taskbar grouping, never startup.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_USER_MODEL_ID)
+    except (AttributeError, OSError):
+        pass
+
 
 # Named survey presets shown in the dream-recording panel's survey dropdown.
 # Maps a display label to its URL. Extend per study (persisted in settings YAML).
