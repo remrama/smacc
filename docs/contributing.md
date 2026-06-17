@@ -165,23 +165,19 @@ installed build sees the association as already registered);
 ## Building the docs
 
 The documentation site is built with [MkDocs](https://www.mkdocs.org/) +
-[Material](https://squidfunk.github.io/mkdocs-material/) and versioned with
-[mike](https://github.com/jimporter/mike). All pages are plain Markdown under
-`docs/`.
+[Material](https://squidfunk.github.io/mkdocs-material/). All pages are plain
+Markdown under `docs/`.
 
 ```sh
 uv run --extra docs mkdocs serve          # live-reload preview at http://localhost:8000
 uv run --extra docs mkdocs build --strict # the exact build the PR CI runs
-uv run --extra docs mike serve            # preview the versioned site
 ```
 
 The [docs workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/docs.yml)
-runs `mkdocs build --strict` on every pull request and deploys a `dev` version on
-pushes to `main`. A final release tag (`v0.1.0`) publishes a numbered version and
-moves the `latest` alias; a pre-release tag (`v1.0.0-rc.1`) routes to the `dev` site
-and leaves `latest` untouched. Visitors on an old version see an "outdated" banner
-and the `dev` site shows an "unreleased" banner, both from
-[`overrides/main.html`](https://github.com/remrama/smacc/blob/main/overrides/main.html).
+runs `mkdocs build --strict` on every pull request and, on pushes to `main`,
+publishes the site (with the PDF manual) to GitHub Pages via `mkdocs gh-deploy`.
+The site is unversioned — one current copy; the manual for an older release is the
+PDF attached to that release.
 
 ### PDF manual
 

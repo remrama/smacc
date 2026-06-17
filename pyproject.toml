@@ -57,7 +57,6 @@ dependencies = [
 [project.optional-dependencies]
 docs = [
     "mkdocs-material",
-    "mike",
     # One-file PDF manual (#230, #250): mkdocs-exporter renders each page through
     # headless Chromium + Paged.js and aggregates them into a single PDF. Chromium
     # ships via Playwright with no system libraries (unlike WeasyPrint/Pango), so the

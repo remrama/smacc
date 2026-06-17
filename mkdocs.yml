@@ -7,7 +7,6 @@ docs_dir: docs
 
 theme:
   name: material
-  custom_dir: overrides  # version-warning banner; see overrides/main.html (#191, #247)
   logo: assets/icon.png
   favicon: assets/icon.png
   icon:
@@ -34,9 +33,6 @@ extra_css:
 
 extra:
   generator: false
-  version:
-    provider: mike
-    default: latest
 
 markdown_extensions:
   - admonition

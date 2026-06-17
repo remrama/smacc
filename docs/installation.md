@@ -22,9 +22,7 @@ Installing a newer version over an existing one upgrades it in place.
 
 To get an older or specific version, browse the
 [releases page](https://github.com/remrama/smacc/releases): pick the release you
-want, open its _Assets_ dropdown, and download from there. (The version switcher
-on this documentation site switches the *docs* only — older copies of SMACC
-itself come from the releases page.)
+want, open its _Assets_ dropdown, and download from there.
 
 !!! note "System requirements"
 

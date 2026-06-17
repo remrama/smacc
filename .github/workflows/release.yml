@@ -233,3 +233,36 @@ jobs:
             extract, and run `SMACC.exe`; it won't disturb an installed stable
             copy. For studies, use the stable release.
           files: dist/SMACC-dev.zip
+
+  manual-pdf:
+    # Attach the PDF manual to each tagged release, so the docs for an older
+    # version stay retrievable alongside that version's installer (the docs site
+    # itself is unversioned). Tag-gated, and runs after build-exe so it adds to the
+    # release that step already created. Builds on Linux — mkdocs-exporter's
+    # Chromium needs no system libraries, but apt is faster than the Windows job.
+    name: Attach the PDF manual
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build-exe
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true
+      # mkdocs-exporter renders the PDF through headless Chromium (via Playwright).
+      - name: Install PDF browser
+        run: uv run --extra docs playwright install --with-deps chromium
+      - name: Build the PDF manual
+        run: |
+          uv run --extra docs mkdocs build -f mkdocs-pdf.yml
+          uv run --extra docs python pdf/check_manual.py site/pdf/smacc-manual.pdf
+          cp site/pdf/smacc-manual.pdf "smacc-manual-${GITHUB_REF_NAME#v}.pdf"
+      - name: Attach to the release
+        uses: softprops/action-gh-release@v3
+        with:
+          # Match the installer step: a hyphenated tag (v0.2.0-rc.1) is a GitHub
+          # Pre-release; a final tag is a full release.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: smacc-manual-*.pdf
