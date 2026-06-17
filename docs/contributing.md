@@ -186,18 +186,24 @@ and the `dev` site shows an "unreleased" banner, both from
 ### PDF manual
 
 A single-file **PDF manual** (the whole site in nav order) is produced by the
-[`mkdocs-with-pdf`](https://github.com/orzih/mkdocs-with-pdf) plugin and published
-alongside the site at `…/pdf/smacc-manual.pdf`. It is built from a separate config,
-`mkdocs-pdf.yml`, which inherits the base config and adds the plugin. The base
-`mkdocs.yml` deliberately omits it: the plugin imports
-[WeasyPrint](https://weasyprint.org/) at load time, and WeasyPrint needs system
-libraries (Pango), so leaving it out keeps an ordinary `mkdocs build` / `mkdocs serve`
-working on every platform. CI installs those libraries and builds with the PDF config.
-To build the manual locally, install WeasyPrint's dependencies, then:
+[`mkdocs-exporter`](https://github.com/adrienbrignon/mkdocs-exporter) plugin and
+published alongside the site at `…/pdf/smacc-manual.pdf`. It renders each page
+through headless Chromium (via Playwright) with Paged.js and aggregates them into
+one document, so Material's tables and admonitions render exactly as on the site.
+
+It is built from a separate config, `mkdocs-pdf.yml`, which inherits the base config
+and adds the plugin, so an ordinary `mkdocs build` / `mkdocs serve` never launches a
+browser. The cover, print styles, and version/footer/cleanup hooks live in `pdf/`.
+To build the manual locally, fetch the browser once, then build:
 
 ```sh
+uv run playwright install chromium
 uv run --extra docs mkdocs build -f mkdocs-pdf.yml
 ```
+
+CI also runs `pdf/check_manual.py` over the result: it fails the build if the manual
+is short or missing content from its later sections, guarding against a renderer
+silently dropping pages (the bug behind #250).
 
 ## Versioning
 

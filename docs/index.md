@@ -1,3 +1,10 @@
+---
+# Attach the PDF manual's cover to the front of the document (PDF build only; the
+# website ignores this key). See pdf/cover.html and mkdocs-pdf.yml.
+covers:
+  front: pdf/cover.html
+---
+
 # SMACC
 
 **Sleep Manipulation And Communication Clickything** (SMACC) is a Windows desktop

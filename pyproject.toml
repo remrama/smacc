@@ -58,11 +58,13 @@ dependencies = [
 docs = [
     "mkdocs-material",
     "mike",
-    # One-file PDF manual (#230): mkdocs-with-pdf renders the whole site to a single
-    # PDF via WeasyPrint. Gated behind ENABLE_PDF_EXPORT so it runs only in CI (the
-    # render needs WeasyPrint's system libraries); a local `mkdocs build` skips it.
-    "mkdocs-with-pdf",
-    "weasyprint",
+    # One-file PDF manual (#230, #250): mkdocs-exporter renders each page through
+    # headless Chromium + Paged.js and aggregates them into a single PDF. Chromium
+    # ships via Playwright with no system libraries (unlike WeasyPrint/Pango), so the
+    # manual builds on Windows and in CI alike. Lives in a separate config
+    # (mkdocs-pdf.yml) so a plain `mkdocs build` never launches a browser. After
+    # syncing, run `uv run playwright install chromium` once to fetch the browser.
+    "mkdocs-exporter",
     # Markdown formatter (the docs counterpart to ruff). The mkdocs plugin is
     # required so mkdocs-material syntax — admonitions, content tabs, four-space
     # list nesting — is understood rather than mangled; gfm covers tables/

@@ -25,19 +25,20 @@ jobs:
         with:
           enable-cache: true
 
-      # WeasyPrint (the PDF renderer behind mkdocs-with-pdf) needs Pango at runtime.
-      - name: Install PDF system libraries
-        run: sudo apt-get update && sudo apt-get install -y libpango-1.0-0 libpangocairo-1.0-0 libpangoft2-1.0-0
+      # mkdocs-exporter renders the PDF through headless Chromium (via Playwright).
+      - name: Install PDF browser
+        run: uv run --extra docs playwright install --with-deps chromium
 
       # Pull requests: build only, to verify the docs compile. The base config is
-      # built --strict to validate links; the PDF is built without --strict (the
-      # with-pdf plugin turns mkdocs's --strict into a hard fail on WeasyPrint's
-      # benign cross-page anchor warnings, while a real render failure still raises).
+      # built --strict to validate links; the PDF is built with the exporter config
+      # and checked for completeness (a wide element silently dropping pages was the
+      # failure mode of the old WeasyPrint manual, #250).
       - name: Build (verify)
         if: github.event_name == 'pull_request'
         run: |
           uv run --extra docs mkdocs build --strict
           uv run --extra docs mkdocs build -f mkdocs-pdf.yml
+          uv run --extra docs python pdf/check_manual.py site/pdf/smacc-manual.pdf
 
       - name: Configure git
         if: github.event_name == 'push'
