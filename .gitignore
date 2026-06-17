@@ -10,4 +10,6 @@ src/smacc/_build.py
 .coverage
 coverage.xml
 htmlcov/
-site/
+# Quarto docs build output + cache (docs/_book, docs/.quarto)
+_book/
+.quarto/

@@ -8,7 +8,14 @@
 # these globs. .claude/ holds the tool-managed AI-assistant configs (out of
 # scope); .venv/ and .pytest_cache/ are not gitignore-aware to mdformat, so the
 # in-tree venv that `uv run` creates must be excluded or the check drowns in
-# site-packages READMEs.
+# site-packages READMEs. docs/_book and docs/.quarto are Quarto's build output and
+# cache (gitignored, but mdformat isn't gitignore-aware), so exclude them too.
 wrap = "keep"
 end_of_line = "lf"
-exclude = [".claude/**", ".venv/**", ".pytest_cache/**"]
+exclude = [
+  ".claude/**",
+  ".venv/**",
+  ".pytest_cache/**",
+  "docs/_book/**",
+  "docs/.quarto/**",
+]

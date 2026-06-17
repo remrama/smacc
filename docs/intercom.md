@@ -4,7 +4,7 @@ The **Intercom** window (in the **Panels** column) is the live channel between t
 control room and the bedroom. It carries voice both ways, plus a typed text channel
 for when audio would intrude.
 
-![The Intercom window: Talk and Listen with their level meters, and the text-chat area with quick-reply buttons below.](assets/screenshot-intercom.png){ .shot }
+![](assets/screenshot-intercom.png){width=75% fig-alt="The Intercom window: Talk and Listen with their level meters, and the text-chat area with quick-reply buttons below."}
 
 ## Voice
 
@@ -29,7 +29,7 @@ window built for a dark bedroom: always dark regardless of the lights toggle, la
 text (default 18 pt, resize with `Ctrl+=` / `Ctrl+-`), and an optional **red night
 text** mode (**Display** menu), with no flashing and no sounds.
 
-![The Participant chat window: dark with large text, the "The keyboard is yours" banner, and number-key quick replies.](assets/screenshot-chat.png){ .shot .shot--narrow }
+![](assets/screenshot-chat.png){width=45% fig-alt="The Participant chat window: dark with large text, the 'The keyboard is yours' banner, and number-key quick replies."}
 
 **Setup.** The first cut assumes one computer: extend the desktop onto a
 bedroom-facing monitor and plug in a second keyboard for the participant. Click

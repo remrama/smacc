@@ -1,11 +1,13 @@
 # Release notes
 
-!!! warning "SMACC is pre-1.0"
+::: {.callout-warning title="SMACC is pre-1.0"}
 
-    SMACC has not reached a stable release. Settings files, marker codes, the
-    interface, and behavior may change between releases, and there are no
-    compatibility shims. Pin one version for the duration of a study. See the
-    [versioning policy](contributing.md#versioning) for what the numbers mean.
+SMACC has not reached a stable release. Settings files, marker codes, the
+interface, and behavior may change between releases, and there are no
+compatibility shims. Pin one version for the duration of a study. See the
+[versioning policy](contributing.md#versioning) for what the numbers mean.
+
+:::
 
 <!-- Newest release first. Set the date when a version is tagged. -->
 

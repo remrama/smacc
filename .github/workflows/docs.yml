@@ -6,48 +6,56 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege for the build job; the deploy job widens to what Pages needs.
 permissions:
-  contents: write # gh-deploy pushes the built site to the gh-pages branch
+  contents: read
 
 concurrency:
   group: docs-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  docs:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
       - uses: astral-sh/setup-uv@v8.2.0
         with:
           enable-cache: true
+      # Quarto is a standalone binary (Typst PDF engine bundled); no plugin stack or
+      # system libraries, unlike the old mkdocs-exporter + headless-Chromium path.
+      - uses: quarto-dev/quarto-actions/setup@v2
 
-      # mkdocs-exporter renders the PDF through headless Chromium (via Playwright).
-      - name: Install PDF browser
-        run: uv run --extra docs playwright install --with-deps chromium
-
-      # Pull requests: build only, to verify the docs compile. The base config is
-      # built --strict to validate links; the PDF is built with the exporter config
-      # and checked for completeness (a wide element silently dropping pages was the
-      # failure mode of the old WeasyPrint manual, #250).
-      - name: Build (verify)
-        if: github.event_name == 'pull_request'
+      # Render the HTML site and the single-file PDF manual from docs/. Two guards
+      # replace `mkdocs build --strict`: check_manual catches a renderer silently
+      # truncating the PDF (#250); check_links validates every internal cross-link
+      # and heading anchor (the main migration footgun, #259). Both run on PRs too,
+      # so a broken link or a dropped page fails the build before merge.
+      - name: Render and check docs
         run: |
-          uv run --extra docs mkdocs build --strict
-          uv run --extra docs mkdocs build -f mkdocs-pdf.yml
-          uv run --extra docs python pdf/check_manual.py site/pdf/smacc-manual.pdf
+          quarto render docs
+          uv run --extra docs python scripts/check_manual.py docs/_book/smacc-manual.pdf
+          uv run python scripts/check_links.py docs/_book
 
-      - name: Configure git
+      # Hand the built site to the Pages pipeline (push to main only).
+      - name: Upload Pages artifact
         if: github.event_name == 'push'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/_book
 
-      # Pushes to main: build the site (with the PDF manual) and publish it to the
-      # gh-pages branch. The site is unversioned — one current copy; older docs are
-      # the PDF manual attached to each GitHub release.
-      - name: Deploy docs
-        if: github.event_name == 'push'
-        run: uv run --extra docs mkdocs gh-deploy --force -f mkdocs-pdf.yml
+  # Publish to GitHub Pages via the official Actions deployment (no gh-pages branch).
+  # Requires the repo's Pages source to be set to "GitHub Actions" (Settings -> Pages).
+  deploy:
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

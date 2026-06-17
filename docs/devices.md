@@ -42,11 +42,13 @@ Your chosen device and the whole cue board are saved in the
 setup travels with the rest of your configuration; the device is reconnected by
 serial on the next launch (and flagged if it isn't plugged in).
 
-!!! note
+::: {.callout-note}
 
-    If the visual cue window reports that no light is set, open the **Devices**
-    window and bind one to **BlinkStick light** (plug it in first; click
-    **Refresh devices (F5)** there if it isn't listed). No restart needed.
+If the visual cue window reports that no light is set, open the **Devices**
+window and bind one to **BlinkStick light** (plug it in first; click
+**Refresh devices (F5)** there if it isn't listed). No restart needed.
+
+:::
 
 ## Philips Hue
 

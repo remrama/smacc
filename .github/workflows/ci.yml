@@ -24,7 +24,7 @@ jobs:
       # Markdown formatter (the docs counterpart to ruff). `mdformat .` crawls the
       # tree; the .mdformat.toml exclude scopes it (incl. the in-tree .venv this
       # step creates). The exclude needs Python 3.13, which is why this waited on
-      # #168. --extra docs is where mdformat + its mkdocs/gfm/frontmatter plugins live.
+      # #168. --extra docs is where mdformat + its gfm/frontmatter plugins live.
       - name: Markdown format check
         run: uv run --extra docs mdformat --check .
       # mne, matplotlib and pyqtgraph ship no py.typed, so they add no type
