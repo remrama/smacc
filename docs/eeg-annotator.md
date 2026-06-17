@@ -27,12 +27,14 @@ overnight cueing workflow, not for clinical reading:
 - Recordings are **memory-mapped**, so an 8-hour high-density night opens in
     seconds and scrolls smoothly regardless of file size.
 
-!!! note "Built in, runs in its own process"
+::: {.callout-note title="Built in, runs in its own process"}
 
-    The Annotator is part of SMACC — there is nothing extra to install. It opens
-    in its own process, so it can outlive the Launcher and a heavy recording can
-    never disturb a running session; that is why it appears as a separate window
-    rather than a panel inside the session app.
+The Annotator is part of SMACC — there is nothing extra to install. It opens
+in its own process, so it can outlive the Launcher and a heavy recording can
+never disturb a running session; that is why it appears as a separate window
+rather than a panel inside the session app.
+
+:::
 
 ## Supported recordings
 

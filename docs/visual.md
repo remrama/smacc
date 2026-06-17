@@ -18,7 +18,7 @@ The **Visual cue** window (in the **Panels** column) is the light sibling of the
 [Audio cue board](audio-cues.md#the-cue-board): one row per cue, each kept configured and
 ready so that firing the right light at 3 a.m. is a single click.
 
-![The Visual cue window: a cue row with its color, brightness, pattern, length, and loop controls, and the Sending swatch below.](assets/screenshot-visual.png){ .shot }
+![](assets/screenshot-visual.png){width=75% fig-alt="The Visual cue window: a cue row with its color, brightness, pattern, length, and loop controls, and the Sending swatch below."}
 
 Each row holds a **name** (it travels into the event log with every start/stop
 marker), a **color**, a **brightness** (0–1 — the visual volume), a **pattern**
@@ -96,26 +96,30 @@ defined Hz) use the **BlinkStick**. For **ambient light** — dawn simulation,
 whole-room color, slow breathing pulses — **Hue** is the better lamp. A rig can
 bind both and switch by re-routing *Play visual cue* in the Devices window.
 
-!!! note "Hue on a university network"
+::: {.callout-note title="Hue on a university network"}
 
-    The bridge and the control PC must reach each other on the same network, and
-    institutional Wi-Fi often blocks exactly that (client isolation, registration
-    portals). The dependable setup is a small dedicated router (or an Ethernet
-    drop) for the rig's gear — and a DHCP reservation for the bridge, so its IP
-    stops changing. The pairing key is stored in the study's `.smacc` file; it
-    only works from the local network, but treat the file accordingly.
+The bridge and the control PC must reach each other on the same network, and
+institutional Wi-Fi often blocks exactly that (client isolation, registration
+portals). The dependable setup is a small dedicated router (or an Ethernet
+drop) for the rig's gear — and a DHCP reservation for the bridge, so its IP
+stops changing. The pairing key is stored in the study's `.smacc` file; it
+only works from the local network, but treat the file accordingly.
+
+:::
 
 ## Safety
 
-!!! warning "Photosensitive epilepsy"
+::: {.callout-warning title="Photosensitive epilepsy"}
 
-    Flicker between roughly 3 and 30 Hz can trigger seizures in photosensitive
-    individuals, with peak sensitivity around 15–25 Hz. SMACC shows a warning on
-    the board whenever any pulse/flash rate is set above **10 Hz** and caps the
-    control at **20 Hz** — above that the USB timing couldn't deliver a faithful
-    square wave anyway. Screen participants for photosensitivity and a seizure
-    history before using flicker, and keep rates at or below 10 Hz unless the
-    protocol specifically demands more.
+Flicker between roughly 3 and 30 Hz can trigger seizures in photosensitive
+individuals, with peak sensitivity around 15–25 Hz. SMACC shows a warning on
+the board whenever any pulse/flash rate is set above **10 Hz** and caps the
+control at **20 Hz** — above that the USB timing couldn't deliver a faithful
+square wave anyway. Screen participants for photosensitivity and a seizure
+history before using flicker, and keep rates at or below 10 Hz unless the
+protocol specifically demands more.
+
+:::
 
 For the sleeping side of the equation: the default cue color is **red** on
 purpose — melatonin suppression and arousal are driven mostly by short (blue)

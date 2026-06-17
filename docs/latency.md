@@ -23,13 +23,15 @@ gain explicit and adds a safety limit, in the **Volume** window:
     volume** (the Windows output endpoint) and **App volume** (SMACC's own level) in
     the Windows Volume Mixer, so the hidden OS stages are visible.
 
-!!! tip "Calibrating cue level"
+::: {.callout-tip title="Calibrating cue level"}
 
-    For levels that reproduce across nights and participants, set the Windows device
-    and app volumes to 100%, then calibrate with the per-cue volumes and the safety
-    cap inside SMACC. That way one place, SMACC, determines how loud a cue is.
+For levels that reproduce across nights and participants, set the Windows device
+and app volumes to 100%, then calibrate with the per-cue volumes and the safety
+cap inside SMACC. That way one place, SMACC, determines how loud a cue is.
 
-![The Volume window: the safety cap, the latency choice, and the read-only System volume and App volume levels.](assets/screenshot-volume.png){ .shot .shot--narrow }
+:::
+
+![](assets/screenshot-volume.png){width=45% fig-alt="The Volume window: the safety cap, the latency choice, and the read-only System volume and App volume levels."}
 
 ## Latency
 
@@ -38,14 +40,16 @@ hearing the sound or seeing the light, and how well does the event marker line u
 with it? This section answers that, shows how to measure it on your own rig, and
 explains what SMACC does to keep markers honest.
 
-!!! note "The short version"
+::: {.callout-note title="The short version"}
 
-    For the dream-engineering work SMACC is built for — cueing for lucidity or memory
-    reactivation — **absolute latency is rarely critical**. A cue landing 20 ms early
-    or late doesn't change whether it reaches REM. What matters is that the **marker
-    lines up with the stimulus in the EEG**, and there a *constant* offset is harmless
-    (you can correct it after the fact) while **jitter** — random variation — is not.
-    SMACC therefore optimises for *predictable* timing, not minimal latency.
+For the dream-engineering work SMACC is built for — cueing for lucidity or memory
+reactivation — **absolute latency is rarely critical**. A cue landing 20 ms early
+or late doesn't change whether it reaches REM. What matters is that the **marker
+lines up with the stimulus in the EEG**, and there a *constant* offset is harmless
+(you can correct it after the fact) while **jitter** — random variation — is not.
+SMACC therefore optimises for *predictable* timing, not minimal latency.
+
+:::
 
 ## What contributes
 
@@ -82,13 +86,15 @@ device write completes. To keep the marker aligned with the stimulus:
     marker fires right after, so it trails the photons by microseconds (BlinkStick)
     rather than leading them.
 
-!!! warning "This is an estimate, not a measurement"
+::: {.callout-warning title="This is an estimate, not a measurement"}
 
-    The correction uses the latency PortAudio *reports*. The residual — fade-in ramp,
-    DAC, speaker, the Hue bridge — is small and roughly constant, but only a recording
-    of the actual onset pins it down. If you need sample-accurate alignment, measure
-    your rig (below) and apply the leftover offset; that per-session capability is
-    tracked in [#104](https://github.com/remrama/smacc/issues/104).
+The correction uses the latency PortAudio *reports*. The residual — fade-in ramp,
+DAC, speaker, the Hue bridge — is small and roughly constant, but only a recording
+of the actual onset pins it down. If you need sample-accurate alignment, measure
+your rig (below) and apply the leftover offset; that per-session capability is
+tracked in [#104](https://github.com/remrama/smacc/issues/104).
+
+:::
 
 ## Measured: a typical Windows rig
 
@@ -164,13 +170,15 @@ rig**. To characterise yours:
     yet; a per-session view of it needs a spare channel and is tracked in
     [#104](https://github.com/remrama/smacc/issues/104).
 
-!!! note "Why the log can't give you this"
+::: {.callout-note title="Why the log can't give you this"}
 
-    You might hope to read latency straight from the log, since it records both the
-    raw trigger time (`DEBUG`) and the corrected onset (`INFO`). But their difference
-    is just the latency SMACC *added* — a constant, not a measurement. A real
-    distribution needs an independent observation of the stimulus, i.e. the methods
-    above.
+You might hope to read latency straight from the log, since it records both the
+raw trigger time (`DEBUG`) and the corrected onset (`INFO`). But their difference
+is just the latency SMACC *added* — a constant, not a measurement. A real
+distribution needs an independent observation of the stimulus, i.e. the methods
+above.
+
+:::
 
 ## If you want it lower
 

@@ -55,19 +55,20 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# The docs site and the single-file PDF manual are built with Quarto (#259) — a
+# standalone binary (installed separately, not from PyPI) that renders both the HTML
+# site and the Typst PDF from docs/, with no plugin stack or system libraries. The
+# only Python the docs build needs is:
 docs = [
-    "mkdocs-material",
-    # One-file PDF manual (#230, #250): mkdocs-exporter renders each page through
-    # headless Chromium + Paged.js and aggregates them into a single PDF. Chromium
-    # ships via Playwright with no system libraries (unlike WeasyPrint/Pango), so the
-    # manual builds on Windows and in CI alike. Lives in a separate config
-    # (mkdocs-pdf.yml) so a plain `mkdocs build` never launches a browser. After
-    # syncing, run `uv run playwright install chromium` once to fetch the browser.
-    "mkdocs-exporter",
-    # Markdown formatter (the docs counterpart to ruff). The mkdocs plugin is
-    # required so mkdocs-material syntax — admonitions, content tabs, four-space
-    # list nesting — is understood rather than mangled; gfm covers tables/
-    # autolinks and frontmatter leaves the docs' YAML front matter untouched.
+    # pdf check: scripts/check_manual.py reads the built manual to guard against a
+    # renderer silently truncating it (#250). Was transitive via mkdocs-exporter;
+    # now a direct dependency.
+    "pypdf",
+    # Markdown formatter (the docs counterpart to ruff), run in CI and pre-commit.
+    # gfm covers tables/autolinks; frontmatter leaves YAML front matter alone; mkdocs
+    # keeps the repo's established four-space list-nesting style across all markdown
+    # (and leaves Quarto callouts intact). It no longer parses Material admonitions —
+    # those are gone — but dropping it would reflow every list in the repo.
     "mdformat",
     "mdformat-gfm",
     "mdformat-mkdocs",

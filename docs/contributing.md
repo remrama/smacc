@@ -1,18 +1,22 @@
 # Contributing
 
-!!! info "For both human and AI contributors"
+::: {.callout-note title="For both human and AI contributors"}
 
-    This page is the canonical development guide for SMACC. It is written for both
-    human contributors and AI coding assistants — AI agents are pointed here from
-    [`AGENTS.md`](https://github.com/remrama/smacc/blob/main/AGENTS.md), so the
-    instructions live here once rather than being duplicated across files.
+This page is the canonical development guide for SMACC. It is written for both
+human contributors and AI coding assistants — AI agents are pointed here from
+[`AGENTS.md`](https://github.com/remrama/smacc/blob/main/AGENTS.md), so the
+instructions live here once rather than being duplicated across files.
 
-!!! info "Requesting a change? Open a GitHub issue"
+:::
 
-    Human contributors should open a
-    [GitHub issue](https://github.com/remrama/smacc/issues) for new feature
-    requests or bug reports before starting work, so changes can be discussed
-    first.
+::: {.callout-note title="Requesting a change? Open a GitHub issue"}
+
+Human contributors should open a
+[GitHub issue](https://github.com/remrama/smacc/issues) for new feature
+requests or bug reports before starting work, so changes can be discussed
+first.
+
+:::
 
 ## Conventions
 
@@ -164,42 +168,41 @@ installed build sees the association as already registered);
 
 ## Building the docs
 
-The documentation site is built with [MkDocs](https://www.mkdocs.org/) +
-[Material](https://squidfunk.github.io/mkdocs-material/). All pages are plain
-Markdown under `docs/`.
+The documentation site and the single-file PDF manual are both built with
+[Quarto](https://quarto.org) — a standalone binary that renders the HTML site and a
+native Typst PDF from the same Markdown sources under `docs/`, with no plugin stack
+and no system libraries. Install Quarto once (it bundles the Typst PDF engine); it
+is not a Python package, so it is not part of `uv sync`.
 
 ```sh
-uv run --extra docs mkdocs serve          # live-reload preview at http://localhost:8000
-uv run --extra docs mkdocs build --strict # the exact build the PR CI runs
+quarto preview docs   # live-reload HTML preview while writing
+quarto render docs    # build the HTML site and the PDF into docs/_book/
 ```
+
+The project config is `docs/_quarto.yml` — a Quarto *book*, the project type that
+yields one combined PDF. Pages are plain Markdown; admonitions are
+[callouts](https://quarto.org/docs/authoring/callouts.html) (`::: {.callout-note}`),
+and each screenshot carries a `width=` attribute with its description in `fig-alt`.
+Heading slugs use `gfm_auto_identifiers` so the cross-page `#anchor` links resolve
+the same way GitHub renders them.
 
 The [docs workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/docs.yml)
-runs `mkdocs build --strict` on every pull request and, on pushes to `main`,
-publishes the site (with the PDF manual) to GitHub Pages via `mkdocs gh-deploy`.
-The site is unversioned — one current copy; the manual for an older release is the
-PDF attached to that release.
+renders the docs on every pull request and, on pushes to `main`, publishes the site
+(with the PDF manual) to GitHub Pages. The site is unversioned — one current copy;
+the manual for an older release is the PDF attached to that release.
 
-### PDF manual
-
-A single-file **PDF manual** (the whole site in nav order) is produced by the
-[`mkdocs-exporter`](https://github.com/adrienbrignon/mkdocs-exporter) plugin and
-published alongside the site at `…/pdf/smacc-manual.pdf`. It renders each page
-through headless Chromium (via Playwright) with Paged.js and aggregates them into
-one document, so Material's tables and admonitions render exactly as on the site.
-
-It is built from a separate config, `mkdocs-pdf.yml`, which inherits the base config
-and adds the plugin, so an ordinary `mkdocs build` / `mkdocs serve` never launches a
-browser. The cover, print styles, and version/footer/cleanup hooks live in `pdf/`.
-To build the manual locally, fetch the browser once, then build:
+Two checks run in CI after the render — run them locally before a docs PR. Together
+they replace what `mkdocs build --strict` used to cover:
 
 ```sh
-uv run playwright install chromium
-uv run --extra docs mkdocs build -f mkdocs-pdf.yml
+uv run python scripts/check_links.py docs/_book                                 # internal links + heading anchors
+uv run --extra docs python scripts/check_manual.py docs/_book/smacc-manual.pdf  # PDF completeness
 ```
 
-CI also runs `pdf/check_manual.py` over the result: it fails the build if the manual
-is short or missing content from its later sections, guarding against a renderer
-silently dropping pages (the bug behind #250).
+`check_links.py` fails on any dead cross-page link or `#anchor` (heading slugs
+differ between renderers — the main migration footgun). `check_manual.py` fails if
+the manual is short or missing content from its later sections, guarding against a
+renderer silently dropping pages (the bug behind #250).
 
 ## Versioning
 
@@ -215,18 +218,17 @@ SMACC follows [semantic versioning](https://semver.org/).
     Earlier `0.0.x` tags predate it and are not in the release notes.
 - **1.0.0 is the first stable release.** From then on semantic versioning is binding
     (backward-compatible changes bump the minor/patch, breaking changes bump the
-    major), and the pre-1.0 docs are dropped from the version switcher.
+    major).
 
 There are three kinds of build:
 
 - **Stable — `vX.Y.Z`** (no suffix): a full GitHub release, badged *Latest*. The
     homepage download button, `/releases/latest`, and the in-app update check all
-    resolve to it, and its docs publish to `latest`. `__version__` equals `X.Y.Z`.
+    resolve to it. `__version__` equals `X.Y.Z`.
 - **Pre-release — `vX.Y.Z-rc.N`** (also `-alpha.N`/`-beta.N`): a tagged candidate for
     the upcoming `X.Y.Z`. Any tag with a hyphen is marked *Pre-release* on GitHub, so
-    `/releases/latest` and the update check skip it and its docs publish to the **dev**
-    site, not `latest`. Allowed at any point, including the `0.x` line. Set
-    `__version__` to the suffixed string and tag to match.
+    `/releases/latest` and the update check skip it. Allowed at any point, including
+    the `0.x` line. Set `__version__` to the suffixed string and tag to match.
 - **Development build — the `dev` tag**: a single fixed, *moving* tag (not a version
     number), rebuilt and republished on every code merge to `main` and marked
     *Pre-release*. It carries the portable `SMACC-dev.zip` (see

@@ -1,10 +1,3 @@
----
-# Attach the PDF manual's cover to the front of the document (PDF build only; the
-# website ignores this key). See pdf/cover.html and mkdocs-pdf.yml.
-covers:
-  front: pdf/cover.html
----
-
 # SMACC
 
 **Sleep Manipulation And Communication Clickything** (SMACC) is a Windows desktop
@@ -18,15 +11,15 @@ whatever hardware the lab has. SMACC is the clickable control surface for that w
 one window per job, glanceable in the dark, with a volume safety cap and explicit
 device routing so a misclick can't blast or mislead a sleeping participant.
 
-[Download SMACC](https://github.com/remrama/smacc/releases/latest/download/SMACC-Setup.exe){ .md-button .md-button--primary }
-[Installation guide](installation.md){ .md-button }
+[Download SMACC](https://github.com/remrama/smacc/releases/latest/download/SMACC-Setup.exe){.btn .btn-primary role="button"}
+[Installation guide](installation.md){.btn .btn-secondary role="button"}
 
 The button downloads the installer (`SMACC-Setup.exe`) for the latest version, which
 installs per-user (no admin rights) and runs on 64-bit Windows 10 or later. See
 [Installation](installation.md), which also covers the Windows SmartScreen warning on
 the unsigned download and how to get older versions.
 
-Working offline? [Download these docs as a single PDF](https://remrama.github.io/smacc/latest/pdf/smacc-manual.pdf).
+Working offline? [Download these docs as a single PDF](https://remrama.github.io/smacc/smacc-manual.pdf).
 
 ## What SMACC does
 

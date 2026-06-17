@@ -188,21 +188,25 @@ neither is log-only).
 | **Serial (USB trigger box)** | The modern replacement for the parallel port. The box appears as a COM port; SMACC writes the code as one byte and the box mirrors it onto 8 TTL lines. | A USB-serial trigger box and its COM port.                                  |
 | **Parallel port (LPT)**      | The classic 25-pin port. Eight data pins carry the code byte, sampled by the amplifier.                                                                 | An LPT port (often an add-in card) and the **InpOut32** driver (see below). |
 
-!!! note "LSL stays on"
+::: {.callout-note title="LSL stays on"}
 
-    Enabling a hardware transport does **not** turn LSL off — events routed to both
-    (the default) reach the LSL stream and the hardware line together. The hardware
-    path is purely additional. LSL support ships inside SMACC itself — there is
-    nothing separate to install on the *sending* side (the recorder, e.g.
-    LabRecorder, is its own program).
+Enabling a hardware transport does **not** turn LSL off — events routed to both
+(the default) reach the LSL stream and the hardware line together. The hardware
+path is purely additional. LSL support ships inside SMACC itself — there is
+nothing separate to install on the *sending* side (the recorder, e.g.
+LabRecorder, is its own program).
 
-!!! tip "Why route per event?"
+:::
 
-    Most studies leave every event on both transports. Per-event routing earns its
-    keep when the TTL hardware is restricted — an older amplifier that only accepts
-    a limited code range can keep its key events on TTL (inside the
-    [safe max](#configuring-codes)) while chattier or higher-coded events
-    still reach the LSL stream.
+::: {.callout-tip title="Why route per event?"}
+
+Most studies leave every event on both transports. Per-event routing earns its
+keep when the TTL hardware is restricted — an older amplifier that only accepts
+a limited code range can keep its key events on TTL (inside the
+[safe max](#configuring-codes)) while chattier or higher-coded events
+still reach the LSL stream.
+
+:::
 
 ### What is the baud rate?
 
@@ -270,12 +274,14 @@ setup. Because a COM port name or LPT address is specific to one computer, SMACC
 reports a clear error if the saved port can't be opened on the machine you load it on
 — re-pick it in the Markers window and save again.
 
-!!! warning "Always validate on the real hardware"
+::: {.callout-warning title="Always validate on the real hardware"}
 
-    A successful **Test** confirms SMACC could open the port and write to it. It does
-    **not** prove the amplifier recorded the correct code on its trigger channel.
-    Before relying on triggers for a study, record a few test events and confirm they
-    appear, with the right codes, in the EEG.
+A successful **Test** confirms SMACC could open the port and write to it. It does
+**not** prove the amplifier recorded the correct code on its trigger channel.
+Before relying on triggers for a study, record a few test events and confirm they
+appear, with the right codes, in the EEG.
+
+:::
 
 ## Finding your parallel-port address
 

@@ -1,0 +1,70 @@
+# Quarto Book project for the SMACC docs (#259). One source tree renders both the
+# HTML site (deployed to GitHub Pages) and the single-file PDF manual (Typst), with
+# no plugin stack or system libraries. The project root is docs/ so Quarto only ever
+# scans the documentation tree — never README.md / AGENTS.md / the rest of the repo.
+#
+#   quarto preview docs      # live HTML site while writing
+#   quarto render docs       # build both HTML and PDF into docs/_book/
+#
+# Pandoc reader tweak: GitHub-style heading slugs, so the existing cross-page anchors
+# (authored against Material's GitHub-like slugifier) keep resolving — plain Pandoc
+# keeps periods (e.g. `pulsed-vs.-set-and-hold`) and would break those links.
+from: markdown+gfm_auto_identifiers
+
+project:
+  type: book
+  output-dir: _book
+
+book:
+  title: SMACC
+  subtitle: User manual
+  author: Remington Mallett
+  favicon: assets/icon.png
+  site-url: https://remrama.github.io/smacc/
+  repo-url: https://github.com/remrama/smacc
+  search: true
+  # Base name for the downloadable single-file formats; the PDF lands at
+  # docs/_book/smacc-manual.pdf and, once published, …/smacc/smacc-manual.pdf.
+  output-file: smacc-manual
+  chapters:
+    - index.md
+    - part: Getting started
+      chapters:
+        - installation.md
+        - smacc-files.md
+    - part: Running a session
+      chapters:
+        - usage.md
+        - audio-cues.md
+        - visual.md
+        - biocals.md
+        - surveys.md
+        - intercom.md
+        - triggers.md
+    - part: Devices & routing
+      chapters:
+        - audio.md
+        - devices.md
+    - latency.md
+    - eeg-annotator.md
+    - troubleshooting.md
+    - release-notes.md
+    - part: Reference
+      chapters:
+        - reference/index.md
+        - reference/settings-file.md
+        - reference/preferences-file.md
+        - reference/session-log.md
+        - reference/bids-export.md
+        - reference/annotations-file.md
+    - contributing.md
+
+format:
+  html:
+    theme:
+      light: pulse
+      dark: darkly
+    number-sections: false
+  typst:
+    papersize: a4
+    number-sections: false

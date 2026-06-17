@@ -31,7 +31,7 @@ window shows a read-only indicator of where it resolves, for example
 same resolution beside each route — a route pointed at equipment with nothing
 bound reads **→ no device** instead of looking configured.
 
-![The Devices window: the Equipment → devices bindings on top, the Actions → equipment routes below, each showing the device it resolves to.](assets/screenshot-devices.png){ .shot }
+![](assets/screenshot-devices.png){width=75% fig-alt="The Devices window: the Equipment → devices bindings on top, the Actions → equipment routes below, each showing the device it resolves to."}
 
 ```text
 Bedroom speaker       Speakers (USB Audio)
@@ -96,20 +96,24 @@ All real-time audio (cues, noise, the intercom, the dream-report recorder, and t
 input-level meter) runs on [`sounddevice`](https://python-sounddevice.readthedocs.io/)
 (PortAudio), through the **Windows WASAPI** host API.
 
-!!! info "Why WASAPI"
+::: {.callout-note title="Why WASAPI"}
 
-    On Windows, PortAudio lists every speaker once per host API (MME, DirectSound,
-    WASAPI, WDM-KS), which is where the "same device, several names" confusion comes
-    from, and the legacy MME names are truncated to 31 characters. SMACC enumerates
-    only WASAPI, so each device appears once, with its full name, on the modern
-    low-latency path.
+On Windows, PortAudio lists every speaker once per host API (MME, DirectSound,
+WASAPI, WDM-KS), which is where the "same device, several names" confusion comes
+from, and the legacy MME names are truncated to 31 characters. SMACC enumerates
+only WASAPI, so each device appears once, with its full name, on the modern
+low-latency path.
 
-!!! info "Device names in the Devices window"
+:::
 
-    Because SMACC enumerates only WASAPI devices, it drops the redundant
-    ", Windows WASAPI" suffix that PortAudio appends to each device name. With only
-    one host API in the list, the suffix added nothing, so a device reads as
-    `Speakers (USB Audio)` rather than `Speakers (USB Audio), Windows WASAPI`.
+::: {.callout-note title="Device names in the Devices window"}
+
+Because SMACC enumerates only WASAPI devices, it drops the redundant
+", Windows WASAPI" suffix that PortAudio appends to each device name. With only
+one host API in the list, the suffix added nothing, so a device reads as
+`Speakers (USB Audio)` rather than `Speakers (USB Audio), Windows WASAPI`.
+
+:::
 
 Because everything shares one engine, device names mean the same thing everywhere,
 and sending one cue to two devices at once (the fan-out) is two streams from a single

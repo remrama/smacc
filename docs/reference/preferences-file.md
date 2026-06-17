@@ -47,11 +47,13 @@ preferences:
 | `log_preview_max_lines` | integer        | How many lines the Session window's live log preview keeps (default **1000**); the oldest lines are dropped first. The log *file* always records everything, so nothing is lost. Very large values cost GUI memory and repaint time over an overnight session.                                                         |
 | `log_preview_clock`     | string         | How the live preview renders the time of day: `24h` (default, e.g. `22:14:01`) or `12h` (`10:14:01 PM`). Presentation only — the log *file* always keeps 24-hour timestamps with a UTC offset. Toggle it from the Session window's **File → 12-hour clock**; an unknown value falls back to `24h`.                     |
 
-!!! note "Partial files are fine"
+::: {.callout-note title="Partial files are fine"}
 
-    Loading merges a file's keys over the defaults, so a file missing some keys still
-    yields every key. There is no cross-version migration; only `schema_version: 1`
-    is current.
+Loading merges a file's keys over the defaults, so a file missing some keys still
+yields every key. There is no cross-version migration; only `schema_version: 1`
+is current.
+
+:::
 
 ### EEG Annotator keys
 

@@ -2,9 +2,11 @@
 
 Guards against the failure mode that motivated #250: a wide table (or any element)
 that a renderer can't lay out silently dropping that page and everything after it,
-leaving a truncated manual that still "builds" green. Run in CI after the PDF build:
+leaving a truncated manual that still "builds" green. Renderer-agnostic — it reads
+the finished PDF — so it carried over unchanged from the MkDocs/Chromium manual to
+the Quarto/Typst one (#259). Run in CI after the PDF build:
 
-    uv run --extra docs python pdf/check_manual.py site/pdf/smacc-manual.pdf
+    uv run --extra docs python scripts/check_manual.py docs/_book/smacc-manual.pdf
 
 Exits non-zero (with a clear message) if the manual is short or is missing content
 from its later sections. The tripwire strings are distinctive tokens that live in
@@ -15,7 +17,7 @@ import sys
 
 from pypdf import PdfReader
 
-# Generous floor; the manual is ~88 pages. Truncation collapsed it to ~29.
+# Generous floor; the manual is ~90 pages. Truncation collapsed it to ~29.
 MIN_PAGES = 50
 
 # One distinctive token from each of several late sections. If the manual truncates
@@ -54,4 +56,4 @@ def main(path: str) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else "site/pdf/smacc-manual.pdf"))
+    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else "docs/_book/smacc-manual.pdf"))

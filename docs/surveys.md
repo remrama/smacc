@@ -14,7 +14,7 @@ is stamped with the time elapsed since you pressed **Start recording** (in the
 the EEG file. If recording has not been marked yet, the report is still logged and
 SMACC reminds you to mark it.
 
-![The Dream recording panel: the Record dream report button with the survey dropdown and Manage… button.](assets/screenshot-recording.png){ .shot .shot--narrow }
+![](assets/screenshot-recording.png){width=45% fig-alt="The Dream recording panel: the Record dream report button with the survey dropdown and Manage… button."}
 
 ## Surveys
 

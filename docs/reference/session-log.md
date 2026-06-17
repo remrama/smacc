@@ -112,7 +112,9 @@ Two snapshots are written: **`initial`** (at startup) and **`final`** (appended 
 quit). The `final` block may be absent if a session crashed before quitting. The
 **Analyzer** can recover a `.smacc` from either block.
 
-!!! note "No separate version"
+::: {.callout-note title="No separate version"}
 
-    The log itself isn't versioned; its embedded blocks carry the
-    [settings `schema_version`](settings-file.md#version-history).
+The log itself isn't versioned; its embedded blocks carry the
+[settings `schema_version`](settings-file.md#version-history).
+
+:::

@@ -4,7 +4,7 @@ Audio is SMACC's primary cueing modality. The **Audio cue** window (in the
 **Panels** column) holds the cue board: one row per cue, each ready to fire with a
 single click.
 
-![The Audio cue window: a cue row with its volume and loop controls, and the Monitoring section below.](assets/screenshot-audio-cue.png){ .shot }
+![](assets/screenshot-audio-cue.png){width=75% fig-alt="The Audio cue window: a cue row with its volume and loop controls, and the Monitoring section below."}
 
 ## The cue board
 
@@ -37,7 +37,7 @@ so you can reopen it tomorrow and nudge a level instead of rebuilding the cue. T
 designer is a standalone tool: it plays on the default device and ignores the
 session's device routing and volume safety cap.
 
-![The Audio Cue Designer: tone and silence segments above a live waveform, with the Preview and Export WAV… buttons.](assets/screenshot-cue-designer.png){ .shot }
+![](assets/screenshot-cue-designer.png){width=75% fig-alt="The Audio Cue Designer: tone and silence segments above a live waveform, with the Preview and Export WAV… buttons."}
 
 ## Background noise
 
@@ -65,19 +65,23 @@ cue window's **Monitoring** section shows two meters so you can tell:
     mic's noise floor, the meter also shows the **rise above the room's resting
     level** (the `+N` next to the reading), so even a small bump stands out.
 
-!!! tip "A dedicated monitoring mic"
+::: {.callout-tip title="A dedicated monitoring mic"}
 
-    The *Bedroom* meter listens on the **Monitor bedroom noise** route, which
-    defaults to **Bedroom mic 1**. For the most reliable check — especially for the
-    very quiet cues a study often starts at — bind a separate, sensitive **Bedroom
-    mic 2** in the Devices window and route *Monitor bedroom noise* to it. That keeps
-    verification independent of the (often cheaper, voice-activated) dream-report mic.
+The *Bedroom* meter listens on the **Monitor bedroom noise** route, which
+defaults to **Bedroom mic 1**. For the most reliable check — especially for the
+very quiet cues a study often starts at — bind a separate, sensitive **Bedroom
+mic 2** in the Devices window and route *Monitor bedroom noise* to it. That keeps
+verification independent of the (often cheaper, voice-activated) dream-report mic.
 
-!!! warning "A quiet mic isn't proof of silence"
+:::
 
-    A cheap or voice-activated mic may not register a very faint cue even when it is
-    playing, so a dark *Bedroom* meter is a prompt to check, not proof the cue failed.
-    Read it together with *Sending*.
+::: {.callout-warning title="A quiet mic isn't proof of silence"}
+
+A cheap or voice-activated mic may not register a very faint cue even when it is
+playing, so a dark *Bedroom* meter is a prompt to check, not proof the cue failed.
+Read it together with *Sending*.
+
+:::
 
 For how cue levels combine and how to calibrate them, see
 [Volume & latency](latency.md). For binding the speaker and mics, see

@@ -1,6 +1,6 @@
 # Installation
 
-[Download SMACC](https://github.com/remrama/smacc/releases/latest/download/SMACC-Setup.exe){ .md-button .md-button--primary }
+[Download SMACC](https://github.com/remrama/smacc/releases/latest/download/SMACC-Setup.exe){.btn .btn-primary role="button"}
 
 The button above always downloads the installer for the **latest** version —
 double-click `SMACC-Setup.exe` and click through. The installer:
@@ -24,32 +24,40 @@ To get an older or specific version, browse the
 [releases page](https://github.com/remrama/smacc/releases): pick the release you
 want, open its _Assets_ dropdown, and download from there.
 
-!!! note "System requirements"
+::: {.callout-note title="System requirements"}
 
-    SMACC runs on 64-bit Windows 10 or later.
+SMACC runs on 64-bit Windows 10 or later.
 
-!!! warning "Windows SmartScreen — “Windows protected your PC”"
+:::
 
-    SMACC isn't code-signed yet, so when you run the installer Windows SmartScreen
-    may show a blue **“Windows protected your PC”** box. This is expected for any
-    new, unsigned program. To proceed anyway, click **More info**, then
-    **Run anyway**.
+::: {.callout-warning title="Windows SmartScreen — “Windows protected your PC”"}
 
-!!! note "Administrator privileges and the UAC prompt"
+SMACC isn't code-signed yet, so when you run the installer Windows SmartScreen
+may show a blue **“Windows protected your PC”** box. This is expected for any
+new, unsigned program. To proceed anyway, click **More info**, then
+**Run anyway**.
 
-    For some features you will need to open SMACC with Administrator privileges
-    (right-click the Start menu entry and select **Run as administrator**). Windows
-    then shows a **User Account Control (UAC)** prompt asking whether to allow the
-    app to make changes — click **Yes** to continue. For everyday use (audio cues,
-    dream reports, LSL markers) you can run SMACC normally, without administrator
-    rights.
+:::
 
-!!! note "For IT departments"
+::: {.callout-note title="Administrator privileges and the UAC prompt"}
 
-    The default install is per-user (under `%LOCALAPPDATA%\Programs\SMACC`, no
-    elevation). On managed machines where per-user installs are blocked — e.g.
-    AppLocker policies on `%LOCALAPPDATA%` — run the same installer machine-wide
-    instead: `SMACC-Setup.exe /ALLUSERS` (elevates, installs to Program Files).
+For some features you will need to open SMACC with Administrator privileges
+(right-click the Start menu entry and select **Run as administrator**). Windows
+then shows a **User Account Control (UAC)** prompt asking whether to allow the
+app to make changes — click **Yes** to continue. For everyday use (audio cues,
+dream reports, LSL markers) you can run SMACC normally, without administrator
+rights.
+
+:::
+
+::: {.callout-note title="For IT departments"}
+
+The default install is per-user (under `%LOCALAPPDATA%\Programs\SMACC`, no
+elevation). On managed machines where per-user installs are blocked — e.g.
+AppLocker policies on `%LOCALAPPDATA%` — run the same installer machine-wide
+instead: `SMACC-Setup.exe /ALLUSERS` (elevates, installs to Program Files).
+
+:::
 
 ## Updating SMACC
 
@@ -66,18 +74,20 @@ Every code change merged to `main` is rebuilt and published as a single rolling
 **development build**, so you can try an unreleased fix or feature before the next
 stable release.
 
-[Download the development build](https://github.com/remrama/smacc/releases/download/dev/SMACC-dev.zip){ .md-button }
+[Download the development build](https://github.com/remrama/smacc/releases/download/dev/SMACC-dev.zip){.btn .btn-secondary role="button"}
 
 Unzip it and run `SMACC.exe` from the extracted `SMACC` folder. It's portable, so it
 runs without installing and leaves any installed copy of SMACC untouched.
 
-!!! warning "For testing only"
+::: {.callout-warning title="For testing only"}
 
-    The development build is unsigned, unreleased, and **not tested**, and it is
-    overwritten every time `main` changes — so it's a moving target, not a fixed
-    version. Don't use it to run a study; pin a stable release for that. The
-    **Download SMACC** button at the top of this page and the in-app **File › Check
-    for updates…** always point at the latest *stable* release, never this build.
+The development build is unsigned, unreleased, and **not tested**, and it is
+overwritten every time `main` changes — so it's a moving target, not a fixed
+version. Don't use it to run a study; pin a stable release for that. The
+**Download SMACC** button at the top of this page and the in-app **File › Check
+for updates…** always point at the latest *stable* release, never this build.
+
+:::
 
 ## After installing
 
