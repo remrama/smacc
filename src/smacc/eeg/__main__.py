@@ -23,7 +23,7 @@ import traceback
 
 from PyQt6.QtWidgets import QApplication
 
-from ..config import VERSION, set_taskbar_app_id
+from ..config import display_version, set_taskbar_app_id
 
 # Imported eagerly, on purpose: --version must prove the whole MNE/pyqtgraph
 # import tree resolves in the frozen bundle (that is the point of the smoke
@@ -229,7 +229,7 @@ def selftest() -> int:
 
 def main() -> None:
     if "--version" in sys.argv:
-        print(f"SMACC EEG Annotator v{VERSION}")
+        print(f"SMACC EEG Annotator v{display_version()}")
         sys.exit(0)
     if "--selftest" in sys.argv:
         # A windowed (--noconsole) build pops a *blocking* "Failed to execute

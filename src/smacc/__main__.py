@@ -15,7 +15,7 @@ from PyQt6.QtGui import QDesktopServices, QIcon
 from PyQt6.QtWidgets import QApplication, QMessageBox, QPushButton
 
 from . import crashlog
-from .config import VERSION, set_taskbar_app_id
+from .config import display_version, set_taskbar_app_id
 from .launcher import LauncherWindow
 from .paths import (
     BUNDLED_CUES_DIR,
@@ -236,12 +236,12 @@ def main() -> None:
         return
     if "--version" in sys.argv[1:]:
         if sys.stdout is not None:  # absent in a --noconsole build
-            print(f"SMACC {VERSION}")
+            print(f"SMACC {display_version()}")
         return
     # Crash capture first, before any Qt: a native crash during Qt startup is
     # exactly what the persistent crash log exists to record (#149). The
     # excepthook's dialog arms itself once the QApplication below exists.
-    crashlog.install(VERSION)
+    crashlog.install(display_version())
     crashlog.install_qt_message_handler()
     _install_excepthook()
     _quiet_qt_multimedia_logging()  # before QApplication: Qt reads the rule at startup

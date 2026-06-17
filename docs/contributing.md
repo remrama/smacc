@@ -211,16 +211,35 @@ SMACC follows [semantic versioning](https://semver.org/).
 - **`0.1.0` is the first published release** — the first with installers attached, a
     [release-notes](release-notes.md) entry, and a working in-app update check.
     Earlier `0.0.x` tags predate it and are not in the release notes.
-- **`1.0.0-rc.N` tags are reserved for the run-up to a real 1.0.** They are marked
-    *Pre-release* on GitHub (so the update check ignores them) and their docs publish
-    to the **dev** site, not `latest`. There is no `0.x`-era `-dev`/`-alpha` series.
 - **1.0.0 is the first stable release.** From then on semantic versioning is binding
     (backward-compatible changes bump the minor/patch, breaking changes bump the
     major), and the pre-1.0 docs are dropped from the version switcher.
 
+There are three kinds of build:
+
+- **Stable — `vX.Y.Z`** (no suffix): a full GitHub release, badged *Latest*. The
+    homepage download button, `/releases/latest`, and the in-app update check all
+    resolve to it, and its docs publish to `latest`. `__version__` equals `X.Y.Z`.
+- **Pre-release — `vX.Y.Z-rc.N`** (also `-alpha.N`/`-beta.N`): a tagged candidate for
+    the upcoming `X.Y.Z`. Any tag with a hyphen is marked *Pre-release* on GitHub, so
+    `/releases/latest` and the update check skip it and its docs publish to the **dev**
+    site, not `latest`. Allowed at any point, including the `0.x` line. Set
+    `__version__` to the suffixed string and tag to match.
+- **Development build — the `dev` tag**: a single fixed, *moving* tag (not a version
+    number), rebuilt and republished on every code merge to `main` and marked
+    *Pre-release*. It carries the portable `SMACC-dev.zip` (see
+    [Installation](installation.md#development-build-experimental)) and is identified at
+    runtime by the running version plus the commit it was built from, e.g.
+    `v0.1.2 (dev build a1b2c3d)`. The word **dev** is reserved for this channel and the
+    matching **dev** docs site; version pre-releases use `-rc`/`-alpha`/`-beta`, never a
+    literal `-dev` suffix.
+
 Cutting a release: bump `__version__` in `src/smacc/__init__.py` and push a matching
-`vX.Y.Z` tag. CI checks the tag equals `__version__`, builds and smoke-tests the
-installer, attaches it to the GitHub Release, and publishes the docs.
+`vX.Y.Z` tag (use `vX.Y.Z-rc.N` for a candidate). CI checks the tag equals
+`__version__`, builds and smoke-tests the installer, attaches it to the GitHub Release,
+and publishes the docs. Right after a stable release, bump `__version__` on `main` to
+the next target `X.Y.(Z+1)`, so development builds report the version they're heading
+toward rather than the one just shipped.
 
 ## Project notes
 

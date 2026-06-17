@@ -21,7 +21,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from . import dialogs, eeg, preferences, settings, updates, winassoc, windowstate
 from .analyze import AnalyzeWindow
-from .config import VERSION
+from .config import display_version
 from .cuedesigner import CueDesignerWindow
 from .gui import SmaccWindow
 from .paths import DEFAULT_DATA_DIR, DEFAULT_SETTINGS_PATH, LOGO_PATH, preferences_path
@@ -133,7 +133,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
         # text is the short word "documentation" rather than the full URL so the
         # footer doesn't force the whole launcher wider than it needs to be.
         footer = QtWidgets.QLabel(
-            f'v{VERSION} — <a href="https://remrama.github.io/smacc">documentation</a>'
+            f'v{display_version()} — <a href="https://remrama.github.io/smacc">documentation</a>'
         )
         footer.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         footer.setTextFormat(QtCore.Qt.TextFormat.RichText)
@@ -336,13 +336,13 @@ class LauncherWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.information(
                 self,
                 "Check for updates",
-                f"You are running the latest version of SMACC (v{VERSION}).",
+                f"You are running the latest version of SMACC (v{display_version()}).",
             )
             return
         reply = QtWidgets.QMessageBox.question(
             self,
             "Update available",
-            f"SMACC {result.latest} is available (you are running v{VERSION}).\n\n"
+            f"SMACC {result.latest} is available (you are running v{display_version()}).\n\n"
             "Open the download page in your browser?",
         )
         if reply == QtWidgets.QMessageBox.StandardButton.Yes:
@@ -354,7 +354,9 @@ class LauncherWindow(QtWidgets.QMainWindow):
         box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
         box.setWindowTitle("About SMACC")
         box.setText("Sleep Manipulation and Communication Clickything")
-        box.setInformativeText(f"version: v{VERSION}\nhttps://github.com/remrama/smacc")
+        box.setInformativeText(
+            f"version: v{display_version()}\nhttps://github.com/remrama/smacc"
+        )
         box.exec()
 
     # ----- tool-window lifecycle -------------------------------------------

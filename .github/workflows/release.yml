@@ -2,12 +2,25 @@ name: Release
 
 on:
   push:
+    # A code merge to main publishes the rolling `dev` pre-release (#251); a
+    # `v*` tag cuts a real release (full, or a Pre-release for a hyphenated tag).
+    # paths-ignore keeps docs-only merges off this heavy Windows job — they never
+    # change the frozen binary. It also applies to the tag side, but a release
+    # tag always bumps src/smacc/__init__.py, so a tag is never docs-only.
+    branches: [main]
     tags:
       - "v*"
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "mkdocs*.yml"
+      - ".mdformat.toml"
+      - "overrides/**"
+      - "LICENSE.txt"
   # Non-publishing verification runs (#190): trigger manually, or automatically
   # on PRs that touch the packaging files. These build and smoke-test the exes
   # and installer and upload them as workflow artifacts, but never create a
-  # GitHub release — publishing is gated on a tag ref below.
+  # GitHub release — publishing is gated on a tag/branch ref below.
   workflow_dispatch:
   pull_request:
     paths:
@@ -23,9 +36,10 @@ on:
 permissions:
   contents: write
 
-# A packaging PR can push several times in a row; each run holds a Windows
-# runner for up to 30 minutes, so supersede in-flight verification runs. Tag
-# runs are never cancelled.
+# A packaging PR (or a burst of merges to main) can push several times in a row,
+# so supersede in-flight verification and dev-build runs. Tag runs are never
+# cancelled. For the rolling dev channel this means last-merge-wins: the
+# published `dev` asset reflects the latest completed merge, not every merge.
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -37,11 +51,12 @@ jobs:
     # test job (ci.yml) uses the same runner so it validates this exact env.
     runs-on: windows-2022
     # Backstop the whole job: a healthy run is a single onedir build plus the
-    # smoke tests, but a crashed --noconsole exe pops a "Failed to execute
-    # script" MessageBox that Start-Process sits behind forever. 18 min is well
-    # clear of a slow-but-fine build while nearly halving a stalled run's wasted
-    # time versus the old 30 (and GitHub's 6h default).
-    timeout-minutes: 18
+    # smoke tests (~3.5-4 min), but a crashed --noconsole exe pops a "Failed to
+    # execute script" MessageBox that Start-Process sits behind forever. 12 min
+    # is ~3x a healthy run — clear of a slow-but-fine build, and above the
+    # worst-case sum of the per-step WaitForExit caps below (120 + 300 + 60 +
+    # 180s), so a real hang is what trips it, not a slow build.
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.2.0
@@ -75,6 +90,18 @@ jobs:
         run: |
           uv run python tools/make_versionfile.py version_info.txt
           if ($LASTEXITCODE -ne 0) { throw "make_versionfile exited with code $LASTEXITCODE" }
+      # Rolling dev builds (#251) self-identify by the commit they were built
+      # from: write smacc._build so the About dialog, --version, and the crash
+      # log read "v0.1.2 (dev build <sha>)". Only on a main push — tag and PR
+      # builds leave it absent, so config.BUILD is None and the version string
+      # stays clean. config.py imports it under try/except (the SHA is kept out
+      # of __version__, which must stay a plain PEP 440 string), so PyInstaller
+      # bundles the module when present and the app runs fine without it.
+      - name: Stamp the dev build with its commit
+        if: github.ref == 'refs/heads/main'
+        run: |
+          $sha = "${{ github.sha }}".Substring(0, 7)
+          "BUILD = `"$sha`"" | Out-File -Encoding utf8 src/smacc/_build.py
       # One onedir build is the whole app, EEG Annotator included. --onedir (not
       # --onefile) means nothing extracts to a temp dir at launch: Python imports
       # off the install folder lazily, so a session never loads MNE and there is
@@ -170,10 +197,39 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
-          # A tag with a pre-release suffix (e.g. v1.0.0-rc.1) is published as a
+          # A tag with a pre-release suffix (e.g. v0.2.0-rc.1) is published as a
           # GitHub Pre-release, so /releases/latest skips it and the in-app update
           # check (updates.py) never nags users toward a release candidate. A final
-          # tag (v0.1.0) is a full release — the homepage download button and the
+          # tag (v0.1.2) is a full release — the homepage download button and the
           # update check both resolve to it.
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: dist/SMACC-Setup.exe
+      # The rolling dev channel (#251): on a code merge to main, zip the onedir
+      # tree (download-and-run — no installer, so it never touches a tester's
+      # installed stable copy) and publish it to the single moving `dev`
+      # pre-release, replacing the asset in place. Zip the folder (not its
+      # contents) so it extracts to a named SMACC/ folder. Tag/PR runs never
+      # reach these steps.
+      - name: Package the portable dev build
+        if: github.ref == 'refs/heads/main'
+        run: Compress-Archive -Path dist/SMACC -DestinationPath dist/SMACC-dev.zip -Force
+      - name: Publish rolling dev pre-release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v3
+        with:
+          # One fixed, moving tag — re-pointed to this commit, its one asset
+          # replaced, on every code merge. prerelease is hardcoded true (NOT the
+          # contains(ref_name,'-') heuristic the tag step uses: on main, ref_name
+          # is "main", which has no hyphen and would publish a FULL release that
+          # hijacks /releases/latest). make_latest:false keeps the newest stable
+          # release badged "Latest".
+          tag_name: dev
+          prerelease: true
+          make_latest: false
+          name: Development build (latest main)
+          body: >-
+            Automated build of the latest `main` (${{ github.sha }}). Unreleased,
+            unsigned, and untested — overwritten on every merge. Download,
+            extract, and run `SMACC.exe`; it won't disturb an installed stable
+            copy. For studies, use the stable release.
+          files: dist/SMACC-dev.zip
