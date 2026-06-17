@@ -6,7 +6,7 @@ leaving a truncated manual that still "builds" green. Renderer-agnostic — it r
 the finished PDF — so it carried over unchanged from the MkDocs/Chromium manual to
 the Quarto/Typst one (#259). Run in CI after the PDF build:
 
-    uv run --extra docs python scripts/check_manual.py docs/_book/smacc-manual.pdf
+    uv run --extra docs python scripts/check_manual.py docs/_book/SMACC-manual.pdf
 
 Exits non-zero (with a clear message) if the manual is short or is missing content
 from its later sections. The tripwire strings are distinctive tokens that live in
@@ -56,4 +56,4 @@ def main(path: str) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else "docs/_book/smacc-manual.pdf"))
+    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else "docs/_book/SMACC-manual.pdf"))

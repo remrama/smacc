@@ -16,10 +16,10 @@ system libraries. Quarto is a standalone binary (bundles Typst + Pandoc); it is
 ```sh
 quarto preview docs    # live-reload HTML while writing
 quarto render docs     # build HTML site + PDF into docs/_book/
-quarto render docs --to typst   # PDF only (the release manual-pdf job)
+quarto render docs --to typst   # PDF only (the release build-pdf job)
 
 uv run python scripts/check_links.py docs/_book                                 # internal links + anchors
-uv run --extra docs python scripts/check_manual.py docs/_book/smacc-manual.pdf  # PDF completeness
+uv run --extra docs python scripts/check_manual.py docs/_book/SMACC-manual.pdf  # PDF completeness
 ```
 
 The project root is `docs/` (so Quarto only scans the docs tree, never README.md /
@@ -41,8 +41,10 @@ are gitignored.
   heavy/brand theming is deferred (see below).
 - **`number-sections: false`** — books number chapters by default; SMACC's docs are
   unnumbered.
-- **`output-file: smacc-manual`** — the PDF lands at `docs/_book/smacc-manual.pdf`
-  and, published, at `…/smacc/smacc-manual.pdf`.
+- **`output-file: SMACC-manual`** — the PDF lands at `docs/_book/SMACC-manual.pdf`,
+  is served on the (stable) site, and is attached to every release as `SMACC-manual.pdf`.
+- **`downloads: [pdf]`** — surfaces Quarto's built-in sidebar "Download PDF" button,
+  which points at the site-hosted (stable) PDF copy.
 
 ## Markdown conventions
 
@@ -60,13 +62,17 @@ are gitignored.
 
 ## CI
 
-- **`.github/workflows/docs.yml`** — two jobs: `build` (quarto-actions/setup, render,
-  run both checks, upload-pages-artifact) and `deploy` (actions/deploy-pages, push to
-  `main` only). Uses the official GitHub Actions Pages deployment — **no `gh-pages`
-  branch**; the repo's Pages source must be set to "GitHub Actions" (Settings → Pages).
-- **`.github/workflows/release.yml`** `manual-pdf` job — on a tag, render `--to typst`,
-  check, and attach `docs/_book/smacc-manual.pdf` (unversioned name; the release is the
-  version) to the release.
+- **`.github/workflows/docs.yml`** — two jobs: `build` (render + both checks, every
+  PR/push) and `deploy` (actions/deploy-pages). The site publishes to GitHub Pages
+  **only on a stable `vX.Y.Z` tag** (no pre-release suffix), so the live site always
+  reflects the current stable version — never dev/pre-release. Official Actions Pages
+  deployment — **no `gh-pages` branch**; the repo's Pages source must be "GitHub
+  Actions" (Settings → Pages).
+- **`.github/workflows/release.yml`** `build-pdf` job — renders `--to typst` and
+  attaches `SMACC-manual.pdf` to whatever release the run publishes: a tagged release
+  (stable/pre-release) or the rolling `dev` pre-release on a main push. Uses
+  `gh release upload --clobber` (asset-only — build-exe owns each release's metadata),
+  so **every** release carries its manual.
 - **`scripts/check_links.py`** replaces `mkdocs build --strict`'s link validation:
   it parses the rendered `_book` HTML and fails on any dead internal link or `#anchor`
   (the main migration footgun). **`scripts/check_manual.py`** (renderer-agnostic,

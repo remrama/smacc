@@ -232,14 +232,14 @@ jobs:
             copy. For studies, use the stable release.
           files: dist/SMACC-dev.zip
 
-  manual-pdf:
-    # Attach the PDF manual to each tagged release, so the docs for an older
-    # version stay retrievable alongside that version's installer (the docs site
-    # itself is unversioned). Tag-gated, and runs after build-exe so it adds to the
-    # release that step already created. Builds on Linux — Quarto's Typst engine
-    # needs no system libraries, and apt is faster than the Windows job.
-    name: Attach the PDF manual
-    if: startsWith(github.ref, 'refs/tags/')
+  build-pdf:
+    # Build the single-file PDF manual and attach it to whatever release this run
+    # publishes — a tagged release (stable or pre-release) or the rolling `dev`
+    # pre-release on a main push — so every release carries its own manual and old
+    # versions stay retrievable. Runs after build-exe so the release already exists.
+    # Builds on Linux — Quarto's Typst engine needs no system libraries, and apt is
+    # faster than the Windows job.
+    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
     needs: build-exe
     runs-on: ubuntu-latest
     permissions:
@@ -253,13 +253,15 @@ jobs:
       - name: Build the PDF manual
         run: |
           quarto render docs --to typst
-          uv run --extra docs python scripts/check_manual.py docs/_book/smacc-manual.pdf
-      - name: Attach to the release
-        uses: softprops/action-gh-release@v3
-        with:
-          # Match the installer step: a hyphenated tag (v0.2.0-rc.1) is a GitHub
-          # Pre-release; a final tag is a full release.
-          prerelease: ${{ contains(github.ref_name, '-') }}
-          # smacc-manual.pdf (unversioned name) — the release it's attached to is the
-          # version.
-          files: docs/_book/smacc-manual.pdf
+          uv run --extra docs python scripts/check_manual.py docs/_book/SMACC-manual.pdf
+      # Attach the manual to the release this run publishes: the tag's release on a
+      # tag, or the rolling `dev` pre-release on a main push. `gh release upload` only
+      # adds/replaces the asset and never touches release metadata — build-exe owns
+      # each release's prerelease flag, name, and body.
+      - name: Attach the manual to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          [ "${GITHUB_REF}" = "refs/heads/main" ] && tag="dev"
+          gh release upload "$tag" docs/_book/SMACC-manual.pdf --clobber
