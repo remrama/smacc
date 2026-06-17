@@ -62,6 +62,25 @@ SMACC never checks on its own: lab machines are often offline, and studies
 usually pin one version for their whole run, so checking is always an explicit
 click.
 
+## Development build (experimental)
+
+Every code change merged to `main` is rebuilt and published as a single rolling
+**development build**, so you can try an unreleased fix or feature before the next
+stable release.
+
+[Download the development build](https://github.com/remrama/smacc/releases/download/dev/SMACC-dev.zip){ .md-button }
+
+Unzip it and run `SMACC.exe` from the extracted `SMACC` folder. It's portable, so it
+runs without installing and leaves any installed copy of SMACC untouched.
+
+!!! warning "For testing only"
+
+    The development build is unsigned, unreleased, and **not tested**, and it is
+    overwritten every time `main` changes — so it's a moving target, not a fixed
+    version. Don't use it to run a study; pin a stable release for that. The
+    **Download SMACC** button at the top of this page and the in-app **File › Check
+    for updates…** always point at the latest *stable* release, never this build.
+
 ## After installing
 
 By default SMACC stores everything under `~/SMACC`. To use a different location, set
