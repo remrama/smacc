@@ -7,6 +7,29 @@ from smacc import __version__
 
 VERSION = __version__
 
+# A rolling `dev` build (#251) is stamped with the git commit it was built from:
+# the release workflow writes smacc._build on main-push builds only. It is absent
+# in a tagged release, a PR build, or a source checkout — then BUILD is None and
+# the displayed version is just VERSION. The SHA is deliberately kept out of
+# __version__, which must stay a plain PEP 440 string (the exe version-info
+# resource and the package metadata both derive from it).
+try:
+    from smacc._build import BUILD  # type: ignore[import-not-found]
+except ImportError:
+    BUILD = None
+
+
+def display_version() -> str:
+    """Human-facing version; appends the commit stamp on a rolling dev build.
+
+    ``"0.1.2"`` for a release, ``"0.1.2 (dev build a1b2c3d)"`` for a dev build.
+    Use this anywhere a person reads the version (About dialog, ``--version``,
+    the crash-log banner); keep the bare :data:`VERSION` for the provenance
+    written into data files, so a SMACC file never records a build stamp.
+    """
+    return f"{VERSION} (dev build {BUILD})" if BUILD else VERSION
+
+
 DEVELOPMENT_ID = "999"
 DEFAULT_VOLUME = 0.5
 

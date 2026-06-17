@@ -4,6 +4,7 @@ dist/
 build/
 *.spec
 version_info.txt
+src/smacc/_build.py
 .venv/
 .*_cache/
 .coverage
