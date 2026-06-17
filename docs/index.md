@@ -19,8 +19,6 @@ installs per-user (no admin rights) and runs on 64-bit Windows 10 or later. See
 [Installation](installation.md), which also covers the Windows SmartScreen warning on
 the unsigned download and how to get older versions.
 
-Working offline? [Download these docs as a single PDF](https://remrama.github.io/smacc/smacc-manual.pdf).
-
 ## What SMACC does
 
 - Trigger **audio cues** (and design them in-app with the Audio Cue Designer)

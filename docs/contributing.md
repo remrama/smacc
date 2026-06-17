@@ -187,16 +187,20 @@ Heading slugs use `gfm_auto_identifiers` so the cross-page `#anchor` links resol
 the same way GitHub renders them.
 
 The [docs workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/docs.yml)
-renders the docs on every pull request and, on pushes to `main`, publishes the site
-(with the PDF manual) to GitHub Pages. The site is unversioned — one current copy;
-the manual for an older release is the PDF attached to that release.
+renders and checks the docs on every pull request and push, and publishes the live
+site to GitHub Pages only on a **stable release tag** (`vX.Y.Z`) — so the site always
+reflects the current stable version, never a dev or pre-release build. The PDF manual
+is attached to *every* release (stable, pre-release, and the rolling `dev` build) by
+the [release workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/release.yml),
+and the live site serves the current stable manual via the sidebar **Download PDF**
+button.
 
 Two checks run in CI after the render — run them locally before a docs PR. Together
 they replace what `mkdocs build --strict` used to cover:
 
 ```sh
 uv run python scripts/check_links.py docs/_book                                 # internal links + heading anchors
-uv run --extra docs python scripts/check_manual.py docs/_book/smacc-manual.pdf  # PDF completeness
+uv run --extra docs python scripts/check_manual.py docs/_book/SMACC-manual.pdf  # PDF completeness
 ```
 
 `check_links.py` fails on any dead cross-page link or `#anchor` (heading slugs

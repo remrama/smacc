@@ -23,9 +23,12 @@ book:
   site-url: https://remrama.github.io/smacc/
   repo-url: https://github.com/remrama/smacc
   search: true
-  # Base name for the downloadable single-file formats; the PDF lands at
-  # docs/_book/smacc-manual.pdf and, once published, …/smacc/smacc-manual.pdf.
-  output-file: smacc-manual
+  # Base name for the single-file PDF; it lands at docs/_book/SMACC-manual.pdf, is
+  # served on the (stable) site, and is attached to every release as SMACC-manual.pdf.
+  output-file: SMACC-manual
+  # Surface Quarto's built-in "Download PDF" control in the sidebar, pointing at the
+  # site-hosted (stable) copy.
+  downloads: [pdf]
   chapters:
     - index.md
     - part: Getting started

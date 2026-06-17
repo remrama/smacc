@@ -3,6 +3,8 @@ name: Docs
 on:
   push:
     branches: [main]
+    # Stable release tags publish the live site; see the deploy gate below.
+    tags: ["v*"]
   pull_request:
     branches: [main]
 
@@ -26,20 +28,23 @@ jobs:
       # system libraries, unlike the old mkdocs-exporter + headless-Chromium path.
       - uses: quarto-dev/quarto-actions/setup@v2
 
-      # Render the HTML site and the single-file PDF manual from docs/. Two guards
-      # replace `mkdocs build --strict`: check_manual catches a renderer silently
-      # truncating the PDF (#250); check_links validates every internal cross-link
-      # and heading anchor (the main migration footgun, #259). Both run on PRs too,
-      # so a broken link or a dropped page fails the build before merge.
+      # Render the HTML site and the single-file PDF manual from docs/, on every PR
+      # and push, so docs breakage is caught early. Two guards replace
+      # `mkdocs build --strict`: check_manual catches a renderer silently truncating
+      # the PDF (#250); check_links validates every internal cross-link and heading
+      # anchor (the main migration footgun, #259).
       - name: Render and check docs
         run: |
           quarto render docs
-          uv run --extra docs python scripts/check_manual.py docs/_book/smacc-manual.pdf
+          uv run --extra docs python scripts/check_manual.py docs/_book/SMACC-manual.pdf
           uv run python scripts/check_links.py docs/_book
 
-      # Hand the built site to the Pages pipeline (push to main only).
+      # Only a stable release (a `vX.Y.Z` tag with no pre-release suffix) publishes the
+      # live site, so it always reflects the current stable version — never a dev or
+      # pre-release build. The PDF manual for every release (incl. dev/pre-release) is
+      # attached to that release by release.yml instead.
       - name: Upload Pages artifact
-        if: github.event_name == 'push'
+        if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs/_book
@@ -47,7 +52,7 @@ jobs:
   # Publish to GitHub Pages via the official Actions deployment (no gh-pages branch).
   # Requires the repo's Pages source to be set to "GitHub Actions" (Settings -> Pages).
   deploy:
-    if: github.event_name == 'push'
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
     needs: build
     runs-on: ubuntu-latest
     permissions:
