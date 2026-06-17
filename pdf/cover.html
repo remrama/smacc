@@ -1,0 +1,18 @@
+<!--
+  Front cover for the single-file PDF manual (mkdocs-exporter).
+
+  Attached to the home page only (docs/index.md front matter `covers.front`), so it
+  renders once at the front of the manual and nested pages don't carry a (wrongly
+  resolved) copy. The `@@SMACC_VERSION@@` token is replaced with smacc.__version__
+  at build time by pdf/hooks.py. Styling lives in pdf/print.css (.pdf-cover). This
+  block never appears on the website: the plugin wraps it in a data-decompose div
+  that is stripped from the HTML build, and the home page only carries the cover
+  under the PDF config.
+-->
+<div class="pdf-cover">
+  <img class="pdf-cover__logo" src="assets/icon.png" alt="" />
+  <h1 class="pdf-cover__title">SMACC</h1>
+  <p class="pdf-cover__subtitle">Sleep Manipulation And Communication Clickything</p>
+  <p class="pdf-cover__kind">User manual</p>
+  <p class="pdf-cover__version">Version @@SMACC_VERSION@@</p>
+</div>
