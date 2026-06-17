@@ -3,12 +3,11 @@ name: Docs
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   pull_request:
     branches: [main]
 
 permissions:
-  contents: write # mike pushes the built site to the gh-pages branch
+  contents: write # gh-deploy pushes the built site to the gh-pages branch
 
 concurrency:
   group: docs-${{ github.ref }}
@@ -46,23 +45,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      # Pushes to main: publish the development version.
-      - name: Deploy dev docs
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')
-        run: uv run --extra docs mike deploy --push -F mkdocs-pdf.yml dev
-
-      # Release tags. A final tag (v0.1.0) publishes a numbered version and moves
-      # the `latest` alias + default. A pre-release tag (a `-` suffix, e.g.
-      # v1.0.0-rc.1) is a release candidate: route it to the `dev` site and leave
-      # `latest`/the default untouched, so the version switcher never points users
-      # at an unreleased build.
-      - name: Deploy release docs
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-        run: |
-          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
-            uv run --extra docs mike deploy --push -F mkdocs-pdf.yml dev
-          else
-            VERSION="${GITHUB_REF_NAME#v}"
-            uv run --extra docs mike deploy --push -F mkdocs-pdf.yml --update-aliases "$VERSION" latest
-            uv run --extra docs mike set-default --push latest
-          fi
+      # Pushes to main: build the site (with the PDF manual) and publish it to the
+      # gh-pages branch. The site is unversioned — one current copy; older docs are
+      # the PDF manual attached to each GitHub release.
+      - name: Deploy docs
+        if: github.event_name == 'push'
+        run: uv run --extra docs mkdocs gh-deploy --force -f mkdocs-pdf.yml
