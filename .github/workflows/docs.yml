@@ -36,6 +36,22 @@ jobs:
       # catches cross-chapter links that go dead in the PDF (#262).
       - name: Render and check docs
         run: |
+          # Stamp the cover with the release this build represents (#261). This unscoped
+          # render stamps both the PDF and the HTML book cover; the HTML copy reaches Pages
+          # only on a stable tag (a dev string never deploys). A tagged
+          # build shows the tag (v0.1.2, v0.1.2-rc.1, … — the full literal, which always
+          # equals "v" + smacc.__version__ per the build-exe tag check); every other ref is
+          # a rolling dev build, carrying the commit as build metadata (v0.1.2-dev+<sha>,
+          # the +<sha> being PEP 440 / semver local-version syntax — the same <sha> the dev
+          # binary is stamped with). Read the version from the source literal, not via
+          # `uv run`/import — this lean job never syncs the smacc dependency tree. Mirrored
+          # in release.yml's build-pdf job (which ships the per-release PDF); keep in step.
+          version=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' src/smacc/__init__.py)
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            release="v$version"
+          else
+            release="v$version-dev+${GITHUB_SHA:0:7}"
+          fi
           # Fail the build if Typst can't resolve a font: that is only a *warning*, so
           # the PDF would otherwise ship in a fallback face and no other check would
           # notice (the reference tables lost their condensed cut this way, #268).
@@ -43,7 +59,7 @@ jobs:
           # the default GitHub Actions shell is `bash -e` (errexit only, NO pipefail).
           # The grep tracks Typst's current warning wording; revisit if Quarto is bumped.
           set -o pipefail
-          quarto render docs 2>&1 | tee render.log
+          quarto render docs -M subtitle="User manual · $release" 2>&1 | tee render.log
           if grep -qi 'unknown font family' render.log; then
             echo "::error::Typst could not resolve a font; the PDF fell back to a default face. Check docs/typst-preamble.typ and docs/assets/fonts."
             exit 1

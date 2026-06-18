@@ -113,3 +113,12 @@ injected the cover/footer version), and table styling. The brand color is
 Because the PDF engine is Typst, that custom cover/template work — and the screenshot
 framing, which must match in both outputs — will be authored in **Typst**, not
 CSS/Paged.js or LaTeX.
+
+The cover now carries the **release** (#261): CI appends it to the `subtitle` via
+`quarto render -M subtitle="User manual · v…"` in both `docs.yml` and `release.yml`
+(the version is read from the `__version__` literal with `sed` — no import; a tag shows
+the tag, any other ref shows `v…-dev+<sha>`, the `+<sha>` being PEP 440 / semver
+build-metadata for the commit the dev binary is also stamped with).
+No Typst fork — a local `quarto render` keeps the plain `subtitle` default. A per-page
+running header, moon part dividers, and a bespoke illustrated cover were declined
+(#278, closed not planned).
