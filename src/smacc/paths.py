@@ -26,6 +26,10 @@ BUNDLED_DEFAULT_SETTINGS = _asset_dir / "default.smacc"
 # Built-in survey definitions shipped with SMACC (#114); loaded straight from the
 # bundle (never copied out), so updates reach every install.
 BUNDLED_SURVEYS_DIR = _asset_dir / "surveys"
+# Bundled GUI fonts (#279): the B612 family, registered at startup so the app
+# ships with a consistent typeface instead of depending on system-installed
+# fonts. Resolved like the other assets (package dir in dev, _MEIPASS frozen).
+FONTS_DIR = _asset_dir / "fonts"
 
 # The SMACC root directory ($SMACC_DIRECTORY, else ~/SMACC). It holds the global
 # interface preferences, the seeded default.smacc, and the default data directory.

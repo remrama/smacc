@@ -355,7 +355,8 @@ class LauncherWindow(QtWidgets.QMainWindow):
         box.setWindowTitle("About SMACC")
         box.setText("Sleep Manipulation and Communication Clickything")
         box.setInformativeText(
-            f"version: v{display_version()}\nhttps://github.com/remrama/smacc"
+            f"version: v{display_version()}\nhttps://github.com/remrama/smacc\n\n"
+            "Typeface: B612 (© The B612 Project Authors), SIL Open Font License 1.1."
         )
         box.exec()
 

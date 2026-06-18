@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import QApplication, QMessageBox, QPushButton
 
 from . import crashlog
 from .config import display_version, set_taskbar_app_id
+from .fonts import apply_app_font
 from .launcher import LauncherWindow
 from .paths import (
     BUNDLED_CUES_DIR,
@@ -256,6 +257,9 @@ def main() -> None:
     style_hints = app.styleHints()
     assert style_hints is not None
     style_hints.setColorScheme(Qt.ColorScheme.Light)
+    # Register the bundled B612 cockpit font and set it as the base UI font (#279),
+    # so SMACC looks identical on every rig rather than inheriting a system font.
+    apply_app_font(app)
     # The launcher owns app lifetime: tool windows come and go without quitting, so
     # closing the last tool returns to the launcher rather than exiting.
     app.setQuitOnLastWindowClosed(False)

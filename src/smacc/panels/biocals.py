@@ -26,9 +26,10 @@ from functools import partial
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
-from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtWidgets
 
 from .. import audio, biocals, devices, utils
+from ..fonts import mono_font
 from ..paths import resolve_biocal_voice
 from ..session import SmaccSession
 from ..utils import format_elapsed
@@ -132,10 +133,8 @@ class BiocalsWindow(PanelWindow):
         # the whole stack fits without a tall window.
         countdownLabel = QtWidgets.QLabel("00:00:00", self)
         countdownLabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        font = QtGui.QFont()
-        font.setPointSize(20)
-        font.setBold(True)
-        countdownLabel.setFont(font)
+        # B612 Mono (#279) so the clock holds a steady width as the digits tick.
+        countdownLabel.setFont(mono_font(20, bold=True))
         countdownLabel.setStatusTip("Time remaining in the running biocal.")
         self.countdownLabel = countdownLabel
 

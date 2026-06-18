@@ -27,6 +27,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import events, triggers
 from ..dialogs import AddEventDialog
+from ..fonts import mono_font
 from ..session import SmaccSession
 from .base import PanelWindow, make_section_title
 
@@ -477,6 +478,7 @@ class MarkersWindow(PanelWindow):
         code_spin = QtWidgets.QSpinBox(self)
         code_spin.setRange(events.CODE_MIN, events.CODE_MAX)
         code_spin.setValue(event.code)
+        code_spin.setFont(mono_font())  # B612 Mono for the numeric port code (#279)
         self.table.setCellWidget(row, 1, code_spin)
         self._code_spins[i] = code_spin
 

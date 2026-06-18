@@ -27,6 +27,7 @@ from .dialogs import (
     SessionInfoDialog,
     ask_initial_or_final,
 )
+from .fonts import mono_font
 from .panels.audio import AudioCueWindow
 from .panels.base import PanelWindow
 from .panels.biocals import BiocalsWindow
@@ -531,8 +532,11 @@ class SmaccWindow(ToolWindow):
         titleLabel = self._make_section_title("Log preview")
 
         # Live preview list --> gets updated when events/messages are logged.
+        # B612 Mono (#279) keeps the "time · level · message" columns aligned and
+        # the timestamps a steady width as lines stream in.
         logviewList = QtWidgets.QListWidget()
         logviewList.setAutoScroll(True)
+        logviewList.setFont(mono_font())
         self.logviewList = logviewList
 
         # Route log records to the preview pane, filtered by the level toggles.

@@ -117,7 +117,7 @@ jobs:
       # canvas import). The `--eeg --selftest` smoke below proves all of this end
       # to end.
       - name: Build SMACC (onedir)
-        run: uv run pyinstaller entry.py --name SMACC --onedir --noconsole --icon src/smacc/assets/icon.ico --version-file version_info.txt --add-data "src/smacc/assets/icon.png;smacc/assets" --add-data "src/smacc/assets/default.smacc;smacc/assets" --add-data "src/smacc/assets/cues;smacc/assets/cues" --add-data "src/smacc/assets/biocals;smacc/assets/biocals" --add-data "src/smacc/assets/surveys;smacc/assets/surveys" --collect-submodules mne --collect-data mne --collect-submodules matplotlib.backends
+        run: uv run pyinstaller entry.py --name SMACC --onedir --noconsole --icon src/smacc/assets/icon.ico --version-file version_info.txt --add-data "src/smacc/assets/icon.png;smacc/assets" --add-data "src/smacc/assets/default.smacc;smacc/assets" --add-data "src/smacc/assets/cues;smacc/assets/cues" --add-data "src/smacc/assets/biocals;smacc/assets/biocals" --add-data "src/smacc/assets/surveys;smacc/assets/surveys" --add-data "src/smacc/assets/fonts;smacc/assets/fonts" --collect-submodules mne --collect-data mne --collect-submodules matplotlib.backends
       # A broken bundle (missing data file, import error) otherwise ships silently:
       # the exe is windowed (--noconsole), so PowerShell won't wait for it on its
       # own and there is no stdout — Start-Process + the exit code is the test.
