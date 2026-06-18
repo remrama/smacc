@@ -7,13 +7,16 @@
 // is mandatory (it is the only thing separating the dark captures from the page).
 // Shared @font-face lives in smacc-fonts.scss; type vars mirror the light theme.
 
-$font-family-sans-serif: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif !default;
-$headings-font-family: "Space Grotesk", #{$font-family-sans-serif} !default;
-$font-family-monospace: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace !default;
+$font-family-sans-serif: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif !default;
+$headings-font-family: "IBM Plex Sans", #{$font-family-sans-serif} !default;
+$font-family-monospace: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace !default;
+$smacc-condensed: "IBM Plex Sans Condensed", #{$font-family-sans-serif};
 $font-size-root: 17px !default;
 $line-height-base: 1.6 !default;
 $headings-font-weight: 600 !default;
 $headings-line-height: 1.25 !default;
+$table-cell-padding-x: 0.5rem !default;
+$table-cell-padding-y: 0.3rem !default;
 
 // ----- Palette (dark) -----
 $smacc-indigo: #8e9aee; // lightened brand indigo — ~7:1 on the dark ground
@@ -55,12 +58,14 @@ figcaption {
   color: $smacc-muted;
 }
 
-// ===== Tables — dark patch sheet.
+// ===== Tables — dark patch sheet (Condensed cut + smaller size for the wide ones).
 .table {
   border-color: $smacc-hairline;
   --bs-table-bg: transparent;
+  font-family: $smacc-condensed;
+  font-size: 0.9rem;
   > thead th {
-    font-family: $headings-font-family;
+    font-family: $smacc-condensed;
     font-weight: 600;
     color: $smacc-indigo;
     background: $smacc-sunken;
