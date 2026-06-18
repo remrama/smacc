@@ -190,6 +190,8 @@ the same way GitHub renders them. Always give a cross-chapter link an explicit
 `#anchor` — an anchorless `[…](other.md)` link goes dead in the combined PDF (#262).
 Each chapter's title carries a `{#chap-…}` id for exactly this, so a link to a whole
 chapter is `[…](other.md#chap-other)`.
+Avoid punctuation in headings so the cross-page `#anchor` links resolve to the same
+slug GitHub renders — periods in particular drift between renderers.
 
 The [docs workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/docs.yml)
 renders and checks the docs on every pull request and push, and publishes the live
