@@ -31,7 +31,7 @@ cap inside SMACC. That way one place, SMACC, determines how loud a cue is.
 
 :::
 
-![](assets/screenshot-volume.png){width=45% fig-alt="The Volume window: the safety cap, the latency choice, and the read-only System volume and App volume levels."}
+![The Volume window.](assets/screenshot-volume.png){#fig-volume width=45% fig-alt="The Volume window: the safety cap, the latency choice, and the read-only System volume and App volume levels."}
 
 ## Latency
 

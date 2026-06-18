@@ -18,7 +18,7 @@ The Launcher's tools (its title bar reads **SMACC**):
 The **Session** and the **Editor** are the same window in two modes — running a
 night versus authoring a SMACC file.
 
-![](assets/screenshot-launcher.png){width=45% fig-alt="The SMACC Launcher: a button per tool, with the version and a documentation link."}
+![The SMACC Launcher.](assets/screenshot-launcher.png){#fig-launcher width=45% fig-alt="The SMACC Launcher: a button per tool, with the version and a documentation link."}
 
 ## Opening SMACC
 
@@ -64,12 +64,12 @@ Tool windows close with **Ctrl+W** (or **File › Close window**), which only hi
 the window with its state intact; the session keeps running and the Panels column
 reopens it.
 
-![](assets/screenshot-session.png){width=100% fig-alt="The Session window: the Panels column opens each tool, the Log preview streams events on the right, and the Lights toggle sits at the bottom-left."}
+![The Session window.](assets/screenshot-session.png){#fig-session width=100% fig-alt="The Session window: the Panels column opens each tool, the Log preview streams events on the right, and the Lights toggle sits at the bottom-left."}
 
 Flip **Lights** off and the whole app switches to a dark theme for the night —
 the same window, dimmed for a dark control room:
 
-![](assets/screenshot-session-dark.png){width=100% fig-alt="The Session window with the lights off: the same layout in SMACC's dark night theme."}
+![The Session window with the lights off.](assets/screenshot-session-dark.png){#fig-session-dark width=100% fig-alt="The Session window with the lights off: the same layout in SMACC's dark night theme."}
 
 ## The tools
 

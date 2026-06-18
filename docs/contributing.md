@@ -182,7 +182,9 @@ quarto render docs    # build the HTML site and the PDF into docs/_book/
 The project config is `docs/_quarto.yml` — a Quarto *book*, the project type that
 yields one combined PDF. Pages are plain Markdown; admonitions are
 [callouts](https://quarto.org/docs/authoring/callouts.html) (`::: {.callout-note}`),
-and each screenshot carries a `width=` attribute with its description in `fig-alt`.
+and each screenshot is a numbered figure — a short visible caption, a `#fig-…` id
+(so it can be cross-referenced with `@fig-…`), a `width=` attribute, and its full
+description in `fig-alt` for screen readers.
 Heading slugs use `gfm_auto_identifiers` so the cross-page `#anchor` links resolve
 the same way GitHub renders them.
 
