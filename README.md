@@ -6,9 +6,7 @@
 [![Python](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-**SMACC** is a Windows desktop app for running sleep and dream studies: presenting
-cues to a sleeping participant, communicating with them, marking events on the EEG,
-and collecting dream reports.
+**SMACC** is a Windows desktop app for running sleep and dream studies.
 
 Full documentation is at <https://remrama.github.io/smacc>.
 
