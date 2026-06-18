@@ -1,7 +1,7 @@
 # Troubleshooting {#chap-troubleshooting}
 
-When something goes wrong, start here. Most fixes live on the relevant tool's page;
-this page collects the cross-cutting ones and points to the rest.
+When something goes wrong, start here. Most fixes live in the relevant tool's chapter;
+this chapter collects the cross-cutting ones and points to the rest.
 
 ## Common problems
 

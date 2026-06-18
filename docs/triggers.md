@@ -1,8 +1,8 @@
 # Markers & port codes {#chap-triggers}
 
-This page explains what EEG **triggers** and **port codes** are, the ways SMACC can
-send them, and how to configure each one. If you just want the steps, jump to
-[Configuring trigger output in SMACC](#configuring-trigger-output-in-smacc).
+This chapter explains what EEG **triggers** and **port codes** are, the ways SMACC
+can send them, and how to configure each one. For the configuration steps alone,
+see [Configuring trigger output in SMACC](#configuring-trigger-output-in-smacc).
 
 ## What are port codes and triggers?
 

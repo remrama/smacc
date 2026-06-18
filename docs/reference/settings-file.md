@@ -7,7 +7,7 @@ stays consistent across nights and researchers. It is plain YAML you can read an
 edit. The user-facing extension is `.smacc`, but the `kind` stays `smacc/settings`.
 
 See [SMACC files](../smacc-files.md#chap-smacc-files) for the task-level
-guide (creating, editing, sharing). This page is the field reference.
+guide (creating, editing, sharing). This chapter is the field reference.
 
 ## On-disk shape
 

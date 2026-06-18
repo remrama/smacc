@@ -2,7 +2,7 @@
 
 ::: {.callout-note title="For both human and AI contributors"}
 
-This page is the canonical development guide for SMACC. It is written for both
+This is the canonical development guide for SMACC. It is written for both
 human contributors and AI coding assistants — AI agents are pointed here from
 [`AGENTS.md`](https://github.com/remrama/smacc/blob/main/AGENTS.md), so the
 instructions live here once rather than being duplicated across files.
@@ -160,7 +160,7 @@ which checks the tag against `smacc.__version__`, builds the onedir
 wraps it in an Inno Setup installer (`tools/smacc.iss` → `SMACC-Setup.exe`),
 smoke-tests the app (`--version` and `--eeg --selftest`) and the installer, and
 attaches `SMACC-Setup.exe` to the GitHub Release. The installer's asset name is a
-stable contract — the docs' download button links
+stable contract — the docs' download link points at
 `releases/latest/download/SMACC-Setup.exe` — so don't rename it. The installer's
 `[Registry]` section must mirror `winassoc.association_entries()` exactly (so an
 installed build sees the association as already registered);
@@ -237,7 +237,7 @@ SMACC follows [semantic versioning](https://semver.org/).
 There are three kinds of build:
 
 - **Stable — `vX.Y.Z`** (no suffix): a full GitHub release, badged *Latest*. The
-  homepage download button, `/releases/latest`, and the in-app update check all
+  docs' download link, `/releases/latest`, and the in-app update check all
   resolve to it. `__version__` equals `X.Y.Z`.
 - **Pre-release — `vX.Y.Z-rc.N`** (also `-alpha.N`/`-beta.N`): a tagged candidate for
   the upcoming `X.Y.Z`. Any tag with a hyphen is marked *Pre-release* on GitHub, so

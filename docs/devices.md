@@ -1,6 +1,6 @@
 # Compatible devices {#chap-devices}
 
-SMACC can drive a small number of external devices for cueing. This page lists
+SMACC can drive a small number of external devices for cueing. This chapter lists
 the supported hardware and what each one needs. For how SMACC *assigns and routes*
 devices — equipment, the Devices window, and volume — see
 [Audio routing](audio.md#chap-audio); for using the light devices — patterns,

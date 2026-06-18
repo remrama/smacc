@@ -7,7 +7,7 @@ more than one physical device and two rooms. On Windows, the same speaker can al
 appear under several names, and the level that reaches the participant is the product
 of several controls spread across the OS.
 
-This page describes how SMACC handles devices and routing. For the output safety cap
+This chapter describes how SMACC handles devices and routing. For the output safety cap
 and stimulus timing, see [Volume & latency](latency.md#chap-latency).
 
 ## Equipment and actions
