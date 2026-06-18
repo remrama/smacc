@@ -84,3 +84,14 @@ format:
   typst:
     papersize: a4
     number-sections: true
+    # Bundled brand fonts (the .ttf under assets/fonts, found via a project-relative
+    # font-paths — never absolute, and never also TYPST_FONT_PATHS). mainfont/codefont
+    # match each font's internal family name. Headings (and the Condensed table cut)
+    # are set in typst-preamble.typ.
+    mainfont: "IBM Plex Sans"
+    codefont: "IBM Plex Mono"
+    font-paths: ["assets/fonts"]
+    fontsize: 10.5pt
+    linestretch: 1.4
+    margin: { x: 2.4cm, top: 2.6cm, bottom: 2.4cm }
+    include-in-header: typst-preamble.typ
