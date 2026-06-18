@@ -7,7 +7,7 @@ runs them as timed, marked events — every standard biocal plus the common
 lucid-dreaming signal practices (LRLR variants, fist clenches, sniffs), each on its
 own row.
 
-![](assets/screenshot-biocals.png){width=75% fig-alt="The Biocals window: the countdown and Play sequence button above the scrolling stack of biocal rows, each with Seq/Voice checkboxes and a duration."}
+![The Biocals window.](assets/screenshot-biocals.png){#fig-biocals width=75% fig-alt="The Biocals window: the countdown and Play sequence button above the scrolling stack of biocal rows, each with Seq/Voice checkboxes and a duration."}
 
 ## Running a biocal
 

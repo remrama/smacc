@@ -4,7 +4,7 @@ Audio is SMACC's primary cueing modality. The **Audio cue** window (in the
 **Panels** column) holds the cue board: one row per cue, each ready to fire with a
 single click.
 
-![](assets/screenshot-audio-cue.png){width=75% fig-alt="The Audio cue window: a cue row with its volume and loop controls, and the Monitoring section below."}
+![The Audio cue window.](assets/screenshot-audio-cue.png){#fig-audio-cue width=75% fig-alt="The Audio cue window: a cue row with its volume and loop controls, and the Monitoring section below."}
 
 ## The cue board
 
@@ -37,7 +37,7 @@ so you can reopen it tomorrow and nudge a level instead of rebuilding the cue. T
 designer is a standalone tool: it plays on the default device and ignores the
 session's device routing and volume safety cap.
 
-![](assets/screenshot-cue-designer.png){width=75% fig-alt="The Audio Cue Designer: tone and silence segments above a live waveform, with the Preview and Export WAV… buttons."}
+![The Audio Cue Designer.](assets/screenshot-cue-designer.png){#fig-cue-designer width=75% fig-alt="The Audio Cue Designer: tone and silence segments above a live waveform, with the Preview and Export WAV… buttons."}
 
 ## Background noise
 
