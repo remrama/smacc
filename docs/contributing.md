@@ -1,4 +1,4 @@
-# Contributing {#chap-contributing}
+# Developer guide {#chap-contributing}
 
 ::: {.callout-note title="For both human and AI contributors"}
 
@@ -24,7 +24,7 @@ first.
   dependencies. Never `pip install` or run naked `python`.
 - Use the marker vocabulary consistently in UI text, docs, and docstrings — *event*,
   *marker*, *port code*, *trigger*, *transport* each mean exactly one thing; see the
-  [terminology table](triggers.md#terminology).
+  [Glossary](glossary.md#chap-glossary).
 - Write the docs as **reference**, not marketing: lead with the fact, keep pages
   scannable (short paragraphs, tables, steps), and go easy on em-dashes and the
   "not X, but Y" construction. Page filenames are stable, so cross-link with

@@ -1,4 +1,4 @@
-# SMACC {#chap-index}
+# Preface {#chap-index .unnumbered}
 
 **Sleep Manipulation And Communication Clickything** (SMACC) is a Windows desktop
 app for running sleep and dream studies — presenting cues to a sleeping participant,
@@ -10,14 +10,6 @@ sleeper, and collect a dream report — all from a dark control room, late at ni
 whatever hardware the lab has. SMACC is the clickable control surface for that work:
 one window per job, glanceable in the dark, with a volume safety cap and explicit
 device routing so a misclick can't blast or mislead a sleeping participant.
-
-[Download SMACC](https://github.com/remrama/smacc/releases/latest/download/SMACC-Setup.exe){.btn .btn-primary role="button"}
-[Installation guide](installation.md#chap-installation){.btn .btn-secondary role="button"}
-
-The button downloads the installer (`SMACC-Setup.exe`) for the latest version, which
-installs per-user (no admin rights) and runs on 64-bit Windows 10 or later. See
-[Installation](installation.md#chap-installation), which also covers the Windows SmartScreen warning on
-the unsigned download and how to get older versions.
 
 ## What SMACC does
 
@@ -31,48 +23,43 @@ the unsigned download and how to get older versions.
 - Review and score recordings in the **EEG Annotator**
 - Save a detailed **event log** for every run
 
-## Get started
+## How this manual is organized
 
-**Getting started**
+This is the SMACC user manual, published two ways from a single source: a live
+website that tracks the current stable release, and a PDF attached to every release
+for offline and historical reference. Both have identical content.
 
-- [Installation](installation.md#chap-installation) — download and run SMACC.
-- [SMACC files](smacc-files.md#chap-smacc-files) — create and reuse a study's configuration (`.smacc`).
+The manual is a book in five parts:
 
-**Running a session**
+- **Getting started** installs SMACC and explains the `.smacc` study file that every
+  session is configured from.
+- **Running a session** is the core: the Launcher and Session window, then a chapter
+  per tool — audio cues, visual cues, biocals, dream reports and surveys, the
+  intercom, and EEG markers.
+- **Devices, volume & timing** covers binding equipment, routing it to the tools, and
+  the volume cap and stimulus latency that govern what the participant actually
+  receives.
+- **After the night** is the post-hoc side: the EEG Annotator, and troubleshooting.
+- **Reference** documents every file SMACC reads and writes, field by field.
 
-- [Overview](usage.md#chap-usage) — the Launcher, the Session window, and the tools.
-- [Audio cues](audio-cues.md#chap-audio-cues) · [Visual cues](visual.md#chap-visual) · [Biocals](biocals.md#chap-biocals) ·
-  [Dream reports & surveys](surveys.md#chap-surveys) · [Intercom & chat](intercom.md#chap-intercom) ·
-  [Markers & port codes](triggers.md#chap-triggers)
+The appendices hold a [glossary](glossary.md#chap-glossary), the
+[release notes](release-notes.md#chap-release-notes), the
+[developer guide](contributing.md#chap-contributing), and
+[credits](about.md#chap-about). A first-time user should read **Getting started** and
+**Running a session** in order; the rest is there to reach for as needed.
 
-**Devices, volume & timing**
+## Conventions
 
-- [Audio routing](audio.md#chap-audio) · [Compatible devices](devices.md#chap-devices) ·
-  [Volume & latency](latency.md#chap-latency)
+- **Bold** marks the parts of the interface you act on — window names, buttons, and
+  fields (the **Markers** window, **Apply**). Monospace marks filenames, paths, and
+  literal values (`.smacc`, `COM3`).
+- Notes, tips, and warnings appear as callouts. A **warning** flags something that can
+  wake a participant, lose data, or mislead an analysis — read those before relying on
+  a feature.
+- Screenshots are numbered figures, captioned beneath the image.
+- SMACC uses a precise vocabulary for event signaling: *event*, *marker*, *port
+  code*, *trigger*, and *transport*, each meaning exactly one thing. The
+  [Glossary](glossary.md#chap-glossary) defines these and the other recurring terms.
 
-**After the night**
-
-- [EEG Annotator](eeg-annotator.md#chap-eeg-annotator) — review and score recorded EEG.
-- [Troubleshooting](troubleshooting.md#chap-troubleshooting) · [Reference](reference/index.md#chap-reference-index) ·
-  [Contributing](contributing.md#chap-contributing)
-
-## Used by
-
-SMACC is used in dream engineering research, including by:
-
-- [Ken Paller's Cognitive Neuroscience Lab](https://sites.northwestern.edu/pallerlab/)
-  at Northwestern University
-  - Torres-Platas et al. (2026). Intentional lucid dreaming with a transformative learning agenda. *Research Square* doi:[10.21203/rs.3.rs-8745420/v1](https://doi.org/10.21203/rs.3.rs-8745420/v1)
-  - Konkoly et al. (2026). Using real-time reporting to investigate visual experiences in dreams. *J Cogn Neurosci* doi:[10.1162/jocn.a.107](https://doi.org/10.1162/JOCN.a.107)
-  - Morris et al. (2026). Inducing lucid dreaming based on a contemplative practice of compassion. *Brain Sci* doi:[10.3390/brainsci16030315](https://doi.org/10.3390/brainsci16030315)
-  - Konkoly et al. (2026). Creative problem-solving after experimentally provoking dreams of unsolved puzzles during REM sleep. *Neurosci Conscious* doi:[10.1093/nc/niaf067](https://doi.org/10.1093/nc/niaf067)
-  - Konkoly et al. (2025). Investigating dreams by strategically presenting sounds during REM sleep to reactivate waking experiences. *Neuropsychologia* doi:[10.1016/j.neuropsychologia.2025.109229](https://doi.org/10.1016/j.neuropsychologia.2025.109229)
-  - Morris et al. (2025). Lucid dreaming of a prior virtual-reality experience with ego-transcendent qualities: A proof-of-concept study. *Neurosci Conscious* doi:[10.1093/nc/niaf017](https://doi.org/10.1093/nc/niaf017)
-  - Mundt et al. (2024). Treating narcolepsy-related nightmares with cognitive behavioural therapy and targeted lucidity reactivation: A pilot study. *J Sleep Res* doi:[10.1111/jsr.14384](https://doi.org/10.1111/jsr.14384)
-  - Wolk et al. (2024). Lucid dreams from reactivating mindfulness during REM sleep: A pilot study. *Int J Dream Res* doi:[10.11588/ijodr.2024.2.98233](https://doi.org/10.11588/ijodr.2024.2.98233)
-- [Michelle Carr's Dream Engineering Lab](https://www.dreamengineeringlab.com/)
-  at the University of Montreal and the Center for Advanced Research in Sleep Medicine
-  - Jafarzadeh Esfahani et al. (2024). Highly effective verified lucid dream induction using combined cognitive-sensory training and wearable EEG: A multi-centre study. *bioRxiv* doi:[10.1101/2024.06.21.600133](https://doi.org/10.1101/2024.06.21.600133)
-
-SMACC is free software released under the
-[GPL-3.0-or-later](https://github.com/remrama/smacc/blob/main/LICENSE.txt) license.
+SMACC runs on 64-bit Windows 10 or later and installs per-user, with no administrator
+rights. To download and install it, see [Installation](installation.md#chap-installation).

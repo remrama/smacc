@@ -39,14 +39,15 @@ book:
         - surveys.md
         - intercom.md
         - triggers.md
-    - part: Devices & routing
+    - part: Devices, volume & timing
       chapters:
         - audio.md
         - devices.md
-    - latency.md
-    - eeg-annotator.md
-    - troubleshooting.md
-    - release-notes.md
+        - latency.md
+    - part: After the night
+      chapters:
+        - eeg-annotator.md
+        - troubleshooting.md
     - part: Reference
       chapters:
         - reference/index.md
@@ -55,14 +56,24 @@ book:
         - reference/session-log.md
         - reference/bids-export.md
         - reference/annotations-file.md
+  # Back matter. Appendices render after the numbered parts and are lettered
+  # (Appendix A, B, …): a reader-facing glossary and release notes, then the
+  # developer guide and credits.
+  appendices:
+    - glossary.md
+    - release-notes.md
     - contributing.md
+    - about.md
 
 format:
   html:
     theme:
       light: pulse
       dark: darkly
-    number-sections: false
+    # Number the chapters and sections so the HTML site and the PDF manual read as one
+    # numbered book (and figure numbers line up with their sections). Parts stay
+    # unnumbered; the preface and appendices are handled by Quarto's book template.
+    number-sections: true
   typst:
     papersize: a4
-    number-sections: false
+    number-sections: true

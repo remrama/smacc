@@ -9,14 +9,16 @@ compatibility shims. Pin one version for the duration of a study. See the
 
 :::
 
-<!-- Newest release first. Set the date when a version is tagged. -->
+<!-- Newest release first. Set the date when a version is tagged. Each version
+     heading carries {.unnumbered} so the numbered book does not prefix it with a
+     section number (e.g. 'B.1'); keep that on new entries (#248). -->
 
-## 0.1.1 — 2026-06-15
+## 0.1.1 — 2026-06-15 {.unnumbered}
 
 - Fixed the Analyzer vanishing on open — clicking **Analyzer** hid the
   launcher but never showed the Analyzer window.
 
-## 0.1.0 — 2026-06-15
+## 0.1.0 — 2026-06-15 {.unnumbered}
 
 The first published release of SMACC — a Windows control surface for running
 sleep and dream studies. It includes:
