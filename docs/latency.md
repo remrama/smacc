@@ -1,4 +1,4 @@
-# Volume & latency
+# Volume & latency {#chap-latency}
 
 The **Volume** window holds two things that shape every cue: how loud it can get
 (the output safety cap and the visible OS volume stages) and the output **latency**
@@ -126,7 +126,7 @@ Two things to take from this:
 ## The Low / High setting
 
 The Volume window has a **Latency** choice (High / Low), saved in the `.smacc`
-([`output_latency`](reference/settings-file.md)):
+([`output_latency`](reference/settings-file.md#chap-reference-settings-file)):
 
 - **High** (default) — PortAudio's robust buffer. Fewer underruns; the safe choice
   for an overnight looping cue, where a glitch in a sleeper's ear is worse than 20 ms.

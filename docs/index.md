@@ -1,4 +1,4 @@
-# SMACC
+# SMACC {#chap-index}
 
 **Sleep Manipulation And Communication Clickything** (SMACC) is a Windows desktop
 app for running sleep and dream studies — presenting cues to a sleeping participant,
@@ -12,11 +12,11 @@ one window per job, glanceable in the dark, with a volume safety cap and explici
 device routing so a misclick can't blast or mislead a sleeping participant.
 
 [Download SMACC](https://github.com/remrama/smacc/releases/latest/download/SMACC-Setup.exe){.btn .btn-primary role="button"}
-[Installation guide](installation.md){.btn .btn-secondary role="button"}
+[Installation guide](installation.md#chap-installation){.btn .btn-secondary role="button"}
 
 The button downloads the installer (`SMACC-Setup.exe`) for the latest version, which
 installs per-user (no admin rights) and runs on 64-bit Windows 10 or later. See
-[Installation](installation.md), which also covers the Windows SmartScreen warning on
+[Installation](installation.md#chap-installation), which also covers the Windows SmartScreen warning on
 the unsigned download and how to get older versions.
 
 ## What SMACC does
@@ -35,26 +35,26 @@ the unsigned download and how to get older versions.
 
 **Getting started**
 
-- [Installation](installation.md) — download and run SMACC.
-- [SMACC files](smacc-files.md) — create and reuse a study's configuration (`.smacc`).
+- [Installation](installation.md#chap-installation) — download and run SMACC.
+- [SMACC files](smacc-files.md#chap-smacc-files) — create and reuse a study's configuration (`.smacc`).
 
 **Running a session**
 
-- [Overview](usage.md) — the Launcher, the Session window, and the tools.
-- [Audio cues](audio-cues.md) · [Visual cues](visual.md) · [Biocals](biocals.md) ·
-  [Dream reports & surveys](surveys.md) · [Intercom & chat](intercom.md) ·
-  [Markers & port codes](triggers.md)
+- [Overview](usage.md#chap-usage) — the Launcher, the Session window, and the tools.
+- [Audio cues](audio-cues.md#chap-audio-cues) · [Visual cues](visual.md#chap-visual) · [Biocals](biocals.md#chap-biocals) ·
+  [Dream reports & surveys](surveys.md#chap-surveys) · [Intercom & chat](intercom.md#chap-intercom) ·
+  [Markers & port codes](triggers.md#chap-triggers)
 
 **Devices, volume & timing**
 
-- [Audio routing](audio.md) · [Compatible devices](devices.md) ·
-  [Volume & latency](latency.md)
+- [Audio routing](audio.md#chap-audio) · [Compatible devices](devices.md#chap-devices) ·
+  [Volume & latency](latency.md#chap-latency)
 
 **After the night**
 
-- [EEG Annotator](eeg-annotator.md) — review and score recorded EEG.
-- [Troubleshooting](troubleshooting.md) · [Reference](reference/index.md) ·
-  [Contributing](contributing.md)
+- [EEG Annotator](eeg-annotator.md#chap-eeg-annotator) — review and score recorded EEG.
+- [Troubleshooting](troubleshooting.md#chap-troubleshooting) · [Reference](reference/index.md#chap-reference-index) ·
+  [Contributing](contributing.md#chap-contributing)
 
 ## Used by
 

@@ -1,4 +1,4 @@
-# EEG Annotator
+# EEG Annotator {#chap-eeg-annotator}
 
 The **EEG Annotator** is SMACC's post-hoc viewer for recorded EEG: open a
 file, scroll through the night, apply display filters, and place named
@@ -140,7 +140,7 @@ sidecar exists it is the single source of truth (nothing is re-imported or
 duplicated).
 
 The sidecar format is documented in the
-[annotations file reference](reference/annotations-file.md).
+[annotations file reference](reference/annotations-file.md#chap-reference-annotations-file).
 
 ## Sleep staging
 
@@ -188,7 +188,7 @@ two scorers of one night produce two hypnograms to compare.
 
 ## Session log overlay
 
-Load the night's SMACC session [`.log`](reference/session-log.md) onto the
+Load the night's SMACC session [`.log`](reference/session-log.md#chap-reference-session-log) onto the
 timeline as a **read-only reference track** — every marker, cue, dream report,
 and survey shown where it happened, so you see what SMACC *did* alongside the
 EEG. Click **Load session log…** in the **Session log** panel. Ticks appear in a

@@ -1,11 +1,11 @@
-# Preferences file (`preferences.yaml`)
+# Preferences file (`preferences.yaml`) {#chap-reference-preferences-file}
 
 `preferences.yaml` holds **per-machine operator preferences** — where each window was
 last placed, the Launcher's recent-files list, the live log-preview options, and the
 EEG Annotator's per-machine state (recent labels, last-used folders, rater id,
 quick-mark palette). It is the machine layer, kept
-separate from a portable [SMACC file](settings-file.md) (which a researcher shares
-between rigs) and from a per-run [session log](session-log.md).
+separate from a portable [SMACC file](settings-file.md#chap-reference-settings-file) (which a researcher shares
+between rigs) and from a per-run [session log](session-log.md#chap-reference-session-log).
 
 It lives in the SMACC directory (`$SMACC_DIRECTORY`, else `~/SMACC/preferences.yaml`),
 is loaded at startup, and is written on quit. It must never break the app: a missing
@@ -57,7 +57,7 @@ is current.
 
 ### EEG Annotator keys
 
-The [EEG Annotator](../eeg-annotator.md) runs as its own process but writes its
+The [EEG Annotator](../eeg-annotator.md#chap-eeg-annotator) runs as its own process but writes its
 per-machine state into the same `preferences.yaml`:
 
 | Key                    | Type             | Meaning                                                      |

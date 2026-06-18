@@ -1,4 +1,4 @@
-# Biocals
+# Biocals {#chap-biocals}
 
 Sleep studies open with **biocalibrations**: scripted participant actions (eyes
 open, eyes closed, look left/right, and so on) whose known physiological signatures
@@ -45,7 +45,7 @@ bracketed by its own start/stop codes and otherwise fires the same per-biocal
 markers. The defaults are sequence start/stop **105**/**106**, cancelled **107**,
 completed **108**, and one start code per biocal in the **110–126** band. All are
 retunable in the **Markers** window like any built-in event (see
-[Markers & port codes](triggers.md)).
+[Markers & port codes](triggers.md#chap-triggers)).
 
 ## Voice recordings
 
@@ -59,4 +59,4 @@ start warns when that happens.
 
 The shared **Voice volume** rides the cue route, so the master output cap and the
 control-room monitor fan-out apply to instructions exactly as they do to cues (see
-[Volume & latency](latency.md) and [Audio routing](audio.md)).
+[Volume & latency](latency.md#chap-latency) and [Audio routing](audio.md#chap-audio)).

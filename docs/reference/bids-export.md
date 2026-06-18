@@ -1,6 +1,6 @@
-# BIDS export (`events.tsv` + sidecar)
+# BIDS export (`events.tsv` + sidecar) {#chap-reference-bids-export}
 
-SMACC can convert a session [log](session-log.md) into a
+SMACC can convert a session [log](session-log.md#chap-reference-session-log) into a
 [BIDS](https://bids.neuroimaging.io/) events file — a tab-separated `events.tsv` plus
 a JSON sidecar describing its columns. Export one from the **Analyzer** with its
 **Export events (BIDS)…** button. Only event-marker lines (`" - portcode N"`) become

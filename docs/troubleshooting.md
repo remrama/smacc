@@ -1,19 +1,19 @@
-# Troubleshooting
+# Troubleshooting {#chap-troubleshooting}
 
 When something goes wrong, start here. Most fixes live on the relevant tool's page;
 this page collects the cross-cutting ones and points to the rest.
 
 ## Common problems
 
-| Symptom                                                                     | Where to look                                                                                           |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Windows SmartScreen blocks the download or installer                        | [Installation](installation.md) — expected for the unsigned build; **More info → Run anyway**           |
-| "No output/input device found", or a bound device shows **(not connected)** | [Audio routing](audio.md#no-system-default) — rebind in the Devices window and **Refresh devices (F5)** |
-| A cue plays in the control room but maybe not the bedroom                   | [Audio cues](audio-cues.md#is-the-cue-reaching-the-bedroom) — read the *Sending* and *Bedroom* meters   |
-| The BlinkStick isn't listed, or a light won't fire or stays on              | [Visual cues](visual.md#troubleshooting)                                                                |
-| The Hue bridge stopped responding                                           | [Visual cues](visual.md#troubleshooting) — its IP probably changed                                      |
-| Triggers don't register on the amplifier                                    | [Markers & port codes](triggers.md) — check the COM port, baud rate, and pulsed-vs-set-and-hold mode    |
-| A cue is too loud or too quiet                                              | [Volume & latency](latency.md) — the per-cue volume, the safety cap, and the OS stages                  |
+| Symptom                                                                     | Where to look                                                                                                      |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Windows SmartScreen blocks the download or installer                        | [Installation](installation.md#chap-installation) — expected for the unsigned build; **More info → Run anyway**    |
+| "No output/input device found", or a bound device shows **(not connected)** | [Audio routing](audio.md#no-system-default) — rebind in the Devices window and **Refresh devices (F5)**            |
+| A cue plays in the control room but maybe not the bedroom                   | [Audio cues](audio-cues.md#is-the-cue-reaching-the-bedroom) — read the *Sending* and *Bedroom* meters              |
+| The BlinkStick isn't listed, or a light won't fire or stays on              | [Visual cues](visual.md#troubleshooting)                                                                           |
+| The Hue bridge stopped responding                                           | [Visual cues](visual.md#troubleshooting) — its IP probably changed                                                 |
+| Triggers don't register on the amplifier                                    | [Markers & port codes](triggers.md#chap-triggers) — check the COM port, baud rate, and pulsed-vs-set-and-hold mode |
+| A cue is too loud or too quiet                                              | [Volume & latency](latency.md#chap-latency) — the per-cue volume, the safety cap, and the OS stages                |
 
 ## If SMACC crashes
 
@@ -34,4 +34,4 @@ folder** button that takes you straight to it.
 
 Open an issue on the [SMACC issue tracker](https://github.com/remrama/smacc/issues)
 with what you did, what happened, and the relevant files: `crash.log` together with
-the affected run's folder, or a session [`.log`](reference/session-log.md).
+the affected run's folder, or a session [`.log`](reference/session-log.md#chap-reference-session-log).
