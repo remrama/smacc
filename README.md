@@ -28,8 +28,7 @@ Full documentation is at <https://remrama.github.io/smacc>.
 
 Download `SMACC-Setup.exe` from the latest release's _Assets_ on the
 [releases page](https://github.com/remrama/smacc/releases) and run it. It installs
-per-user (no administrator rights needed) on 64-bit Windows 10 or later. The
-[documentation](https://remrama.github.io/smacc) covers other install options.
+per-user (no administrator rights needed) on 64-bit Windows 10 or later.
 
 ## Used by
 
