@@ -15,6 +15,17 @@
 #let smacc-band = rgb("#eef0fb")
 #let smacc-zebra = rgb("#f4f5fc")
 
+// ===== Base fonts — orange-book's `book()` sets text SIZE but never a font FAMILY, and
+// takes no `font`/`mainfont` argument, so Quarto's `mainfont`/`codefont` (_quarto.yml) are
+// silently dropped: the body, the cover/title page, and code all fall back to Typst's
+// defaults (Libertinus Serif + DejaVu Mono). `include-in-header` runs before `book.with`,
+// so setting the base here makes it the document default that `book()` preserves (it only
+// overrides size). THIS is what puts IBM Plex on the body and cover — the `#show heading`
+// and `#show table` rules below only reach those elements. (HTML is unaffected; that path
+// honours mainfont/codefont directly.)
+#set text(font: "IBM Plex Sans")
+#show raw: set text(font: "IBM Plex Mono")
+
 // ===== Callouts — remap Quarto's per-type colours to the SMACC palette and reshape
 // to match the HTML site: rounded, a soft tint fill, a 4pt left accent bar, bold
 // title. Quarto passes the type's colour as `icon_color` — note is already indigo
