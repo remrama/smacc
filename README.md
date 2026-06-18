@@ -6,11 +6,11 @@
 [![Python](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-**SMACC** is a Windows desktop app for running sleep and dream studies — presenting
+**SMACC** is a Windows desktop app for running sleep and dream studies: presenting
 cues to a sleeping participant, communicating with them, marking events on the EEG,
 and collecting dream reports.
 
-Full documentation is at <https://remrama.github.io/smacc>. Start there.
+Full documentation is at <https://remrama.github.io/smacc>.
 
 ## What SMACC does
 
@@ -29,8 +29,7 @@ Full documentation is at <https://remrama.github.io/smacc>. Start there.
 Download `SMACC-Setup.exe` from the latest release's _Assets_ on the
 [releases page](https://github.com/remrama/smacc/releases) and run it. It installs
 per-user (no administrator rights needed) on 64-bit Windows 10 or later. The
-[documentation](https://remrama.github.io/smacc) covers older versions, machine-wide
-installs, and the Windows SmartScreen prompt.
+[documentation](https://remrama.github.io/smacc) covers other install options.
 
 ## Used by
 
@@ -38,14 +37,7 @@ SMACC is used for dream engineering research, including by
 [Ken Paller's Cognitive Neuroscience Lab](https://sites.northwestern.edu/pallerlab)
 at Northwestern University and
 [Michelle Carr's Dream Engineering Lab](https://www.dreamengineeringlab.com) at the
-University of Montreal. See the [documentation](https://remrama.github.io/smacc) for a
-list of publications.
-
-## Development
-
-This project uses [uv](https://docs.astral.sh/uv) for environment management. The
-[documentation](https://remrama.github.io/smacc) covers environment setup, running the
-app, tests, linting, building the executable, and building the docs locally.
+University of Montreal.
 
 SMACC is free software released under the
 [GPL-3.0-or-later](LICENSE.txt) license.
