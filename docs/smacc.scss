@@ -1,0 +1,140 @@
+/*-- scss:defaults --*/
+
+// SMACC manual — light theme (layered over Bootswatch "pulse"). The light scheme is
+// the daytime counterpart of the app; most screenshots are light captures, so it is
+// the default-on-load scheme. Colour is a role grammar: indigo = structure, amber =
+// the one "live" accent (used as sparingly as the app uses gold), never colour behind
+// data. The dark scheme lives in smacc-dark.scss; shared @font-face in smacc-fonts.scss.
+
+// ----- Type ----- (IBM Plex; tables use the Condensed cut — see the table rules)
+$font-family-sans-serif: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif !default;
+$headings-font-family: "IBM Plex Sans", #{$font-family-sans-serif} !default;
+$font-family-monospace: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace !default;
+$smacc-condensed: "IBM Plex Sans Condensed", #{$font-family-sans-serif};
+$font-size-root: 17px !default;
+$line-height-base: 1.6 !default;
+$headings-font-weight: 600 !default;
+$headings-line-height: 1.25 !default;
+
+// Tables run dense and wide, so tighten the cell padding (the Condensed face + a
+// smaller size are applied in the table rules below) to claw back width.
+$table-cell-padding-x: 0.5rem !default;
+$table-cell-padding-y: 0.3rem !default;
+
+// ----- Palette (light) -----
+$smacc-indigo: #3c48aa;
+$smacc-indigo-strong: #2c3690;
+$smacc-amber: #e0b400; // decorative bar / glyph only — fails AA as text on white
+$smacc-amber-ink: #8a6400; // AA-safe amber for warning title text
+$smacc-tip: #b58a00;
+$smacc-ink: #1c1e2e;
+$smacc-muted: #5a5e78;
+$smacc-paper: #fbfbfe;
+$smacc-sunken: #f4f5fc;
+$smacc-hairline: #e3e4ef;
+$smacc-frame: #d8d8de;
+$smacc-header-band: #eef0fb;
+
+$primary: $smacc-indigo !default;
+$body-bg: $smacc-paper !default;
+$body-color: $smacc-ink !default;
+$link-color: $smacc-indigo !default;
+$link-hover-color: $smacc-indigo-strong !default;
+$border-color: $smacc-hairline !default;
+$code-color: $smacc-indigo-strong !default;
+$toc-font-size: 0.85rem !default;
+
+// Quarto callout accent colours (the left bar / icon tint per type)
+$callout-color-note: $smacc-indigo !default;
+$callout-color-tip: $smacc-tip !default;
+$callout-color-warning: $smacc-amber !default;
+
+/*-- scss:rules --*/
+
+// ===== Screenshots — window client-area captures, framed so they read as windows.
+// Per-figure {width=…} is untouched; this only adds the frame + a soft shadow.
+.quarto-figure img,
+.figure-img {
+  border: 1px solid $smacc-frame;
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(20, 22, 42, 0.16);
+}
+figcaption {
+  font-size: 0.85rem;
+  color: $smacc-muted;
+}
+
+// ===== Tables — a patch sheet: indigo header band, hairline rows, faint zebra. The
+// Condensed cut + a smaller size narrow the dense, wide reference tables.
+.table {
+  border-color: $smacc-hairline;
+  font-family: $smacc-condensed;
+  font-size: 0.9rem;
+  > thead th {
+    font-family: $smacc-condensed;
+    font-weight: 600;
+    color: $smacc-indigo;
+    background: $smacc-header-band;
+    border-top: 1.5px solid $smacc-indigo;
+    border-bottom: 1.5px solid $smacc-indigo;
+  }
+  > tbody > tr > td {
+    border-color: $smacc-hairline;
+  }
+  > tbody > tr:nth-child(even) > td {
+    background: $smacc-sunken;
+  }
+}
+
+// ===== Callouts — rounded, soft, brand-coloured. The Sass vars above set the bar
+// colour per type; warning is the focal "can wake a participant" type.
+.callout.callout-style-default {
+  border-radius: 12px;
+  border-left-width: 4px;
+}
+.callout .callout-title-container {
+  font-family: $headings-font-family;
+  font-weight: 600;
+}
+.callout-warning .callout-title-container {
+  color: $smacc-amber-ink;
+}
+
+// ===== Console-rail sidebar — the chapter nav as the app's stacked "Panels" column.
+#quarto-sidebar {
+  // Part headers as indigo small-caps rail sections.
+  .sidebar-item-section > .sidebar-item-container > .sidebar-link {
+    font-family: $headings-font-family;
+    font-variant: small-caps;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    color: $smacc-indigo;
+  }
+  // Active chapter: lit with an indigo spine + an amber "live" tick at the edge.
+  .sidebar-item-container:has(> .sidebar-link.active) {
+    border-left: 3px solid $smacc-indigo;
+    margin-left: -0.75rem;
+    padding-left: calc(0.75rem - 3px);
+  }
+  .sidebar-link.active {
+    color: $smacc-indigo;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    &::after {
+      content: "";
+      width: 6px;
+      height: 6px;
+      margin-left: auto;
+      border-radius: 50%;
+      background: $smacc-amber;
+      flex: 0 0 auto;
+    }
+  }
+}
+
+// ===== Search — an indigo focus ring instead of the theme default.
+#quarto-search input:focus,
+.aa-Input:focus {
+  box-shadow: 0 0 0 3px rgba(60, 72, 170, 0.25);
+}

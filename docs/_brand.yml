@@ -1,0 +1,15 @@
+# Cross-output brand layer for the SMACC manual.
+#
+# Quarto feeds these into BOTH renderers: the HTML theme picks up `primary`, and the
+# Typst book template (orange-book) maps `primary` to its `main-color` and `logo` to
+# the cover image — so the PDF cover, part panels, and links go indigo with no Typst
+# code (the rest of the PDF look is layered in later). Fonts are wired per-engine
+# instead of here, because HTML needs the bundled .woff2 and Typst needs the .ttf.
+color:
+  palette:
+    indigo: "#3c48aa" # the icon background — the brand color
+    amber: "#e0b400" # the single "live" accent, as the app uses gold
+  primary: indigo
+
+logo:
+  medium: assets/icon.png

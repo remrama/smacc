@@ -1,0 +1,131 @@
+/*-- scss:defaults --*/
+
+// SMACC manual — dark theme (layered over Bootswatch "darkly"). The canonical
+// "lights barely up" identity: an indigo-tinted charcoal ground kin to the app's
+// night mode, not neutral grey. Same role grammar as the light theme; indigo is
+// lightened so links/structure clear AA on the dark ground, and the screenshot frame
+// is mandatory (it is the only thing separating the dark captures from the page).
+// Shared @font-face lives in smacc-fonts.scss; type vars mirror the light theme.
+
+$font-family-sans-serif: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif !default;
+$headings-font-family: "IBM Plex Sans", #{$font-family-sans-serif} !default;
+$font-family-monospace: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace !default;
+$smacc-condensed: "IBM Plex Sans Condensed", #{$font-family-sans-serif};
+$font-size-root: 17px !default;
+$line-height-base: 1.6 !default;
+$headings-font-weight: 600 !default;
+$headings-line-height: 1.25 !default;
+$table-cell-padding-x: 0.5rem !default;
+$table-cell-padding-y: 0.3rem !default;
+
+// ----- Palette (dark) -----
+$smacc-indigo: #8e9aee; // lightened brand indigo — ~7:1 on the dark ground
+$smacc-indigo-strong: #aab4f5;
+$smacc-amber: #e8c24a; // softened gold — clears AA on dark, usable as text here
+$smacc-ink: #e4e6f0;
+$smacc-muted: #9aa0c0;
+$smacc-ground: #16182b;
+$smacc-surface: #1f2238;
+$smacc-sunken: #252846;
+$smacc-hairline: #2e3252;
+$smacc-frame: #33375a;
+
+$primary: $smacc-indigo !default;
+$body-bg: $smacc-ground !default;
+$body-color: $smacc-ink !default;
+$link-color: $smacc-indigo !default;
+$link-hover-color: $smacc-indigo-strong !default;
+$border-color: $smacc-hairline !default;
+$code-color: $smacc-indigo !default;
+$toc-font-size: 0.85rem !default;
+
+$callout-color-note: $smacc-indigo !default;
+$callout-color-tip: $smacc-amber !default;
+$callout-color-warning: $smacc-amber !default;
+
+/*-- scss:rules --*/
+
+// ===== Screenshots — frame is load-bearing here: the only boundary between the dark
+// captures and the dark ground. Shadow deepened for the darker background.
+.quarto-figure img,
+.figure-img {
+  border: 1px solid $smacc-frame;
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+figcaption {
+  font-size: 0.85rem;
+  color: $smacc-muted;
+}
+
+// ===== Tables — dark patch sheet (Condensed cut + smaller size for the wide ones).
+.table {
+  border-color: $smacc-hairline;
+  --bs-table-bg: transparent;
+  font-family: $smacc-condensed;
+  font-size: 0.9rem;
+  > thead th {
+    font-family: $smacc-condensed;
+    font-weight: 600;
+    color: $smacc-indigo;
+    background: $smacc-sunken;
+    border-top: 1.5px solid $smacc-indigo;
+    border-bottom: 1.5px solid $smacc-indigo;
+  }
+  > tbody > tr > td {
+    border-color: $smacc-hairline;
+  }
+  > tbody > tr:nth-child(even) > td {
+    background: $smacc-surface;
+  }
+}
+
+// ===== Callouts.
+.callout.callout-style-default {
+  border-radius: 12px;
+  border-left-width: 4px;
+}
+.callout .callout-title-container {
+  font-family: $headings-font-family;
+  font-weight: 600;
+}
+.callout-warning .callout-title-container {
+  color: $smacc-amber;
+}
+
+// ===== Console-rail sidebar.
+#quarto-sidebar {
+  .sidebar-item-section > .sidebar-item-container > .sidebar-link {
+    font-family: $headings-font-family;
+    font-variant: small-caps;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    color: $smacc-indigo;
+  }
+  .sidebar-item-container:has(> .sidebar-link.active) {
+    border-left: 3px solid $smacc-indigo;
+    margin-left: -0.75rem;
+    padding-left: calc(0.75rem - 3px);
+  }
+  .sidebar-link.active {
+    color: $smacc-indigo;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    &::after {
+      content: "";
+      width: 6px;
+      height: 6px;
+      margin-left: auto;
+      border-radius: 50%;
+      background: $smacc-amber;
+      flex: 0 0 auto;
+    }
+  }
+}
+
+// ===== Search.
+#quarto-search input:focus,
+.aa-Input:focus {
+  box-shadow: 0 0 0 3px rgba(142, 154, 238, 0.3);
+}
