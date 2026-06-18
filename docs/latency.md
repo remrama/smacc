@@ -2,7 +2,7 @@
 
 The **Volume** window holds two things that shape every cue: how loud it can get
 (the output safety cap and the visible OS volume stages) and the output **latency**
-setting. This page covers both.
+setting. This chapter covers both.
 
 ## Volume
 

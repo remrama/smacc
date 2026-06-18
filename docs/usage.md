@@ -2,7 +2,7 @@
 
 SMACC opens to its **Launcher** — a list of the SMACC tools. Click a tool and SMACC
 asks for the **SMACC file** to use, then opens it. To run a night you open a live
-**Session**. This page orients you; each tool then has its own page.
+**Session**. This chapter orients you; each tool then has its own chapter.
 
 The Launcher's tools (its title bar reads **SMACC**):
 
@@ -73,7 +73,7 @@ the same window, dimmed for a dark control room:
 
 ## The tools
 
-Each tool has its own page:
+Each tool has its own chapter:
 
 - [Audio cues](audio-cues.md#chap-audio-cues) — the cue board, the Audio Cue Designer, background
   noise, and confirming a cue reaches the bedroom.

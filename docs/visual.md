@@ -7,7 +7,7 @@ signal. And light is silent, so it layers over masking noise or an auditory prot
 without touching the soundscape. SMACC drives light cues on a USB **BlinkStick** or on **Philips Hue**
 bulbs, from one window, with the same marker discipline as audio.
 
-This page covers the Visual cue board, the patterns, what the markers mean,
+This chapter covers the Visual cue board, the patterns, what the markers mean,
 choosing between the two devices, and the safety notes that come with flashing
 light at sleeping people. For plugging the devices in and binding them, see
 [Devices](devices.md#chap-devices).
