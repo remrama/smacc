@@ -36,7 +36,18 @@ jobs:
       # catches cross-chapter links that go dead in the PDF (#262).
       - name: Render and check docs
         run: |
-          quarto render docs
+          # Fail the build if Typst can't resolve a font: that is only a *warning*, so
+          # the PDF would otherwise ship in a fallback face and no other check would
+          # notice (the reference tables lost their condensed cut this way, #268).
+          # set -o pipefail so a hard `quarto render` failure isn't masked by the tee —
+          # the default GitHub Actions shell is `bash -e` (errexit only, NO pipefail).
+          # The grep tracks Typst's current warning wording; revisit if Quarto is bumped.
+          set -o pipefail
+          quarto render docs 2>&1 | tee render.log
+          if grep -qi 'unknown font family' render.log; then
+            echo "::error::Typst could not resolve a font; the PDF fell back to a default face. Check docs/typst-preamble.typ and docs/assets/fonts."
+            exit 1
+          fi
           uv run --extra docs python scripts/check_manual.py docs/_book/SMACC-manual.pdf
           uv run python scripts/check_links.py docs/_book
           uv run --extra docs python scripts/check_pdf_links.py docs/_book/SMACC-manual.pdf

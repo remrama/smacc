@@ -81,7 +81,16 @@
   stroke: none,
   fill: (x, y) => if y == 0 { smacc-band } else if calc.even(y) { smacc-zebra },
 )
-#show table: set text(font: "IBM Plex Sans Condensed", size: 9pt)
+// The condensed cut is selected via the `stretch` axis, NOT by family name: Typst
+// groups the condensed faces under the "IBM Plex Sans" family and exposes their width
+// on the stretch axis (usWidthClass 3 = stretch 75%), so there is no "IBM Plex Sans
+// Condensed" family to name. With the old `font: "IBM Plex Sans Condensed"`, that
+// unknown family made Typst fall back to its default serif (Libertinus) — the silent
+// breakage that shipped the reference tables in the wrong face (#268). `stretch: 75%`
+// resolves the bundled condensed .ttf; the y:0 header rule below inherits it, so the
+// header is condensed-SemiBold-indigo. (HTML differs — CSS @font-face matches by name,
+// so smacc-fonts.scss keeps the literal "IBM Plex Sans Condensed".)
+#show table: set text(font: "IBM Plex Sans", stretch: 75%, size: 9pt)
 #show table.cell.where(y: 0): set text(fill: smacc-indigo, weight: 600)
 
 // ===== Headings — the display face, indigo to match the site. orange-book sets

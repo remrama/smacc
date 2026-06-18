@@ -252,7 +252,17 @@ jobs:
       - uses: quarto-dev/quarto-actions/setup@v2
       - name: Build the PDF manual
         run: |
-          quarto render docs --to typst
+          # This job renders the same docs and is what attaches the PDF to a release, so
+          # it carries its own copy of docs.yml's font-fallback guard — docs.yml gates
+          # the PR, not this run, and a font that Typst can't resolve is only a warning
+          # (the silent break in #268). set -o pipefail so a render failure isn't masked
+          # by the tee (the default GitHub Actions shell is `bash -e`, no pipefail).
+          set -o pipefail
+          quarto render docs --to typst 2>&1 | tee render.log
+          if grep -qi 'unknown font family' render.log; then
+            echo "::error::Typst could not resolve a font; the PDF fell back to a default face. Check docs/typst-preamble.typ and docs/assets/fonts."
+            exit 1
+          fi
           uv run --extra docs python scripts/check_manual.py docs/_book/SMACC-manual.pdf
       # Attach the manual to the release this run publishes: the tag's release on a
       # tag, or the rolling `dev` pre-release on a main push. `gh release upload` only
