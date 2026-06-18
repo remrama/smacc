@@ -19,36 +19,20 @@ sleep and lucid-dreaming experiments.
   [blinkstick.com](https://www.blinkstick.com/). SMACC drives them through the
   [`blinkstick`](https://pypi.org/project/BlinkStick/) Python library, so any
   model that library supports (BlinkStick Square, Strip, Nano, Flex, …) will work.
-- **Nothing else to install.** The BlinkStick driver is bundled inside
-  `SMACC.exe`, so you only need to plug the device into a USB port before
-  launching SMACC.
+- **Nothing else to install.** The BlinkStick driver is bundled inside `SMACC.exe`.
 
 ### Using it in SMACC
 
-1. Plug the BlinkStick into a USB port, then launch SMACC.
-1. Click **Visual cue** in the **Panels** column.
-1. Bind your BlinkStick to the **BlinkStick light** equipment in the **Devices** window
-   (in the **Panels** column). Plug one in after launch and it's detected
-   automatically, or click **Refresh devices (F5)** in the Devices window to rescan.
-1. Configure a light cue — color, brightness, pattern (steady, or a pulse/flash at
-   a rate in Hz), and length (or **Loop** until stopped) — and add more cues with
-   **+ Add cue** if the protocol needs several. See [Visual cues](visual.md#chap-visual) for
-   what each pattern is for.
-1. Click a cue's **Play** to fire it; **Stop** turns the light off early. The rest
-   of SMACC stays responsive while the light is on.
+Plug the BlinkStick into a USB port — it's detected automatically (otherwise click
+**Refresh devices (F5)** in the **Devices** window) — and bind it to the **BlinkStick
+light** equipment. Configure and fire light cues from the **Visual cue** window; see
+[Visual cues](visual.md#chap-visual) for the patterns and
+[Audio routing](audio.md#chap-audio) for the equipment-binding model.
 
 Your chosen device and the whole cue board are saved in the
-[SMACC file](smacc-files.md#chap-smacc-files), so the visual-cue
-setup travels with the rest of your configuration; the device is reconnected by
-serial on the next launch (and flagged if it isn't plugged in).
-
-::: {.callout-note}
-
-If the visual cue window reports that no light is set, open the **Devices**
-window and bind one to **BlinkStick light** (plug it in first; click
-**Refresh devices (F5)** there if it isn't listed). No restart needed.
-
-:::
+[SMACC file](smacc-files.md#chap-smacc-files), so the visual-cue setup travels with
+the rest of your configuration; the device is reconnected by serial on the next
+launch (and flagged if it isn't plugged in).
 
 ## Philips Hue
 
