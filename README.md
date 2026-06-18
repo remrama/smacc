@@ -38,6 +38,3 @@ SMACC is used for dream engineering research, including by
 at Northwestern University and
 [Michelle Carr's Dream Engineering Lab](https://www.dreamengineeringlab.com) at the
 University of Montreal.
-
-SMACC is free software released under the
-[GPL-3.0-or-later](LICENSE.txt) license.
