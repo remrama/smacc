@@ -72,18 +72,20 @@
   it
 }
 
-// ===== Tables — a patch sheet: indigo header band with bold Space Grotesk header
-// text, faint zebra body, generous insets so long cells wrap. Quarto already emits
+// ===== Tables — a patch sheet: indigo header band, faint zebra body. Set in the
+// Condensed cut at a smaller size with tight insets so the wide reference tables fit;
+// the header keeps the indigo + SemiBold treatment. Quarto already emits
 // table.header(), which repeats the header across page breaks.
 #set table(
-  inset: (x: 8pt, y: 6pt),
+  inset: (x: 5pt, y: 4pt),
   stroke: none,
   fill: (x, y) => if y == 0 { smacc-band } else if calc.even(y) { smacc-zebra },
 )
-#show table.cell.where(y: 0): set text(font: "Space Grotesk", fill: smacc-indigo, weight: 600)
+#show table: set text(font: "IBM Plex Sans Condensed", size: 9pt)
+#show table.cell.where(y: 0): set text(fill: smacc-indigo, weight: 600)
 
-// ===== Headings — the display face, matching the site. orange-book sets heading
-// SIZE but not family, and this rule survives its show rule, so headings pick up
-// Space Grotesk at SemiBold (the bundled weight) while orange-book keeps its layout,
-// indigo accents, and numbering. (The cover and TOC are orange-book's own and stay.)
-#show heading: set text(font: "Space Grotesk", weight: 600)
+// ===== Headings — the display face, indigo to match the site. orange-book sets
+// heading SIZE but not family/colour, and this rule survives its show rule, so
+// headings pick up IBM Plex Sans SemiBold in brand indigo while orange-book keeps its
+// layout, numbering, and part/chapter chrome. (The cover and TOC are orange-book's.)
+#show heading: set text(font: "IBM Plex Sans", weight: 600, fill: smacc-indigo)
