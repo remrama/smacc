@@ -264,10 +264,12 @@ jobs:
             release="v$version-dev+${GITHUB_SHA:0:7}"
           fi
           # This job renders the same docs and is what attaches the PDF to a release, so
-          # it carries its own copy of docs.yml's font-fallback guard — docs.yml gates
-          # the PR, not this run, and a font that Typst can't resolve is only a warning
-          # (the silent break in #268). set -o pipefail so a render failure isn't masked
-          # by the tee (the default GitHub Actions shell is `bash -e`, no pipefail).
+          # it carries its own copy of docs.yml's font guards — docs.yml gates the PR, not
+          # this run. The grep catches a font Typst can't resolve (only a warning — the
+          # silent break in #268); check_pdf_fonts catches text that resolves but renders
+          # off IBM Plex (the orange-book mainfont gap, #283). set -o pipefail so a render
+          # failure isn't masked by the tee (the default GitHub Actions shell is `bash -e`,
+          # no pipefail).
           set -o pipefail
           quarto render docs --to typst -M subtitle="User manual · $release" 2>&1 | tee render.log
           if grep -qi 'unknown font family' render.log; then
@@ -275,6 +277,7 @@ jobs:
             exit 1
           fi
           uv run --extra docs python scripts/check_manual.py docs/_book/SMACC-manual.pdf
+          uv run --extra docs python scripts/check_pdf_fonts.py docs/_book/SMACC-manual.pdf
       # Attach the manual to the release this run publishes: the tag's release on a
       # tag, or the rolling `dev` pre-release on a main push. `gh release upload` only
       # adds/replaces the asset and never touches release metadata — build-exe owns
