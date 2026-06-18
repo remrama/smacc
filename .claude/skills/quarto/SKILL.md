@@ -1,6 +1,6 @@
 ---
 name: quarto
-description: Reference for SMACC's documentation toolchain — the Quarto Book that renders both the HTML site and the single-file PDF manual from docs/, the Markdown conventions (callouts, screenshot sizing, download buttons), the Typst PDF engine, the GitHub Pages deploy, and the link/completeness checks. Use when touching docs/, docs/_quarto.yml, the docs or release CI workflows, scripts/check_links.py / scripts/check_manual.py, or anything about building/publishing the docs or the PDF manual.
+description: Reference for SMACC's documentation toolchain — the Quarto Book that renders both the HTML site and the single-file PDF manual from docs/, the Markdown conventions (callouts, screenshot sizing, download buttons), the Typst PDF engine, the GitHub Pages deploy, and the link/completeness checks. Use when touching docs/, docs/_quarto.yml, the docs or release CI workflows, scripts/check_links.py / scripts/check_manual.py / scripts/check_pdf_links.py, or anything about building/publishing the docs or the PDF manual.
 ---
 
 # SMACC docs: the Quarto toolchain
@@ -18,8 +18,9 @@ quarto preview docs    # live-reload HTML while writing
 quarto render docs     # build HTML site + PDF into docs/_book/
 quarto render docs --to typst   # PDF only (the release build-pdf job)
 
-uv run python scripts/check_links.py docs/_book                                 # internal links + anchors
-uv run --extra docs python scripts/check_manual.py docs/_book/SMACC-manual.pdf  # PDF completeness
+uv run python scripts/check_links.py docs/_book                                   # HTML links + anchors
+uv run --extra docs python scripts/check_manual.py docs/_book/SMACC-manual.pdf    # PDF completeness
+uv run --extra docs python scripts/check_pdf_links.py docs/_book/SMACC-manual.pdf # PDF cross-chapter links
 ```
 
 The project root is `docs/` (so Quarto only scans the docs tree, never README.md /
@@ -81,6 +82,13 @@ are gitignored.
   it parses the rendered `_book` HTML and fails on any dead internal link or `#anchor`
   (the main migration footgun). **`scripts/check_manual.py`** (renderer-agnostic,
   carried over unchanged) fails if the PDF is short or missing late-section content.
+  **`scripts/check_pdf_links.py`** (#262) reads the PDF's link annotations and fails
+  on any cross-chapter link emitted as a dead `/URI` ending in `.md` — the HTML check
+  can't see this. **Cross-chapter links must carry an explicit `#anchor`:** Quarto +
+  Typst turn an anchorless `[…](other.md)` into a dead external `/URI` in the combined
+  PDF. Each chapter title has a `{#chap-…}` id (globally unique — a plain title slug
+  like `troubleshooting` collides with same-named sections in the single-file PDF), so
+  a whole-chapter link is `[…](other.md#chap-other)`.
 
 ## Formatting
 

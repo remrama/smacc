@@ -29,15 +29,17 @@ jobs:
       - uses: quarto-dev/quarto-actions/setup@v2
 
       # Render the HTML site and the single-file PDF manual from docs/, on every PR
-      # and push, so docs breakage is caught early. Two guards replace
+      # and push, so docs breakage is caught early. Three guards replace
       # `mkdocs build --strict`: check_manual catches a renderer silently truncating
       # the PDF (#250); check_links validates every internal cross-link and heading
-      # anchor (the main migration footgun, #259).
+      # anchor in the HTML site (the main migration footgun, #259); check_pdf_links
+      # catches cross-chapter links that go dead in the PDF (#262).
       - name: Render and check docs
         run: |
           quarto render docs
           uv run --extra docs python scripts/check_manual.py docs/_book/SMACC-manual.pdf
           uv run python scripts/check_links.py docs/_book
+          uv run --extra docs python scripts/check_pdf_links.py docs/_book/SMACC-manual.pdf
 
       # Only a stable release (a `vX.Y.Z` tag with no pre-release suffix) publishes the
       # live site, so it always reflects the current stable version — never a dev or

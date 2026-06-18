@@ -1,4 +1,4 @@
-# Contributing
+# Contributing {#chap-contributing}
 
 ::: {.callout-note title="For both human and AI contributors"}
 
@@ -186,7 +186,10 @@ and each screenshot is a numbered figure — a short visible caption, a `#fig-�
 (so it can be cross-referenced with `@fig-…`), a `width=` attribute, and its full
 description in `fig-alt` for screen readers.
 Heading slugs use `gfm_auto_identifiers` so the cross-page `#anchor` links resolve
-the same way GitHub renders them.
+the same way GitHub renders them. Always give a cross-chapter link an explicit
+`#anchor` — an anchorless `[…](other.md)` link goes dead in the combined PDF (#262).
+Each chapter's title carries a `{#chap-…}` id for exactly this, so a link to a whole
+chapter is `[…](other.md#chap-other)`.
 
 The [docs workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/docs.yml)
 renders and checks the docs on every pull request and push, and publishes the live
@@ -197,18 +200,21 @@ the [release workflow](https://github.com/remrama/smacc/blob/main/.github/workfl
 and the live site serves the current stable manual via the sidebar **Download PDF**
 button.
 
-Two checks run in CI after the render — run them locally before a docs PR. Together
+Three checks run in CI after the render — run them locally before a docs PR. Together
 they replace what `mkdocs build --strict` used to cover:
 
 ```sh
-uv run python scripts/check_links.py docs/_book                                 # internal links + heading anchors
-uv run --extra docs python scripts/check_manual.py docs/_book/SMACC-manual.pdf  # PDF completeness
+uv run python scripts/check_links.py docs/_book                                   # HTML links + heading anchors
+uv run --extra docs python scripts/check_manual.py docs/_book/SMACC-manual.pdf    # PDF completeness
+uv run --extra docs python scripts/check_pdf_links.py docs/_book/SMACC-manual.pdf # PDF cross-chapter links
 ```
 
-`check_links.py` fails on any dead cross-page link or `#anchor` (heading slugs
-differ between renderers — the main migration footgun). `check_manual.py` fails if
-the manual is short or missing content from its later sections, guarding against a
-renderer silently dropping pages (the bug behind #250).
+`check_links.py` fails on any dead cross-page link or `#anchor` in the HTML site
+(heading slugs differ between renderers — the main migration footgun).
+`check_manual.py` fails if the manual is short or missing content from its later
+sections, guarding against a renderer silently dropping pages (the bug behind #250).
+`check_pdf_links.py` fails on any cross-chapter link left dead in the PDF — the
+anchorless-link bug behind #262.
 
 ## Versioning
 
@@ -220,7 +226,7 @@ SMACC follows [semantic versioning](https://semver.org/).
 - **Versions are `0.x.y` until 1.0.0.** A new `0.x.0` collects features and `0.x.y`
   is a smaller follow-up; no pre-1.0 bump is a stability promise.
 - **`0.1.0` is the first published release** — the first with installers attached, a
-  [release-notes](release-notes.md) entry, and a working in-app update check.
+  [release-notes](release-notes.md#chap-release-notes) entry, and a working in-app update check.
   Earlier `0.0.x` tags predate it and are not in the release notes.
 - **1.0.0 is the first stable release.** From then on semantic versioning is binding
   (backward-compatible changes bump the minor/patch, breaking changes bump the
