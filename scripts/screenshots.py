@@ -42,6 +42,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from smacc import devices, winvolume
 from smacc.cuedesigner import CueDesignerWindow
+from smacc.fonts import UI_FAMILY, apply_app_font
 from smacc.gui import SmaccWindow
 from smacc.launcher import LauncherWindow
 from smacc.panels import devices as devices_panel
@@ -123,13 +124,16 @@ def _silence_dialogs() -> None:
 
 
 def _load_ui_font(app: QtWidgets.QApplication) -> None:
-    """Render text instead of tofu boxes under the offscreen platform.
+    """Use SMACC's bundled B612 font, so the shots match the shipped app (#279).
 
-    Qt's ``offscreen`` plugin ships no font database, so on Windows every label
-    falls back to a glyph-less font and renders as □. Loading a real system UI
-    font as the application font fixes every widget at once. (Only needed when
-    headless; the native platform already has fonts.)
+    Registering the bundled family also cures the offscreen plugin's tofu: that
+    plugin ships no font database, so without a registered font every label
+    renders as □. Only if B612 somehow fails to register does this fall back to a
+    system UI font, purely to keep headless shots legible.
     """
+    apply_app_font(app)
+    if UI_FAMILY in app.font().families():
+        return
     for path in (r"C:\Windows\Fonts\segoeui.ttf", r"C:\Windows\Fonts\arial.ttf"):
         font_id = QtGui.QFontDatabase.addApplicationFont(path)
         if font_id == -1:

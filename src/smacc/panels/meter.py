@@ -18,6 +18,7 @@ import sounddevice as sd
 from PyQt6 import QtCore, QtWidgets
 
 from .. import audio
+from ..fonts import mono_font
 
 
 class LevelMeter(QtWidgets.QProgressBar):
@@ -35,6 +36,8 @@ class LevelMeter(QtWidgets.QProgressBar):
         self.setValue(0)
         self.setTextVisible(True)
         self.setFormat("")
+        # B612 Mono (#279) so the dBFS digits don't jitter as the level updates.
+        self.setFont(mono_font())
 
     def show_level(self, db: float) -> None:
         """Render ``db`` dBFS onto the bar (value + text)."""

@@ -24,6 +24,7 @@ import traceback
 from PyQt6.QtWidgets import QApplication
 
 from ..config import display_version, set_taskbar_app_id
+from ..fonts import apply_app_font
 
 # Imported eagerly, on purpose: --version must prove the whole MNE/pyqtgraph
 # import tree resolves in the frozen bundle (that is the point of the smoke
@@ -245,6 +246,8 @@ def main() -> None:
     set_taskbar_app_id()  # share SMACC's taskbar identity (one app, not two)
     app = QApplication(sys.argv)
     app.setApplicationName("SMACC EEG Annotator")
+    # Same bundled B612 base font as the session app (#279): one app, one typeface.
+    apply_app_font(app)
     window = EegAnnotatorWindow(
         pick_recording_path(sys.argv),
         rater_id=pick_rater_id(sys.argv),

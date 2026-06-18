@@ -114,6 +114,7 @@ uv run pyinstaller entry.py --name SMACC --onedir --noconsole \
   --add-data "src/smacc/assets/cues:smacc/assets/cues" \
   --add-data "src/smacc/assets/biocals:smacc/assets/biocals" \
   --add-data "src/smacc/assets/surveys:smacc/assets/surveys" \
+  --add-data "src/smacc/assets/fonts:smacc/assets/fonts" \
   --collect-submodules mne --collect-data mne \
   --collect-submodules matplotlib.backends
 ```
@@ -124,7 +125,10 @@ install folder and never loads the heavy MNE stack, with no per-launch temp
 extraction (and so no ~120 MB blob for antivirus to rescan each run). On Windows
 the `--add-data` separator is `;` rather than `:` (i.e. `...png;smacc/assets`).
 `--icon` sets the executable's file icon; `--add-data` bundles the runtime
-window/taskbar icon, which SMACC resolves via `sys._MEIPASS`.
+window/taskbar icon — and the GUI fonts (the bundled B612 family, #279) — which
+SMACC resolves via `sys._MEIPASS`. The fonts are registered at startup
+(`smacc.fonts`), so the app looks the same on every machine rather than depending
+on a system-installed typeface.
 
 The EEG Annotator (#136) is a mode of this same binary — `SMACC.exe --eeg`,
 re-exec'd as its own process (see `smacc.eeg.launch`) — so it is built in, not a
