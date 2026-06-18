@@ -81,3 +81,9 @@
   fill: (x, y) => if y == 0 { smacc-band } else if calc.even(y) { smacc-zebra },
 )
 #show table.cell.where(y: 0): set text(font: "Space Grotesk", fill: smacc-indigo, weight: 600)
+
+// ===== Headings — the display face, matching the site. orange-book sets heading
+// SIZE but not family, and this rule survives its show rule, so headings pick up
+// Space Grotesk at SemiBold (the bundled weight) while orange-book keeps its layout,
+// indigo accents, and numbering. (The cover and TOC are orange-book's own and stay.)
+#show heading: set text(font: "Space Grotesk", weight: 600)
