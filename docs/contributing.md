@@ -185,8 +185,8 @@ yields one combined PDF. Pages are plain Markdown; admonitions are
 and each screenshot is a numbered figure — a short visible caption, a `#fig-…` id
 (so it can be cross-referenced with `@fig-…`), a `width=` attribute, and its full
 description in `fig-alt` for screen readers.
-Heading slugs use `gfm_auto_identifiers` so the cross-page `#anchor` links resolve
-the same way GitHub renders them.
+Avoid punctuation in headings so the cross-page `#anchor` links resolve to the same
+slug GitHub renders — periods in particular drift between renderers.
 
 The [docs workflow](https://github.com/remrama/smacc/blob/main/.github/workflows/docs.yml)
 renders and checks the docs on every pull request and push, and publishes the live
