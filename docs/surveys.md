@@ -22,10 +22,10 @@ A dream report is often followed by a questionnaire: how lucid was the dream, wh
 did it contain, how confident is the participant. SMACC handles these two ways:
 
 - **In-app surveys** render in a SMACC window and save their responses straight into
-    the run folder, next to the dream-report WAV they accompany. SMACC ships the
-    standard lucid-dreaming instruments, and you can build your own.
+  the run folder, next to the dream-report WAV they accompany. SMACC ships the
+  standard lucid-dreaming instruments, and you can build your own.
 - **Web surveys** (for example a questionnaire hosted on Qualtrics or REDCap) open in
-    the browser; add them by URL.
+  the browser; add them by URL.
 
 In-app surveys exist because the night shift is a bad place for a hosted form: sleep
 labs are often offline, response data belongs with the night's recording rather than
@@ -105,9 +105,9 @@ renders but cannot be submitted — there is no run folder to save into.
 One JSON file per administration, in the run folder:
 
 - `report-02-survey-dlq.json` — auto-opened with dream report 2 (sorts beside
-    `report-02.wav`).
+  `report-02.wav`).
 - `survey-01-lusk.json` — opened standalone; standalone administrations are
-    numbered in their own sequence.
+  numbered in their own sequence.
 
 The payload records the SMACC version, the survey's key, name, title, and content version, the optional
 subject/session metadata, opened/submitted timestamps, the time since the

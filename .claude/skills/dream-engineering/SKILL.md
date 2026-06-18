@@ -51,15 +51,15 @@ and observations sit at the right point in that record.
 ## A typical session, in SMACC terms
 
 1. Set up the rig and a `.smacc` settings file (cues, devices, event codes).
-2. Start the EEG recording → `RecordingStarted` marker sets the reference clock.
-3. Watch the participant fall asleep (`SleepOnset`), then monitor stages; mark
+1. Start the EEG recording → `RecordingStarted` marker sets the reference clock.
+1. Watch the participant fall asleep (`SleepOnset`), then monitor stages; mark
    observations (`REMDetected`, `TechInRoom`, notes).
-4. At the target stage, fire a **cue** (audio, sometimes a **BlinkStick** light),
+1. At the target stage, fire a **cue** (audio, sometimes a **BlinkStick** light),
    optionally with masking **noise**; each fires its marker.
-5. Watch for a lucidity signal (`SignalObserved`); use the intercom as needed.
-6. **Wake** the participant and **record a dream report** (`DreamReportStarted`,
+1. Watch for a lucidity signal (`SignalObserved`); use the intercom as needed.
+1. **Wake** the participant and **record a dream report** (`DreamReportStarted`,
    which increments so each report is unique); maybe open a survey.
-7. Repeat across the night, then review the event log.
+1. Repeat across the night, then review the event log.
 
 ## Why this shapes design
 

@@ -9,10 +9,10 @@ for when audio would intrude.
 ## Voice
 
 - **Talk (to participant)** pipes the control-room mic to the participant's output.
-    Click to latch, or hold the **spacebar** anywhere in SMACC for push-to-talk.
-    Talking is marked in the EEG record.
+  Click to latch, or hold the **spacebar** anywhere in SMACC for push-to-talk.
+  Talking is marked in the EEG record.
 - **Listen (to participant)** brings the bedroom mic to your control-room speakers.
-    It is unmarked.
+  It is unmarked.
 
 Both directions route through equipment set once in the **Devices** window (see
 [Audio routing](audio.md)). A **level meter** beside each button shows the live

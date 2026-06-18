@@ -14,7 +14,7 @@ compatibility shims. Pin one version for the duration of a study. See the
 ## 0.1.1 — 2026-06-15
 
 - Fixed the Analyzer vanishing on open — clicking **Analyzer** hid the
-    launcher but never showed the Analyzer window.
+  launcher but never showed the Analyzer window.
 
 ## 0.1.0 — 2026-06-15
 
@@ -22,7 +22,7 @@ The first published release of SMACC — a Windows control surface for running
 sleep and dream studies. It includes:
 
 - **Audio cues**, designed in-app with the Audio Cue Designer, plus masking
-    background noise.
+  background noise.
 - **Visual cues** on a BlinkStick or Philips Hue light.
 - **Biocalibrations** as timed, marked tasks.
 - **Dream reports and surveys** for structured night-time data collection.
@@ -30,7 +30,7 @@ sleep and dream studies. It includes:
 - **EEG markers** (port codes) over an LSL marker stream or a hardware TTL trigger.
 - The **EEG Annotator** for reviewing and scoring recordings (optional component).
 - A detailed **session log**, a **volume safety cap**, and explicit **device
-    routing** so a misclick can't blast or mislead a sleeping participant.
+  routing** so a misclick can't blast or mislead a sleeping participant.
 - A per-user **Windows installer** (no admin rights) and a portable `SMACC.exe`.
 
 Earlier `0.0.x` builds predate this release and are not covered here.

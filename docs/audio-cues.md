@@ -54,16 +54,16 @@ bedroom speaker could be muted, unplugged, or turned down at the hardware. The A
 cue window's **Monitoring** section shows two meters so you can tell:
 
 - **Sending** is the level SMACC is emitting to the cue output, the moment it plays.
-    It is exact, but it only confirms SMACC is *playing*; it is blind to everything
-    downstream (Windows volume, the speaker's power switch, the cable). Read it as a
-    diagnostic: if *Sending* is dark, the problem is on SMACC's side (wrong cue, or a
-    per-cue volume or the safety cap at zero); if it is lit but the room is silent,
-    the problem is the speaker.
+  It is exact, but it only confirms SMACC is *playing*; it is blind to everything
+  downstream (Windows volume, the speaker's power switch, the cable). Read it as a
+  diagnostic: if *Sending* is dark, the problem is on SMACC's side (wrong cue, or a
+  per-cue volume or the safety cap at zero); if it is lit but the room is silent,
+  the problem is the speaker.
 - **Bedroom** is the level a microphone actually picks up in the room. This is the
-    objective check: it moves only when sound really happens in the bedroom. Tick the
-    box beside it to start monitoring. Because a faint cue can sit close to a cheap
-    mic's noise floor, the meter also shows the **rise above the room's resting
-    level** (the `+N` next to the reading), so even a small bump stands out.
+  objective check: it moves only when sound really happens in the bedroom. Tick the
+  box beside it to start monitoring. Because a faint cue can sit close to a cheap
+  mic's noise floor, the meter also shows the **rise above the room's resting
+  level** (the `+N` next to the reading), so even a small bump stands out.
 
 ::: {.callout-tip title="A dedicated monitoring mic"}
 

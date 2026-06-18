@@ -21,20 +21,20 @@ first.
 ## Conventions
 
 - Always use [uv](https://docs.astral.sh/uv/) to run Python scripts and install
-    dependencies. Never `pip install` or run naked `python`.
+  dependencies. Never `pip install` or run naked `python`.
 - Use the marker vocabulary consistently in UI text, docs, and docstrings — *event*,
-    *marker*, *port code*, *trigger*, *transport* each mean exactly one thing; see the
-    [terminology table](triggers.md#terminology).
+  *marker*, *port code*, *trigger*, *transport* each mean exactly one thing; see the
+  [terminology table](triggers.md#terminology).
 - Write the docs as **reference**, not marketing: lead with the fact, keep pages
-    scannable (short paragraphs, tables, steps), and go easy on em-dashes and the
-    "not X, but Y" construction. Page filenames are stable, so cross-link with
-    relative links and matching heading anchors.
+  scannable (short paragraphs, tables, steps), and go easy on em-dashes and the
+  "not X, but Y" construction. Page filenames are stable, so cross-link with
+  relative links and matching heading anchors.
 - Pick log levels by the [session-log convention](reference/session-log.md#log-levels):
-    `DEBUG` for housekeeping/high-frequency detail, `INFO` for markers and meaningful
-    operator actions, `WARNING` for mid-session config changes and recoverable faults,
-    `ERROR` for faults that cost something. The file records every level, so demoting a
-    line to `DEBUG` only moves it out of the default live preview, never out of the
-    record.
+  `DEBUG` for housekeeping/high-frequency detail, `INFO` for markers and meaningful
+  operator actions, `WARNING` for mid-session config changes and recoverable faults,
+  `ERROR` for faults that cost something. The file records every level, so demoting a
+  line to `DEBUG` only moves it out of the default live preview, never out of the
+  record.
 
 ## Commit and pull-request style
 
@@ -44,10 +44,10 @@ Keep the history skimmable and merge commits clean.
 
 - One line only — a subject, with no body or extended description.
 - Start with a [Conventional Commits](https://www.conventionalcommits.org/) prefix:
-    `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, `build:`, `ci:`, or
-    `perf:`.
+  `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, `build:`, `ci:`, or
+  `perf:`.
 - Imperative mood, lower-case after the prefix, no trailing period, and ideally
-    under ~72 characters.
+  under ~72 characters.
 - No AI attribution or co-author trailers.
 
 ```text
@@ -59,15 +59,15 @@ fix: clamp incrementing port codes to 255
 **Pull requests**
 
 - The title follows the same one-line Conventional-Commits rule — on a squash merge
-    it becomes the commit subject (GitHub appends the `(#NN)` PR number).
+  it becomes the commit subject (GitHub appends the `(#NN)` PR number).
 - The body is a brief summary, not an exhaustive change list: what changed, why, and
-    how it was verified. A few sentences or bullets is plenty.
+  how it was verified. A few sentences or bullets is plenty.
 - No AI attribution footer.
 
 **Merging**
 
 - Squash-merge, and clear the auto-generated commit body so the merged commit is the
-    one-line title alone — no bundled description or commit list.
+  one-line title alone — no bundled description or commit list.
 
 ## Development
 
@@ -213,34 +213,34 @@ renderer silently dropping pages (the bug behind #250).
 SMACC follows [semantic versioning](https://semver.org/).
 
 - **Pre-1.0, the app is not stable.** Settings files, marker codes, the UI, and
-    behavior may change between releases, and there are no compatibility shims. Pin
-    one version for the duration of a study.
+  behavior may change between releases, and there are no compatibility shims. Pin
+  one version for the duration of a study.
 - **Versions are `0.x.y` until 1.0.0.** A new `0.x.0` collects features and `0.x.y`
-    is a smaller follow-up; no pre-1.0 bump is a stability promise.
+  is a smaller follow-up; no pre-1.0 bump is a stability promise.
 - **`0.1.0` is the first published release** — the first with installers attached, a
-    [release-notes](release-notes.md) entry, and a working in-app update check.
-    Earlier `0.0.x` tags predate it and are not in the release notes.
+  [release-notes](release-notes.md) entry, and a working in-app update check.
+  Earlier `0.0.x` tags predate it and are not in the release notes.
 - **1.0.0 is the first stable release.** From then on semantic versioning is binding
-    (backward-compatible changes bump the minor/patch, breaking changes bump the
-    major).
+  (backward-compatible changes bump the minor/patch, breaking changes bump the
+  major).
 
 There are three kinds of build:
 
 - **Stable — `vX.Y.Z`** (no suffix): a full GitHub release, badged *Latest*. The
-    homepage download button, `/releases/latest`, and the in-app update check all
-    resolve to it. `__version__` equals `X.Y.Z`.
+  homepage download button, `/releases/latest`, and the in-app update check all
+  resolve to it. `__version__` equals `X.Y.Z`.
 - **Pre-release — `vX.Y.Z-rc.N`** (also `-alpha.N`/`-beta.N`): a tagged candidate for
-    the upcoming `X.Y.Z`. Any tag with a hyphen is marked *Pre-release* on GitHub, so
-    `/releases/latest` and the update check skip it. Allowed at any point, including
-    the `0.x` line. Set `__version__` to the suffixed string and tag to match.
+  the upcoming `X.Y.Z`. Any tag with a hyphen is marked *Pre-release* on GitHub, so
+  `/releases/latest` and the update check skip it. Allowed at any point, including
+  the `0.x` line. Set `__version__` to the suffixed string and tag to match.
 - **Development build — the `dev` tag**: a single fixed, *moving* tag (not a version
-    number), rebuilt and republished on every code merge to `main` and marked
-    *Pre-release*. It carries the portable `SMACC-dev.zip` (see
-    [Installation](installation.md#development-build-experimental)) and is identified at
-    runtime by the running version plus the commit it was built from, e.g.
-    `v0.1.2 (dev build a1b2c3d)`. The word **dev** is reserved for this channel and the
-    matching **dev** docs site; version pre-releases use `-rc`/`-alpha`/`-beta`, never a
-    literal `-dev` suffix.
+  number), rebuilt and republished on every code merge to `main` and marked
+  *Pre-release*. It carries the portable `SMACC-dev.zip` (see
+  [Installation](installation.md#development-build-experimental)) and is identified at
+  runtime by the running version plus the commit it was built from, e.g.
+  `v0.1.2 (dev build a1b2c3d)`. The word **dev** is reserved for this channel and the
+  matching **dev** docs site; version pre-releases use `-rc`/`-alpha`/`-beta`, never a
+  literal `-dev` suffix.
 
 Cutting a release: bump `__version__` in `src/smacc/__init__.py` and push a matching
 `vX.Y.Z` tag (use `vX.Y.Z-rc.N` for a candidate). CI checks the tag equals
@@ -253,13 +253,13 @@ toward rather than the one just shipped.
 
 - `src/` layout: the package lives in `src/smacc/`.
 - The single source of truth for the version is `__version__` in
-    `src/smacc/__init__.py`; `config.py` and the packaging metadata both read from
-    it.
+  `src/smacc/__init__.py`; `config.py` and the packaging metadata both read from
+  it.
 - The build/runtime Python is pinned to **3.13** in `.python-version`. The
-    minimum OS is **Windows 10**, set by Qt 6 (PyQt6) — Qt 5 was the last line that
-    still ran on Windows 8.1. Keep the pin unless you intend to move the Python floor.
+  minimum OS is **Windows 10**, set by Qt 6 (PyQt6) — Qt 5 was the last line that
+  still ran on Windows 8.1. Keep the pin unless you intend to move the Python floor.
 - SMACC is distributed only as a frozen `SMACC.exe` (no PyPI), so CI tests what
-    ships rather than a version range: the `test` job in `ci.yml` runs on the same
-    `windows-2022` + Python 3.13 + locked dependencies as the release build
-    (`release.yml`), across `windows-2022` and `windows-latest` rather than a
-    Python-version matrix.
+  ships rather than a version range: the `test` job in `ci.yml` runs on the same
+  `windows-2022` + Python 3.13 + locked dependencies as the release build
+  (`release.yml`), across `windows-2022` and `windows-latest` rather than a
+  Python-version matrix.

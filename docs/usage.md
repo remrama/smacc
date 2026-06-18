@@ -7,13 +7,13 @@ asks for the **SMACC file** to use, then opens it. To run a night you open a liv
 The Launcher's tools (its title bar reads **SMACC**):
 
 - **Session…** — run a live **Session** for collecting data, the interface for
-    running a night. SMACC prompts for a [SMACC file](smacc-files.md) first.
+  running a night. SMACC prompts for a [SMACC file](smacc-files.md) first.
 - **Editor…** — create or edit a [SMACC file](smacc-files.md) in the **Editor**,
-    without recording anything.
+  without recording anything.
 - **Analyzer** — inspect a past session.
 - **Audio Cue Designer** — build a tone cue and export it as a WAV.
 - **EEG Annotator** — review and annotate a recorded EEG (see
-    [EEG Annotator](eeg-annotator.md)).
+  [EEG Annotator](eeg-annotator.md)).
 
 The **Session** and the **Editor** are the same window in two modes — running a
 night versus authoring a SMACC file.
@@ -27,25 +27,25 @@ exception is double-clicking a `.smacc` file, which opens the **Start a session*
 dialog with that file preselected. From the Launcher:
 
 - **Session…** — opens the **Start a session** dialog. Pick the **SMACC file** (the
-    picker lists recent files, the seeded `default`, and **Browse…** for any other),
-    confirm the optional subject/session/notes, and click **OK** to start. Runs are
-    written to that file's **data directory**; the run folder and log are created only
-    when the session starts. (See [SMACC files](smacc-files.md) for what a SMACC file
-    holds.)
+  picker lists recent files, the seeded `default`, and **Browse…** for any other),
+  confirm the optional subject/session/notes, and click **OK** to start. Runs are
+  written to that file's **data directory**; the run folder and log are created only
+  when the session starts. (See [SMACC files](smacc-files.md) for what a SMACC file
+  holds.)
 - **Editor…** — opens the **Open in the Editor** dialog. Choose **New SMACC file**
-    for a blank configuration, or an existing file (recents / **Browse…**) to edit.
-    The Editor configures the panels (cues, noise, visual, markers, surveys), sets a
-    data directory, and saves with **Save SMACC file as…**; it never records a run.
+  for a blank configuration, or an existing file (recents / **Browse…**) to edit.
+  The Editor configures the panels (cues, noise, visual, markers, surveys), sets a
+  data directory, and saves with **Save SMACC file as…**; it never records a run.
 - **Analyzer** — open a past session (a `.log`, a session folder, or a zipped
-    session) to see a summary (events, duration, subject/session, dream reports),
-    export its events to a BIDS `events.tsv`, or recover its settings to a `.smacc` —
-    all without starting a new session.
+  session) to see a summary (events, duration, subject/session, dream reports),
+  export its events to a BIDS `events.tsv`, or recover its settings to a `.smacc` —
+  all without starting a new session.
 - **Audio Cue Designer** — open the standalone tool to build a simple tone cue and
-    export it as a WAV into a study's `cues/` folder (see
-    [Audio cues](audio-cues.md#designing-a-cue)).
+  export it as a WAV into a study's `cues/` folder (see
+  [Audio cues](audio-cues.md#designing-a-cue)).
 - **EEG Annotator** — open the post-hoc [EEG Annotator](eeg-annotator.md) to review a
-    recorded night and place annotations. It runs as its own window and process, so it
-    stays available while a session runs.
+  recorded night and place annotations. It runs as its own window and process, so it
+  stays available while a session runs.
 
 Closing the Editor or a standalone tool returns you to the Launcher. Ending a
 Session quits SMACC entirely — the night is over. Closing the Launcher also quits
@@ -76,15 +76,15 @@ the same window, dimmed for a dark control room:
 Each tool has its own page:
 
 - [Audio cues](audio-cues.md) — the cue board, the Audio Cue Designer, background
-    noise, and confirming a cue reaches the bedroom.
+  noise, and confirming a cue reaches the bedroom.
 - [Visual cues](visual.md) — light cues on a BlinkStick or Philips Hue.
 - [Biocals](biocals.md) — timed, marked biocalibration tasks.
 - [Dream reports & surveys](surveys.md) — record a report and administer a survey.
 - [Intercom & chat](intercom.md) — talk, listen, and a typed channel.
 - [Markers & port codes](triggers.md) — the Markers window, the Event logging panel,
-    and EEG triggers.
+  and EEG triggers.
 - [Audio routing](audio.md) and [Devices](devices.md) — bind equipment and route
-    actions to it.
+  actions to it.
 - [Volume & latency](latency.md) — the output safety cap and stimulus timing.
 
 ## Event log

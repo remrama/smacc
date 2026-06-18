@@ -16,26 +16,26 @@ sleep and lucid-dreaming experiments.
 ### What you need
 
 - **A BlinkStick device.** They are sold directly from
-    [blinkstick.com](https://www.blinkstick.com/). SMACC drives them through the
-    [`blinkstick`](https://pypi.org/project/BlinkStick/) Python library, so any
-    model that library supports (BlinkStick Square, Strip, Nano, Flex, …) will work.
+  [blinkstick.com](https://www.blinkstick.com/). SMACC drives them through the
+  [`blinkstick`](https://pypi.org/project/BlinkStick/) Python library, so any
+  model that library supports (BlinkStick Square, Strip, Nano, Flex, …) will work.
 - **Nothing else to install.** The BlinkStick driver is bundled inside
-    `SMACC.exe`, so you only need to plug the device into a USB port before
-    launching SMACC.
+  `SMACC.exe`, so you only need to plug the device into a USB port before
+  launching SMACC.
 
 ### Using it in SMACC
 
 1. Plug the BlinkStick into a USB port, then launch SMACC.
 1. Click **Visual cue** in the **Panels** column.
 1. Bind your BlinkStick to the **BlinkStick light** equipment in the **Devices** window
-    (in the **Panels** column). Plug one in after launch and it's detected
-    automatically, or click **Refresh devices (F5)** in the Devices window to rescan.
+   (in the **Panels** column). Plug one in after launch and it's detected
+   automatically, or click **Refresh devices (F5)** in the Devices window to rescan.
 1. Configure a light cue — color, brightness, pattern (steady, or a pulse/flash at
-    a rate in Hz), and length (or **Loop** until stopped) — and add more cues with
-    **+ Add cue** if the protocol needs several. See [Visual cues](visual.md) for
-    what each pattern is for.
+   a rate in Hz), and length (or **Loop** until stopped) — and add more cues with
+   **+ Add cue** if the protocol needs several. See [Visual cues](visual.md) for
+   what each pattern is for.
 1. Click a cue's **Play** to fire it; **Stop** turns the light off early. The rest
-    of SMACC stays responsive while the light is on.
+   of SMACC stays responsive while the light is on.
 
 Your chosen device and the whole cue board are saved in the
 [SMACC file](smacc-files.md), so the visual-cue
@@ -58,11 +58,11 @@ over the local network. Setup is once per bridge:
 
 1. In the **Devices** window, click **Set up Philips Hue…**.
 1. Click **Find bridge** (or type the bridge's IP — the Hue app shows it under
-    bridge settings).
+   bridge settings).
 1. Press the round **link button** on the bridge itself, then click **Pair**
-    within 30 seconds. **Test** lists the bridge's lights to confirm.
+   within 30 seconds. **Test** lists the bridge's lights to confirm.
 1. Bind a light or group to the **Philips Hue light** equipment, and route
-    **Play visual cue** to **Philips Hue light**.
+   **Play visual cue** to **Philips Hue light**.
 
 The bridge IP and pairing key are stored in the study's `.smacc` (the key is a
 local-network credential — treat the file accordingly). Hue suits ambient,

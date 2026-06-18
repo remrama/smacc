@@ -80,11 +80,15 @@ are gitignored.
 
 ## Formatting
 
-`mdformat` (CI + pre-commit) still runs with **`mdformat-mkdocs`** — kept not for
-Material syntax (gone) but because it preserves the repo's four-space list-nesting
-style across *all* markdown; dropping it would reflow every list (incl. README.md /
-AGENTS.md). It leaves Quarto `:::` callouts and `{…}` attributes intact. `docs/_book`
-and `docs/.quarto` are excluded in `.mdformat.toml`.
+`mdformat` (CI + pre-commit) runs as **`mdformat` + `mdformat-gfm` +
+`mdformat-frontmatter`**. The `mdformat-mkdocs` plugin was dropped after the Quarto
+migration (#265): it only survived to keep the MkDocs-era four-space list nesting,
+which Python-Markdown required but Quarto/Pandoc doesn't, so lists now use standard
+two-space CommonMark nesting. Base `mdformat` still leaves Quarto `:::` callouts and
+`{…}` attributes intact (keep a blank line before a closing `:::` — a list that
+directly abuts the fence pulls it into the list). The in-tree skill docs under
+`.claude/skills/` are formatted too; `.mdformat.toml` excludes only `.venv`,
+`.pytest_cache`, `docs/_book`, `docs/.quarto`, and `.claude/worktrees`.
 
 ## Deferred (separate follow-up PR)
 

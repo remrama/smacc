@@ -17,20 +17,20 @@ from the task-oriented [Overview](../usage.md) guide.
 ## Where each file lives
 
 - The **SMACC directory** (`$SMACC_DIRECTORY`, else `~/SMACC`) holds `preferences.yaml`,
-    the seeded `default.smacc`, and the default data directory.
+  the seeded `default.smacc`, and the default data directory.
 - A **`.smacc`** can live anywhere; it names the **data directory** its runs are
-    written to.
+  written to.
 - Each **run** gets its own timestamped folder (`smacc-YYYYmmdd-HHMMSS/`) under that
-    data directory, holding the session `.log`, any dream-report audio, survey
-    responses, and exports.
+  data directory, holding the session `.log`, any dream-report audio, survey
+  responses, and exports.
 - **Custom survey definitions** live in the SMACC directory's `surveys/` folder
-    (created when you first build or save one); built-in ones ship inside SMACC itself.
+  (created when you first build or save one); built-in ones ship inside SMACC itself.
 - **Bundled assets refresh on upgrade.** `default.smacc` (a read-only template) and
-    the `demo-` cues (seeded into the data directory's `cues/` folder) are re-seeded
-    from the bundle when they change, so a newer
-    SMACC's improvements reach an existing directory; your own files are untouched.
-    Biocal voice recordings are read straight from the bundle, with the SMACC
-    directory's `biocals/` folder as an optional per-recording override.
+  the `demo-` cues (seeded into the data directory's `cues/` folder) are re-seeded
+  from the bundle when they change, so a newer
+  SMACC's improvements reach an existing directory; your own files are untouched.
+  Biocal voice recordings are read straight from the bundle, with the SMACC
+  directory's `biocals/` folder as an optional per-recording override.
 
 ## Stability promise
 

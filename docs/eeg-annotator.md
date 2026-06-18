@@ -14,18 +14,18 @@ session runs.
 overnight cueing workflow, not for clinical reading:
 
 - It is **read-only by contract** — the recording is never written; every mark,
-    stage score, and overlay lives in a small sidecar beside it.
+  stage score, and overlay lives in a small sidecar beside it.
 - It is **SMACC-aware** — it imports SMACC's own portcodes off the recording and
-    can overlay a night's [session log](#session-log-overlay) (cues, dream
-    reports, even the recorded report audio), so you see *what SMACC did* on the
-    same timeline.
+  can overlay a night's [session log](#session-log-overlay) (cues, dream
+  reports, even the recorded report audio), so you see *what SMACC did* on the
+  same timeline.
 - It has **blind, multi-rater scoring** built in (see
-    [blind-rater mode](#blind-rater-mode)) — for objective signal and stage
-    scoring, not an afterthought.
+  [blind-rater mode](#blind-rater-mode)) — for objective signal and stage
+  scoring, not an afterthought.
 - Its **[epoch model](#the-epoch-model)** is decoupled from the on-screen window
-    and can be anchored to any feature.
+  and can be anchored to any feature.
 - Recordings are **memory-mapped**, so an 8-hour high-density night opens in
-    seconds and scrolls smoothly regardless of file size.
+  seconds and scrolls smoothly regardless of file size.
 
 ::: {.callout-note title="Built in, runs in its own process"}
 
@@ -55,22 +55,22 @@ stays smooth regardless of file size.
 ## Viewing
 
 - **Window length** — 10/30/60/120 s pages; **30 s** is the default. This is the
-    *on-screen* window, separate from the [scoring epoch](#the-epoch-model).
+  *on-screen* window, separate from the [scoring epoch](#the-epoch-model).
 - **Filters** — high-pass, low-pass, and a 50/60 Hz notch, applied to the
-    *display only* (zero-phase, so nothing shifts in time). Recordings open
-    **unfiltered** — the usual sleep view is two clicks away (HP 0.3 Hz, LP
-    35 Hz).
+  *display only* (zero-phase, so nothing shifts in time). Recordings open
+  **unfiltered** — the usual sleep view is two clicks away (HP 0.3 Hz, LP
+  35 Hz).
 - **Scale** — microvolts per channel lane; smaller numbers mean bigger
-    traces. Trigger/stim channels are auto-fit to their lane.
+  traces. Trigger/stim channels are auto-fit to their lane.
 - **Channels…** picks which channels are shown and reorders them; each channel
-    type (EEG, EOG, EMG, …) scales on its own. **Save profile…** stores the whole
-    montage — channels, filters, scale, and the window/epoch lengths — to a file,
-    and **Load profile…** applies it to any recording, so a lab's house view is
-    one click on every night.
+  type (EEG, EOG, EMG, …) scales on its own. **Save profile…** stores the whole
+  montage — channels, filters, scale, and the window/epoch lengths — to a file,
+  and **Load profile…** applies it to any recording, so a lab's house view is
+  one click on every night.
 - **Export figure…** writes the current window to a publication-ready **PNG, PDF,
-    or SVG**.
+  or SVG**.
 - The status bar shows the cursor's time from recording start **and the
-    wall-clock time**, so events line up with the night's session log.
+  wall-clock time**, so events line up with the night's session log.
 
 ### Keyboard navigation
 
@@ -94,32 +94,32 @@ on-screen window — a 30 s epoch can be inspected inside a 60 s window, and the
 arrow keys step by epoch regardless of how much is on screen.
 
 - **Epoch** length is set in seconds (default **30 s**, the polysomnography
-    standard; 1–300 s).
+  standard; 1–300 s).
 - **Epoch grid** draws faint, **numbered** epoch boundaries over the traces.
 - **Anchor epochs to view** starts an epoch at the left edge of the current view
-    and back/front-fills the whole grid from there (boundaries fall at
-    `anchor + k·epoch`) — so you can line the grid up with lights-out or any
-    feature in the record. **Reset anchor** puts epoch 1 back at the recording
-    start.
+  and back/front-fills the whole grid from there (boundaries fall at
+  `anchor + k·epoch`) — so you can line the grid up with lights-out or any
+  feature in the record. **Reset anchor** puts epoch 1 back at the recording
+  start.
 - **Time axis** labels the x-axis as wall-clock **Clock** time or **Elapsed**
-    seconds from the start. Clock needs a recording start time; an anonymized file
-    that has none falls back to elapsed.
+  seconds from the start. Clock needs a recording start time; an anonymized file
+  that has none falls back to elapsed.
 
 ## Annotating
 
 1. **Drag** across the traces to mark a span (drag never pans — the time
-    axis only moves when you ask it to). To drop a **point** instead,
-    **Ctrl+click** (or press **M**) at the cursor.
+   axis only moves when you ask it to). To drop a **point** instead,
+   **Ctrl+click** (or press **M**) at the cursor.
 1. Name it in the label dialog — recent labels and common marks (LRLR,
-    arousal, artifact, cue response) are one click; free text always works.
-    Tick **instantaneous** to keep just the moment instead of the dragged span.
+   arousal, artifact, cue response) are one click; free text always works.
+   Tick **instantaneous** to keep just the moment instead of the dragged span.
 1. A plain **click** on an annotation selects it; use the side list to rename,
-    delete, or jump to one (double-click).
+   delete, or jump to one (double-click).
 1. **Save annotations** writes the sidecar next to the recording:
-    `night1.edf` → `night1.annotations.tsv` (+ a small `.json` describing it).
-    The recording itself is **never modified**. Unsaved changes star the title
-    and prompt before closing, and saving over a sidecar **this review did not
-    open** asks first — so you never clobber another file by accident.
+   `night1.edf` → `night1.annotations.tsv` (+ a small `.json` describing it).
+   The recording itself is **never modified**. Unsaved changes star the title
+   and prompt before closing, and saving over a sidecar **this review did not
+   open** asks first — so you never clobber another file by accident.
 
 For fast signal scoring, the **Quick marks** row drops a labeled point mark at
 the cursor in one click — or press **1–9** for the first nine. Use **Edit
@@ -216,13 +216,13 @@ Slide the whole log along the EEG to line them up, three ways — all adjusting 
 offset:
 
 - **Drag the log lane.** A left-drag that starts in the top lane slides the log
-    (a drag anywhere else still draws an annotation). On release it snaps onto a
-    nearby mark of yours, so a clapper lands exactly on the artifact it made.
+  (a drag anywhere else still draws an annotation). On release it snaps onto a
+  nearby mark of yours, so a clapper lands exactly on the artifact it made.
 - **Pair an entry to a feature.** Select a log entry, click **Align entry to
-    feature…**, then click the EEG feature it produced — useful when the two are
-    far apart to drag. (Esc cancels.)
+  feature…**, then click the EEG feature it produced — useful when the two are
+  far apart to drag. (Esc cancels.)
 - **Nudge the offset.** The **Offset** box is the exact value, and the fine
-    control.
+  control.
 
 **Auto-align to triggers.** When the amplifier itself recorded SMACC's trigger
 codes — a hardware-TTL rig, where the codes are embedded events in the EEG file —
@@ -273,10 +273,10 @@ are ever shown**, so a rater cannot glimpse what is hidden, with three presets:
 
 - **Fully naive** — every mark is hidden; the rater scrolls a clean recording.
 - **Reports visible** — only dream-report markers are shown; detected signals
-    and cues are hidden.
+  and cues are hidden.
 - **Signal-present (classify only)** — signal *positions* are shown with their
-    labels blanked (a `?`), so the rater sees *where* a signal is and classifies
-    *what* it is.
+  labels blanked (a `?`), so the rater sees *where* a signal is and classifies
+  *what* it is.
 
 Blind mode **requires a rater id** — a blind review seeds from the coordinator's
 truth sidecar (`night1.annotations.tsv`) but saves to the rater's own

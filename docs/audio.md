@@ -16,13 +16,13 @@ Instead of picking a device separately in every window, SMACC has one **Devices
 window** (in the **Panels** column) where you do two things:
 
 1. **Bind each piece of _equipment_ to a device, once.** Equipment entries are
-    the physical endpoints of a rig, named by place: **Bedroom speaker**, **Control-room speaker**, **Bedroom
-    mic 1** (and an optional **Bedroom mic 2**), the **Control-room mic** (the
-    experimenter's intercom voice), plus the light devices (**BlinkStick light**,
-    **Philips Hue light**).
+   the physical endpoints of a rig, named by place: **Bedroom speaker**, **Control-room speaker**, **Bedroom
+   mic 1** (and an optional **Bedroom mic 2**), the **Control-room mic** (the
+   experimenter's intercom voice), plus the light devices (**BlinkStick light**,
+   **Philips Hue light**).
 1. **Route each _action_ to equipment.** Every action names what SMACC does
-    with a device — *Play audio cue*, *Record dream report* — and each points
-    at a piece of equipment. Hover any row in the window for a full description.
+   with a device — *Play audio cue*, *Record dream report* — and each points
+   at a piece of equipment. Hover any row in the window for a full description.
 
 The cue, the noise, and your intercom voice can all share the **Bedroom
 speaker**, so swapping it is one change rather than several. Every other
@@ -55,17 +55,17 @@ its default device on its own — plugging in an HDMI monitor or a Bluetooth hea
 is enough — and an overnight study must not follow it. Instead:
 
 - When a session starts (or loads a study) with nothing bound to the **Bedroom
-    speaker**, **Bedroom mic 1**, or the **Control-room mic**, SMACC binds the device
-    that is *currently* the Windows default — explicitly, by name — and logs which
-    one it picked. From then on the binding is pinned: changing the Windows default
-    never re-routes a study.
+  speaker**, **Bedroom mic 1**, or the **Control-room mic**, SMACC binds the device
+  that is *currently* the Windows default — explicitly, by name — and logs which
+  one it picked. From then on the binding is pinned: changing the Windows default
+  never re-routes a study.
 - Equipment with nothing bound reads **(none)**, and anything routed to it
-    reports a clear error instead of quietly playing somewhere else.
+  reports a clear error instead of quietly playing somewhere else.
 - If no device is connected at all, the dropdown says so (e.g. **No output device
-    found**) rather than offering an empty choice.
+  found**) rather than offering an empty choice.
 - A bound device that isn't currently connected shows as **(not connected)** and
-    is kept — never silently swapped — until you pick another device or plug it back
-    in (then **Refresh devices (F5)**).
+  is kept — never silently swapped — until you pick another device or plug it back
+  in (then **Refresh devices (F5)**).
 
 The study editor never auto-binds: a study built on an office machine arrives at
 the rig with its equipment unbound, and the rig pins its own defaults on first
@@ -76,19 +76,19 @@ load.
 Three optional routes cover the things you reach for mid-study:
 
 - **Listen to audio cue (fan-out).** Route *Listen to audio cue* to the
-    control-room speaker and each cue plays in the bedroom and the control room at
-    once, so you hear what the participant hears.
+  control-room speaker and each cue plays in the bedroom and the control room at
+  once, so you hear what the participant hears.
 - **Listen to participant.** The intercom is two-way: **Speak to participant**
-    sends your voice — picked up by the **Control-room mic** — to the participant
-    (and is marked in the EEG record), while **Listen to participant** brings the
-    participant's mic to your control-room speaker. The intercom also has a typed
-    [text-chat mode](intercom.md#text-chat) (no audio device involved) for
-    hearing-impaired participants.
+  sends your voice — picked up by the **Control-room mic** — to the participant
+  (and is marked in the EEG record), while **Listen to participant** brings the
+  participant's mic to your control-room speaker. The intercom also has a typed
+  [text-chat mode](intercom.md#text-chat) (no audio device involved) for
+  hearing-impaired participants.
 - **Monitor bedroom noise.** A microphone meter in the Audio cue window that
-    confirms a cue is audible in the bedroom (see
-    [Audio cues](audio-cues.md#is-the-cue-reaching-the-bedroom)). It defaults to
-    **Bedroom mic 1**, or bind a dedicated, more sensitive **Bedroom mic 2** and route
-    *Monitor bedroom noise* to it.
+  confirms a cue is audible in the bedroom (see
+  [Audio cues](audio-cues.md#is-the-cue-reaching-the-bedroom)). It defaults to
+  **Bedroom mic 1**, or bind a dedicated, more sensitive **Bedroom mic 2** and route
+  *Monitor bedroom noise* to it.
 
 ## One audio engine
 

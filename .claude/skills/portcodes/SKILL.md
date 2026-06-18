@@ -38,7 +38,7 @@ point** for any additional transport: a parallel/serial write belongs right next
   (`manual`/`control`/`system`), `increment`, plus `key`/`label`/`tooltip`.
 - `increment` events (e.g. `DreamReportStarted`, code 201) advance the code each
   firing (`runtime_code`) so every occurrence is individually findable; clamped to
-  255.
+  255\.
 - `validate_events` **errors** on a code outside 1–255, a duplicate code among
   *triggerable* events (they'd collide on the channel), or a duplicate key; it
   **warns** on a code above a study's `safe_max` (older hardware) and on an
@@ -52,12 +52,12 @@ point** for any additional transport: a parallel/serial write belongs right next
 Rigs ingest markers differently; SMACC should support all *known* ones via
 configuration (issue #28):
 
-| Transport | What it is | How a byte goes out |
-|---|---|---|
-| **LSL marker stream** | Network marker recorded by an LSL-aware recorder (LabRecorder → XDF). Current default. | `StreamOutlet.push_sample`. Same- or cross-computer; no extra hardware. |
-| **Parallel port (LPT)** | Legacy 25-pin port; 8 data pins = the trigger byte, sampled by the amp. Still required by an active lab rig. | Write the byte to the port's data register. On modern Windows needs the **InpOut32 / inpoutx64** kernel driver. |
-| **USB-serial trigger box** | The modern LPT replacement; presents as a COM port and mirrors a received byte onto 8 TTL lines. | `pyserial` write to a configured COM port + baud. |
-| **Serial TTL** | A device that takes the byte directly over serial. | `pyserial`, same as above. |
+| Transport                  | What it is                                                                                                   | How a byte goes out                                                                                             |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| **LSL marker stream**      | Network marker recorded by an LSL-aware recorder (LabRecorder → XDF). Current default.                       | `StreamOutlet.push_sample`. Same- or cross-computer; no extra hardware.                                         |
+| **Parallel port (LPT)**    | Legacy 25-pin port; 8 data pins = the trigger byte, sampled by the amp. Still required by an active lab rig. | Write the byte to the port's data register. On modern Windows needs the **InpOut32 / inpoutx64** kernel driver. |
+| **USB-serial trigger box** | The modern LPT replacement; presents as a COM port and mirrors a received byte onto 8 TTL lines.             | `pyserial` write to a configured COM port + baud.                                                               |
+| **Serial TTL**             | A device that takes the byte directly over serial.                                                           | `pyserial`, same as above.                                                                                      |
 
 ## Parallel port: the driver reality
 
@@ -76,7 +76,7 @@ Trigger boxes and amps differ:
 - **Set-and-hold** — leave the lines at `code` until the next event (old parallel
   semantics).
 - **Pulsed** — raise `code` for a configurable width (e.g. ~5–10 ms), then drop to
-  0. SMACC's labs use **pulsed**; make the width configurable.
+  0\. SMACC's labs use **pulsed**; make the width configurable.
 
 ## SMACC's marker history (so you don't relitigate it)
 

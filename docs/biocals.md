@@ -14,17 +14,17 @@ own row.
 Each row has a toggle button, two checkboxes, and a duration:
 
 - **The biocal's button** runs it. The button stays depressed while it runs and the
-    countdown at the top shows the time remaining in its task window. Press it again
-    to cancel early, so a botched 30-second window need not be waited out.
+  countdown at the top shows the time remaining in its task window. Press it again
+  to cancel early, so a botched 30-second window need not be waited out.
 - **Voice** speaks the pre-recorded instruction (for example, *"Please close your
-    eyes and relax for thirty seconds."*) over the cue output when the biocal starts.
-    Leave it unchecked to give the instruction yourself.
+  eyes and relax for thirty seconds."*) over the cue output when the biocal starts.
+  Leave it unchecked to give the instruction yourself.
 - **Seq** includes the row when **Play sequence** runs the whole stack in order.
-    Standard biocals start checked; the lucid-dreaming ones start unchecked.
+  Standard biocals start checked; the lucid-dreaming ones start unchecked.
 - **Duration** is the task window in seconds. With the voice on, the window (and its
-    countdown) starts when the instruction *ends*, so a 10-second breath hold is a
-    full 10 seconds. This matches the manual practice of speaking first, then marking
-    when the participant complies.
+  countdown) starts when the instruction *ends*, so a 10-second breath hold is a
+  full 10 seconds. This matches the manual practice of speaking first, then marking
+  when the participant complies.
 
 ## Sequences
 

@@ -16,12 +16,12 @@ Three of those live in the OS and are invisible from most apps. SMACC makes its 
 gain explicit and adds a safety limit, in the **Volume** window:
 
 - **Output safety cap.** A single master ceiling, applied as the last gain stage on
-    every cue and noise output. However loud an individual cue is set, the cap is a
-    hard limit, so a full-volume looped cue on a calibrated rig cannot suddenly blast
-    a sleeping participant.
+  every cue and noise output. However loud an individual cue is set, the cap is a
+  hard limit, so a full-volume looped cue on a calibrated rig cannot suddenly blast
+  a sleeping participant.
 - **A read-only view of the Windows stages.** The window shows the current **System
-    volume** (the Windows output endpoint) and **App volume** (SMACC's own level) in
-    the Windows Volume Mixer, so the hidden OS stages are visible.
+  volume** (the Windows output endpoint) and **App volume** (SMACC's own level) in
+  the Windows Volume Mixer, so the hidden OS stages are visible.
 
 ::: {.callout-tip title="Calibrating cue level"}
 
@@ -66,10 +66,10 @@ From the click to the sound, in order:
 The two that matter are separate axes with separate fixes:
 
 - **Marker → sound** (the science): the **output buffer**. SMACC corrects for this
-    (below), and it's what a per-rig measurement pins down.
+  (below), and it's what a per-rig measurement pins down.
 - **Click → sound** (operator feel): dominated by the per-play **stream open**. Not a
-    marker-alignment problem; tracked separately in
-    [#105](https://github.com/remrama/smacc/issues/105).
+  marker-alignment problem; tracked separately in
+  [#105](https://github.com/remrama/smacc/issues/105).
 
 ## The marker marks the software event, not the photons
 
@@ -78,13 +78,13 @@ the sound leaves the speaker (by one output buffer) or, for a light, around when
 device write completes. To keep the marker aligned with the stimulus:
 
 - **Audio cue / noise.** SMACC stamps the marker (its LSL timestamp **and** the
-    canonical log line) at the *estimated onset* — the moment it fires **plus the
-    stream's reported output latency** — so the marker tracks the sound rather than
-    SMACC's buffer, and stays put when you change the latency setting. The raw
-    software-trigger instant is kept on a `DEBUG` line in the log for audit.
+  canonical log line) at the *estimated onset* — the moment it fires **plus the
+  stream's reported output latency** — so the marker tracks the sound rather than
+  SMACC's buffer, and stays put when you change the latency setting. The raw
+  software-trigger instant is kept on a `DEBUG` line in the log for audit.
 - **Visual cue.** The first frame is written to the device **synchronously**, and the
-    marker fires right after, so it trails the photons by microseconds (BlinkStick)
-    rather than leading them.
+  marker fires right after, so it trails the photons by microseconds (BlinkStick)
+  rather than leading them.
 
 ::: {.callout-warning title="This is an estimate, not a measurement"}
 
@@ -117,11 +117,11 @@ Negotiated [high]:  22.0 ms   (SMACC stamps the marker this far ahead of the str
 Two things to take from this:
 
 1. The **negotiated** latency (~22 ms) is what you actually get — *not* the smaller
-    "reported" figure. SMACC corrects the cue marker by this negotiated value.
+   "reported" figure. SMACC corrects the cue marker by this negotiated value.
 1. On **shared-mode WASAPI**, the engine rounds up to its own period, so **Low and
-    High come out the same** here. The Low setting only helps on devices/drivers whose
-    buffer it can actually shrink; true low latency needs WASAPI *exclusive* mode,
-    which SMACC doesn't use today. **Don't assume Low helps — measure it.**
+   High come out the same** here. The Low setting only helps on devices/drivers whose
+   buffer it can actually shrink; true low latency needs WASAPI *exclusive* mode,
+   which SMACC doesn't use today. **Don't assume Low helps — measure it.**
 
 ## The Low / High setting
 
@@ -129,10 +129,10 @@ The Volume window has a **Latency** choice (High / Low), saved in the `.smacc`
 ([`output_latency`](reference/settings-file.md)):
 
 - **High** (default) — PortAudio's robust buffer. Fewer underruns; the safe choice
-    for an overnight looping cue, where a glitch in a sleeper's ear is worse than 20 ms.
+  for an overnight looping cue, where a glitch in a sleeper's ear is worse than 20 ms.
 - **Low** — asks for a smaller buffer. Trims the marker↔sound gap *where the device
-    allows it* (often no change on shared-mode WASAPI). It applies to the next cue or
-    noise played, not the one currently sounding.
+  allows it* (often no change on shared-mode WASAPI). It applies to the next cue or
+  noise played, not the one currently sounding.
 
 Because the marker is corrected by the *negotiated* latency, switching High/Low never
 silently shifts your markers — the correction tracks the setting.
@@ -142,11 +142,11 @@ silently shifts your markers — the correction tracks the setting.
 Light latency depends entirely on the backend:
 
 - **BlinkStick** — a USB-HID write, a few milliseconds. Fast enough that the marker
-    effectively coincides with the light.
+  effectively coincides with the light.
 - **Philips Hue** — each command is an HTTP call to the bridge (~100 ms) plus the
-    bridge→bulb hop, and the bridge rate-limits, so Hue is unsuitable for tight timing
-    or flashing (SMACC refuses `flash` on Hue for this reason). Fine for slow ambient
-    cues; don't time-lock analyses to a Hue marker without measuring it.
+  bridge→bulb hop, and the bridge rate-limits, so Hue is unsuitable for tight timing
+  or flashing (SMACC refuses `flash` on Hue for this reason). Fine for slow ambient
+  cues; don't time-lock analyses to a Hue marker without measuring it.
 
 ## Measure it on your own rig
 
@@ -154,21 +154,21 @@ The numbers above are specific to one machine — **don't quote them for a diffe
 rig**. To characterise yours:
 
 - **Round-trip, on the bench.** Couple the output back to an input (a loopback cable,
-    or a microphone at the speaker) and run:
+  or a microphone at the speaker) and run:
 
-    ```sh
-    uv run tools/measure_latency.py --loopback --repeats 30
-    ```
+  ```sh
+  uv run tools/measure_latency.py --loopback --repeats 30
+  ```
 
-    It plays tone bursts, hears them back, and reports the distribution. Watch the
-    **jitter** (the spread), not just the mean.
+  It plays tone bursts, hears them back, and reports the distribution. Watch the
+  **jitter** (the spread), not just the mean.
 
 - **Against the EEG, per session (authoritative).** Record the real stimulus onset on
-    a spare amplifier channel — a microphone for the cue, a photodiode for the light —
-    alongside the LSL port code. The difference between the port code and the recorded
-    onset, across the night, is the true distribution. SMACC does not plot this itself
-    yet; a per-session view of it needs a spare channel and is tracked in
-    [#104](https://github.com/remrama/smacc/issues/104).
+  a spare amplifier channel — a microphone for the cue, a photodiode for the light —
+  alongside the LSL port code. The difference between the port code and the recorded
+  onset, across the night, is the true distribution. SMACC does not plot this itself
+  yet; a per-session view of it needs a spare channel and is tracked in
+  [#104](https://github.com/remrama/smacc/issues/104).
 
 ::: {.callout-note title="Why the log can't give you this"}
 
