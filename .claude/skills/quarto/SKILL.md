@@ -51,12 +51,16 @@ are gitignored.
 - **Admonitions are callouts:** `::: {.callout-note title="…"}` … `:::`
   (Material `!!! note "…"` is gone). Types in use: note, tip, warning. There is no
   `info` callout — Material `info` blocks became `note`.
-- **Screenshots:** `![](path){width=N% fig-alt="description"}` — empty caption +
-  `fig-alt` is what keeps Quarto from rendering the alt text as a *visible numbered
-  caption* (matching the old Material site, which showed none). Widths: narrow `45%`,
-  medium `75%`, wide `100%` (the old `.shot` / `--narrow` / `--wide` intent). Avoid a
-  literal `"` inside `fig-alt` — use single quotes there (a `\"` escape gets stripped
-  by mdformat, which silently breaks the attribute).
+- **Screenshots:** `![Caption.](path){#fig-name width=N% fig-alt="description"}` —
+  each shot is a **numbered figure** (#264): a short visible caption, a `#fig-…` id
+  (so it can be cross-referenced with `@fig-…`), and the full description in `fig-alt`
+  for screen readers. In a book, Quarto numbers these per chapter (e.g. "Figure 11.1").
+  The earlier caption-less convention (empty caption + `fig-alt` only) was dropped on
+  purpose — captions are wanted for the manual. Widths: narrow `45%`, medium `75%`,
+  wide `100%` (the old `.shot` / `--narrow` / `--wide` intent). Avoid a literal `"`
+  inside `fig-alt` (and the caption) — use single quotes there (a `\"` escape gets
+  stripped by mdformat, which silently breaks the attribute). Screenshot framing
+  (border/shadow) and brand color are still deferred — see #268.
 - **Download buttons:** `[text](url){.btn .btn-primary role="button"}` (or
   `.btn-secondary`) — Bootstrap, styled by the theme; degrade to plain links in PDF.
 
@@ -90,11 +94,14 @@ directly abuts the fence pulls it into the list). The in-tree skill docs under
 `.claude/skills/` are formatted too; `.mdformat.toml` excludes only `.venv`,
 `.pytest_cache`, `docs/_book`, `docs/.quarto`, and `.claude/worktrees`.
 
-## Deferred (separate follow-up PR)
+## Deferred (separate follow-up PR — #268)
 
 Heavy visual customization is **out of scope** for the migration: a brand SCSS theme,
-a custom **Typst** cover and running header (the old `pdf/cover.html` +
-`pdf/print.css` + `pdf/hooks.py`, which injected the cover/footer version), and table
-styling. The brand color is **`#3c48aa`** (matches the icon background); the logo is
-`docs/assets/icon.png`. Because the PDF engine is Typst, that custom cover/template
-work will be authored in **Typst**, not CSS/Paged.js or LaTeX.
+screenshot framing (the old `extra.css` border/radius/shadow — captures are
+title-bar-less, so a frame makes them read as windows), a custom **Typst** cover and
+running header (the old `pdf/cover.html` + `pdf/print.css` + `pdf/hooks.py`, which
+injected the cover/footer version), and table styling. The brand color is
+**`#3c48aa`** (matches the icon background); the logo is `docs/assets/icon.png`.
+Because the PDF engine is Typst, that custom cover/template work — and the screenshot
+framing, which must match in both outputs — will be authored in **Typst**, not
+CSS/Paged.js or LaTeX.
