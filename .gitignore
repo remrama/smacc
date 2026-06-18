@@ -13,3 +13,5 @@ htmlcov/
 # Quarto docs build output + cache (docs/_book, docs/.quarto)
 _book/
 .quarto/
+# Render log captured by the docs font-fallback guard (.github/workflows/*.yml)
+render.log
