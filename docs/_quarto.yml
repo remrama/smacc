@@ -12,6 +12,10 @@ project:
 
 book:
   title: SMACC
+  # CI OVERRIDES this on the cover via `-M subtitle=…` (docs.yml and release.yml, #261),
+  # e.g. "User manual · v0.1.2". `-M` replaces — it does not append — so the "User manual"
+  # prefix is duplicated in those two workflows; editing this default alone does NOT change
+  # the CI cover (keep the three in sync). A local `quarto render` keeps this default.
   subtitle: User manual
   author: Remington Mallett
   favicon: assets/icon.png
