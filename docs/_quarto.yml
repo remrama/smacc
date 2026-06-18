@@ -5,11 +5,6 @@
 #
 #   quarto preview docs      # live HTML site while writing
 #   quarto render docs       # build both HTML and PDF into docs/_book/
-#
-# Pandoc reader tweak: GitHub-style heading slugs, so the existing cross-page anchors
-# (authored against Material's GitHub-like slugifier) keep resolving — plain Pandoc
-# keeps periods (e.g. `pulsed-vs.-set-and-hold`) and would break those links.
-from: markdown+gfm_auto_identifiers
 
 project:
   type: book

@@ -232,7 +232,7 @@ If triggers don't register, a wrong baud rate is one of the first things to chec
 (alongside the COM port and the [pulsed vs. set-and-hold](#pulsed-vs-set-and-hold)
 mode).
 
-## Pulsed vs. set-and-hold
+## Pulsed vs set-and-hold
 
 Amplifiers and trigger boxes differ in how they expect the code to appear on the
 lines, so SMACC offers two modes:
