@@ -1,4 +1,4 @@
-# Audio cues
+# Audio cues {#chap-audio-cues}
 
 Audio is SMACC's primary cueing modality. The **Audio cue** window (in the
 **Panels** column) holds the cue board: one row per cue, each ready to fire with a
@@ -17,7 +17,7 @@ each row's **✕** to match a protocol (one minimum, up to 20).
 
 Each play and stop is marked in the EEG record. The cue marker is stamped at the
 *estimated sound onset*, not the button press, so it lines up with what the
-participant hears (see [Volume & latency](latency.md)).
+participant hears (see [Volume & latency](latency.md#chap-latency)).
 
 ## Designing a cue
 
@@ -84,5 +84,5 @@ Read it together with *Sending*.
 :::
 
 For how cue levels combine and how to calibrate them, see
-[Volume & latency](latency.md). For binding the speaker and mics, see
-[Audio routing](audio.md).
+[Volume & latency](latency.md#chap-latency). For binding the speaker and mics, see
+[Audio routing](audio.md#chap-audio).

@@ -1,14 +1,14 @@
-# Audio routing
+# Audio routing {#chap-audio}
 
 An overnight cueing study can run several audio streams at once: a cue in the
 bedroom, white noise in the bedroom, your voice over an intercom, the participant's
-voice coming back, a dream-report mic, and sometimes a [light cue](visual.md). These often span
+voice coming back, a dream-report mic, and sometimes a [light cue](visual.md#chap-visual). These often span
 more than one physical device and two rooms. On Windows, the same speaker can also
 appear under several names, and the level that reaches the participant is the product
 of several controls spread across the OS.
 
 This page describes how SMACC handles devices and routing. For the output safety cap
-and stimulus timing, see [Volume & latency](latency.md).
+and stimulus timing, see [Volume & latency](latency.md#chap-latency).
 
 ## Equipment and actions
 
@@ -129,7 +129,7 @@ To confirm a cue actually reaches the bedroom, use the Audio cue window's
 **Monitoring** meters — see
 [Audio cues](audio-cues.md#is-the-cue-reaching-the-bedroom). For the output safety
 cap, the per-cue gains, and how the Windows volume stages combine, see
-[Volume & latency](latency.md).
+[Volume & latency](latency.md#chap-latency).
 
 ## Windows only
 

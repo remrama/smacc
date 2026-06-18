@@ -1,4 +1,4 @@
-# Session log (`.log`)
+# Session log (`.log`) {#chap-reference-session-log}
 
 Every live run writes one plain-text log to its own timestamped folder
 (`smacc-YYYYmmdd-HHMMSS/`) under the study's data directory. It is the session's
@@ -62,7 +62,7 @@ Most markers are stamped when SMACC fires them. **Audio cue and noise** markers 
 the exception: their timestamp — in the log line *and* the LSL stream — is the
 *estimated onset* (the fire time plus the output stream's reported latency), so the
 marker lines up with the sound rather than SMACC's buffer (see
-[Volume & latency](../latency.md)). The raw software-trigger instant rides alongside on a
+[Volume & latency](../latency.md#chap-latency)). The raw software-trigger instant rides alongside on a
 `DEBUG` line:
 
 ```text
@@ -71,7 +71,7 @@ marker lines up with the sound rather than SMACC's buffer (see
 ```
 
 That `DEBUG` line is deliberately **not** a `" - portcode N"` line, so the
-[BIDS export](bids-export.md) counts the event once, at its onset.
+[BIDS export](bids-export.md#chap-reference-bids-export) counts the event once, at its onset.
 
 ### Text-chat transcript
 
@@ -92,7 +92,7 @@ trigger channel and the export stay legible.
 
 The log carries the **complete settings the run used**, so a session stays
 self-documenting even if the study file later changes. The block is the same payload
-as a [`.smacc` file](settings-file.md), but every line is prefixed with `#` and
+as a [`.smacc` file](settings-file.md#chap-reference-settings-file), but every line is prefixed with `#` and
 fenced by sentinels, so log parsers skip it entirely:
 
 ```text

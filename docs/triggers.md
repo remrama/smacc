@@ -1,4 +1,4 @@
-# Markers & port codes
+# Markers & port codes {#chap-triggers}
 
 This page explains what EEG **triggers** and **port codes** are, the ways SMACC can
 send them, and how to configure each one. If you just want the steps, jump to
@@ -26,21 +26,21 @@ The words *event*, *marker*, *trigger*, and *port code* get used loosely in the
 field; SMACC uses each one for exactly one thing, in the UI, the docs, and the
 session log:
 
-| Term          | Meaning in SMACC                                                                                                                                                                        |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Event**     | A named thing that can happen during a session — a cue started, REM observed, lights off. Each is an entry in the study's event registry, with a label and a port code.                 |
-| **Marker**    | The durable record produced when an event fires. A marker is always a [log line](reference/session-log.md); if the event is routed to a transport, it also carries the port code there. |
-| **Port code** | The 8-bit number (**1–255**) identifying an event on the amplifier's trigger channel. Also called a *trigger code*.                                                                     |
-| **Trigger**   | The act of *sending* a port code over a transport. An event can be logged without being triggered.                                                                                      |
-| **Transport** | A path that carries the code to the recording: the **LSL** marker stream, or a hardware **TTL** line (serial trigger box / parallel port).                                              |
-| **Log level** | The severity tag on a log line (`DEBUG`…`CRITICAL`). The log *file* records every level; levels only filter the live preview. See [log levels](reference/session-log.md#log-levels).    |
+| Term          | Meaning in SMACC                                                                                                                                                                                                   |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Event**     | A named thing that can happen during a session — a cue started, REM observed, lights off. Each is an entry in the study's event registry, with a label and a port code.                                            |
+| **Marker**    | The durable record produced when an event fires. A marker is always a [log line](reference/session-log.md#chap-reference-session-log); if the event is routed to a transport, it also carries the port code there. |
+| **Port code** | The 8-bit number (**1–255**) identifying an event on the amplifier's trigger channel. Also called a *trigger code*.                                                                                                |
+| **Trigger**   | The act of *sending* a port code over a transport. An event can be logged without being triggered.                                                                                                                 |
+| **Transport** | A path that carries the code to the recording: the **LSL** marker stream, or a hardware **TTL** line (serial trigger box / parallel port).                                                                         |
+| **Log level** | The severity tag on a log line (`DEBUG`…`CRITICAL`). The log *file* records every level; levels only filter the live preview. See [log levels](reference/session-log.md#log-levels).                               |
 
 ## Default event codes
 
 These are SMACC's built-in event markers and their default port codes — the
 out-of-the-box [`event_codes`](reference/settings-file.md#event_codes) registry. A
 study can retune any code in the **Markers** window; the change travels in its
-[`.smacc`](reference/settings-file.md) and is written into every session log.
+[`.smacc`](reference/settings-file.md#chap-reference-settings-file) and is written into every session log.
 
 <!-- BEGIN auto:event-codes (kept in lockstep with smacc.events.default_events by tests/test_docs_schema.py) -->
 
@@ -269,7 +269,7 @@ register cleanly.
 1. Click **Apply**.
 
 The whole configuration is saved in your
-[SMACC file](smacc-files.md), so it travels with the rest of your
+[SMACC file](smacc-files.md#chap-smacc-files), so it travels with the rest of your
 setup. Because a COM port name or LPT address is specific to one computer, SMACC
 reports a clear error if the saved port can't be opened on the machine you load it on
 — re-pick it in the Markers window and save again.

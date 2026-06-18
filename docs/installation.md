@@ -1,4 +1,4 @@
-# Installation
+# Installation {#chap-installation}
 
 [Download SMACC](https://github.com/remrama/smacc/releases/latest/download/SMACC-Setup.exe){.btn .btn-primary role="button"}
 
@@ -10,7 +10,7 @@ double-click `SMACC-Setup.exe` and click through. The installer:
 - associates **`.smacc` files**, so double-clicking one opens the **Start a session**
   dialog with it preselected;
 - includes the **EEG Annotator** — the post-hoc
-  [EEG viewer/annotator](eeg-annotator.md), opened from the Launcher;
+  [EEG viewer/annotator](eeg-annotator.md#chap-eeg-annotator), opened from the Launcher;
 - registers an uninstaller — remove SMACC from **Settings › Apps** like any other
   program. Uninstalling never touches your data: SMACC files, recordings, and
   logs under `~/SMACC` (or your data directories) all stay put. The
@@ -97,14 +97,14 @@ it and its subfolders on first run.
 
 The rest of setup is covered on the relevant pages:
 
-- **Your study configuration** lives in a portable [SMACC file](smacc-files.md).
+- **Your study configuration** lives in a portable [SMACC file](smacc-files.md#chap-smacc-files).
   SMACC seeds a `default.smacc` and opens it when you don't pick another, so it
   works out of the box. The installer associates `.smacc` files; enable or repair
   the association any time from **File › Associate .smacc files (Windows)** in the
   Launcher.
 - **Audio cues** go in the data directory's `cues/` folder, alongside the seeded
-  `demo-*` cues — see [Audio cues](audio-cues.md).
+  `demo-*` cues — see [Audio cues](audio-cues.md#chap-audio-cues).
 - **Dream-report surveys** are managed from the Dream recording panel — see
-  [Dream reports & surveys](surveys.md).
+  [Dream reports & surveys](surveys.md#chap-surveys).
 - **A recording mic:** to record dreams, bind your mic to **Bedroom mic 1** in the
-  **Devices** window (the **Panels** column) — see [Audio routing](audio.md).
+  **Devices** window (the **Panels** column) — see [Audio routing](audio.md#chap-audio).

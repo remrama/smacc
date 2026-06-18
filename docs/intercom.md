@@ -1,4 +1,4 @@
-# Intercom & chat
+# Intercom & chat {#chap-intercom}
 
 The **Intercom** window (in the **Panels** column) is the live channel between the
 control room and the bedroom. It carries voice both ways, plus a typed text channel
@@ -15,7 +15,7 @@ for when audio would intrude.
   It is unmarked.
 
 Both directions route through equipment set once in the **Devices** window (see
-[Audio routing](audio.md)). A **level meter** beside each button shows the live
+[Audio routing](audio.md#chap-audio)). A **level meter** beside each button shows the live
 input level while that direction is on, so signal on the bar means audio is actually
 flowing (your mic for Talk, the participant's mic for Listen) rather than just a
 latched button.
@@ -59,5 +59,5 @@ marked exactly like a typed message.
 default no port codes fire and nothing reaches the BIDS events export: a typed
 exchange is rapid and conversational, and would flood the marker channel. If a study
 needs marker timestamps, route `Chat to participant` (code 69) and `Chat from participant` (code 70) to LSL/TTL in the **Markers** window (see
-[Markers & port codes](triggers.md)). The markers stay bare, without the message
+[Markers & port codes](triggers.md#chap-triggers)). The markers stay bare, without the message
 text, so the trigger channel stays legible.

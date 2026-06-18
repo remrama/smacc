@@ -1,4 +1,4 @@
-# Visual cues
+# Visual cues {#chap-visual}
 
 Light is SMACC's second cueing modality, and it earns its place for two reasons.
 Closed eyelids still transmit light, so a lamp can reach a sleeping (or dreaming)
@@ -10,7 +10,7 @@ bulbs, from one window, with the same marker discipline as audio.
 This page covers the Visual cue board, the patterns, what the markers mean,
 choosing between the two devices, and the safety notes that come with flashing
 light at sleeping people. For plugging the devices in and binding them, see
-[Devices](devices.md).
+[Devices](devices.md#chap-devices).
 
 ## The visual cue board
 

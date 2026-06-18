@@ -1,6 +1,6 @@
-# Annotations sidecar
+# Annotations sidecar {#chap-reference-annotations-file}
 
-The [EEG Annotator](../eeg-annotator.md) saves annotations as a **TSV + JSON
+The [EEG Annotator](../eeg-annotator.md#chap-eeg-annotator) saves annotations as a **TSV + JSON
 sidecar pair** next to the source recording, which is never modified:
 
 ```

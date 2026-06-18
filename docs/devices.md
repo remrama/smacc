@@ -1,10 +1,10 @@
-# Compatible devices
+# Compatible devices {#chap-devices}
 
 SMACC can drive a small number of external devices for cueing. This page lists
 the supported hardware and what each one needs. For how SMACC *assigns and routes*
 devices — equipment, the Devices window, and volume — see
-[Audio routing](audio.md); for using the light devices — patterns,
-timing, choosing between them, and safety — see [Visual cues](visual.md).
+[Audio routing](audio.md#chap-audio); for using the light devices — patterns,
+timing, choosing between them, and safety — see [Visual cues](visual.md#chap-visual).
 
 ## BlinkStick
 
@@ -32,13 +32,13 @@ sleep and lucid-dreaming experiments.
    automatically, or click **Refresh devices (F5)** in the Devices window to rescan.
 1. Configure a light cue — color, brightness, pattern (steady, or a pulse/flash at
    a rate in Hz), and length (or **Loop** until stopped) — and add more cues with
-   **+ Add cue** if the protocol needs several. See [Visual cues](visual.md) for
+   **+ Add cue** if the protocol needs several. See [Visual cues](visual.md#chap-visual) for
    what each pattern is for.
 1. Click a cue's **Play** to fire it; **Stop** turns the light off early. The rest
    of SMACC stays responsive while the light is on.
 
 Your chosen device and the whole cue board are saved in the
-[SMACC file](smacc-files.md), so the visual-cue
+[SMACC file](smacc-files.md#chap-smacc-files), so the visual-cue
 setup travels with the rest of your configuration; the device is reconnected by
 serial on the next launch (and flagged if it isn't plugged in).
 

@@ -1,4 +1,4 @@
-# Release notes
+# Release notes {#chap-release-notes}
 
 ::: {.callout-warning title="SMACC is pre-1.0"}
 

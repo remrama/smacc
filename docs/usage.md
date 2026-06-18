@@ -1,4 +1,4 @@
-# Overview
+# Overview {#chap-usage}
 
 SMACC opens to its **Launcher** — a list of the SMACC tools. Click a tool and SMACC
 asks for the **SMACC file** to use, then opens it. To run a night you open a live
@@ -7,13 +7,13 @@ asks for the **SMACC file** to use, then opens it. To run a night you open a liv
 The Launcher's tools (its title bar reads **SMACC**):
 
 - **Session…** — run a live **Session** for collecting data, the interface for
-  running a night. SMACC prompts for a [SMACC file](smacc-files.md) first.
-- **Editor…** — create or edit a [SMACC file](smacc-files.md) in the **Editor**,
+  running a night. SMACC prompts for a [SMACC file](smacc-files.md#chap-smacc-files) first.
+- **Editor…** — create or edit a [SMACC file](smacc-files.md#chap-smacc-files) in the **Editor**,
   without recording anything.
 - **Analyzer** — inspect a past session.
 - **Audio Cue Designer** — build a tone cue and export it as a WAV.
 - **EEG Annotator** — review and annotate a recorded EEG (see
-  [EEG Annotator](eeg-annotator.md)).
+  [EEG Annotator](eeg-annotator.md#chap-eeg-annotator)).
 
 The **Session** and the **Editor** are the same window in two modes — running a
 night versus authoring a SMACC file.
@@ -30,7 +30,7 @@ dialog with that file preselected. From the Launcher:
   picker lists recent files, the seeded `default`, and **Browse…** for any other),
   confirm the optional subject/session/notes, and click **OK** to start. Runs are
   written to that file's **data directory**; the run folder and log are created only
-  when the session starts. (See [SMACC files](smacc-files.md) for what a SMACC file
+  when the session starts. (See [SMACC files](smacc-files.md#chap-smacc-files) for what a SMACC file
   holds.)
 - **Editor…** — opens the **Open in the Editor** dialog. Choose **New SMACC file**
   for a blank configuration, or an existing file (recents / **Browse…**) to edit.
@@ -43,7 +43,7 @@ dialog with that file preselected. From the Launcher:
 - **Audio Cue Designer** — open the standalone tool to build a simple tone cue and
   export it as a WAV into a study's `cues/` folder (see
   [Audio cues](audio-cues.md#designing-a-cue)).
-- **EEG Annotator** — open the post-hoc [EEG Annotator](eeg-annotator.md) to review a
+- **EEG Annotator** — open the post-hoc [EEG Annotator](eeg-annotator.md#chap-eeg-annotator) to review a
   recorded night and place annotations. It runs as its own window and process, so it
   stays available while a session runs.
 
@@ -75,17 +75,17 @@ the same window, dimmed for a dark control room:
 
 Each tool has its own page:
 
-- [Audio cues](audio-cues.md) — the cue board, the Audio Cue Designer, background
+- [Audio cues](audio-cues.md#chap-audio-cues) — the cue board, the Audio Cue Designer, background
   noise, and confirming a cue reaches the bedroom.
-- [Visual cues](visual.md) — light cues on a BlinkStick or Philips Hue.
-- [Biocals](biocals.md) — timed, marked biocalibration tasks.
-- [Dream reports & surveys](surveys.md) — record a report and administer a survey.
-- [Intercom & chat](intercom.md) — talk, listen, and a typed channel.
-- [Markers & port codes](triggers.md) — the Markers window, the Event logging panel,
+- [Visual cues](visual.md#chap-visual) — light cues on a BlinkStick or Philips Hue.
+- [Biocals](biocals.md#chap-biocals) — timed, marked biocalibration tasks.
+- [Dream reports & surveys](surveys.md#chap-surveys) — record a report and administer a survey.
+- [Intercom & chat](intercom.md#chap-intercom) — talk, listen, and a typed channel.
+- [Markers & port codes](triggers.md#chap-triggers) — the Markers window, the Event logging panel,
   and EEG triggers.
-- [Audio routing](audio.md) and [Devices](devices.md) — bind equipment and route
+- [Audio routing](audio.md#chap-audio) and [Devices](devices.md#chap-devices) — bind equipment and route
   actions to it.
-- [Volume & latency](latency.md) — the output safety cap and stimulus timing.
+- [Volume & latency](latency.md#chap-latency) — the output safety cap and stimulus timing.
 
 ## Event log
 
@@ -93,7 +93,7 @@ Every run writes a detailed `.log` to its own timestamped folder under the SMACC
 file's **data directory** (for example `~/SMACC/data/`), capturing the events and
 settings for that session. Open one later from the Launcher's **Analyzer** to see a
 summary, export its events to BIDS, or recover its settings. For the line format and
-levels, see the [session log reference](reference/session-log.md). If SMACC crashes,
+levels, see the [session log reference](reference/session-log.md#chap-reference-session-log). If SMACC crashes,
 see [Troubleshooting](troubleshooting.md#if-smacc-crashes).
 
 ## Display preferences
@@ -107,12 +107,12 @@ as…** in a Session.
 
 Separately, the machine remembers window positions and sizes and your recent files
 in `~/SMACC/preferences.yaml`, restored on the next launch (see the
-[preferences reference](reference/preferences-file.md)).
+[preferences reference](reference/preferences-file.md#chap-reference-preferences-file)).
 
 ## SMACC files
 
 A **SMACC file** captures your study's whole configuration — cue files, volumes,
 noise, visual cues, survey presets, event markers, display choices, and the **data
 directory** where runs are written — in a single portable `.smacc`. See
-[SMACC files](smacc-files.md) for the full story, and the
-[SMACC file reference](reference/settings-file.md) for the on-disk format.
+[SMACC files](smacc-files.md#chap-smacc-files) for the full story, and the
+[SMACC file reference](reference/settings-file.md#chap-reference-settings-file) for the on-disk format.

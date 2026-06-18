@@ -1,4 +1,4 @@
-# SMACC files
+# SMACC files {#chap-smacc-files}
 
 A **SMACC file** (`.smacc`) is the study's configuration: cue files, volumes,
 noise, visual cues, biocals, survey presets, event markers, the display choices
@@ -11,13 +11,13 @@ A SMACC file is *not* a session file. It is not tied to any particular run:
 opening one **starts a new session** with that configuration, and you can start
 as many sessions from the same file as you like. Sessions never rewrite the
 SMACC file they were started from — what happened in a run is recorded in that
-run's [session log](reference/session-log.md), not in the SMACC file.
+run's [session log](reference/session-log.md#chap-reference-session-log), not in the SMACC file.
 
 It is a single, portable file (plain YAML you can read and edit). Cue/noise
 files and the data directory are stored **relative** to the SMACC file when they
 sit beside it — so a self-contained study folder stays valid if you move, copy,
 or zip it — and **absolute** when they point elsewhere. For the exact on-disk
-format, see the [SMACC file reference](reference/settings-file.md).
+format, see the [SMACC file reference](reference/settings-file.md#chap-reference-settings-file).
 
 ![The SMACC Editor.](assets/screenshot-editor.png){#fig-editor width=100% fig-alt="The SMACC Editor: the editing banner, the Panels column, the data directory, and the save panel."}
 

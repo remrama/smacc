@@ -1,4 +1,4 @@
-# Dream reports & surveys
+# Dream reports & surveys {#chap-surveys}
 
 After an awakening the participant gives a **dream report**: recorded audio, often
 followed by a questionnaire. SMACC records the audio and can open a survey alongside
@@ -212,4 +212,4 @@ items:
 
 Web survey URLs, by contrast, are saved in the `.smacc` study file
 (`survey_options`) and travel with the study — see the
-[settings-file reference](reference/settings-file.md).
+[settings-file reference](reference/settings-file.md#chap-reference-settings-file).
