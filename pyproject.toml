@@ -65,13 +65,13 @@ docs = [
     # now a direct dependency.
     "pypdf",
     # Markdown formatter (the docs counterpart to ruff), run in CI and pre-commit.
-    # gfm covers tables/autolinks; frontmatter leaves YAML front matter alone; mkdocs
-    # keeps the repo's established four-space list-nesting style across all markdown
-    # (and leaves Quarto callouts intact). It no longer parses Material admonitions —
-    # those are gone — but dropping it would reflow every list in the repo.
+    # gfm covers tables/autolinks; frontmatter leaves YAML front matter alone. Lists
+    # nest with standard two-space CommonMark indentation — Quarto/Pandoc renders that
+    # natively, so the MkDocs-era four-space style (and the mdformat-mkdocs plugin that
+    # enforced it) retired with MkDocs (#265). Base mdformat leaves Quarto `:::`
+    # callouts and `{...}` attributes intact.
     "mdformat",
     "mdformat-gfm",
-    "mdformat-mkdocs",
     "mdformat-frontmatter",
 ]
 dev = [

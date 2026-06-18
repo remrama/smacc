@@ -13,24 +13,28 @@ evaluate — **without writing code yet**. The argument is the issue number (e.g
 ## Steps
 
 1. **Read the whole issue.** Use the `gh` skill:
+
    ```sh
    gh issue view <N> --json number,title,body,labels,milestone,comments
    ```
+
    Read the body *and every comment* — in this repo the owner's follow-up comments
    usually carry the real constraints (which hardware is required, pulsed vs held,
    …), not just the original post.
 
-2. **Understand the code.** Find and **read** the modules the change touches; trace
+1. **Understand the code.** Find and **read** the modules the change touches; trace
    the integration points and existing contracts (data shapes, persisted settings,
    tests). Don't plan against a guess — open the files.
 
-3. **Load the domain context.** Pull in the relevant skill so the plan reflects
+1. **Load the domain context.** Pull in the relevant skill so the plan reflects
    reality, not just the ticket:
+
    - **portcodes** — triggers, markers, `events.py`, trigger hardware.
    - **audio-routing** — devices, routing, streams, volume.
    - **dream-engineering** — the research use-case, timing, night-time UX.
 
-4. **Write the plan.** Structure it:
+1. **Write the plan.** Structure it:
+
    - **Problem** — what's actually being asked, in your own words.
    - **Approach** — the recommended design, plus alternatives you considered and
      rejected (and why).
@@ -45,7 +49,7 @@ evaluate — **without writing code yet**. The argument is the issue number (e.g
    - **Verification** — how it'll be tested, including what can only be validated on
      real hardware.
 
-5. **Present for evaluation. Do not start implementing.** Wait for the user to react.
+1. **Present for evaluation. Do not start implementing.** Wait for the user to react.
 
 ## Conventions
 

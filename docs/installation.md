@@ -8,15 +8,15 @@ double-click `SMACC-Setup.exe` and click through. The installer:
 - installs SMACC **per-user** — no administrator rights or IT involvement needed;
 - adds a **Start menu** entry (and, if you opt in, a desktop shortcut);
 - associates **`.smacc` files**, so double-clicking one opens the **Start a session**
-    dialog with it preselected;
+  dialog with it preselected;
 - includes the **EEG Annotator** — the post-hoc
-    [EEG viewer/annotator](eeg-annotator.md), opened from the Launcher;
+  [EEG viewer/annotator](eeg-annotator.md), opened from the Launcher;
 - registers an uninstaller — remove SMACC from **Settings › Apps** like any other
-    program. Uninstalling never touches your data: SMACC files, recordings, and
-    logs under `~/SMACC` (or your data directories) all stay put. The
-    uninstaller reminds you of this (and of the folder's location) when it
-    finishes, so finding the folder afterwards is expected — delete it manually
-    if you no longer need the data.
+  program. Uninstalling never touches your data: SMACC files, recordings, and
+  logs under `~/SMACC` (or your data directories) all stay put. The
+  uninstaller reminds you of this (and of the folder's location) when it
+  finishes, so finding the folder afterwards is expected — delete it manually
+  if you no longer need the data.
 
 Installing a newer version over an existing one upgrades it in place.
 
@@ -98,13 +98,13 @@ it and its subfolders on first run.
 The rest of setup is covered on the relevant pages:
 
 - **Your study configuration** lives in a portable [SMACC file](smacc-files.md).
-    SMACC seeds a `default.smacc` and opens it when you don't pick another, so it
-    works out of the box. The installer associates `.smacc` files; enable or repair
-    the association any time from **File › Associate .smacc files (Windows)** in the
-    Launcher.
+  SMACC seeds a `default.smacc` and opens it when you don't pick another, so it
+  works out of the box. The installer associates `.smacc` files; enable or repair
+  the association any time from **File › Associate .smacc files (Windows)** in the
+  Launcher.
 - **Audio cues** go in the data directory's `cues/` folder, alongside the seeded
-    `demo-*` cues — see [Audio cues](audio-cues.md).
+  `demo-*` cues — see [Audio cues](audio-cues.md).
 - **Dream-report surveys** are managed from the Dream recording panel — see
-    [Dream reports & surveys](surveys.md).
+  [Dream reports & surveys](surveys.md).
 - **A recording mic:** to record dreams, bind your mic to **Bedroom mic 1** in the
-    **Devices** window (the **Panels** column) — see [Audio routing](audio.md).
+  **Devices** window (the **Panels** column) — see [Audio routing](audio.md).

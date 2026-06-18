@@ -118,15 +118,15 @@ can set:
 - **Code** — the 8-bit port code (1–255) sent when the event triggers.
 - **LSL** — whether a firing sends the code over the LSL marker stream.
 - **TTL** — whether a firing sends the code over the hardware TTL trigger. The
-    column is grayed out until a transport is enabled in the window's **Hardware TTL
-    transport** section (the ticks are kept and re-arm with it). An event with neither
-    LSL nor TTL ticked is log-only.
+  column is grayed out until a transport is enabled in the window's **Hardware TTL
+  transport** section (the ticks are kept and re-arm with it). An event with neither
+  LSL nor TTL ticked is log-only.
 - **Preview** — whether the event shows in the live log preview. The session log
-    *file* always records every event regardless; this only controls the on-screen
-    preview.
+  *file* always records every event regardless; this only controls the on-screen
+  preview.
 - **Increment** — give an event a unique, increasing code on each firing (for
-    example **dream reports**: 201, 202, 203, …) so individual occurrences are
-    findable in the trigger channel. Off uses one fixed code each time.
+  example **dream reports**: 201, 202, 203, …) so individual occurrences are
+  findable in the trigger channel. Off uses one fixed code each time.
 
 **TTL safe max code** raises a soft warning for TTL-routed codes above it, handy when
 your trigger hardware accepts only a limited range (some older systems do; LSL
@@ -220,13 +220,13 @@ is configured (by a switch, firmware, or its manual) to expect a specific rate, 
 SMACC has to match it — a mismatch produces garbled or missed triggers, not an error.
 
 - **Where to find it:** check your trigger box's manual or its configuration utility.
-    Common rates are 9600, 19200, 38400, 57600, **115200**, and 230400.
+  Common rates are 9600, 19200, 38400, 57600, **115200**, and 230400.
 - **SMACC's default is 115200**, which many modern USB trigger boxes (e.g. typical
-    BrainProducts/Neurospec-style adapters) use out of the box. If yours specifies a
-    different rate, pick it from the dropdown (or type any other value).
+  BrainProducts/Neurospec-style adapters) use out of the box. If yours specifies a
+  different rate, pick it from the dropdown (or type any other value).
 - **Higher isn't "better."** A faster rate shaves only microseconds off a one-byte
-    write, which is negligible next to audio/event timing — so choose the rate your box
-    expects rather than the largest one.
+  write, which is negligible next to audio/event timing — so choose the rate your box
+  expects rather than the largest one.
 
 If triggers don't register, a wrong baud rate is one of the first things to check
 (alongside the COM port and the [pulsed vs. set-and-hold](#pulsed-vs-set-and-hold)
@@ -238,13 +238,13 @@ Amplifiers and trigger boxes differ in how they expect the code to appear on the
 lines, so SMACC offers two modes:
 
 - **Pulsed** — SMACC raises the code on the lines, waits a configurable **pulse
-    width** (e.g. 10 ms), then drops them back to 0. Each event is a brief, distinct
-    pulse. Choose this when the amplifier expects a momentary trigger, or when you want
-    SMACC to control the pulse length.
+  width** (e.g. 10 ms), then drops them back to 0. Each event is a brief, distinct
+  pulse. Choose this when the amplifier expects a momentary trigger, or when you want
+  SMACC to control the pulse length.
 - **Set-and-hold** — SMACC writes the code once and leaves it on the lines until the
-    next event. Choose this for amplifiers that sample a held level, **and** for boxes
-    that generate their own fixed-width pulse when they receive a byte (SMACC just sets
-    the value; the box shapes the pulse).
+  next event. Choose this for amplifiers that sample a held level, **and** for boxes
+  that generate their own fixed-width pulse when they receive a byte (SMACC just sets
+  the value; the box shapes the pulse).
 
 If you're not sure which your hardware wants, start with **pulsed at 10 ms** and
 verify with the **Test** button (below); switch to set-and-hold if events don't
@@ -253,19 +253,19 @@ register cleanly.
 ## Configuring trigger output in SMACC
 
 1. Open the **Markers** window from the Panels column (available both in a live
-    Session and in the Editor) and find its **Hardware TTL transport** section.
+   Session and in the Editor) and find its **Hardware TTL transport** section.
 1. Tick **Enable hardware trigger output**.
 1. Choose a **Transport**:
-    - **Serial** — pick your box's **Port** from the dropdown (click **Refresh** if
-        you plugged it in after opening the window) and set the **Baud** rate to match
-        your box (see [What is the baud rate?](#what-is-the-baud-rate); SMACC defaults to
-        115200). If the rig isn't attached right now, you can type the port name (e.g.
-        `COM3`) directly.
-    - **Parallel port** — enter the **Address** as hex (see
-        [Finding your parallel-port address](#finding-your-parallel-port-address)).
+   - **Serial** — pick your box's **Port** from the dropdown (click **Refresh** if
+     you plugged it in after opening the window) and set the **Baud** rate to match
+     your box (see [What is the baud rate?](#what-is-the-baud-rate); SMACC defaults to
+     115200). If the rig isn't attached right now, you can type the port name (e.g.
+     `COM3`) directly.
+   - **Parallel port** — enter the **Address** as hex (see
+     [Finding your parallel-port address](#finding-your-parallel-port-address)).
 1. Choose a **Mode** (pulsed or set-and-hold) and, for pulsed, a **Pulse width**.
 1. Click **Test** to send one pulse and confirm the amplifier sees it. The result
-    appears next to the button; an error explains what went wrong.
+   appears next to the button; an error explains what went wrong.
 1. Click **Apply**.
 
 The whole configuration is saved in your
@@ -298,7 +298,7 @@ Add-in PCIe/PCI parallel cards are frequently mapped somewhere else entirely, so
 1. Open **Device Manager** (press `Win+X`, then choose Device Manager).
 1. Expand **Ports (COM & LPT)** and double-click your parallel port.
 1. Go to the **Resources** tab and read the first **I/O Range** — the start of that
-    range is your address. Enter it in SMACC with a `0x` prefix (e.g. `0x378`).
+   range is your address. Enter it in SMACC with a `0x` prefix (e.g. `0x378`).
 
 ## Installing the InpOut32 driver (parallel port only)
 
@@ -309,9 +309,9 @@ required admin rights every launch). Install it once, manually:
 
 1. Download **InpOutBinaries** from [highrez.co.uk](https://www.highrez.co.uk/downloads/inpout32/).
 1. Run the included **`InstallDriver.exe`** once (as administrator) to install the
-    kernel driver.
+   kernel driver.
 1. Make sure **`inpoutx64.dll`** is where SMACC can load it — on the system path, in
-    `C:\Windows\System32`, or beside `SMACC.exe`.
+   `C:\Windows\System32`, or beside `SMACC.exe`.
 
 If the driver isn't available, SMACC's parallel transport reports a clear error and
 falls back to LSL only — it never crashes a session over a missing driver.
@@ -319,7 +319,7 @@ falls back to LSL only — it never crashes a session over a missing driver.
 ## Verifying
 
 - Use the **Test** button in the Markers window's transport section for a quick
-    "can SMACC drive the line?" check.
+  "can SMACC drive the line?" check.
 - Then confirm end-to-end on the amplifier: record a short block, fire a few events
-    from the **Event logging** window, and check that the codes land on the EEG trigger
-    channel. Only the real recording proves the path works.
+  from the **Event logging** window, and check that the codes land on the EEG trigger
+  channel. Only the real recording proves the path works.

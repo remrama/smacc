@@ -15,16 +15,16 @@ YYYY-MM-DD HH:MM:SS.mmm±HHMM, LEVEL, message
 ```
 
 - **timestamp** — local wall-clock, millisecond precision, with the machine's UTC
-    offset (e.g. `-0500`). The offset lets a reader place the night on an absolute
-    timeline — for example when overlaying the log on an EEG recording whose clock
-    sits in another zone. Logs written before SMACC recorded the offset are
-    timezone-naive (no `±HHMM`); both forms are read back the same way. The *file*
-    is always 24-hour; the live on-screen preview can optionally show 12-hour
-    (AM/PM) time (Session window → **File → 12-hour clock**), which changes only the
-    display, not what is written.
+  offset (e.g. `-0500`). The offset lets a reader place the night on an absolute
+  timeline — for example when overlaying the log on an EEG recording whose clock
+  sits in another zone. Logs written before SMACC recorded the offset are
+  timezone-naive (no `±HHMM`); both forms are read back the same way. The *file*
+  is always 24-hour; the live on-screen preview can optionally show 12-hour
+  (AM/PM) time (Session window → **File → 12-hour clock**), which changes only the
+  display, not what is written.
 - **LEVEL** — a Python logging level: `DEBUG`, `INFO`, `WARNING`, `ERROR`, or
-    `CRITICAL`. The file records every level; the live on-screen preview shows only a
-    configurable subset.
+  `CRITICAL`. The file records every level; the live on-screen preview shows only a
+  configurable subset.
 - **message** — the log text. An **event-marker** line ends in `" - portcode N"`:
 
 ```text

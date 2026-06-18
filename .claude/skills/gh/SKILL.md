@@ -9,18 +9,21 @@ argument-hint: "[issue|pr|repo] [options]"
 When the user requests repository interaction, issue tracking, or PR manipulation, you must execute these operations via the terminal using the official `gh` CLI or the `gh pr-review` extension.
 
 ### Core Execution Rules
+
 1. **No Hedging:** Provide exact command invocations without speculative commentary.
-2. **Prefer Scripting Over Parsing:** Always use the `--json` + `--jq` flags when extracting data from `gh` to handle automation. Do not scrape raw text output.
-3. **Explicit Repo Targeting:** When handling inline review threads with the `gh pr-review` extension, always append the `-R owner/repo` flag explicitly.
-4. **Thread Resolution:** Use `review view` to isolate exact GraphQL node IDs (`PRRT_...`) before attempting thread replies or resolutions.
+1. **Prefer Scripting Over Parsing:** Always use the `--json` + `--jq` flags when extracting data from `gh` to handle automation. Do not scrape raw text output.
+1. **Explicit Repo Targeting:** When handling inline review threads with the `gh pr-review` extension, always append the `-R owner/repo` flag explicitly.
+1. **Thread Resolution:** Use `review view` to isolate exact GraphQL node IDs (`PRRT_...`) before attempting thread replies or resolutions.
 
 ## Parameter Routing
+
 If the user passes manual variables via a slash command (`$ARGUMENTS`), evaluate their intent:
+
 - If `$0` is `issue`, prioritize sections covering **Issues (`gh issue`)**.
 - If `$0` is `pr`, prioritize sections covering **Pull Requests (`gh pr`)**.
 - If no arguments are provided, use the global repo context.
 
----
+______________________________________________________________________
 
 ## Authentication & Environment Variables
 
@@ -30,19 +33,19 @@ gh auth status
 gh auth refresh [--scopes SCOPES]
 ```
 
-| Variable | Purpose |
-|----------|---------|
-| `GH_TOKEN` / `GITHUB_TOKEN` | Auth token (GH_TOKEN wins) |
-| `GH_HOST` | GitHub hostname (Enterprise) |
-| `GH_REPO` | Override repo as `[HOST/]OWNER/REPO` |
-| `GH_EDITOR` | Editor for text input |
-| `GH_BROWSER` | Browser for `--web` |
-| `GH_DEBUG` | Verbose output; `"api"` shows HTTP |
-| `GH_PAGER` | Terminal pager |
-| `GH_FORCE_TTY` | Force terminal output when piped |
-| `NO_COLOR` / `CLICOLOR=0` | Disable colors |
+| Variable                    | Purpose                              |
+| --------------------------- | ------------------------------------ |
+| `GH_TOKEN` / `GITHUB_TOKEN` | Auth token (GH_TOKEN wins)           |
+| `GH_HOST`                   | GitHub hostname (Enterprise)         |
+| `GH_REPO`                   | Override repo as `[HOST/]OWNER/REPO` |
+| `GH_EDITOR`                 | Editor for text input                |
+| `GH_BROWSER`                | Browser for `--web`                  |
+| `GH_DEBUG`                  | Verbose output; `"api"` shows HTTP   |
+| `GH_PAGER`                  | Terminal pager                       |
+| `GH_FORCE_TTY`              | Force terminal output when piped     |
+| `NO_COLOR` / `CLICOLOR=0`   | Disable colors                       |
 
----
+______________________________________________________________________
 
 ## Pull Requests (`gh pr`)
 
@@ -133,7 +136,7 @@ gh pr status
 
 PR selectors: number (`123`), URL, or branch name (`feature` or `OWNER:feature`).
 
----
+______________________________________________________________________
 
 ## Issues (`gh issue`)
 
@@ -164,7 +167,7 @@ gh issue transfer NUMBER|URL DEST_REPO
 gh issue status
 ```
 
----
+______________________________________________________________________
 
 ## Repositories (`gh repo`)
 
@@ -199,7 +202,7 @@ gh repo archive [OWNER/REPO] [--yes]
 gh repo deploy-key list|add|delete
 ```
 
----
+______________________________________________________________________
 
 ## Releases (`gh release`)
 
@@ -224,7 +227,7 @@ gh release delete TAG [--yes] [--cleanup-tag]
 gh release delete-asset TAG ASSET_NAME [--yes]
 ```
 
----
+______________________________________________________________________
 
 ## Workflows & Runs (`gh workflow` / `gh run`)
 
@@ -250,7 +253,7 @@ gh run download [RUN_ID] [-n ARTIFACT_NAME] [-D DIR] [--pattern GLOB]
 
 `WORKFLOW` = filename (`ci.yml`), numeric ID, or display name.
 
----
+______________________________________________________________________
 
 ## Gists, Secrets, Variables, Labels
 
@@ -281,7 +284,7 @@ gh label delete NAME [--yes]
 gh label clone SOURCE_REPO [--force]
 ```
 
----
+______________________________________________________________________
 
 ## Search
 
@@ -298,7 +301,7 @@ gh search prs QUERY [--repo OWNER/REPO] \
   --base BRANCH --head BRANCH --limit NUM --json FIELDS
 ```
 
----
+______________________________________________________________________
 
 ## `gh api` - Direct REST/GraphQL Access
 
@@ -345,7 +348,7 @@ gh api graphql --paginate -f query='
 '
 ```
 
----
+______________________________________________________________________
 
 ## Output Formatting
 
@@ -364,7 +367,7 @@ gh pr list --json number,title,author \
 
 Template functions: `autocolor`, `color`, `join`, `pluck`, `tablerow`, `tablerender`, `timeago`, `timefmt`, `truncate`.
 
----
+______________________________________________________________________
 
 ## Scripting Patterns
 
@@ -389,7 +392,7 @@ gh run watch RUN_ID --exit-status
 GH_TOKEN="$TOKEN" gh pr create --title "..." --body "..."
 ```
 
----
+______________________________________________________________________
 
 ## Other Commands
 
@@ -416,7 +419,7 @@ gh status [--exclude REPOS] [--org ORG]
 -R, --repo OWNER/REPO     # global flag: override target repo
 ```
 
----
+______________________________________________________________________
 
 ## `gh pr-review` Extension - Inline Review Threads
 
@@ -468,6 +471,7 @@ gh pr-review review view [NUMBER|URL] \
 ```
 
 Output schema:
+
 ```json
 {
   "reviews": [{
