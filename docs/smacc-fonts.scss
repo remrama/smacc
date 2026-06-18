@@ -1,0 +1,50 @@
+/*-- scss:rules --*/
+
+// Self-hosted brand fonts, bundled under docs/assets/fonts as static .woff2 (the
+// matching .ttf serve the Typst PDF). Loaded by BOTH the light and dark themes: each
+// scheme compiles to its own stylesheet and the toggle swaps them, so the @font-face
+// rules must exist in whichever sheet is active. The url() is resolved by Quarto at
+// build time relative to the project dir (docs/), and Quarto copies the file into the
+// site and rewrites the URL — so it is project-relative (assets/fonts), not ../../.
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("assets/fonts/Inter-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("assets/fonts/Inter-Bold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Space Grotesk";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("assets/fonts/SpaceGrotesk-Medium.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Space Grotesk";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("assets/fonts/SpaceGrotesk-SemiBold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("assets/fonts/JetBrainsMono-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("assets/fonts/JetBrainsMono-Medium.woff2") format("woff2");
+}

@@ -67,9 +67,16 @@ book:
 
 format:
   html:
+    # Light is listed first, so it is the default-on-load scheme (most screenshots are
+    # light captures); the appearance toggle still offers the dark "lights barely up"
+    # theme. Each scheme = Bootswatch base + the shared font faces + the SMACC theme.
     theme:
-      light: pulse
-      dark: darkly
+      light: [pulse, smacc-fonts.scss, smacc.scss]
+      dark: [darkly, smacc-fonts.scss, smacc-dark.scss]
+    # Syntax highlighting is a separate axis from the Sass theme; pair it to the scheme.
+    highlight-style:
+      light: github
+      dark: github-dark
     # Number the chapters and sections so the HTML site and the PDF manual read as one
     # numbered book (and figure numbers line up with their sections). Parts stay
     # unnumbered; the preface and appendices are handled by Quarto's book template.
