@@ -22,9 +22,9 @@ night versus authoring a SMACC file.
 
 ## Opening SMACC
 
-Open the app to get the Launcher. SMACC never drops straight into a session; the one
-exception is double-clicking a `.smacc` file, which opens the **Start a session**
-dialog with that file preselected. From the Launcher:
+Open the app to get the Launcher. SMACC never drops straight into a session, except
+when you double-click a `.smacc` file (see
+[Opening a SMACC file](smacc-files.md#opening-a-smacc-file)). From the Launcher:
 
 - **Session…** — opens the **Start a session** dialog. Pick the **SMACC file** (the
   picker lists recent files, the seeded `default`, and **Browse…** for any other),
@@ -111,8 +111,6 @@ in `~/SMACC/preferences.yaml`, restored on the next launch (see the
 
 ## SMACC files
 
-A **SMACC file** captures your study's whole configuration — cue files, volumes,
-noise, visual cues, survey presets, event markers, display choices, and the **data
-directory** where runs are written — in a single portable `.smacc`. See
-[SMACC files](smacc-files.md#chap-smacc-files) for the full story, and the
+A **SMACC file** holds your study's whole configuration in one portable `.smacc` — see
+[SMACC files](smacc-files.md#chap-smacc-files), and the
 [SMACC file reference](reference/settings-file.md#chap-reference-settings-file) for the on-disk format.

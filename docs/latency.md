@@ -37,8 +37,7 @@ cap inside SMACC. That way one place, SMACC, determines how loud a cue is.
 
 How long is it from clicking **Play** (or firing a cue) to the participant actually
 hearing the sound or seeing the light, and how well does the event marker line up
-with it? This section answers that, shows how to measure it on your own rig, and
-explains what SMACC does to keep markers honest.
+with it?
 
 ::: {.callout-note title="The short version"}
 

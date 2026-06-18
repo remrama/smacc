@@ -6,9 +6,9 @@ annotations — saved as a small sidecar file next to the recording, which is
 **never modified**. It is a review tool, not a real-time display; nothing
 about it runs during a live session.
 
-It opens from the Launcher's **EEG Annotator** button and always runs as its own
-window and process — so you can keep reviewing last night's file while tonight's
-session runs.
+It is part of SMACC — nothing extra to install — and opens from the Launcher's
+**EEG Annotator** button. It always runs as its own window and process, so you can
+keep reviewing last night's file while tonight's session runs.
 
 **How it differs from a generic EEG viewer.** The Annotator is built for the
 overnight cueing workflow, not for clinical reading:
@@ -27,15 +27,6 @@ overnight cueing workflow, not for clinical reading:
 - Recordings are **memory-mapped**, so an 8-hour high-density night opens in
   seconds and scrolls smoothly regardless of file size.
 
-::: {.callout-note title="Built in, runs in its own process"}
-
-The Annotator is part of SMACC — there is nothing extra to install. It opens
-in its own process, so it can outlive the Launcher and a heavy recording can
-never disturb a running session; that is why it appears as a separate window
-rather than a panel inside the session app.
-
-:::
-
 ## Supported recordings
 
 | Format               | Open via                                        |
@@ -48,9 +39,7 @@ rather than a panel inside the session app.
 
 The open dialog's file filter is generated from this list, so it never drifts
 from what the tool can actually read. An *epoched* `.set` is not a continuous
-recording and is rejected with MNE's own message. Recordings are memory-mapped,
-never loaded whole: an 8-hour high-density night opens in seconds and scrolling
-stays smooth regardless of file size.
+recording and is rejected with MNE's own message.
 
 ## Viewing
 

@@ -123,14 +123,6 @@ source.
 automatically, with no restart needed. You can also force a rescan with the
 **Refresh devices (F5)** button in the Devices window.
 
-## Monitoring and volume
-
-To confirm a cue actually reaches the bedroom, use the Audio cue window's
-**Monitoring** meters — see
-[Audio cues](audio-cues.md#is-the-cue-reaching-the-bedroom). For the output safety
-cap, the per-cue gains, and how the Windows volume stages combine, see
-[Volume & latency](latency.md#chap-latency).
-
 ## Windows only
 
 This device and volume handling is Windows-specific (WASAPI, the volume mixer), and

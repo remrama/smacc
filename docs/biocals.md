@@ -42,20 +42,18 @@ Each biocal's *start* code fires when its task window opens. A shared **complete
 code fires when the window runs out, and a shared **cancelled** code fires on an
 early stop (the preceding start code identifies which biocal). A played sequence is
 bracketed by its own start/stop codes and otherwise fires the same per-biocal
-markers. The defaults are sequence start/stop **105**/**106**, cancelled **107**,
-completed **108**, and one start code per biocal in the **110–126** band. All are
-retunable in the **Markers** window like any built-in event (see
-[Markers & port codes](triggers.md#chap-triggers)).
+markers. The default codes (sequence start/stop, cancelled, completed, and one start
+code per biocal) are listed in the [event-code table](triggers.md#default-event-codes)
+and retunable in the **Markers** window like any built-in event.
 
 ## Voice recordings
 
 Voice recordings ship inside SMACC (generated with
 [ElevenLabs](https://elevenlabs.io) text-to-speech) and are read straight from the
-bundle, so they stay current when you upgrade. To use another voice or language,
-drop your own recording under the same name in your SMACC directory's `biocals/`
-folder (for example `~/SMACC/biocals/`); a file there overrides the bundled one. A
-biocal with no recording in either place still runs, just unvoiced, and session
-start warns when that happens.
+bundle. To use another voice or language, drop your own recording under the same name
+in your SMACC directory's `biocals/` folder (for example `~/SMACC/biocals/`); a file
+there overrides the bundled one. A biocal with no recording in either place still
+runs unvoiced (session start warns when one is missing).
 
 The shared **Voice volume** rides the cue route, so the master output cap and the
 control-room monitor fan-out apply to instructions exactly as they do to cues (see
