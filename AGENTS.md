@@ -33,7 +33,7 @@ routing, volume).
 ## Development
 
 The full development guide — environment setup, running the app, tests, linting,
-building the executable, and building the docs — lives in the Contributing page
+building the executable, and building the docs — lives in the Developer guide
 so it is not duplicated here: [docs/contributing.md](./docs/contributing.md).
 
 See the [README](./README.md) for user-facing project information.

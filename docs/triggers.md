@@ -23,17 +23,16 @@ and edit which event sends which code.
 ## Terminology
 
 The words *event*, *marker*, *trigger*, and *port code* get used loosely in the
-field; SMACC uses each one for exactly one thing, in the UI, the docs, and the
-session log:
+field; SMACC keeps each one distinct, in the UI, this manual, and the session log:
 
-| Term          | Meaning in SMACC                                                                                                                                                                                                   |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Event**     | A named thing that can happen during a session — a cue started, REM observed, lights off. Each is an entry in the study's event registry, with a label and a port code.                                            |
-| **Marker**    | The durable record produced when an event fires. A marker is always a [log line](reference/session-log.md#chap-reference-session-log); if the event is routed to a transport, it also carries the port code there. |
-| **Port code** | The 8-bit number (**1–255**) identifying an event on the amplifier's trigger channel. Also called a *trigger code*.                                                                                                |
-| **Trigger**   | The act of *sending* a port code over a transport. An event can be logged without being triggered.                                                                                                                 |
-| **Transport** | A path that carries the code to the recording: the **LSL** marker stream, or a hardware **TTL** line (serial trigger box / parallel port).                                                                         |
-| **Log level** | The severity tag on a log line (`DEBUG`…`CRITICAL`). The log *file* records every level; levels only filter the live preview. See [log levels](reference/session-log.md#log-levels).                               |
+- an **event** is a named thing that can happen during a session;
+- a **marker** is the durable record it produces;
+- a **port code** is the 8-bit number (1–255) that identifies it on the trigger
+  channel;
+- a **trigger** is the act of sending that code over a **transport** — the LSL
+  stream or a hardware TTL line.
+
+The [Glossary](glossary.md#chap-glossary) gives the full definitions.
 
 ## Default event codes
 
