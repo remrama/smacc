@@ -88,6 +88,11 @@ format:
   typst:
     papersize: a4
     number-sections: true
+    # Let Typst size table columns to their content (auto) instead of honouring Pandoc's
+    # dash-derived percentage widths. Those widths starve a narrow column (e.g. a 1.7%
+    # "Version" column next to a wide "Changes" column), and long unbreakable tokens — code
+    # spans in mono, single-word headers — overflow and overlap the neighbouring column.
+    tbl-colwidths: false
     # Bundled brand fonts (the .ttf under assets/fonts, found via a project-relative
     # font-paths — never absolute, and never also TYPST_FONT_PATHS). mainfont/codefont
     # match each font's internal family name. Headings (and the Condensed table cut)
