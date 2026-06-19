@@ -150,15 +150,15 @@ class SmaccSession:
         if design:
             # No run artifacts: a logger that records nothing, no folder, no outlet.
             self.session_dir: Path | None = None
-            self.stem: str | None = None
             self.log_path: Path | None = None
             self.outlet: StreamOutlet | None = None
             self.init_design_logger()
         else:
             session_dir = make_session_dir(self.data_dir, now)
             self.session_dir = session_dir
-            self.stem = session_dir.name
-            log_path = session_dir / f"{session_dir.name}.log"
+            # The run folder already carries the launch timestamp, so the log is a
+            # fixed name inside it (#286) rather than repeating the timestamp.
+            log_path = session_dir / "session.log"
             self.log_path = log_path
             self.init_logger(log_path)
             # Breadcrumb in the persistent crash log: a faulthandler dump has

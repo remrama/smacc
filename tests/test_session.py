@@ -33,10 +33,6 @@ def test_make_session_dir_uses_timestamp_stem(tmp_path):
     assert session_dir.name == "smacc-20260607-223015"
     assert session_dir.is_dir()
     assert session_dir.parent == tmp_path
-    # The log filename keeps the smacc- prefix and .log extension (issue #40).
-    log_path = session_dir / f"{session_dir.name}.log"
-    assert log_path.name.startswith("smacc-")
-    assert log_path.suffix == ".log"
 
 
 def test_make_session_dir_resolves_same_second_collision(tmp_path):
@@ -51,6 +47,16 @@ def test_make_session_dir_resolves_same_second_collision(tmp_path):
 
 
 # ----- design-mode sessions (study designer) --------------------------------
+
+
+def test_live_session_log_is_named_session_log(live_session):
+    # The run folder carries the launch timestamp; the log is a fixed name inside
+    # it rather than repeating the timestamp (#286).
+    log_path = live_session.log_path
+    assert log_path is not None
+    assert log_path.name == "session.log"
+    assert log_path.parent == live_session.session_dir
+    assert log_path.is_file()
 
 
 def test_design_session_creates_no_run_artifacts(tmp_path):

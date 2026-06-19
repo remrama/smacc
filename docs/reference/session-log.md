@@ -1,7 +1,7 @@
 # Session log (`.log`) {#chap-reference-session-log}
 
-Every live run writes one plain-text log to its own timestamped folder
-(`smacc-YYYYmmdd-HHMMSS/`) under the study's data directory. It is the session's
+Every live run writes one plain-text log (`session.log`) to its own timestamped
+folder (`smacc-YYYYmmdd-HHMMSS/`) under the study's data directory. It is the session's
 record: every event marker, the soft interactions (volume / colour / device changes),
 and two embedded snapshots of the full settings the run used. The **Editor**
 (which records nothing) writes no log.
