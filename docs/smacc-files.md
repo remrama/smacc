@@ -48,8 +48,8 @@ data directory you like (they can share one).
 
 Every SMACC file names a **data directory** — where its runs are written. Each
 session started from the file gets its own timestamped folder under that
-directory (e.g. `smacc-20260607-223015/`) holding the run's `.log`,
-dream-report recordings, survey responses, and any exports. Set it in the
+directory (e.g. `smacc-20260607-223015/`) holding the run's log
+(`session.log`), dream-report recordings, survey responses, and any exports. Set it in the
 Editor (**Change data directory…**); choose it deliberately, since it
 determines where a night's data ends up.
 

@@ -132,7 +132,7 @@ def test_summarize_log_empty():
 
 
 def test_convert_log_file_writes_tsv_and_sidecar(tmp_path):
-    log = tmp_path / "smacc-20260605-220000.log"
+    log = tmp_path / "session.log"
     log.write_text(SAMPLE_LOG, encoding="utf-8")
     out = tmp_path / "events.tsv"
     count = bids.convert_log_file(log, out)

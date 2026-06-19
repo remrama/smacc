@@ -39,17 +39,18 @@ def format_duration(seconds: float) -> str:
 
 
 def find_log_in_dir(folder: Path, *, recursive: bool = False) -> Path | None:
-    """Return the SMACC ``.log`` in ``folder`` (prefer the one named like it), or None.
+    """Return the SMACC ``.log`` in ``folder`` (prefer ``session.log``), or None.
 
-    ``recursive`` searches subfolders too (used for an extracted zip, where the log
-    may sit under ``sessions/<stem>/``).
+    A run writes its log as ``session.log`` (#286); that name wins when present,
+    otherwise the first ``.log`` found is used. ``recursive`` searches subfolders
+    too (used for an extracted zip, where the log may sit under ``sessions/<stem>/``).
     """
     globber = folder.rglob if recursive else folder.glob
     logs = sorted(globber("*.log"))
     if not logs:
         return None
-    named = folder / f"{folder.name}.log"
-    return named if named in logs else logs[0]
+    preferred = folder / "session.log"
+    return preferred if preferred in logs else logs[0]
 
 
 def extract_zip(zip_path: Path, dest: Path) -> None:

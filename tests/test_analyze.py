@@ -18,11 +18,11 @@ def test_format_duration_drops_leading_zero_units():
     assert analyze.format_duration(3661) == "1h 1m 1s"
 
 
-def test_find_log_in_dir_prefers_the_log_named_like_the_folder(tmp_path):
+def test_find_log_in_dir_prefers_session_log(tmp_path):
     folder = tmp_path / "smacc-20260101-000000"
     folder.mkdir()
     (folder / "other.log").write_text("x", encoding="utf-8")
-    named = folder / "smacc-20260101-000000.log"
+    named = folder / "session.log"
     named.write_text("x", encoding="utf-8")
     assert analyze.find_log_in_dir(folder) == named
 
@@ -34,7 +34,7 @@ def test_find_log_in_dir_returns_none_when_absent(tmp_path):
 def test_find_log_in_dir_recursive_finds_nested_log(tmp_path):
     nested = tmp_path / "sessions" / "smacc-x"
     nested.mkdir(parents=True)
-    log = nested / "smacc-x.log"
+    log = nested / "session.log"
     log.write_text("x", encoding="utf-8")
     assert analyze.find_log_in_dir(tmp_path, recursive=True) == log
     assert analyze.find_log_in_dir(tmp_path) is None  # not at the top level
@@ -91,7 +91,7 @@ def test_window_shows_itself_on_construction(analyze_window):
 def test_open_in_annotator_launches_with_the_log(analyze_window, tmp_path, monkeypatch):
     calls: list[list[str] | None] = []
     monkeypatch.setattr(eeg, "launch", lambda args=None: calls.append(args) or True)
-    log = tmp_path / "smacc-x.log"
+    log = tmp_path / "session.log"
     log.write_text(A_LOG, encoding="utf-8")
     analyze_window._load_log(log, log.parent)
     assert analyze_window.annotateButton.isEnabled()
@@ -103,7 +103,7 @@ def test_annotate_button_disabled_until_a_session_loads(analyze_window, tmp_path
     # The handoff has nothing to hand off until a session is loaded; the EEG
     # Annotator itself is always present (it ships inside the one SMACC binary).
     assert not analyze_window.annotateButton.isEnabled()
-    log = tmp_path / "smacc-y.log"
+    log = tmp_path / "session.log"
     log.write_text(A_LOG, encoding="utf-8")
     analyze_window._load_log(log, log.parent)
     assert analyze_window.annotateButton.isEnabled()
@@ -119,7 +119,7 @@ def test_handoff_copies_a_zip_extracted_log_out_of_temp(
     monkeypatch.setattr(eeg, "launch", lambda args=None: launched.append(args) or True)
     temp = tmp_path / "smacc-analyze-xyz"
     temp.mkdir()
-    log = temp / "smacc-x.log"
+    log = temp / "session.log"
     log.write_text(A_LOG, encoding="utf-8")
     analyze_window._load_log(log, temp)
     analyze_window._temp_dirs.append(temp)  # as _load_zip records it
@@ -137,7 +137,7 @@ def test_handoff_passes_a_real_log_path_through_unchanged(
 ):
     launched: list[list[str] | None] = []
     monkeypatch.setattr(eeg, "launch", lambda args=None: launched.append(args) or True)
-    log = tmp_path / "smacc-z.log"
+    log = tmp_path / "session.log"
     log.write_text(A_LOG, encoding="utf-8")
     analyze_window._load_log(log, log.parent)  # not under a temp dir
     analyze_window.open_in_annotator()
