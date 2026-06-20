@@ -12,6 +12,10 @@ project:
 
 book:
   title: SMACC
+  # Populates the HTML pages' <meta name="description">. The llms.txt summary is read
+  # from a SEPARATE path (website: description below) — Quarto does not share the two,
+  # so the same string lives in both blocks (#294).
+  description: "Sleep Manipulation And Communication Clickything (SMACC) is a control panel for running dream engineering studies."
   # CI OVERRIDES this on the cover via `-M subtitle=…` (docs.yml and release.yml, #261),
   # e.g. "User manual · v0.1.2". `-M` replaces — it does not append — so the "User manual"
   # prefix is duplicated in those two workflows; editing this default alone does NOT change
@@ -68,6 +72,17 @@ book:
     - release-notes.md
     - contributing.md
     - about.md
+
+# A book is internally a Quarto website, but it does NOT re-expose website-level options
+# under book:/project:/format — so `llms-txt` (the only switch that emits llms.txt + the
+# per-page *.llms.md twins) must live in a top-level website: block (#294). Verified: the
+# same flag placed under book:, project:, or format.html is silently ignored. This block
+# does NOT create a second site — it merges into the one HTML site rendered to _book/.
+# Keep llms-txt here; "tidying" it into book: would silently stop the llms output.
+website:
+  # Drives the llms.txt summary line; see the book: description above (the two don't share).
+  description: "Sleep Manipulation And Communication Clickything (SMACC) is a control panel for running dream engineering studies."
+  llms-txt: true
 
 format:
   html:
