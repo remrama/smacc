@@ -1,4 +1,4 @@
-"""Tests for the intercom window (#20) and its audio bridge, plus the chat section.
+"""Tests for the Chat window's voice (#20) and its audio bridge, plus the chat section.
 
 The ``_Bridge`` queue/resampler logic is tested directly (no Qt, no hardware);
 window tests stub the bridge so toggles, markers, and push-to-talk are exercised
@@ -14,8 +14,8 @@ import pytest
 from PyQt6 import QtCore, QtGui
 
 from smacc import audio
-from smacc.panels import intercom
-from smacc.panels.intercom import IntercomWindow, _Bridge
+from smacc.panels import chat
+from smacc.panels.chat import ChatWindow, _Bridge
 
 # ----- _Bridge (pure queue/resampler logic) ----------------------------------
 
@@ -63,7 +63,7 @@ def test_bridge_start_failure_tears_down_cleanly(monkeypatch):
     def boom(*args, **kwargs):
         raise RuntimeError("no such device")
 
-    monkeypatch.setattr(intercom.sd, "query_devices", boom)
+    monkeypatch.setattr(chat.sd, "query_devices", boom)
     bridge = _Bridge()
     with pytest.raises(RuntimeError):
         bridge.start(None, None)
@@ -72,7 +72,7 @@ def test_bridge_start_failure_tears_down_cleanly(monkeypatch):
     assert bridge.level_db == audio.FLOOR_DBFS
 
 
-# ----- IntercomWindow ---------------------------------------------------------
+# ----- ChatWindow voice -------------------------------------------------------
 
 
 def _stub_bridges(monkeypatch, fail=False):
@@ -98,7 +98,7 @@ def _stub_bridges(monkeypatch, fail=False):
 
 
 def _bind_devices(session):
-    """Give both intercom directions definite devices (#139: no unbound opens).
+    """Give both voice directions definite devices (#139: no unbound opens).
 
     Talk needs the control-room mic (#160) and the participant output; Listen
     needs the participant mic plus the optional return route pointed at bound
@@ -114,7 +114,7 @@ def _bind_devices(session):
 def test_toggle_talk_starts_the_bridge_and_marks(qtbot, design_session, monkeypatch):
     calls = _stub_bridges(monkeypatch)
     _bind_devices(design_session)
-    window = IntercomWindow(design_session)
+    window = ChatWindow(design_session)
     qtbot.addWidget(window)
     emitted = []
     monkeypatch.setattr(
@@ -123,11 +123,11 @@ def test_toggle_talk_starts_the_bridge_and_marks(qtbot, design_session, monkeypa
 
     window.talkButton.setChecked(True)
     assert calls["start"] == 1
-    assert emitted == ["IntercomStarted"]
+    assert emitted == ["TalkStarted"]
     assert window._level_timer.isActive()
 
     window.talkButton.setChecked(False)
-    assert emitted == ["IntercomStarted", "IntercomStopped"]
+    assert emitted == ["TalkStarted", "TalkStopped"]
     assert not window._level_timer.isActive()
     window.cleanup()
 
@@ -137,7 +137,7 @@ def test_talk_start_failure_reverts_the_button(
 ):
     _stub_bridges(monkeypatch, fail=True)
     _bind_devices(design_session)
-    window = IntercomWindow(design_session)
+    window = ChatWindow(design_session)
     qtbot.addWidget(window)
     emitted = []
     monkeypatch.setattr(
@@ -152,7 +152,7 @@ def test_talk_start_failure_reverts_the_button(
 def test_listen_toggles_without_markers(qtbot, design_session, monkeypatch):
     calls = _stub_bridges(monkeypatch)
     _bind_devices(design_session)
-    window = IntercomWindow(design_session)
+    window = ChatWindow(design_session)
     qtbot.addWidget(window)
     emitted = []
     monkeypatch.setattr(
@@ -174,7 +174,7 @@ def test_listen_with_route_off_errors_and_reverts(qtbot, design_session, monkeyp
     monkeypatch.setattr(
         design_session, "show_error_popup", lambda *a, **k: errors.append(a)
     )
-    window = IntercomWindow(design_session)
+    window = ChatWindow(design_session)
     qtbot.addWidget(window)
     window.listenButton.setChecked(True)
     assert not window.listenButton.isChecked()
@@ -198,7 +198,7 @@ def test_talk_with_no_bound_output_errors_and_reverts(
     monkeypatch.setattr(
         design_session, "emit_event", lambda key, **k: emitted.append(key)
     )
-    window = IntercomWindow(design_session)
+    window = ChatWindow(design_session)
     qtbot.addWidget(window)
     window.talkButton.setChecked(True)
     assert not window.talkButton.isChecked()
@@ -221,7 +221,7 @@ def test_talk_with_no_bound_mic_errors_and_reverts(qtbot, design_session, monkey
     monkeypatch.setattr(
         design_session, "emit_event", lambda key, **k: emitted.append(key)
     )
-    window = IntercomWindow(design_session)
+    window = ChatWindow(design_session)
     qtbot.addWidget(window)
     window.talkButton.setChecked(True)
     assert not window.talkButton.isChecked()
@@ -240,10 +240,10 @@ def _space_event(etype) -> QtGui.QKeyEvent:
 def test_spacebar_push_to_talk_holds_and_releases(qtbot, design_session, monkeypatch):
     _stub_bridges(monkeypatch)
     _bind_devices(design_session)
-    window = IntercomWindow(design_session)
+    window = ChatWindow(design_session)
     qtbot.addWidget(window)
     monkeypatch.setattr(
-        IntercomWindow, "_is_text_widget_focused", staticmethod(lambda: False)
+        ChatWindow, "_is_text_widget_focused", staticmethod(lambda: False)
     )
 
     consumed = window.eventFilter(window, _space_event(QtCore.QEvent.Type.KeyPress))
@@ -256,10 +256,10 @@ def test_spacebar_push_to_talk_holds_and_releases(qtbot, design_session, monkeyp
 def test_spacebar_passes_through_while_typing(qtbot, design_session, monkeypatch):
     _stub_bridges(monkeypatch)
     _bind_devices(design_session)
-    window = IntercomWindow(design_session)
+    window = ChatWindow(design_session)
     qtbot.addWidget(window)
     monkeypatch.setattr(
-        IntercomWindow, "_is_text_widget_focused", staticmethod(lambda: True)
+        ChatWindow, "_is_text_widget_focused", staticmethod(lambda: True)
     )
 
     consumed = window.eventFilter(window, _space_event(QtCore.QEvent.Type.KeyPress))
@@ -268,7 +268,7 @@ def test_spacebar_passes_through_while_typing(qtbot, design_session, monkeypatch
 
 
 def test_send_chat_message_posts_and_clears_the_entry(qtbot, design_session):
-    window = IntercomWindow(design_session)
+    window = ChatWindow(design_session)
     qtbot.addWidget(window)
     window.chatEntry.setText("  Are you comfortable?  ")
     window.send_chat_message()
@@ -278,7 +278,7 @@ def test_send_chat_message_posts_and_clears_the_entry(qtbot, design_session):
 
 
 def test_empty_chat_message_is_not_posted(qtbot, design_session):
-    window = IntercomWindow(design_session)
+    window = ChatWindow(design_session)
     qtbot.addWidget(window)
     window.chatEntry.setText("   ")
     window.send_chat_message()
@@ -287,7 +287,7 @@ def test_empty_chat_message_is_not_posted(qtbot, design_session):
 
 
 def test_preset_buttons_rebuild_and_send_verbatim(qtbot, design_session):
-    window = IntercomWindow(design_session)
+    window = ChatWindow(design_session)
     qtbot.addWidget(window)
     long = "Please describe everything that was going through your mind just now."
     window._presets.set([long], [])
@@ -301,11 +301,11 @@ def test_preset_buttons_rebuild_and_send_verbatim(qtbot, design_session):
 
 
 def test_preset_state_round_trips(qtbot, design_session):
-    window = IntercomWindow(design_session)
+    window = ChatWindow(design_session)
     qtbot.addWidget(window)
     window._presets.set(["Prompt one"], ["Yes", "No"])
     state = window.gather_state()
-    other = IntercomWindow(design_session)
+    other = ChatWindow(design_session)
     qtbot.addWidget(other)
     other.apply_state(state)
     assert other._presets.experimenter == ["Prompt one"]

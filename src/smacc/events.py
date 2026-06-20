@@ -261,8 +261,8 @@ def default_events() -> list[EventDef]:
         EventDef("CueStopped", "Cue stopped", 61),
         EventDef("NoiseStarted", "Noise started", 62),
         EventDef("NoiseStopped", "Noise stopped", 63),
-        EventDef("IntercomStarted", "Intercom started", 64),
-        EventDef("IntercomStopped", "Intercom stopped", 65),
+        EventDef("TalkStarted", "Talk started", 64),
+        EventDef("TalkStopped", "Talk stopped", 65),
         EventDef("VisualStarted", "Visual started", 66),
         # The stop pairs with 66 at the next free code (67 predates it).
         EventDef("VisualStopped", "Visual stopped", 68),
@@ -288,7 +288,7 @@ def default_events() -> list[EventDef]:
             lsl=False,
             ttl=False,
             preview=False,
-            tooltip="Mark a typed intercom message shown to the participant",
+            tooltip="Mark a typed chat message shown to the participant",
         ),
         EventDef(
             "ChatMessageReceived",

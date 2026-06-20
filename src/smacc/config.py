@@ -59,8 +59,8 @@ def set_taskbar_app_id() -> None:
 # Maps a display label to its URL. Extend per study (persisted in settings YAML).
 SURVEY_OPTIONS: dict[str, str] = {}
 
-# Quick-reply presets for the intercom text chat (#112). Study-level config edited
-# from the Intercom panel and persisted in the .smacc; these seed a study that
+# Quick-reply presets for the text chat (#112). Study-level config edited
+# from the Chat window and persisted in the .smacc; these seed a study that
 # hasn't customized them (an explicitly empty list is respected on load). Sent
 # verbatim through the normal chat path, so standardized wording stays consistent
 # across nights and experimenters.

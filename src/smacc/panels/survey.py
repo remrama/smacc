@@ -3,7 +3,7 @@
 Opened by the Dream-recording panel for any ``smacc://survey/<key>`` selection —
 auto-opened when a dream report starts recording (attached to that report's
 number) or standalone from File → Surveys. Non-modal on purpose: the operator
-must keep the intercom reachable while administering a questionnaire to a
+must keep the chat reachable while administering a questionnaire to a
 participant who is in bed in the dark.
 
 Items render by type (#118): a run of consecutive Likert items collapses into one

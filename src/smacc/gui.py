@@ -31,10 +31,14 @@ from .fonts import mono_font
 from .panels.audio import AudioCueWindow
 from .panels.base import PanelWindow
 from .panels.biocals import BiocalsWindow
-from .panels.chat import ChatPresets, ChatTranscript, ParticipantChatWindow
+from .panels.chat import (
+    ChatPresets,
+    ChatTranscript,
+    ChatWindow,
+    ParticipantChatWindow,
+)
 from .panels.devices import DevicesWindow
 from .panels.events import EventsWindow
-from .panels.intercom import IntercomWindow
 from .panels.markers import MarkersWindow
 from .panels.noise import NoiseWindow
 from .panels.recording import RecordingWindow
@@ -96,8 +100,8 @@ class SmaccWindow(ToolWindow):
         # session.devices, refreshed whenever the Devices window emits ``changed``.
         self.devices_window = DevicesWindow(self.session)
         # The text chat's conversation, shared by its two views: the experimenter's
-        # section in the Intercom panel and the participant-facing window (#92). The
-        # quick-reply presets (#112) are shared the same way; the Intercom panel
+        # section in the Chat window and the participant-facing window (#92). The
+        # quick-reply presets (#112) are shared the same way; the Chat window
         # persists them with the study.
         chat_transcript = ChatTranscript(self)
         chat_presets = ChatPresets(self)
@@ -108,16 +112,18 @@ class SmaccWindow(ToolWindow):
             "audio": AudioCueWindow(self.session),
             "noise": NoiseWindow(self.session),
             "recording": RecordingWindow(self.session),
-            "intercom": IntercomWindow(self.session, chat_transcript, chat_presets),
-            # No launcher button (absent from PANEL_LABELS): opened via the Intercom
-            # panel's "Pass keyboard" button, which also hands it keyboard focus.
-            "chat": ParticipantChatWindow(self.session, chat_transcript, chat_presets),
+            "chat": ChatWindow(self.session, chat_transcript, chat_presets),
+            # No launcher button (absent from PANEL_LABELS): opened via the Chat
+            # window's "Pass keyboard" button, which also hands it keyboard focus.
+            "participant_chat": ParticipantChatWindow(
+                self.session, chat_transcript, chat_presets
+            ),
             "devices": self.devices_window,
             "markers": MarkersWindow(self.session),
             "volume": VolumeWindow(self.session),
         }
-        cast(IntercomWindow, self.panels["intercom"]).open_participant_chat.connect(
-            partial(self._open_panel, "chat")
+        cast(ChatWindow, self.panels["chat"]).open_participant_chat.connect(
+            partial(self._open_panel, "participant_chat")
         )
         # The Markers window owns all marker configuration (registry + transport);
         # applying it re-renders the registry's other consumers (the event grid),
@@ -242,8 +248,9 @@ class SmaccWindow(ToolWindow):
         return label
 
     # Tool windows openable from the launcher (key -> button label). Panels
-    # absent from this map get no button ("chat" opens from the Intercom panel)
-    # but keep the rest of the machinery: state, geometry, always-on-top, cleanup.
+    # absent from this map get no button ("participant_chat" opens from the Chat
+    # window) but keep the rest of the machinery: state, geometry, always-on-top,
+    # cleanup.
     PANEL_LABELS = {
         "events": "Event logging",
         "biocals": "Biocals",
@@ -251,7 +258,7 @@ class SmaccWindow(ToolWindow):
         "audio": "Audio cue",
         "noise": "Noise machine",
         "recording": "Dream recording",
-        "intercom": "Intercom",
+        "chat": "Chat",
         "devices": "Devices",
         "markers": "Markers",
         "volume": "Volume",
@@ -266,7 +273,7 @@ class SmaccWindow(ToolWindow):
         "audio": "Play audio cues from a multi-slot cue board.",
         "noise": "Stream continuous background noise (colored noise or a file).",
         "recording": "Record a spoken dream report, monitor input level, open surveys.",
-        "intercom": "Talk, listen, or text-chat with the participant over the intercom.",
+        "chat": "Talk, listen, or text-chat with the participant.",
         "devices": "Bind the rig's equipment to devices and route each action.",
         "markers": "Configure every event marker: port codes, LSL/TTL routing, "
         "preview, and the hardware trigger output.",

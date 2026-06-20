@@ -142,7 +142,7 @@ def test_both_light_technologies_are_visual_equipment():
 
 def test_autobind_equipment_is_the_required_audio_defaults():
     # Derived from ACTIONS (the default equipment of each required audio action) plus
-    # the intercom source equipment (#160). Roles only optional routes point at
+    # the Talk/Listen source equipment (#160). Roles only optional routes point at
     # (control-room speakers, monitor mic) are excluded.
     assert devices.AUTOBIND_EQUIPMENT == (
         "bedroom_speaker",
@@ -152,7 +152,7 @@ def test_autobind_equipment_is_the_required_audio_defaults():
 
 
 def test_talk_source_is_the_control_room_mic():
-    # #160: the intercom talk mic is a bound equipment, not a routable action (routing
+    # #160: the Talk mic is a bound equipment, not a routable action (routing
     # it to a bedroom mic would feed the bedroom's sound back out its speakers).
     equipment = devices.EQUIPMENT_BY_KEY[devices.TALK_SOURCE]
     assert equipment.key == "control_mic"

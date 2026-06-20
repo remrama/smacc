@@ -70,7 +70,7 @@ def describe_action(session: SmaccSession, action_key: str) -> str:
 def describe_equipment(session: SmaccSession, equipment_key: str) -> str:
     """A short 'Equipment → device' description of an equipment binding.
 
-    Like :func:`describe_action`, but for the source mics the intercom reads
+    Like :func:`describe_action`, but for the source mics the Chat window reads
     directly (deliberately not routable actions — see
     :data:`smacc.devices.TALK_SOURCE`).
     """
@@ -143,7 +143,7 @@ def current_device_key(combo: QtWidgets.QComboBox) -> str:
     """Return the persisted key for a device combo's current row ("" when empty).
 
     Pickers that carry a separate stable id (the recorder's raw input name, a
-    BlinkStick serial) keep it as item *data*; the noise/intercom pickers use the
+    BlinkStick serial) keep it as item *data*; the noise/chat pickers use the
     visible *text*. Either way this returns the value to persist for the selection,
     so save/restore is uniform across panels.
     """

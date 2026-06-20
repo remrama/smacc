@@ -61,7 +61,7 @@ def test_signal_and_stage_markers_are_default_manual_triggers():
 def test_chat_events_are_log_only_by_default():
     # #92: a typed exchange is rapid and conversational, so neither chat direction
     # is routed (or previewed) unless a study flips it on; the codes extend the
-    # control band right after the intercom pair.
+    # control band right after the Talk pair.
     defs = {e.key: e for e in events.default_events()}
     sent, received = defs["ChatMessageSent"], defs["ChatMessageReceived"]
     assert (sent.code, received.code) == (69, 70)

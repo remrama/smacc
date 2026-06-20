@@ -884,9 +884,9 @@ class _PresetListEditor(QtWidgets.QWidget):
 
 
 class ManageChatPresetsDialog(QtWidgets.QDialog):
-    """Add, edit, reorder, and remove the intercom's quick-reply presets (#112).
+    """Add, edit, reorder, and remove the chat's quick-reply presets (#112).
 
-    Opened from the Intercom panel. Two ordered lists — the experimenter's one-click
+    Opened from the Chat window. Two ordered lists — the experimenter's one-click
     prompts and the participant's number-key replies (capped at the digit keys 1–9).
     Edits copies; the caller reads :meth:`get_presets` only when accepted.
     """

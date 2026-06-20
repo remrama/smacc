@@ -66,8 +66,8 @@ study can retune any code in the **Markers** window; the change travels in its
 | 61   | Cue stopped             | `CueStopped`            |                                                                                        |
 | 62   | Noise started           | `NoiseStarted`          |                                                                                        |
 | 63   | Noise stopped           | `NoiseStopped`          |                                                                                        |
-| 64   | Intercom started        | `IntercomStarted`       |                                                                                        |
-| 65   | Intercom stopped        | `IntercomStopped`       |                                                                                        |
+| 64   | Talk started            | `TalkStarted`           |                                                                                        |
+| 65   | Talk stopped            | `TalkStopped`           |                                                                                        |
 | 66   | Visual started          | `VisualStarted`         |                                                                                        |
 | 67   | Survey opened           | `SurveyOpened`          |                                                                                        |
 | 68   | Visual stopped          | `VisualStopped`         | the light is actually off (pairs with 66)                                              |

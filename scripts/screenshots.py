@@ -48,9 +48,8 @@ from smacc.launcher import LauncherWindow
 from smacc.panels import devices as devices_panel
 from smacc.panels.audio import AudioCueWindow
 from smacc.panels.biocals import BiocalsWindow
-from smacc.panels.chat import ParticipantChatWindow
+from smacc.panels.chat import ChatWindow, ParticipantChatWindow
 from smacc.panels.devices import DevicesWindow
-from smacc.panels.intercom import IntercomWindow
 from smacc.panels.recording import RecordingWindow
 from smacc.panels.visual import VisualWindow
 from smacc.panels.volume import VolumeWindow
@@ -194,7 +193,7 @@ def main(out_dir: Path = ASSETS) -> None:
         _capture(app, BiocalsWindow(design), "biocals")
         _capture(app, AudioCueWindow(design), "audio-cue")
         _capture(app, VisualWindow(design), "visual")
-        _capture(app, IntercomWindow(design), "intercom")
+        _capture(app, ChatWindow(design), "intercom")
         _capture(app, ParticipantChatWindow(design), "chat")
         _capture(app, VolumeWindow(design), "volume")
         _capture(app, RecordingWindow(design), "recording")
