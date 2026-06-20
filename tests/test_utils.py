@@ -362,22 +362,29 @@ def test_format_elapsed_truncates_subseconds_and_clamps_negative():
 # ----- random demo-cue prefill (#65) ----------------------------------------
 
 
-def test_pick_random_demo_cue_returns_a_seeded_demo(tmp_path):
+def test_pick_random_demo_cues_returns_distinct_seeded_demos(tmp_path):
     cues = tmp_path / "cues"
-    utils.seed_demo_cues(cues, tmp_path / "missing")  # writes the synth demo-*.wav
-    picked = utils.pick_random_demo_cue(cues)
-    assert picked is not None
-    assert picked.parent == cues
-    assert picked.name.startswith("demo-")
-    assert picked.suffix.lower() in utils.AUDIO_SUFFIXES
+    utils.seed_demo_cues(cues, tmp_path / "missing")  # writes several synth demo-*.wav
+    picked = utils.pick_random_demo_cues(cues, 2)
+    assert len(picked) == 2
+    assert len(set(picked)) == 2  # distinct, so the opening strips differ
+    for path in picked:
+        assert path.parent == cues
+        assert path.name.startswith("demo-")
+        assert path.suffix.lower() in utils.AUDIO_SUFFIXES
 
 
-def test_pick_random_demo_cue_ignores_non_demo_user_files(tmp_path):
+def test_pick_random_demo_cues_ignores_non_demo_user_files(tmp_path):
     cues = tmp_path / "cues"
     cues.mkdir()
     write(cues / "mysong.wav", 8000, utils.note(440, 1, 1e4, 8000))  # not a demo-
-    assert utils.pick_random_demo_cue(cues) is None
+    assert utils.pick_random_demo_cues(cues, 2) == []
 
 
-def test_pick_random_demo_cue_none_when_dir_missing(tmp_path):
-    assert utils.pick_random_demo_cue(tmp_path / "does-not-exist") is None
+def test_pick_random_demo_cues_capped_by_pool_and_empty_when_dir_missing(tmp_path):
+    cues = tmp_path / "cues"
+    utils.seed_demo_cues(cues, tmp_path / "missing")
+    # Asking for more than the pool returns the whole (distinct) pool, not duplicates.
+    everything = utils.pick_random_demo_cues(cues, 999)
+    assert len(everything) == len(set(everything)) == len(list(cues.glob("demo-*")))
+    assert utils.pick_random_demo_cues(tmp_path / "does-not-exist", 2) == []

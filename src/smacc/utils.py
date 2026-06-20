@@ -49,12 +49,13 @@ def index_of_device(candidates: Sequence[str], saved: str | None) -> int | None:
     return None
 
 
-def pick_random_demo_cue(cues_dir: Path) -> Path | None:
-    """Return a random shipped ``demo-`` cue from ``cues_dir`` (None if none) (#65).
+def pick_random_demo_cues(cues_dir: Path, count: int = 1) -> list[Path]:
+    """Return up to ``count`` distinct random ``demo-`` cues from ``cues_dir`` (#65).
 
-    Used to prefill the one required cue slot so a fresh study is immediately
-    playable. Only the bundled ``demo-*`` clips are eligible, so a user's own cues
-    sitting in the same folder are never auto-selected.
+    Used to prefill the initial cue strips so a fresh study is immediately playable;
+    the picks are distinct so the opening strips differ (fewer than ``count`` come
+    back when the demo pool is smaller). Only the bundled ``demo-*`` clips are
+    eligible, so a user's own cues sitting in the same folder are never auto-selected.
     """
     try:
         demos = sorted(
@@ -65,8 +66,8 @@ def pick_random_demo_cue(cues_dir: Path) -> Path | None:
             and p.suffix.lower() in AUDIO_SUFFIXES
         )
     except OSError:
-        return None
-    return random.choice(demos) if demos else None
+        return []
+    return random.sample(demos, min(count, len(demos)))
 
 
 def get_smacc_directory() -> Path:

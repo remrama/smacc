@@ -17,8 +17,8 @@ settings:
     loop: false
   visual_attack: 0.0
   visual_release: 0.0
-  # cues omitted on purpose: the one required cue autofills a random demo on first
-  # launch (#65); saving from the app writes the configured cue list back here.
+  # cues omitted on purpose: the initial cue strips autofill distinct random demos
+  # on first launch (#65); saving from the app writes the configured cue list back here.
   cue_attack: 0.0
   cue_release: 0.0
   noise_volume: 0.2
