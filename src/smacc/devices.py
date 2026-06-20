@@ -54,14 +54,14 @@ class Equipment:
 # is in use). Bedroom mic 2 (#37) is optional, e.g. a dedicated, sensitive mic
 # for verifying cues without relying on the (often cheaper) dream-report mic;
 # the control-room mic (#160) picks up the experimenter's voice for the
-# intercom. Kept small on purpose — more can be added later.
+# Chat window's Talk. Kept small on purpose — more can be added later.
 EQUIPMENT: tuple[Equipment, ...] = (
     Equipment(
         "bedroom_speaker",
         "Bedroom speaker",
         OUTPUT,
         "The speaker in the bedroom: out of the box it plays the cues, the "
-        "noise, and your intercom voice to the participant.",
+        "noise, and your voice to the participant.",
     ),
     Equipment(
         "control_speaker",
@@ -75,7 +75,7 @@ EQUIPMENT: tuple[Equipment, ...] = (
         "Bedroom mic 1",
         INPUT,
         "The main microphone in the bedroom: out of the box it records dream "
-        "reports and feeds the intercom's Listen direction.",
+        "reports and feeds the Chat window's Listen direction.",
     ),
     Equipment(
         "bedroom_mic_2",
@@ -90,7 +90,7 @@ EQUIPMENT: tuple[Equipment, ...] = (
         "Control-room mic",
         INPUT,
         "The microphone in the control room that picks up your voice for the "
-        "intercom's Speak direction.",
+        "Chat window's Talk direction.",
     ),
     Equipment(
         "blinkstick_light",
@@ -127,9 +127,9 @@ class Action:
 
 
 # Every device an action needs, with its default equipment, ordered as the Devices
-# window shows them: the participant-facing Play block, the intercom pair, then
+# window shows them: the participant-facing Play block, the Talk/Listen pair, then
 # the mic routes. The optional ones are the monitoring routes (the cue fan-out
-# and the intercom return).
+# and the Listen return).
 ACTIONS: tuple[Action, ...] = (
     Action(
         "play_audio_cue",
@@ -168,7 +168,7 @@ ACTIONS: tuple[Action, ...] = (
         "Speak to participant",
         OUTPUT,
         "bedroom_speaker",
-        description="Plays your voice in the bedroom while the intercom's Talk "
+        description="Plays your voice in the bedroom while Talk "
         "is held; your voice is picked up by the Control-room mic. Marked in "
         "the EEG record.",
     ),
@@ -179,7 +179,7 @@ ACTIONS: tuple[Action, ...] = (
         "",
         optional=True,
         description="Optional: relays the participant's voice (from Bedroom "
-        "mic 1) to you while the intercom's Listen is on. Not marked.",
+        "mic 1) to you while Listen is on. Not marked.",
     ),
     Action(
         "record_dream_report",
@@ -207,17 +207,17 @@ ACTIONS: tuple[Action, ...] = (
 EQUIPMENT_BY_KEY: dict[str, Equipment] = {r.key: r for r in EQUIPMENT}
 ACTIONS_BY_KEY: dict[str, Action] = {t.key: t for t in ACTIONS}
 
-# Source equipment for the intercom "listen" path (participant mic -> control room) and
+# Source equipment for the "listen" path (participant mic -> control room) and
 # any other input monitor: the same mic the dream report uses.
 LISTEN_SOURCE = "bedroom_mic_1"
-# Source equipment for the intercom "talk" path (#160): the mic that picks up the
+# Source equipment for the "talk" path (#160): the mic that picks up the
 # experimenter's voice. Equipment (not a routable action) on purpose — routing the
 # talk source to a bedroom mic would loop the bedroom's own sound back out its
 # speakers at a sleeping participant.
 TALK_SOURCE = "control_mic"
 
 # Equipment SMACC binds automatically when left unbound (live sessions only):
-# the default equipment of every required audio action, plus the intercom
+# the default equipment of every required audio action, plus the Talk/Listen
 # source mics, so a fresh study has a definite device for the paths that
 # play/record out of the box. Equipment only optional routes point at (the
 # control-room speaker, bedroom mic 2) implies hardware a rig may not have,

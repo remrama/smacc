@@ -55,7 +55,7 @@ def test_describe_target_off_route_reads_off(design_session):
 
 
 def test_describe_role_bound_and_unbound(design_session):
-    # The intercom source mics (#160) are described directly, without an action.
+    # The Talk/Listen source mics (#160) are described directly, without an action.
     session = _session_with(design_session, {"control_mic": "Headset Mic"})
     assert (
         base.describe_equipment(session, devices.TALK_SOURCE)

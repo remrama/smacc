@@ -1,4 +1,4 @@
-"""Audio DSP helpers for SMACC's real-time streams (level meter, intercom, cues).
+"""Audio DSP helpers for SMACC's real-time streams (level meter, voice chat, cues).
 
 Pure functions and small state machines only — separated from the GUI so they are
 unit-testable without audio hardware. The sounddevice streams that call these live
@@ -176,7 +176,7 @@ class LinearResampler:
     """Stateful, continuous linear resampler for a mono float32 stream.
 
     Bridges two independent audio streams running at different sample rates (the
-    intercom mic and the participant output): ``push`` input samples at one rate,
+    Talk mic and the participant output): ``push`` input samples at one rate,
     ``pull`` output samples at another. Linear interpolation is plenty for speech
     and is cheap enough for an audio callback. When the rates match it is a
     pass-through. On underrun ``pull`` returns zeros for the missing tail.

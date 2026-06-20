@@ -164,13 +164,13 @@ settings:
     ttl: true
     preview: true
     increment: false
-  - key: IntercomStarted
+  - key: TalkStarted
     code: 64
     lsl: true
     ttl: true
     preview: true
     increment: false
-  - key: IntercomStopped
+  - key: TalkStopped
     code: 65
     lsl: true
     ttl: true

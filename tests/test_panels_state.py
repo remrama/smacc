@@ -17,9 +17,9 @@ import pytest
 from smacc import winvolume
 from smacc.panels.audio import AudioCueWindow
 from smacc.panels.biocals import BiocalsWindow
+from smacc.panels.chat import ChatWindow
 from smacc.panels.devices import DevicesWindow
 from smacc.panels.events import EventsWindow
-from smacc.panels.intercom import IntercomWindow
 from smacc.panels.noise import NoiseWindow
 from smacc.panels.recording import RecordingWindow
 from smacc.panels.visual import VisualWindow
@@ -122,9 +122,9 @@ def test_recording_panel_offers_builtin_surveys_without_persisting_them(
     assert got["survey_options"] == {}
 
 
-def test_intercom_panel_round_trips_chat_presets(qtbot, design_session):
-    # The Intercom panel persists the shared chat quick-reply presets (#112).
-    panel = IntercomWindow(design_session)
+def test_chat_panel_round_trips_chat_presets(qtbot, design_session):
+    # The Chat window persists the shared chat quick-reply presets (#112).
+    panel = ChatWindow(design_session)
     qtbot.addWidget(panel)
     panel.apply_state(
         {
@@ -137,10 +137,10 @@ def test_intercom_panel_round_trips_chat_presets(qtbot, design_session):
     assert got["chat_participant_presets"] == ["Yes", "No"]
 
 
-def test_intercom_meters_track_each_live_bridge(qtbot, design_session):
+def test_chat_meters_track_each_live_bridge(qtbot, design_session):
     # Each direction has a level meter fed from its bridge's input callback; an
     # idle direction's meter reads empty, a live one shows the stashed level.
-    panel = IntercomWindow(design_session)
+    panel = ChatWindow(design_session)
     qtbot.addWidget(panel)
     panel._render_levels()
     assert panel.talkMeter.value() == 0  # both idle
