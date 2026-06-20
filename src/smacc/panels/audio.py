@@ -1,16 +1,20 @@
-"""Audio cue window: a multi-slot cue board (file/volume/loop per slot).
+"""Audio cue window: a mixer console of per-cue channel strips (#289).
 
-Each slot preloads its own sound with its own volume and loop setting, so a
-protocol that uses several sounds (e.g. cue vs. sham) can keep them ready and
-fire any one with a click. Playback is one-at-a-time (playing a slot stops
-whatever was playing) on a sounddevice output stream routed to a chosen device,
-with a shared fade-in/out. Slots can be added and removed on the fly — one is
-always required, up to a generous cap — and the first slot autofills with a random
-demo cue so a fresh study is immediately playable (#65).
+Each cue is a vertical strip — name, sound file, a volume fader (with a precise
+spinbox), and icon transport buttons (play / stop / loop-toggle / remove) — laid
+side by side like a mixing desk, with a master strip on the right for the level
+meters and the shared fade-in/out. A strip preloads its own sound with its own
+volume and loop setting, so a protocol that uses several sounds (e.g. cue vs. sham)
+can keep them ready and fire any one with a click. Playback is one-at-a-time
+(playing a strip stops whatever was playing) on a sounddevice output stream routed
+to a chosen device. Strips can be added and removed on the fly — one is always
+required, up to a generous cap — and a fresh study opens with two strips, each
+autofilled with a distinct random demo so it is immediately playable (#65).
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
@@ -18,11 +22,11 @@ from pathlib import Path
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
-from PyQt6 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import audio, devices, utils
 from ..session import SmaccSession
-from ..utils import pick_random_demo_cue
+from ..utils import pick_random_demo_cues
 from .base import (
     PanelWindow,
     describe_action,
@@ -34,31 +38,144 @@ from .base import (
 from .meter import InputLevelMeter, LevelMeter
 
 # One cue is always required; the upper bound is generous (a session typically
-# uses 2-5) but capped so the grid and playback stay manageable (#65).
+# uses 2-5) but capped so the console and playback stay manageable (#65). A fresh
+# study opens with two strips, each prefilled with a distinct demo.
 MIN_CUE_SLOTS = 1
+INITIAL_CUE_SLOTS = 2
 MAX_CUE_SLOTS = 20
 # Fallback output rate when a device's own rate can't be queried.
 CUE_RATE = 44100
+# Width of one channel strip; narrow enough to line several up like a mixer (#289).
+CUE_STRIP_WIDTH = 108
+# Square icon size for the transport buttons (play/stop/loop/remove).
+CUE_ICON_SIZE = 18
+# Resolution the transport glyphs are painted at, then scaled down (crisp at any DPI).
+CUE_ICON_PX = 64
+
+
+def _draw_transport_icon(kind: str, color: QtGui.QColor) -> QtGui.QPixmap:
+    """Paint one flat, single-color transport glyph so all four buttons match (#289).
+
+    A single painter keeps the set coherent — filled play/stop and thick-stroked
+    loop/trash at a matching ink weight — instead of mixing Qt's flat media icons
+    with its glossier browser/trash standard icons (which read as two styles).
+    """
+    size = CUE_ICON_PX
+    pix = QtGui.QPixmap(size, size)
+    pix.fill(QtCore.Qt.GlobalColor.transparent)
+    p = QtGui.QPainter(pix)
+    p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+    stroke = size * 0.11
+    no_pen = QtCore.Qt.PenStyle.NoPen
+    no_brush = QtCore.Qt.BrushStyle.NoBrush
+    if kind == "play":
+        p.setPen(no_pen)
+        p.setBrush(color)
+        m = size * 0.30
+        p.drawPolygon(
+            QtGui.QPolygonF(
+                [
+                    QtCore.QPointF(m, size * 0.26),
+                    QtCore.QPointF(m, size * 0.74),
+                    QtCore.QPointF(size - m, size * 0.5),
+                ]
+            )
+        )
+    elif kind == "stop":
+        p.setPen(no_pen)
+        p.setBrush(color)
+        m = size * 0.30
+        p.drawRoundedRect(
+            QtCore.QRectF(m, m, size - 2 * m, size - 2 * m), stroke, stroke
+        )
+    elif kind == "loop":
+        pen = QtGui.QPen(color, stroke)
+        pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
+        p.setPen(pen)
+        p.setBrush(no_brush)
+        inset = size * 0.27
+        ring = QtCore.QRectF(inset, inset, size - 2 * inset, size - 2 * inset)
+        # Near-full ring with a gap at the top where the arrowhead sits.
+        p.drawArc(ring, 110 * 16, 300 * 16)
+        # Filled arrowhead at the open (upper-right) end, pointing clockwise.
+        cx, cy, r = size / 2, size / 2, ring.width() / 2
+        end = math.radians(50)  # the arc's end angle (110 + 300 = 410 == 50)
+        ex, ey = cx + r * math.cos(end), cy - r * math.sin(end)
+        tx, ty = math.sin(end), math.cos(end)  # clockwise tangent (screen y-down)
+        nx, ny = math.cos(end), -math.sin(end)  # outward normal
+        head = stroke * 1.5
+        p.setPen(no_pen)
+        p.setBrush(color)
+        p.drawPolygon(
+            QtGui.QPolygonF(
+                [
+                    QtCore.QPointF(ex + tx * head, ey + ty * head),
+                    QtCore.QPointF(ex + nx * head, ey + ny * head),
+                    QtCore.QPointF(ex - nx * head, ey - ny * head),
+                ]
+            )
+        )
+    elif kind == "remove":  # a trash can
+        pen = QtGui.QPen(color, stroke * 0.85)
+        pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(QtCore.Qt.PenJoinStyle.RoundJoin)
+        p.setPen(pen)
+        p.setBrush(no_brush)
+        p.drawLine(
+            QtCore.QPointF(size * 0.24, size * 0.33),
+            QtCore.QPointF(size * 0.76, size * 0.33),
+        )  # lid
+        p.drawLine(
+            QtCore.QPointF(size * 0.42, size * 0.24),
+            QtCore.QPointF(size * 0.58, size * 0.24),
+        )  # handle
+        p.drawLine(
+            QtCore.QPointF(size * 0.42, size * 0.24),
+            QtCore.QPointF(size * 0.42, size * 0.33),
+        )
+        p.drawLine(
+            QtCore.QPointF(size * 0.58, size * 0.24),
+            QtCore.QPointF(size * 0.58, size * 0.33),
+        )
+        body = QtGui.QPainterPath()  # tapered can, open top (the lid covers it)
+        body.moveTo(size * 0.30, size * 0.33)
+        body.lineTo(size * 0.35, size * 0.77)
+        body.lineTo(size * 0.65, size * 0.77)
+        body.lineTo(size * 0.70, size * 0.33)
+        p.drawPath(body)
+        p.drawLine(
+            QtCore.QPointF(size * 0.44, size * 0.41),
+            QtCore.QPointF(size * 0.45, size * 0.69),
+        )
+        p.drawLine(
+            QtCore.QPointF(size * 0.56, size * 0.41),
+            QtCore.QPointF(size * 0.55, size * 0.69),
+        )
+    p.end()
+    return pix
 
 
 @dataclass
 class CueSlot:
-    """One preloaded cue: its decoded audio plus the row of widgets controlling it.
+    """One preloaded cue: its decoded audio plus the channel strip controlling it.
 
-    Signal handlers bind to the slot *object*, never a row index, so adding or
-    removing rows can't misroute another slot's controls. ``audio`` is the decoded
-    mono float32 buffer at its native ``rate`` (resampled to the device rate when
-    played); ``None`` until a valid file is loaded.
+    Signal handlers bind to the slot *object*, never a position, so adding or
+    removing strips can't misroute another slot's controls. ``audio`` is the
+    decoded mono float32 buffer at its native ``rate`` (resampled to the device
+    rate when played); ``None`` until a valid file is loaded. ``file_path`` is the
+    chosen sound's full path (the compact ``fileButton`` shows only its stem).
     """
 
+    strip: QtWidgets.QFrame
     nameEdit: QtWidgets.QLineEdit
-    fileEdit: QtWidgets.QLineEdit
-    browseButton: QtWidgets.QPushButton
+    fileButton: QtWidgets.QPushButton
+    volumeSlider: QtWidgets.QSlider
     volumeSpinBox: QtWidgets.QDoubleSpinBox
-    loopCheckBox: QtWidgets.QCheckBox
+    loopButton: QtWidgets.QPushButton
     playButton: QtWidgets.QPushButton
     stopButton: QtWidgets.QPushButton
     removeButton: QtWidgets.QPushButton
+    file_path: str = field(default="")
     audio: np.ndarray | None = field(default=None)
     rate: int = field(default=0)
 
@@ -101,201 +218,312 @@ class AudioCueWindow(PanelWindow):
         self.roomMeter = InputLevelMeter(self)
         self.monitorCheckBox = QtWidgets.QCheckBox(self)
         self.monitorDeviceLabel = QtWidgets.QLabel(self)
-        # Populated after the central widget exists so _rebuild_grid has its
-        # header labels and add button to work with.
+        # Populated after the central widget exists so _rebuild_strips has its
+        # strip row and add button to work with.
         self.slots: list[CueSlot] = []
+        # One coherent flat icon set, shared by every strip; repainted on a theme
+        # change so it stays legible when the lights-off dark scheme toggles (#289).
+        self._transport_icons: dict[str, QtGui.QIcon] = {}
+        self._rebuild_transport_icons()
         self.setCentralWidget(self._build())
-        # Start with the one required slot, prefilled with a random demo so a fresh
-        # study can play something immediately; a loaded study overrides it.
-        self._add_initial_slot()
+        # Start with two strips, each prefilled with a random demo so a fresh study
+        # can play something immediately; a loaded study overrides them.
+        self._add_initial_slots()
 
     # ----- construction ------------------------------------------------------
 
     def _make_slot(self, name: str) -> CueSlot:
-        """Build one fully-wired cue slot and append it to ``self.slots``."""
-        nameEdit = QtWidgets.QLineEdit(name, self)
-        nameEdit.setMaximumWidth(90)
-        fileEdit = QtWidgets.QLineEdit(self)
-        fileEdit.setMinimumWidth(180)
-        browseButton = QtWidgets.QPushButton("Browse", self)
-        volumeSpinBox = QtWidgets.QDoubleSpinBox(self)
+        """Build one fully-wired cue channel strip and append it to ``self.slots``.
+
+        A vertical strip stacks (top to bottom) the name, a compact file button, a
+        vertical volume fader synced to a precise spinbox, and the icon transport
+        buttons (play / stop / loop-toggle / remove) — the mixer channel of #289.
+        """
+        strip = QtWidgets.QFrame(self)
+        strip.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
+        strip.setFixedWidth(CUE_STRIP_WIDTH)
+        strip.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Expanding
+        )
+
+        nameEdit = QtWidgets.QLineEdit(name, strip)
+        nameEdit.setStatusTip("Name this cue (shown in the EEG marker).")
+        fileButton = QtWidgets.QPushButton(strip)
+        fileButton.setStatusTip("Choose this cue's sound file.")
+        volumeSlider = QtWidgets.QSlider(QtCore.Qt.Orientation.Vertical, strip)
+        volumeSlider.setRange(0, 100)  # mirrors the 0-1 spinbox at 0.01 resolution
+        volumeSlider.setStatusTip("Cue volume (fader).")
+        volumeSpinBox = QtWidgets.QDoubleSpinBox(strip)
         volumeSpinBox.setRange(0, 1)  # software gain at unity-or-below (no clipping)
         volumeSpinBox.setSingleStep(0.01)
-        volumeSpinBox.setMaximumWidth(70)
-        loopCheckBox = QtWidgets.QCheckBox(self)
-        loopCheckBox.setStatusTip("Repeat this cue until stopped.")
-        loopCheckBox.setToolTip("Loop until stopped")
-        playButton = QtWidgets.QPushButton("Play", self)
-        stopButton = QtWidgets.QPushButton("Stop", self)
-        removeButton = QtWidgets.QPushButton("✕", self)  # ✕
-        removeButton.setMaximumWidth(28)
-        removeButton.setStatusTip("Remove this cue.")
-        removeButton.setToolTip("Remove this cue")
+        # Transport buttons: icon-only, stacked like a mixer channel's foot (#289).
+        # Both the loop and the play button are depressable toggles — loop lit while
+        # armed, play lit while this cue is the one playing (so no separate label).
+        loopButton = self._make_icon_button(
+            self._transport_icons["loop"],
+            "Loop",
+            "Repeat this cue until stopped.",
+            checkable=True,
+        )
+        playButton = self._make_icon_button(
+            self._transport_icons["play"],
+            "Play",
+            "Play this cue.",
+            checkable=True,
+        )
+        stopButton = self._make_icon_button(
+            self._transport_icons["stop"],
+            "Stop",
+            "Stop this cue.",
+        )
+        removeButton = self._make_icon_button(
+            self._transport_icons["remove"],
+            "Remove",
+            "Remove this cue.",
+        )
+
+        box = QtWidgets.QVBoxLayout(strip)
+        box.setContentsMargins(4, 4, 4, 4)
+        box.addWidget(nameEdit)
+        box.addWidget(fileButton)
+        box.addWidget(volumeSlider, 1, QtCore.Qt.AlignmentFlag.AlignHCenter)
+        box.addWidget(volumeSpinBox)
+        box.addWidget(loopButton)
+        box.addWidget(playButton)
+        box.addWidget(stopButton)
+        box.addWidget(removeButton)
+
         slot = CueSlot(
+            strip,
             nameEdit,
-            fileEdit,
-            browseButton,
+            fileButton,
+            volumeSlider,
             volumeSpinBox,
-            loopCheckBox,
+            loopButton,
             playButton,
             stopButton,
             removeButton,
         )
         self.slots.append(slot)  # append before wiring so handlers can resolve it
-        fileEdit.textChanged.connect(partial(self.update_slot_source, slot))
-        fileEdit.editingFinished.connect(partial(self.update_slot_source, slot))
+        # The spinbox stays the source of truth (state + live volume); the fader
+        # just rides it. Setting the spinbox echoes to the fader (signals blocked);
+        # dragging the fader sets the spinbox (signals live, so volume updates).
         volumeSpinBox.valueChanged.connect(partial(self.update_slot_volume, slot))
-        loopCheckBox.toggled.connect(partial(self.update_slot_loop, slot))
-        browseButton.clicked.connect(partial(self.open_audio_selector, slot))
+        volumeSpinBox.valueChanged.connect(partial(self._sync_slider_from_spin, slot))
+        volumeSlider.valueChanged.connect(partial(self._sync_spin_from_slider, slot))
+        loopButton.toggled.connect(partial(self.update_slot_loop, slot))
+        fileButton.clicked.connect(partial(self.open_audio_selector, slot))
         playButton.clicked.connect(partial(self.play_slot, slot))
         stopButton.clicked.connect(partial(self.stop_slot, slot))
         removeButton.clicked.connect(partial(self.remove_slot, slot))
-        volumeSpinBox.setValue(0.2)  # fires update_slot_volume
+        volumeSpinBox.setValue(0.2)  # fires update_slot_volume + fader sync
+        self.set_slot_file(slot, "")  # label the empty file button
         return slot
 
-    def _add_initial_slot(self) -> None:
-        """Create the single required slot and prefill a random demo cue (#65)."""
-        slot = self._make_slot("Cue 1")
-        demo = pick_random_demo_cue(self.session.cues_dir)
-        if demo is not None:
-            slot.fileEdit.setText(str(demo))
-        self._rebuild_grid()
+    def _rebuild_transport_icons(self) -> None:
+        """(Re)paint the transport glyphs for the current palette and apply them.
+
+        Painted pixmaps don't follow a palette change on their own, so the
+        lights-off dark theme would otherwise leave them low-contrast; this reruns
+        on every palette change (see :meth:`changeEvent`).
+        """
+        self._transport_icons = {
+            kind: self._transport_icon(kind)
+            for kind in ("loop", "play", "stop", "remove")
+        }
+        for slot in self.slots:
+            slot.loopButton.setIcon(self._transport_icons["loop"])
+            slot.playButton.setIcon(self._transport_icons["play"])
+            slot.stopButton.setIcon(self._transport_icons["stop"])
+            slot.removeButton.setIcon(self._transport_icons["remove"])
+
+    def changeEvent(self, event: QtCore.QEvent | None) -> None:
+        """Repaint the transport icons when the app theme (light/dark) toggles."""
+        if (
+            event is not None
+            and event.type()
+            in (
+                QtCore.QEvent.Type.PaletteChange,
+                QtCore.QEvent.Type.ApplicationPaletteChange,
+            )
+            and hasattr(self, "slots")  # ignore palette events during base __init__
+        ):
+            self._rebuild_transport_icons()
+        super().changeEvent(event)
+
+    def _transport_icon(self, kind: str) -> QtGui.QIcon:
+        """A flat transport glyph in the theme's button-text (off) / highlight (on) colors.
+
+        The On variant (shown when a checkable button is depressed) is painted in the
+        highlighted-text color so it stays crisp against the checked fill.
+        """
+        pal = self.palette()
+        icon = QtGui.QIcon()
+        icon.addPixmap(
+            _draw_transport_icon(kind, pal.color(QtGui.QPalette.ColorRole.ButtonText)),
+            QtGui.QIcon.Mode.Normal,
+            QtGui.QIcon.State.Off,
+        )
+        icon.addPixmap(
+            _draw_transport_icon(
+                kind, pal.color(QtGui.QPalette.ColorRole.HighlightedText)
+            ),
+            QtGui.QIcon.Mode.Normal,
+            QtGui.QIcon.State.On,
+        )
+        return icon
+
+    def _make_icon_button(
+        self,
+        icon: QtGui.QIcon,
+        label: str,
+        status: str,
+        *,
+        checkable: bool = False,
+    ) -> QtWidgets.QPushButton:
+        """Build a compact icon-only transport button from a painted transport glyph.
+
+        ``label`` is the tooltip/accessible name (no visible text), ``status`` the
+        status-bar hint. A checkable button (loop, play) gets a bold "armed" fill,
+        since Fusion's default sunken look is too subtle to read across a strip at
+        3 a.m. — loop lit = will repeat, play lit = this cue is playing.
+        """
+        button = QtWidgets.QPushButton(self)
+        button.setIcon(icon)
+        button.setIconSize(QtCore.QSize(CUE_ICON_SIZE, CUE_ICON_SIZE))
+        button.setToolTip(label)
+        button.setStatusTip(status)
+        button.setAccessibleName(label)
+        button.setCheckable(checkable)
+        if checkable:
+            # palette(highlight/highlighted-text) follows the theme; the checked
+            # fill makes the armed/playing state obvious at a glance, not just sunken.
+            button.setStyleSheet(
+                "QPushButton:checked {"
+                " background-color: palette(highlight);"
+                " border: 1px solid palette(highlight); }"
+            )
+        return button
+
+    def _add_initial_slots(self) -> None:
+        """Open with two cue strips, each prefilled with a distinct demo (#65, #289)."""
+        demos = pick_random_demo_cues(self.session.cues_dir, INITIAL_CUE_SLOTS)
+        for i in range(INITIAL_CUE_SLOTS):
+            slot = self._make_slot(f"Cue {len(self.slots) + 1}")
+            if i < len(demos):
+                self.set_slot_file(slot, str(demos[i]))
+        self._rebuild_strips()
 
     def _build(self) -> QtWidgets.QWidget:
-        # Shared output device (chosen in the Devices window) + fade controls.
+        # Shared cue output device (chosen in the Devices window); the fade controls
+        # live in the master strip.
         self.deviceLabel = QtWidgets.QLabel(self)
         self.deviceLabel.setStatusTip("Set in the Devices window (Play audio cue).")
         self.refresh_device_indicator()
-
-        attackSpinBox = QtWidgets.QDoubleSpinBox(self)
-        attackSpinBox.setStatusTip(
-            "Fade-in time for the cue, in seconds (0 = instant)."
+        self.attackSpinBox = self._make_fade_spin(
+            "Fade-in time for the cue, in seconds (0 = instant).",
+            self.update_cue_attack,
         )
-        attackSpinBox.setRange(0, 60)
-        attackSpinBox.setSingleStep(0.1)
-        attackSpinBox.setSuffix(" seconds")
-        attackSpinBox.valueChanged.connect(self.update_cue_attack)
-        attackSpinBox.setValue(0.0)
-        self.attackSpinBox = attackSpinBox
-
-        releaseSpinBox = QtWidgets.QDoubleSpinBox(self)
-        releaseSpinBox.setStatusTip(
-            "Fade-out time when stopping the cue, in seconds (0 = instant)."
+        self.releaseSpinBox = self._make_fade_spin(
+            "Fade-out time when stopping the cue, in seconds (0 = instant).",
+            self.update_cue_release,
         )
-        releaseSpinBox.setRange(0, 60)
-        releaseSpinBox.setSingleStep(0.1)
-        releaseSpinBox.setSuffix(" seconds")
-        releaseSpinBox.valueChanged.connect(self.update_cue_release)
-        releaseSpinBox.setValue(0.0)
-        self.releaseSpinBox = releaseSpinBox
 
         header = QtWidgets.QFormLayout()
         header.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         header.addRow("Device:", self.deviceLabel)
-        header.addRow("Fade in:", attackSpinBox)
-        header.addRow("Fade out:", releaseSpinBox)
 
-        # "Now playing" indicator on top of the slot table (mixing-board style).
-        self.nowPlayingLabel = QtWidgets.QLabel("■ stopped", self)  # ■
-        self.nowPlayingLabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        # No "now playing" label: a strip's play button stays depressed while that
+        # cue is the one playing (#289), which says it more directly than text.
 
-        # Cue table: a persistent header row, then one rebuildable row per slot,
-        # then an "add" row. The header labels and add button are created once and
-        # reused across rebuilds, so a rebuild only reparents widgets (never deletes
-        # them) and live slot controls survive untouched.
-        self._grid = QtWidgets.QGridLayout()
-        self._header_labels = [
-            self._make_header_label(title)
-            for title in ("Name", "Sound", "", "Vol", "Loop", "", "", "")
-        ]
+        # Channel strips: one rebuildable QFrame per slot in a left-to-right row,
+        # then the persistent "add" button. A rebuild only reparents the strips
+        # (never deletes them), so live controls survive untouched.
+        self._stripRow = QtWidgets.QHBoxLayout()
         self._addButton = QtWidgets.QPushButton("+ Add cue", self)
         self._addButton.setStatusTip(f"Add another cue (up to {MAX_CUE_SLOTS}).")
         self._addButton.setToolTip("Add another cue")
         self._addButton.clicked.connect(self.add_slot)
-        self._rebuild_grid()
+        self._rebuild_strips()
+
+        # The strip row scrolls horizontally so the cap of 20 cues can't blow out
+        # the window width; the usual 2-5 fit without a scrollbar.
+        stripHost = QtWidgets.QWidget()
+        stripHost.setLayout(self._stripRow)
+        scroll = QtWidgets.QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(stripHost)
+        scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setMinimumSize(360, 320)
+
+        console = QtWidgets.QHBoxLayout()
+        console.addWidget(scroll, 1)
+        console.addWidget(self._build_master())
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(make_section_title("Audio cue"))
         layout.addLayout(header)
-        layout.addWidget(self.nowPlayingLabel)
-        layout.addLayout(self._grid)
-        layout.addSpacing(8)
-        layout.addLayout(self._build_monitoring())
-        layout.addStretch(1)
+        layout.addLayout(console, 1)
         central = QtWidgets.QWidget()
         central.setLayout(layout)
         return central
 
-    def _make_header_label(self, text: str) -> QtWidgets.QLabel:
-        label = QtWidgets.QLabel(text, self)
-        label.setStyleSheet("font-weight: bold;")
-        return label
+    def _make_fade_spin(self, status: str, handler) -> QtWidgets.QDoubleSpinBox:
+        """Build a shared fade (attack/release) spinbox in seconds."""
+        spin = QtWidgets.QDoubleSpinBox(self)
+        spin.setStatusTip(status)
+        spin.setRange(0, 60)
+        spin.setSingleStep(0.1)
+        spin.setSuffix(" seconds")
+        spin.valueChanged.connect(handler)
+        spin.setValue(0.0)
+        return spin
 
-    def _rebuild_grid(self) -> None:
-        """Re-lay the cue table: header row, one row per slot, then the add row.
+    def _rebuild_strips(self) -> None:
+        """Re-lay the channel-strip row: one strip per slot, then the add button.
 
-        Every widget here is persistent (the header labels, the add button, and
-        each slot's controls), so clearing only reparents them out of the grid —
-        nothing is deleted — and they're re-added in their new positions.
+        Every strip is a persistent widget, so clearing only reparents the layout
+        items out — nothing is deleted — and they're re-added in order, followed by
+        the add button and a trailing stretch that keeps strips left-packed.
         """
-        while self._grid.count():
-            self._grid.takeAt(0)  # drop the layout item only; widgets are reused
-        for col, label in enumerate(self._header_labels):
-            self._grid.addWidget(label, 0, col)
-        for row, slot in enumerate(self.slots, start=1):
-            self._grid.addWidget(slot.nameEdit, row, 0)
-            self._grid.addWidget(slot.fileEdit, row, 1)
-            self._grid.addWidget(slot.browseButton, row, 2)
-            self._grid.addWidget(slot.volumeSpinBox, row, 3)
-            self._grid.addWidget(slot.loopCheckBox, row, 4)
-            self._grid.addWidget(slot.playButton, row, 5)
-            self._grid.addWidget(slot.stopButton, row, 6)
-            self._grid.addWidget(slot.removeButton, row, 7)
-            # The lone required slot can't be removed: keep the button in place (so
-            # the column doesn't jump) but disabled.
+        while self._stripRow.count():
+            self._stripRow.takeAt(0)  # drop the layout item only; strips are reused
+        for slot in self.slots:
+            self._stripRow.addWidget(slot.strip)
+            # The lone required slot can't be removed: keep the button (so the strip
+            # doesn't reflow) but disabled.
             slot.removeButton.setEnabled(len(self.slots) > MIN_CUE_SLOTS)
-        self._grid.addWidget(self._addButton, len(self.slots) + 1, 0, 1, 2)
+        self._stripRow.addWidget(self._addButton, 0, QtCore.Qt.AlignmentFlag.AlignTop)
         self._addButton.setEnabled(len(self.slots) < MAX_CUE_SLOTS)
-        self._grid.setColumnStretch(1, 1)
+        self._stripRow.addStretch(1)
 
     # ----- add / remove slots ------------------------------------------------
 
     def add_slot(self) -> None:
-        """Append a new (empty) cue slot, up to the cap (#65)."""
+        """Append a new (empty) cue strip, up to the cap (#65)."""
         if len(self.slots) >= MAX_CUE_SLOTS:
             return
         slot = self._make_slot(f"Cue {len(self.slots) + 1}")
-        self._rebuild_grid()
-        self.adjustSize()
+        self._rebuild_strips()
         self.session.log_interaction(f"Added cue '{slot.nameEdit.text()}'")
 
     def remove_slot(self, slot: CueSlot) -> None:
-        """Remove a cue slot (never the last one), stopping it first (#65)."""
+        """Remove a cue strip (never the last one), stopping it first (#65)."""
         if len(self.slots) <= MIN_CUE_SLOTS or slot not in self.slots:
             return
         name = slot.nameEdit.text()
         self.slots.remove(slot)
         self._destroy_slot_widgets(slot)
-        self._rebuild_grid()
-        self.adjustSize()
+        self._rebuild_strips()
         self.session.log_interaction(f"Removed cue '{name}'")
 
     def _destroy_slot_widgets(self, slot: CueSlot) -> None:
-        """Tear down a removed slot: silence it if playing, then free its widgets."""
+        """Tear down a removed slot: silence it if playing, then free its strip."""
         if self._active_slot is slot:
             self._finish_active(mark=False)  # silence without a spurious marker
-        for widget in (
-            slot.nameEdit,
-            slot.fileEdit,
-            slot.browseButton,
-            slot.volumeSpinBox,
-            slot.loopCheckBox,
-            slot.playButton,
-            slot.stopButton,
-            slot.removeButton,
-        ):
-            widget.hide()  # leave no orphan visible before deferred deletion
-            widget.deleteLater()
+        slot.strip.hide()  # leave no orphan visible before deferred deletion
+        slot.strip.deleteLater()  # the strip's child widgets go with it
 
     def _resize_slots(self, count: int) -> None:
         """Grow/shrink the slot list to ``count`` (clamped to ``1..MAX``) (#65)."""
@@ -304,7 +532,7 @@ class AudioCueWindow(PanelWindow):
             self._make_slot(f"Cue {len(self.slots) + 1}")
         while len(self.slots) > count:
             self._destroy_slot_widgets(self.slots.pop())
-        self._rebuild_grid()
+        self._rebuild_strips()
 
     # ----- shared device + fade ---------------------------------------------
 
@@ -352,21 +580,30 @@ class AudioCueWindow(PanelWindow):
             "Audio (*.wav *.mp3 *.flac *.ogg *.oga *.aif *.aiff);;All files (*)",
         )
         if filename:
-            slot.fileEdit.setText(str(Path(filename)))
+            self.set_slot_file(slot, str(Path(filename)))
 
-    def update_slot_source(self, slot: CueSlot) -> None:
-        """Decode a slot's file into its mono float32 buffer (any format soundfile reads).
+    def set_slot_file(self, slot: CueSlot, path: str) -> None:
+        """Point a slot at a sound file: label its button and decode the audio.
 
-        Fired on every keystroke, so missing/partial paths just clear the buffer
-        silently; only a genuine decode failure raises a popup.
+        The compact button shows only the file's stem (full path on hover); the
+        path is kept on the slot for playback and settings. An empty/missing path
+        just clears the buffer silently; only a genuine decode failure raises a popup.
         """
-        filepath = slot.fileEdit.text().strip()
-        if not filepath or not Path(filepath).is_file():
+        path = path.strip()
+        slot.file_path = path
+        name = Path(path).stem if path else ""
+        avail = CUE_STRIP_WIDTH - 20  # leave room for the button's frame/padding
+        elided = slot.fileButton.fontMetrics().elidedText(
+            name, QtCore.Qt.TextElideMode.ElideMiddle, avail
+        )
+        slot.fileButton.setText(elided or "Choose sound…")
+        slot.fileButton.setToolTip(path or "Choose this cue's sound file")
+        if not path or not Path(path).is_file():
             slot.audio = None
             slot.rate = 0
             return
         try:
-            data, file_rate = sf.read(filepath, dtype="float32")
+            data, file_rate = sf.read(path, dtype="float32")
         except Exception as err:
             slot.audio = None
             slot.rate = 0
@@ -379,6 +616,20 @@ class AudioCueWindow(PanelWindow):
         slot.audio = np.ascontiguousarray(data, dtype=np.float32)
         slot.rate = int(file_rate)
 
+    def _sync_slider_from_spin(self, slot: CueSlot, value: float | None = None) -> None:
+        """Echo the spinbox onto the fader (signals blocked, so it doesn't loop back)."""
+        target = round(slot.volumeSpinBox.value() * 100)
+        if slot.volumeSlider.value() != target:
+            slot.volumeSlider.blockSignals(True)
+            slot.volumeSlider.setValue(target)
+            slot.volumeSlider.blockSignals(False)
+
+    def _sync_spin_from_slider(self, slot: CueSlot, value: int | None = None) -> None:
+        """Drive the spinbox from a fader drag (live, so update_slot_volume fires)."""
+        target = slot.volumeSlider.value() / 100
+        if abs(slot.volumeSpinBox.value() - target) >= 1e-9:
+            slot.volumeSpinBox.setValue(target)
+
     def update_slot_volume(self, slot: CueSlot, value: float | None = None) -> None:
         """Set a slot's volume (0-1) from its spinbox (live if it's playing)."""
         vol = slot.volumeSpinBox.value()
@@ -390,8 +641,8 @@ class AudioCueWindow(PanelWindow):
         )
 
     def update_slot_loop(self, slot: CueSlot, enabled: bool | None = None) -> None:
-        """Set a slot's loop flag from its checkbox (live if it's playing)."""
-        looping = slot.loopCheckBox.isChecked()
+        """Set a slot's loop flag from its loop toggle button (live if it's playing)."""
+        looping = slot.loopButton.isChecked()
         if self._active_slot is slot:
             for out in self._outputs:
                 out.mixer.loop = looping
@@ -406,7 +657,8 @@ class AudioCueWindow(PanelWindow):
         when ``listen_audio_cue`` is routed to a different device (the cue fan-out).
         """
         if slot.audio is None or slot.audio.shape[0] == 0:
-            return  # nothing loaded in this slot
+            self._sync_play_buttons()  # nothing loaded: undo the click's auto-toggle
+            return
         # One-at-a-time: cut whatever is playing. Mark a CueStopped only when a
         # *different* cue is replaced (re-playing the same slot is just a restart).
         if self._active_slot is not None:
@@ -419,10 +671,12 @@ class AudioCueWindow(PanelWindow):
             parent=self,
         )
         if device is None:
+            self._sync_play_buttons()
             return
         primary = self._open_output(slot, device)
         if primary is None:
-            return  # primary failed (error already shown)
+            self._sync_play_buttons()  # primary failed (error already shown)
+            return
         self._outputs = [primary]
         monitor_device = resolve_device(
             self.session.devices.device_for("listen_audio_cue"), devices.OUTPUT
@@ -433,7 +687,7 @@ class AudioCueWindow(PanelWindow):
                 self._outputs.append(monitor)
         self._active_slot = slot
         self._cue_timer.start()
-        self._set_now_playing(slot)
+        self._sync_play_buttons()  # depress this strip's play button while it plays
         # Mark the cue at its estimated onset: the sound reaches the speaker about one
         # output buffer after the stream starts, so pass that reported buffer latency.
         self.session.emit_event(
@@ -456,7 +710,7 @@ class AudioCueWindow(PanelWindow):
         mixer.start(
             utils.resample_to(slot.audio, slot.rate, rate),
             volume=slot.volumeSpinBox.value(),
-            loop=slot.loopCheckBox.isChecked(),
+            loop=slot.loopButton.isChecked(),
             attack_samples=int(self.cue_attack_s * rate),
         )
         try:
@@ -516,35 +770,33 @@ class AudioCueWindow(PanelWindow):
             out.stream.close()
         self._outputs = []
         self._active_slot = None
-        self._set_now_playing_stopped()
+        self._sync_play_buttons()
         self.outMeter.clear_level()
         self._out_level_db = audio.FLOOR_DBFS
         if mark and slot is not None:
             self.session.emit_event("CueStopped", detail=slot.nameEdit.text())
 
-    def _set_now_playing(self, slot: CueSlot) -> None:
-        looping = slot.loopCheckBox.isChecked()
-        name = slot.nameEdit.text()
-        base = f"\U0001f501 {name} (looping)" if looping else f"▶ {name}"
-        monitor = " + monitor" if len(self._outputs) > 1 else ""
-        self.nowPlayingLabel.setText(base + monitor)
-        self.nowPlayingLabel.setStyleSheet("color: red; font-weight: bold;")
+    def _sync_play_buttons(self) -> None:
+        """Depress exactly the playing strip's play button (or none when stopped).
 
-    def _set_now_playing_stopped(self) -> None:
-        self.nowPlayingLabel.setText("■ stopped")  # ■
-        self.nowPlayingLabel.setStyleSheet("")
+        Driven by playback state, not the user's click, so it also pops the button
+        back up when a cue ends on its own. ``setChecked`` emits ``toggled`` (not
+        ``clicked``, which play is wired to), so this never re-triggers playback.
+        """
+        for slot in self.slots:
+            slot.playButton.setChecked(slot is self._active_slot)
 
-    # ----- monitoring (#37) --------------------------------------------------
+    # ----- master strip / monitoring (#37, #289) ----------------------------
 
-    def _build_monitoring(self) -> QtWidgets.QLayout:
-        """Build the monitoring block: an output 'sending' meter + a bedroom-mic meter.
+    def _build_master(self) -> QtWidgets.QWidget:
+        """Build the master strip: the Sending + Bedroom meters and the shared fades.
 
         'Sending' shows the level SMACC emits — a deterministic diagnostic, but blind
         to a muted or unplugged speaker. 'Bedroom' is the objective acoustic check: a
         mic in the room, the only thing that confirms the cue was actually audible.
         Its mic is the Room-monitor route (a dedicated mic, or the bedroom mic).
         """
-        heading = QtWidgets.QLabel("Monitoring", self)
+        heading = QtWidgets.QLabel("Master", self)
         heading.setStyleSheet("font-weight: bold;")
 
         self.outMeter.setStatusTip(
@@ -560,21 +812,35 @@ class AudioCueWindow(PanelWindow):
         self.monitorDeviceLabel.setStatusTip(
             "Set in the Devices window (Monitor bedroom noise)."
         )
+        self.monitorDeviceLabel.setWordWrap(True)
 
         roomRow = QtWidgets.QHBoxLayout()
         roomRow.addWidget(self.monitorCheckBox)
         roomRow.addWidget(self.roomMeter)
 
-        form = QtWidgets.QFormLayout()
-        form.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-        form.addRow("Sending:", self.outMeter)
-        form.addRow("Bedroom:", roomRow)
-        form.addRow("Monitor mic:", self.monitorDeviceLabel)
+        meters = QtWidgets.QFormLayout()
+        meters.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        meters.addRow("Sending:", self.outMeter)
+        meters.addRow("Bedroom:", roomRow)
+        meters.addRow("Monitor mic:", self.monitorDeviceLabel)
 
-        layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(heading)
-        layout.addLayout(form)
-        return layout
+        fades = QtWidgets.QFormLayout()
+        fades.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        fades.addRow("Fade in:", self.attackSpinBox)
+        fades.addRow("Fade out:", self.releaseSpinBox)
+
+        box = QtWidgets.QVBoxLayout()
+        box.addWidget(heading)
+        box.addLayout(meters)
+        box.addSpacing(8)
+        box.addLayout(fades)
+        box.addStretch(1)
+
+        master = QtWidgets.QFrame(self)
+        master.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
+        master.setMaximumWidth(260)
+        master.setLayout(box)
+        return master
 
     def toggle_room_monitor(self, enabled: bool) -> None:
         """Start/stop the bedroom monitor-mic meter (the objective acoustic check)."""
@@ -613,9 +879,9 @@ class AudioCueWindow(PanelWindow):
             "cues": [
                 {
                     "name": slot.nameEdit.text(),
-                    "file": slot.fileEdit.text(),
+                    "file": slot.file_path,
                     "volume": slot.volumeSpinBox.value(),
-                    "loop": slot.loopCheckBox.isChecked(),
+                    "loop": slot.loopButton.isChecked(),
                 }
                 for slot in self.slots
             ],
@@ -634,15 +900,14 @@ class AudioCueWindow(PanelWindow):
         if (v := state.get("cue_release")) is not None:
             restore_spin_value(self.releaseSpinBox, v)
 
-    @staticmethod
-    def _apply_cue(slot: CueSlot, cue: dict) -> None:
+    def _apply_cue(self, slot: CueSlot, cue: dict) -> None:
         if name := cue.get("name"):
             slot.nameEdit.setText(str(name))
         if (f := cue.get("file")) is not None:
-            slot.fileEdit.setText(str(f))  # textChanged -> update_slot_source decodes
+            self.set_slot_file(slot, str(f))  # labels the button and decodes
         if (v := cue.get("volume")) is not None:
-            restore_spin_value(slot.volumeSpinBox, v)
-        slot.loopCheckBox.setChecked(bool(cue.get("loop", False)))
+            restore_spin_value(slot.volumeSpinBox, v)  # fires the fader sync
+        slot.loopButton.setChecked(bool(cue.get("loop", False)))
 
     def cleanup(self) -> None:
         self._cue_timer.stop()
