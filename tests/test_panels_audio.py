@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 import soundfile as sf
+from PyQt6 import QtCore, QtGui
 
 from smacc.panels import meter
 from smacc.panels.audio import (
@@ -24,6 +25,16 @@ def _write_wav(path: Path) -> Path:
     """Write a tiny mono WAV so set_slot_file has something real to decode."""
     sf.write(path, np.zeros(128, dtype="float32"), 8000)
     return path
+
+
+def _is_painted(icon: QtGui.QIcon) -> bool:
+    """True if the icon renders any non-transparent pixel (catches a blank glyph)."""
+    img = icon.pixmap(QtCore.QSize(32, 32)).toImage()
+    return any(
+        QtGui.qAlpha(img.pixel(x, y)) > 0
+        for x in range(img.width())
+        for y in range(img.height())
+    )
 
 
 class _FakeInput:
@@ -106,8 +117,60 @@ def test_transport_buttons_are_icon_only(qtbot, design_session):
         slot.loopButton,
         slot.removeButton,
     ):
-        assert not button.icon().isNull()  # has an icon
+        assert _is_painted(button.icon())  # a real glyph, not a blank pixmap
         assert button.text() == ""  # icon-only, no label text
+
+
+def test_every_transport_glyph_is_painted(qtbot, design_session):
+    # Guards against a key/branch mismatch (#289): a transparent pixmap is not a
+    # null icon, so isNull() alone would miss an unpainted glyph.
+    panel = AudioCueWindow(design_session)
+    qtbot.addWidget(panel)
+    for kind, icon in panel._transport_icons.items():
+        assert _is_painted(icon), f"{kind} icon is blank"
+
+
+def test_transport_icons_repaint_on_theme_change(qtbot, design_session):
+    # The lights-off dark theme flips the app palette; the painted glyphs must be
+    # rebuilt for it (a baked pixmap won't follow the palette on its own) (#289).
+    panel = AudioCueWindow(design_session)
+    qtbot.addWidget(panel)
+    before = panel._transport_icons["play"]
+    QtCore.QCoreApplication.sendEvent(
+        panel, QtCore.QEvent(QtCore.QEvent.Type.PaletteChange)
+    )
+    assert panel._transport_icons["play"] is not before  # repainted for the new theme
+    assert _is_painted(panel.slots[0].playButton.icon())  # button got the fresh glyph
+
+
+def test_transport_buttons_are_stacked_loop_play_stop_remove(qtbot, design_session):
+    panel = AudioCueWindow(design_session)
+    qtbot.addWidget(panel)
+    slot = panel.slots[0]
+    box = slot.strip.layout()
+    order = [
+        box.indexOf(slot.loopButton),
+        box.indexOf(slot.playButton),
+        box.indexOf(slot.stopButton),
+        box.indexOf(slot.removeButton),
+    ]
+    assert order == sorted(order)  # loop on top of play, then stop, then remove
+
+
+def test_play_button_depresses_only_the_playing_strip(qtbot, design_session):
+    panel = AudioCueWindow(design_session)
+    qtbot.addWidget(panel)
+    assert not hasattr(panel, "nowPlayingLabel")  # the text indicator is gone
+    assert panel.slots[0].playButton.isCheckable()
+    assert not any(s.playButton.isChecked() for s in panel.slots)  # nothing playing
+    # _sync_play_buttons reflects playback state (no real stream needed to check it).
+    panel._active_slot = panel.slots[1]
+    panel._sync_play_buttons()
+    assert panel.slots[1].playButton.isChecked()
+    assert not panel.slots[0].playButton.isChecked()
+    panel._active_slot = None  # e.g. the cue ended
+    panel._sync_play_buttons()
+    assert not any(s.playButton.isChecked() for s in panel.slots)
 
 
 def test_add_and_remove_strips_keeps_the_lone_strip(qtbot, design_session):

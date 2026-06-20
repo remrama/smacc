@@ -14,6 +14,7 @@ autofilled with a distinct random demo so it is immediately playable (#65).
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
@@ -21,7 +22,7 @@ from pathlib import Path
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
-from PyQt6 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import audio, devices, utils
 from ..session import SmaccSession
@@ -48,6 +49,110 @@ CUE_RATE = 44100
 CUE_STRIP_WIDTH = 108
 # Square icon size for the transport buttons (play/stop/loop/remove).
 CUE_ICON_SIZE = 18
+# Resolution the transport glyphs are painted at, then scaled down (crisp at any DPI).
+CUE_ICON_PX = 64
+
+
+def _draw_transport_icon(kind: str, color: QtGui.QColor) -> QtGui.QPixmap:
+    """Paint one flat, single-color transport glyph so all four buttons match (#289).
+
+    A single painter keeps the set coherent — filled play/stop and thick-stroked
+    loop/trash at a matching ink weight — instead of mixing Qt's flat media icons
+    with its glossier browser/trash standard icons (which read as two styles).
+    """
+    size = CUE_ICON_PX
+    pix = QtGui.QPixmap(size, size)
+    pix.fill(QtCore.Qt.GlobalColor.transparent)
+    p = QtGui.QPainter(pix)
+    p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+    stroke = size * 0.11
+    no_pen = QtCore.Qt.PenStyle.NoPen
+    no_brush = QtCore.Qt.BrushStyle.NoBrush
+    if kind == "play":
+        p.setPen(no_pen)
+        p.setBrush(color)
+        m = size * 0.30
+        p.drawPolygon(
+            QtGui.QPolygonF(
+                [
+                    QtCore.QPointF(m, size * 0.26),
+                    QtCore.QPointF(m, size * 0.74),
+                    QtCore.QPointF(size - m, size * 0.5),
+                ]
+            )
+        )
+    elif kind == "stop":
+        p.setPen(no_pen)
+        p.setBrush(color)
+        m = size * 0.30
+        p.drawRoundedRect(
+            QtCore.QRectF(m, m, size - 2 * m, size - 2 * m), stroke, stroke
+        )
+    elif kind == "loop":
+        pen = QtGui.QPen(color, stroke)
+        pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
+        p.setPen(pen)
+        p.setBrush(no_brush)
+        inset = size * 0.27
+        ring = QtCore.QRectF(inset, inset, size - 2 * inset, size - 2 * inset)
+        # Near-full ring with a gap at the top where the arrowhead sits.
+        p.drawArc(ring, 110 * 16, 300 * 16)
+        # Filled arrowhead at the open (upper-right) end, pointing clockwise.
+        cx, cy, r = size / 2, size / 2, ring.width() / 2
+        end = math.radians(50)  # the arc's end angle (110 + 300 = 410 == 50)
+        ex, ey = cx + r * math.cos(end), cy - r * math.sin(end)
+        tx, ty = math.sin(end), math.cos(end)  # clockwise tangent (screen y-down)
+        nx, ny = math.cos(end), -math.sin(end)  # outward normal
+        head = stroke * 1.5
+        p.setPen(no_pen)
+        p.setBrush(color)
+        p.drawPolygon(
+            QtGui.QPolygonF(
+                [
+                    QtCore.QPointF(ex + tx * head, ey + ty * head),
+                    QtCore.QPointF(ex + nx * head, ey + ny * head),
+                    QtCore.QPointF(ex - nx * head, ey - ny * head),
+                ]
+            )
+        )
+    elif kind == "remove":  # a trash can
+        pen = QtGui.QPen(color, stroke * 0.85)
+        pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(QtCore.Qt.PenJoinStyle.RoundJoin)
+        p.setPen(pen)
+        p.setBrush(no_brush)
+        p.drawLine(
+            QtCore.QPointF(size * 0.24, size * 0.33),
+            QtCore.QPointF(size * 0.76, size * 0.33),
+        )  # lid
+        p.drawLine(
+            QtCore.QPointF(size * 0.42, size * 0.24),
+            QtCore.QPointF(size * 0.58, size * 0.24),
+        )  # handle
+        p.drawLine(
+            QtCore.QPointF(size * 0.42, size * 0.24),
+            QtCore.QPointF(size * 0.42, size * 0.33),
+        )
+        p.drawLine(
+            QtCore.QPointF(size * 0.58, size * 0.24),
+            QtCore.QPointF(size * 0.58, size * 0.33),
+        )
+        body = QtGui.QPainterPath()  # tapered can, open top (the lid covers it)
+        body.moveTo(size * 0.30, size * 0.33)
+        body.lineTo(size * 0.35, size * 0.77)
+        body.lineTo(size * 0.65, size * 0.77)
+        body.lineTo(size * 0.70, size * 0.33)
+        p.drawPath(body)
+        p.drawLine(
+            QtCore.QPointF(size * 0.44, size * 0.41),
+            QtCore.QPointF(size * 0.45, size * 0.69),
+        )
+        p.drawLine(
+            QtCore.QPointF(size * 0.56, size * 0.41),
+            QtCore.QPointF(size * 0.55, size * 0.69),
+        )
+    p.end()
+    return pix
 
 
 @dataclass
@@ -116,6 +221,10 @@ class AudioCueWindow(PanelWindow):
         # Populated after the central widget exists so _rebuild_strips has its
         # strip row and add button to work with.
         self.slots: list[CueSlot] = []
+        # One coherent flat icon set, shared by every strip; repainted on a theme
+        # change so it stays legible when the lights-off dark scheme toggles (#289).
+        self._transport_icons: dict[str, QtGui.QIcon] = {}
+        self._rebuild_transport_icons()
         self.setCentralWidget(self._build())
         # Start with two strips, each prefilled with a random demo so a fresh study
         # can play something immediately; a loaded study overrides them.
@@ -148,25 +257,27 @@ class AudioCueWindow(PanelWindow):
         volumeSpinBox.setRange(0, 1)  # software gain at unity-or-below (no clipping)
         volumeSpinBox.setSingleStep(0.01)
         # Transport buttons: icon-only, stacked like a mixer channel's foot (#289).
-        # The loop button is a depressable toggle (lit while looping).
+        # Both the loop and the play button are depressable toggles — loop lit while
+        # armed, play lit while this cue is the one playing (so no separate label).
         loopButton = self._make_icon_button(
-            QtWidgets.QStyle.StandardPixmap.SP_BrowserReload,
+            self._transport_icons["loop"],
             "Loop",
             "Repeat this cue until stopped.",
             checkable=True,
         )
         playButton = self._make_icon_button(
-            QtWidgets.QStyle.StandardPixmap.SP_MediaPlay,
+            self._transport_icons["play"],
             "Play",
             "Play this cue.",
+            checkable=True,
         )
         stopButton = self._make_icon_button(
-            QtWidgets.QStyle.StandardPixmap.SP_MediaStop,
+            self._transport_icons["stop"],
             "Stop",
             "Stop this cue.",
         )
         removeButton = self._make_icon_button(
-            QtWidgets.QStyle.StandardPixmap.SP_TrashIcon,
+            self._transport_icons["remove"],
             "Remove",
             "Remove this cue.",
         )
@@ -177,9 +288,9 @@ class AudioCueWindow(PanelWindow):
         box.addWidget(fileButton)
         box.addWidget(volumeSlider, 1, QtCore.Qt.AlignmentFlag.AlignHCenter)
         box.addWidget(volumeSpinBox)
+        box.addWidget(loopButton)
         box.addWidget(playButton)
         box.addWidget(stopButton)
-        box.addWidget(loopButton)
         box.addWidget(removeButton)
 
         slot = CueSlot(
@@ -209,25 +320,76 @@ class AudioCueWindow(PanelWindow):
         self.set_slot_file(slot, "")  # label the empty file button
         return slot
 
+    def _rebuild_transport_icons(self) -> None:
+        """(Re)paint the transport glyphs for the current palette and apply them.
+
+        Painted pixmaps don't follow a palette change on their own, so the
+        lights-off dark theme would otherwise leave them low-contrast; this reruns
+        on every palette change (see :meth:`changeEvent`).
+        """
+        self._transport_icons = {
+            kind: self._transport_icon(kind)
+            for kind in ("loop", "play", "stop", "remove")
+        }
+        for slot in self.slots:
+            slot.loopButton.setIcon(self._transport_icons["loop"])
+            slot.playButton.setIcon(self._transport_icons["play"])
+            slot.stopButton.setIcon(self._transport_icons["stop"])
+            slot.removeButton.setIcon(self._transport_icons["remove"])
+
+    def changeEvent(self, event: QtCore.QEvent | None) -> None:
+        """Repaint the transport icons when the app theme (light/dark) toggles."""
+        if (
+            event is not None
+            and event.type()
+            in (
+                QtCore.QEvent.Type.PaletteChange,
+                QtCore.QEvent.Type.ApplicationPaletteChange,
+            )
+            and hasattr(self, "slots")  # ignore palette events during base __init__
+        ):
+            self._rebuild_transport_icons()
+        super().changeEvent(event)
+
+    def _transport_icon(self, kind: str) -> QtGui.QIcon:
+        """A flat transport glyph in the theme's button-text (off) / highlight (on) colors.
+
+        The On variant (shown when a checkable button is depressed) is painted in the
+        highlighted-text color so it stays crisp against the checked fill.
+        """
+        pal = self.palette()
+        icon = QtGui.QIcon()
+        icon.addPixmap(
+            _draw_transport_icon(kind, pal.color(QtGui.QPalette.ColorRole.ButtonText)),
+            QtGui.QIcon.Mode.Normal,
+            QtGui.QIcon.State.Off,
+        )
+        icon.addPixmap(
+            _draw_transport_icon(
+                kind, pal.color(QtGui.QPalette.ColorRole.HighlightedText)
+            ),
+            QtGui.QIcon.Mode.Normal,
+            QtGui.QIcon.State.On,
+        )
+        return icon
+
     def _make_icon_button(
         self,
-        pixmap: QtWidgets.QStyle.StandardPixmap,
+        icon: QtGui.QIcon,
         label: str,
         status: str,
         *,
         checkable: bool = False,
     ) -> QtWidgets.QPushButton:
-        """Build a compact icon-only transport button from a Qt standard icon.
+        """Build a compact icon-only transport button from a painted transport glyph.
 
-        Standard icons keep this asset-free and theme-aware; ``label`` is the
-        tooltip/accessible name (no visible text), ``status`` the status-bar hint.
-        A checkable button (the loop toggle) gets a bold "armed" fill, since
-        Fusion's default sunken look is too subtle to read across a strip at 3 a.m.
+        ``label`` is the tooltip/accessible name (no visible text), ``status`` the
+        status-bar hint. A checkable button (loop, play) gets a bold "armed" fill,
+        since Fusion's default sunken look is too subtle to read across a strip at
+        3 a.m. — loop lit = will repeat, play lit = this cue is playing.
         """
         button = QtWidgets.QPushButton(self)
-        style = self.style()
-        assert style is not None  # a realized widget always has a style
-        button.setIcon(style.standardIcon(pixmap))
+        button.setIcon(icon)
         button.setIconSize(QtCore.QSize(CUE_ICON_SIZE, CUE_ICON_SIZE))
         button.setToolTip(label)
         button.setStatusTip(status)
@@ -235,7 +397,7 @@ class AudioCueWindow(PanelWindow):
         button.setCheckable(checkable)
         if checkable:
             # palette(highlight/highlighted-text) follows the theme; the checked
-            # fill makes an armed loop obvious at a glance, not just sunken.
+            # fill makes the armed/playing state obvious at a glance, not just sunken.
             button.setStyleSheet(
                 "QPushButton:checked {"
                 " background-color: palette(highlight);"
@@ -271,9 +433,8 @@ class AudioCueWindow(PanelWindow):
         header.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         header.addRow("Device:", self.deviceLabel)
 
-        # "Now playing" indicator across the top (mixing-board style).
-        self.nowPlayingLabel = QtWidgets.QLabel("■ stopped", self)  # ■
-        self.nowPlayingLabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        # No "now playing" label: a strip's play button stays depressed while that
+        # cue is the one playing (#289), which says it more directly than text.
 
         # Channel strips: one rebuildable QFrame per slot in a left-to-right row,
         # then the persistent "add" button. A rebuild only reparents the strips
@@ -303,7 +464,6 @@ class AudioCueWindow(PanelWindow):
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(make_section_title("Audio cue"))
         layout.addLayout(header)
-        layout.addWidget(self.nowPlayingLabel)
         layout.addLayout(console, 1)
         central = QtWidgets.QWidget()
         central.setLayout(layout)
@@ -497,7 +657,8 @@ class AudioCueWindow(PanelWindow):
         when ``listen_audio_cue`` is routed to a different device (the cue fan-out).
         """
         if slot.audio is None or slot.audio.shape[0] == 0:
-            return  # nothing loaded in this slot
+            self._sync_play_buttons()  # nothing loaded: undo the click's auto-toggle
+            return
         # One-at-a-time: cut whatever is playing. Mark a CueStopped only when a
         # *different* cue is replaced (re-playing the same slot is just a restart).
         if self._active_slot is not None:
@@ -510,10 +671,12 @@ class AudioCueWindow(PanelWindow):
             parent=self,
         )
         if device is None:
+            self._sync_play_buttons()
             return
         primary = self._open_output(slot, device)
         if primary is None:
-            return  # primary failed (error already shown)
+            self._sync_play_buttons()  # primary failed (error already shown)
+            return
         self._outputs = [primary]
         monitor_device = resolve_device(
             self.session.devices.device_for("listen_audio_cue"), devices.OUTPUT
@@ -524,7 +687,7 @@ class AudioCueWindow(PanelWindow):
                 self._outputs.append(monitor)
         self._active_slot = slot
         self._cue_timer.start()
-        self._set_now_playing(slot)
+        self._sync_play_buttons()  # depress this strip's play button while it plays
         # Mark the cue at its estimated onset: the sound reaches the speaker about one
         # output buffer after the stream starts, so pass that reported buffer latency.
         self.session.emit_event(
@@ -607,23 +770,21 @@ class AudioCueWindow(PanelWindow):
             out.stream.close()
         self._outputs = []
         self._active_slot = None
-        self._set_now_playing_stopped()
+        self._sync_play_buttons()
         self.outMeter.clear_level()
         self._out_level_db = audio.FLOOR_DBFS
         if mark and slot is not None:
             self.session.emit_event("CueStopped", detail=slot.nameEdit.text())
 
-    def _set_now_playing(self, slot: CueSlot) -> None:
-        looping = slot.loopButton.isChecked()
-        name = slot.nameEdit.text()
-        base = f"\U0001f501 {name} (looping)" if looping else f"▶ {name}"
-        monitor = " + monitor" if len(self._outputs) > 1 else ""
-        self.nowPlayingLabel.setText(base + monitor)
-        self.nowPlayingLabel.setStyleSheet("color: red; font-weight: bold;")
+    def _sync_play_buttons(self) -> None:
+        """Depress exactly the playing strip's play button (or none when stopped).
 
-    def _set_now_playing_stopped(self) -> None:
-        self.nowPlayingLabel.setText("■ stopped")  # ■
-        self.nowPlayingLabel.setStyleSheet("")
+        Driven by playback state, not the user's click, so it also pops the button
+        back up when a cue ends on its own. ``setChecked`` emits ``toggled`` (not
+        ``clicked``, which play is wired to), so this never re-triggers playback.
+        """
+        for slot in self.slots:
+            slot.playButton.setChecked(slot is self._active_slot)
 
     # ----- master strip / monitoring (#37, #289) ----------------------------
 
