@@ -165,7 +165,7 @@ def test_open_editor_new_opens_a_blank_editor(qtbot, tmp_path, monkeypatch):
     _patch_prefs(monkeypatch, tmp_path)
     captured = {}
     monkeypatch.setattr(
-        launcher, "SmaccSession", lambda data_dir, design=False: object()
+        launcher, "SmaccSession", lambda data_dir, headless=False: object()
     )
     monkeypatch.setattr(
         launcher,
@@ -191,7 +191,7 @@ def test_open_editor_existing_opens_that_file(qtbot, tmp_path, monkeypatch):
     settings.save_settings(good, {}, {})
     captured = {}
     monkeypatch.setattr(
-        launcher, "SmaccSession", lambda data_dir, design=False: object()
+        launcher, "SmaccSession", lambda data_dir, headless=False: object()
     )
     monkeypatch.setattr(
         launcher,

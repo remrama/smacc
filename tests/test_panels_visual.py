@@ -68,9 +68,9 @@ def _spies(panel, monkeypatch):
     return events, popups
 
 
-def _board(qtbot, design_session, monkeypatch, backend=None):
+def _board(qtbot, headless_session, monkeypatch, backend=None):
     """A board with a fake clock + backend + sync writer, plus its spies."""
-    panel = VisualWindow(design_session)
+    panel = VisualWindow(headless_session)
     qtbot.addWidget(panel)
     clock = {"t": 0.0}
     panel._clock = lambda: clock["t"]
@@ -80,8 +80,8 @@ def _board(qtbot, design_session, monkeypatch, backend=None):
     return panel, clock, events, popups
 
 
-def test_defaults_are_one_playable_red_steady_slot(qtbot, design_session):
-    panel = VisualWindow(design_session)
+def test_defaults_are_one_playable_red_steady_slot(qtbot, headless_session):
+    panel = VisualWindow(headless_session)
     qtbot.addWidget(panel)
     assert len(panel.slots) == 1
     slot = panel.slots[0]
@@ -95,9 +95,9 @@ def test_defaults_are_one_playable_red_steady_slot(qtbot, design_session):
 
 
 def test_play_without_a_device_pops_an_error_and_marks_nothing(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
-    panel = VisualWindow(design_session)
+    panel = VisualWindow(headless_session)
     qtbot.addWidget(panel)
     events, popups = _spies(panel, monkeypatch)
     assert panel._backend is None  # the default equipment has no device bound
@@ -107,9 +107,9 @@ def test_play_without_a_device_pops_an_error_and_marks_nothing(
 
 
 def test_play_lights_the_first_frame_then_marks_with_the_slot_name(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
-    panel, clock, events, popups = _board(qtbot, design_session, monkeypatch)
+    panel, clock, events, popups = _board(qtbot, headless_session, monkeypatch)
     panel.play_slot(panel.slots[0])
     backend = panel._active_backend
     assert backend.frames == [(255, 0, 0)]  # frame applied before the marker
@@ -119,9 +119,9 @@ def test_play_lights_the_first_frame_then_marks_with_the_slot_name(
 
 
 def test_cue_ends_on_its_own_with_an_off_and_a_stop_marker(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
-    panel, clock, events, popups = _board(qtbot, design_session, monkeypatch)
+    panel, clock, events, popups = _board(qtbot, headless_session, monkeypatch)
     slot = panel.slots[0]
     slot.lengthSpinBox.setValue(2.0)
     panel.play_slot(slot)
@@ -138,9 +138,9 @@ def test_cue_ends_on_its_own_with_an_off_and_a_stop_marker(
 
 
 def test_stop_button_turns_off_immediately_without_a_fade(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
-    panel, clock, events, popups = _board(qtbot, design_session, monkeypatch)
+    panel, clock, events, popups = _board(qtbot, headless_session, monkeypatch)
     slot = panel.slots[0]
     panel.play_slot(slot)
     backend = panel._active_backend
@@ -154,9 +154,9 @@ def test_stop_button_turns_off_immediately_without_a_fade(
 
 
 def test_stop_with_a_release_fades_before_the_marker(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
-    panel, clock, events, popups = _board(qtbot, design_session, monkeypatch)
+    panel, clock, events, popups = _board(qtbot, headless_session, monkeypatch)
     panel.releaseSpinBox.setValue(1.0)
     slot = panel.slots[0]
     slot.lengthSpinBox.setValue(60.0)
@@ -176,9 +176,9 @@ def test_stop_with_a_release_fades_before_the_marker(
 
 
 def test_playing_another_slot_stops_the_lit_one_first(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
-    panel, clock, events, popups = _board(qtbot, design_session, monkeypatch)
+    panel, clock, events, popups = _board(qtbot, headless_session, monkeypatch)
     panel.add_slot()
     first, second = panel.slots
     panel.play_slot(first)
@@ -191,9 +191,9 @@ def test_playing_another_slot_stops_the_lit_one_first(
 
 
 def test_replay_of_the_lit_slot_restarts_without_a_stop_marker(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
-    panel, clock, events, popups = _board(qtbot, design_session, monkeypatch)
+    panel, clock, events, popups = _board(qtbot, headless_session, monkeypatch)
     slot = panel.slots[0]
     panel.play_slot(slot)
     clock["t"] = 0.5
@@ -202,9 +202,9 @@ def test_replay_of_the_lit_slot_restarts_without_a_stop_marker(
 
 
 def test_brightness_and_loop_edits_apply_to_the_lit_cue(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
-    panel, clock, events, popups = _board(qtbot, design_session, monkeypatch)
+    panel, clock, events, popups = _board(qtbot, headless_session, monkeypatch)
     slot = panel.slots[0]
     slot.loopCheckBox.setChecked(True)
     panel.play_slot(slot)
@@ -220,9 +220,9 @@ def test_brightness_and_loop_edits_apply_to_the_lit_cue(
 
 
 def test_failed_write_mid_cue_stops_marks_and_reports(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
-    panel, clock, events, popups = _board(qtbot, design_session, monkeypatch)
+    panel, clock, events, popups = _board(qtbot, headless_session, monkeypatch)
     panel.play_slot(panel.slots[0])
     # The device vanishes mid-cue: the writer captures the failure on its thread
     # and the next tick polls it.
@@ -234,11 +234,13 @@ def test_failed_write_mid_cue_stops_marks_and_reports(
     assert not panel._timer.isActive()
 
 
-def test_failed_first_frame_reports_without_markers(qtbot, design_session, monkeypatch):
+def test_failed_first_frame_reports_without_markers(
+    qtbot, headless_session, monkeypatch
+):
     # The first frame is applied synchronously, so an unreachable device is
     # reported at the click and no start marker fires for a cue that never lit.
     panel, clock, events, popups = _board(
-        qtbot, design_session, monkeypatch, backend=_DeadLight()
+        qtbot, headless_session, monkeypatch, backend=_DeadLight()
     )
     panel.play_slot(panel.slots[0])
     assert popups and not events
@@ -246,9 +248,9 @@ def test_failed_first_frame_reports_without_markers(qtbot, design_session, monke
 
 
 def test_cleanup_forces_the_light_off_without_a_marker(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
-    panel, clock, events, popups = _board(qtbot, design_session, monkeypatch)
+    panel, clock, events, popups = _board(qtbot, headless_session, monkeypatch)
     panel.play_slot(panel.slots[0])
     backend = panel._active_backend
     panel.cleanup()  # app quit mid-cue
@@ -257,8 +259,8 @@ def test_cleanup_forces_the_light_off_without_a_marker(
     assert not panel._timer.isActive()
 
 
-def test_add_and_remove_slots_respect_the_bounds(qtbot, design_session, monkeypatch):
-    panel, clock, events, popups = _board(qtbot, design_session, monkeypatch)
+def test_add_and_remove_slots_respect_the_bounds(qtbot, headless_session, monkeypatch):
+    panel, clock, events, popups = _board(qtbot, headless_session, monkeypatch)
     panel.add_slot()
     assert [s.nameEdit.text() for s in panel.slots] == ["Light 1", "Light 2"]
     assert all(s.removeButton.isEnabled() for s in panel.slots)
@@ -272,9 +274,9 @@ def test_add_and_remove_slots_respect_the_bounds(qtbot, design_session, monkeypa
 
 
 def test_removing_the_lit_slot_darkens_without_a_marker(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
-    panel, clock, events, popups = _board(qtbot, design_session, monkeypatch)
+    panel, clock, events, popups = _board(qtbot, headless_session, monkeypatch)
     panel.add_slot()
     second = panel.slots[1]
     panel.play_slot(second)
@@ -285,9 +287,9 @@ def test_removing_the_lit_slot_darkens_without_a_marker(
 
 
 def test_rate_warning_appears_only_for_fast_patterned_slots(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
-    panel, clock, events, popups = _board(qtbot, design_session, monkeypatch)
+    panel, clock, events, popups = _board(qtbot, headless_session, monkeypatch)
     slot = panel.slots[0]
     assert not panel.rateWarningLabel.isVisibleTo(panel)
     slot.rateSpinBox.setValue(12.0)  # fast, but the pattern is steady
@@ -299,8 +301,8 @@ def test_rate_warning_appears_only_for_fast_patterned_slots(
     assert not panel.rateWarningLabel.isVisibleTo(panel)
 
 
-def test_color_can_be_picked_with_no_device(qtbot, design_session, monkeypatch):
-    panel = VisualWindow(design_session)
+def test_color_can_be_picked_with_no_device(qtbot, headless_session, monkeypatch):
+    panel = VisualWindow(headless_session)
     qtbot.addWidget(panel)
     events, popups = _spies(panel, monkeypatch)
     monkeypatch.setattr(
@@ -312,24 +314,24 @@ def test_color_can_be_picked_with_no_device(qtbot, design_session, monkeypatch):
     assert not popups  # choosing a color never needs hardware
 
 
-def test_visual_route_to_hue_resolves_a_hue_backend(qtbot, design_session):
-    design_session.hue_config = hue.HueConfig("192.168.1.50", "key")
-    design_session.devices.bindings["philips_hue_light"] = "light:1"
-    design_session.devices.routing["play_visual_cue"] = "philips_hue_light"
-    panel = VisualWindow(design_session)
+def test_visual_route_to_hue_resolves_a_hue_backend(qtbot, headless_session):
+    headless_session.hue_config = hue.HueConfig("192.168.1.50", "key")
+    headless_session.devices.bindings["philips_hue_light"] = "light:1"
+    headless_session.devices.routing["play_visual_cue"] = "philips_hue_light"
+    panel = VisualWindow(headless_session)
     qtbot.addWidget(panel)
     assert isinstance(panel._backend, hue.HueBackend)
     assert "Philips Hue" in panel.deviceLabel.text()
 
 
 def test_flash_is_refused_on_a_backend_without_flash_support(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
     class _NoFlashLight(_FakeLight):
         supports_flash = False
 
     panel, clock, events, popups = _board(
-        qtbot, design_session, monkeypatch, backend=_NoFlashLight()
+        qtbot, headless_session, monkeypatch, backend=_NoFlashLight()
     )
     panel.add_slot()
     steady, flashy = panel.slots

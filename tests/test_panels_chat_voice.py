@@ -111,14 +111,14 @@ def _bind_devices(session):
     session.devices.routing["listen_to_participant"] = "control_speaker"
 
 
-def test_toggle_talk_starts_the_bridge_and_marks(qtbot, design_session, monkeypatch):
+def test_toggle_talk_starts_the_bridge_and_marks(qtbot, headless_session, monkeypatch):
     calls = _stub_bridges(monkeypatch)
-    _bind_devices(design_session)
-    window = ChatWindow(design_session)
+    _bind_devices(headless_session)
+    window = ChatWindow(headless_session)
     qtbot.addWidget(window)
     emitted = []
     monkeypatch.setattr(
-        design_session, "emit_event", lambda key, **k: emitted.append(key)
+        headless_session, "emit_event", lambda key, **k: emitted.append(key)
     )
 
     window.talkButton.setChecked(True)
@@ -133,15 +133,15 @@ def test_toggle_talk_starts_the_bridge_and_marks(qtbot, design_session, monkeypa
 
 
 def test_talk_start_failure_reverts_the_button(
-    qtbot, design_session, monkeypatch, silence_dialogs
+    qtbot, headless_session, monkeypatch, silence_dialogs
 ):
     _stub_bridges(monkeypatch, fail=True)
-    _bind_devices(design_session)
-    window = ChatWindow(design_session)
+    _bind_devices(headless_session)
+    window = ChatWindow(headless_session)
     qtbot.addWidget(window)
     emitted = []
     monkeypatch.setattr(
-        design_session, "emit_event", lambda key, **k: emitted.append(key)
+        headless_session, "emit_event", lambda key, **k: emitted.append(key)
     )
     window.talkButton.setChecked(True)
     assert not window.talkButton.isChecked()  # reverted by the error path
@@ -149,14 +149,14 @@ def test_talk_start_failure_reverts_the_button(
     window.cleanup()
 
 
-def test_listen_toggles_without_markers(qtbot, design_session, monkeypatch):
+def test_listen_toggles_without_markers(qtbot, headless_session, monkeypatch):
     calls = _stub_bridges(monkeypatch)
-    _bind_devices(design_session)
-    window = ChatWindow(design_session)
+    _bind_devices(headless_session)
+    window = ChatWindow(headless_session)
     qtbot.addWidget(window)
     emitted = []
     monkeypatch.setattr(
-        design_session, "emit_event", lambda key, **k: emitted.append(key)
+        headless_session, "emit_event", lambda key, **k: emitted.append(key)
     )
     window.listenButton.setChecked(True)
     window.listenButton.setChecked(False)
@@ -165,16 +165,16 @@ def test_listen_toggles_without_markers(qtbot, design_session, monkeypatch):
     window.cleanup()
 
 
-def test_listen_with_route_off_errors_and_reverts(qtbot, design_session, monkeypatch):
+def test_listen_with_route_off_errors_and_reverts(qtbot, headless_session, monkeypatch):
     # #139: the listen route is off by default; toggling it must refuse (instead
     # of opening the participant mix on the system default output) and revert.
     calls = _stub_bridges(monkeypatch)
-    design_session.devices.bindings["bedroom_mic_1"] = "Mic (Test)"
+    headless_session.devices.bindings["bedroom_mic_1"] = "Mic (Test)"
     errors = []
     monkeypatch.setattr(
-        design_session, "show_error_popup", lambda *a, **k: errors.append(a)
+        headless_session, "show_error_popup", lambda *a, **k: errors.append(a)
     )
-    window = ChatWindow(design_session)
+    window = ChatWindow(headless_session)
     qtbot.addWidget(window)
     window.listenButton.setChecked(True)
     assert not window.listenButton.isChecked()
@@ -184,21 +184,21 @@ def test_listen_with_route_off_errors_and_reverts(qtbot, design_session, monkeyp
 
 
 def test_talk_with_no_bound_output_errors_and_reverts(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
     # #139: an unbound participant output refuses to talk (instead of speaking
     # through the system default device) and the button reverts, unmarked.
     calls = _stub_bridges(monkeypatch)
-    design_session.devices.bindings["control_mic"] = "Headset Mic (Test)"
+    headless_session.devices.bindings["control_mic"] = "Headset Mic (Test)"
     errors = []
     monkeypatch.setattr(
-        design_session, "show_error_popup", lambda *a, **k: errors.append(a)
+        headless_session, "show_error_popup", lambda *a, **k: errors.append(a)
     )
     emitted = []
     monkeypatch.setattr(
-        design_session, "emit_event", lambda key, **k: emitted.append(key)
+        headless_session, "emit_event", lambda key, **k: emitted.append(key)
     )
-    window = ChatWindow(design_session)
+    window = ChatWindow(headless_session)
     qtbot.addWidget(window)
     window.talkButton.setChecked(True)
     assert not window.talkButton.isChecked()
@@ -208,20 +208,22 @@ def test_talk_with_no_bound_output_errors_and_reverts(
     window.cleanup()
 
 
-def test_talk_with_no_bound_mic_errors_and_reverts(qtbot, design_session, monkeypatch):
+def test_talk_with_no_bound_mic_errors_and_reverts(
+    qtbot, headless_session, monkeypatch
+):
     # #160: an unbound control-room mic refuses to talk (instead of capturing
     # from the system default input) and the button reverts, unmarked.
     calls = _stub_bridges(monkeypatch)
-    design_session.devices.bindings["bedroom_speaker"] = "Speakers (Test)"
+    headless_session.devices.bindings["bedroom_speaker"] = "Speakers (Test)"
     errors = []
     monkeypatch.setattr(
-        design_session, "show_error_popup", lambda *a, **k: errors.append(a)
+        headless_session, "show_error_popup", lambda *a, **k: errors.append(a)
     )
     emitted = []
     monkeypatch.setattr(
-        design_session, "emit_event", lambda key, **k: emitted.append(key)
+        headless_session, "emit_event", lambda key, **k: emitted.append(key)
     )
-    window = ChatWindow(design_session)
+    window = ChatWindow(headless_session)
     qtbot.addWidget(window)
     window.talkButton.setChecked(True)
     assert not window.talkButton.isChecked()
@@ -237,10 +239,10 @@ def _space_event(etype) -> QtGui.QKeyEvent:
     )
 
 
-def test_spacebar_push_to_talk_holds_and_releases(qtbot, design_session, monkeypatch):
+def test_spacebar_push_to_talk_holds_and_releases(qtbot, headless_session, monkeypatch):
     _stub_bridges(monkeypatch)
-    _bind_devices(design_session)
-    window = ChatWindow(design_session)
+    _bind_devices(headless_session)
+    window = ChatWindow(headless_session)
     qtbot.addWidget(window)
     monkeypatch.setattr(
         ChatWindow, "_is_text_widget_focused", staticmethod(lambda: False)
@@ -253,10 +255,10 @@ def test_spacebar_push_to_talk_holds_and_releases(qtbot, design_session, monkeyp
     window.cleanup()
 
 
-def test_spacebar_passes_through_while_typing(qtbot, design_session, monkeypatch):
+def test_spacebar_passes_through_while_typing(qtbot, headless_session, monkeypatch):
     _stub_bridges(monkeypatch)
-    _bind_devices(design_session)
-    window = ChatWindow(design_session)
+    _bind_devices(headless_session)
+    window = ChatWindow(headless_session)
     qtbot.addWidget(window)
     monkeypatch.setattr(
         ChatWindow, "_is_text_widget_focused", staticmethod(lambda: True)
@@ -267,8 +269,8 @@ def test_spacebar_passes_through_while_typing(qtbot, design_session, monkeypatch
     window.cleanup()
 
 
-def test_send_chat_message_posts_and_clears_the_entry(qtbot, design_session):
-    window = ChatWindow(design_session)
+def test_send_chat_message_posts_and_clears_the_entry(qtbot, headless_session):
+    window = ChatWindow(headless_session)
     qtbot.addWidget(window)
     window.chatEntry.setText("  Are you comfortable?  ")
     window.send_chat_message()
@@ -277,8 +279,8 @@ def test_send_chat_message_posts_and_clears_the_entry(qtbot, design_session):
     window.cleanup()
 
 
-def test_empty_chat_message_is_not_posted(qtbot, design_session):
-    window = ChatWindow(design_session)
+def test_empty_chat_message_is_not_posted(qtbot, headless_session):
+    window = ChatWindow(headless_session)
     qtbot.addWidget(window)
     window.chatEntry.setText("   ")
     window.send_chat_message()
@@ -286,8 +288,8 @@ def test_empty_chat_message_is_not_posted(qtbot, design_session):
     window.cleanup()
 
 
-def test_preset_buttons_rebuild_and_send_verbatim(qtbot, design_session):
-    window = ChatWindow(design_session)
+def test_preset_buttons_rebuild_and_send_verbatim(qtbot, headless_session):
+    window = ChatWindow(headless_session)
     qtbot.addWidget(window)
     long = "Please describe everything that was going through your mind just now."
     window._presets.set([long], [])
@@ -300,12 +302,12 @@ def test_preset_buttons_rebuild_and_send_verbatim(qtbot, design_session):
     window.cleanup()
 
 
-def test_preset_state_round_trips(qtbot, design_session):
-    window = ChatWindow(design_session)
+def test_preset_state_round_trips(qtbot, headless_session):
+    window = ChatWindow(headless_session)
     qtbot.addWidget(window)
     window._presets.set(["Prompt one"], ["Yes", "No"])
     state = window.gather_state()
-    other = ChatWindow(design_session)
+    other = ChatWindow(headless_session)
     qtbot.addWidget(other)
     other.apply_state(state)
     assert other._presets.experimenter == ["Prompt one"]

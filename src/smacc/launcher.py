@@ -264,7 +264,7 @@ class LauncherWindow(QtWidgets.QMainWindow):
             if path
             else DEFAULT_DATA_DIR
         )
-        session = SmaccSession(data_dir, design=True)
+        session = SmaccSession(data_dir, headless=True)
         self._open_tool(SmaccWindow(session, settings_path=path))
 
     def design_cues(self) -> None:
