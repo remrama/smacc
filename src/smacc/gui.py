@@ -135,6 +135,12 @@ class SmaccWindow(ToolWindow):
             markers_window.reload_from_session
         )
         self.devices_window.changed.connect(self._refresh_device_indicators)
+        # An operator binding edit persists to the rig profile, so binding a device
+        # once is reused by every later study on this machine (#300). This uses the
+        # dedicated ``binding_edited`` signal (only a manual equipment-binding edit),
+        # not ``changed`` — which also fires on autobind and would otherwise clobber
+        # the rig's manual bindings with the autobound defaults mid-load.
+        self.devices_window.binding_edited.connect(self._persist_rig_bindings)
         # The Devices window's Refresh button (and its F5 shortcut) runs this rescan
         # (PortAudio re-init + BlinkStick scan); it's the only entry point now.
         self.devices_window.refresh_requested.connect(self.refresh_all_devices)
@@ -1159,6 +1165,21 @@ class SmaccWindow(ToolWindow):
         }
         preferences.update_rig(preferences_path, rig)
         self._prefs["rig"] = rig
+
+    def _persist_rig_bindings(self) -> None:
+        """Persist just the equipment->device bindings to the rig profile (#300).
+
+        Connected to the Devices window's ``changed`` signal so a binding made in one
+        session is reused by every later study on this machine, without needing a Save.
+        Writes only the ``bindings`` sub-key (leaving the rig's trigger/hue intact) and
+        keeps the in-memory prefs in sync so a later load reads the new binding.
+        Sessions only — the editor authors a study, not this machine's rig.
+        """
+        if self.design:
+            return
+        bindings = dict(self.session.devices.bindings)
+        preferences.update_rig(preferences_path, {"bindings": bindings})
+        self._prefs.setdefault("rig", {})["bindings"] = bindings
 
     def load_settings(self) -> None:
         """Prompt for a .smacc settings file and apply it."""

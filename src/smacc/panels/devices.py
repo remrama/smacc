@@ -127,6 +127,10 @@ class DevicesWindow(PanelWindow):
 
     # Fired whenever a binding/route changes, so the window can refresh indicators.
     changed = QtCore.pyqtSignal()
+    # Fired only by an operator's equipment-binding edit — not routing, not autobind,
+    # not the programmatic reload — so the session can persist that binding to the
+    # machine's rig profile without the autobound defaults clobbering it (#300).
+    binding_edited = QtCore.pyqtSignal()
     # Fired by the Refresh button (and its F5 shortcut); the session window runs the
     # rescan (PortAudio re-init + a live BlinkStick scan).
     refresh_requested = QtCore.pyqtSignal()
@@ -325,6 +329,7 @@ class DevicesWindow(PanelWindow):
         )
         self.refresh_device_indicator()
         self.changed.emit()
+        self.binding_edited.emit()  # operator edit → persist to the rig profile (#300)
 
     def _set_routing(self, action_key: str) -> None:
         """An action's equipment dropdown changed: write just that route."""
