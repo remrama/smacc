@@ -221,6 +221,32 @@ def test_rig_profile_overlays_device_bindings(
     window.session.close()
 
 
+def test_binding_edit_persists_to_the_rig_profile(
+    qtbot, tmp_path, monkeypatch, mock_devices, silence_dialogs
+):
+    # An operator binding edit in a session is written straight to the rig profile
+    # (preferences), so the next study on this machine reuses it without a Save (#300).
+    prefs_path = tmp_path / "preferences.yaml"
+    monkeypatch.setattr(gui, "preferences_path", prefs_path)
+
+    from smacc.session import SmaccSession
+
+    monkeypatch.setattr(
+        SmaccSession,
+        "init_lsl_stream",
+        lambda self, *a, **k: setattr(self, "outlet", None),
+    )
+    window = SmaccWindow(SmaccSession(tmp_path / "data", design=False))
+    qtbot.addWidget(window)
+    # Simulate binding the control-room speaker: the edit mutates the live config and
+    # fires the binding_edited signal (as a real equipment-dropdown edit would).
+    window.session.devices.bindings["control_speaker"] = "My Speaker"
+    window.devices_window.binding_edited.emit()
+    saved = preferences.rig_bindings(preferences.load_preferences(prefs_path))
+    assert saved["control_speaker"] == "My Speaker"
+    window.session.close()
+
+
 def test_apply_settings_lands_values(
     qtbot, design_session, mock_devices, silence_dialogs
 ):
