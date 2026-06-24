@@ -181,6 +181,21 @@ def test_round_trip_is_byte_stable():
     assert _yaml(pass1) == _yaml(pass2)  # deterministic order + stable values
 
 
+def test_smacc_file_round_trips_byte_stable_through_the_model(tmp_path):
+    # The keystone the Study Editor relies on (#301): a complete study saved as a
+    # .smacc, then loaded and re-saved through the model, is byte-identical. Proves
+    # "the editor's save is a faithful, stable .smacc" before the editor exists.
+    full = _full_settings()
+    meta = {"subject": "", "session": "", "notes": ""}
+    path1 = tmp_path / "study.smacc"
+    settings.save_settings(str(path1), full, meta)
+    raw, loaded_meta = settings.load_settings(str(path1))
+    rebuilt = StudyConfig.from_settings_dict(raw).to_settings_dict()
+    path2 = tmp_path / "study2.smacc"
+    settings.save_settings(str(path2), rebuilt, loaded_meta)
+    assert path1.read_text(encoding="utf-8") == path2.read_text(encoding="utf-8")
+
+
 # ----- the shipped default.smacc --------------------------------------------
 
 

@@ -59,10 +59,10 @@ def test_live_session_log_is_named_session_log(live_session):
     assert log_path.is_file()
 
 
-def test_design_session_creates_no_run_artifacts(tmp_path):
+def test_headless_session_creates_no_run_artifacts(tmp_path):
     # Design mode writes nothing — it doesn't even create the data directory.
-    sess = SmaccSession(tmp_path / "s", design=True)
-    assert sess.design is True
+    sess = SmaccSession(tmp_path / "s", headless=True)
+    assert sess.headless is True
     assert sess.can_record is False
     assert sess.session_dir is None
     assert sess.log_path is None
@@ -71,8 +71,8 @@ def test_design_session_creates_no_run_artifacts(tmp_path):
     sess.close()  # safe no-op: nothing to release
 
 
-def test_design_session_emit_event_is_safe_without_outlet(tmp_path):
-    sess = SmaccSession(tmp_path / "s", design=True)
+def test_headless_session_emit_event_is_safe_without_outlet(tmp_path):
+    sess = SmaccSession(tmp_path / "s", headless=True)
     sess.emit_event("REMDetected")  # triggers, but no outlet to push to
     assert sess.outlet is None  # still no outlet; no crash
 
@@ -80,8 +80,8 @@ def test_design_session_emit_event_is_safe_without_outlet(tmp_path):
 def test_design_logger_does_not_accumulate_handlers(tmp_path):
     # Each new session clears the shared logger first, so handlers never pile up
     # across the many sessions the launcher can open in one process.
-    SmaccSession(tmp_path / "a", design=True)
-    SmaccSession(tmp_path / "b", design=True)
+    SmaccSession(tmp_path / "a", headless=True)
+    SmaccSession(tmp_path / "b", headless=True)
     assert len(logging.getLogger("smacc").handlers) == 1
 
 
@@ -134,7 +134,7 @@ def _stub_session():
     sess.recording_start_time = None
     sess.outlet = _FakeOutlet()
     sess.trigger_out = None  # no hardware transport unless a test sets one
-    sess.design = False
+    sess.headless = False
     sess.trigger_config = triggers.TriggerConfig()
     logger = logging.getLogger("smacc-test-emit")
     logger.handlers.clear()
@@ -291,7 +291,7 @@ def test_set_trigger_output_disabled_or_design_opens_nothing():
     sess, _ = _stub_session()
     assert sess.set_trigger_output(triggers.TriggerConfig(enabled=False)) is None
     assert sess.trigger_out is None
-    sess.design = True
+    sess.headless = True
     cfg = triggers.TriggerConfig(enabled=True, port="COM3")
     assert sess.set_trigger_output(cfg) is None  # design mode never opens hardware
     assert sess.trigger_out is None

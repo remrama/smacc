@@ -44,8 +44,8 @@ class FakeClock:
         return self.t
 
 
-def test_default_stack_builds(qtbot, design_session):
-    panel = _make_panel(qtbot, design_session)
+def test_default_stack_builds(qtbot, headless_session):
+    panel = _make_panel(qtbot, headless_session)
     assert [row.key for row in panel.rows] == [r.key for r in biocals.default_rows()]
     assert panel.rows[0].seqCheckBox.isChecked()  # standard: in the sequence
     lrlr = next(row for row in panel.rows if row.key == "lrlr_open")
@@ -55,9 +55,9 @@ def test_default_stack_builds(qtbot, design_session):
     assert panel.sequenceButton.isEnabled()
 
 
-def test_press_runs_and_press_again_cancels(qtbot, design_session):
-    panel = _make_panel(qtbot, design_session)
-    records = _capture(design_session)
+def test_press_runs_and_press_again_cancels(qtbot, headless_session):
+    panel = _make_panel(qtbot, headless_session)
+    records = _capture(headless_session)
     row = panel.rows[0]  # Eyes Open
     row.voiceCheckBox.setChecked(False)
     panel._on_row_button(row)
@@ -75,7 +75,7 @@ def test_press_runs_and_press_again_cancels(qtbot, design_session):
 
 
 def test_missing_voice_skips_straight_to_the_window(
-    qtbot, design_session, monkeypatch, tmp_path
+    qtbot, headless_session, monkeypatch, tmp_path
 ):
     # Voice enabled but no recording anywhere (override nor bundle): warn, then
     # open the task window immediately — a lost WAV must never block a calibration.
@@ -83,8 +83,8 @@ def test_missing_voice_skips_straight_to_the_window(
         "smacc.panels.biocals.resolve_biocal_voice",
         lambda filename: tmp_path / filename,  # an empty dir == no recording
     )
-    panel = _make_panel(qtbot, design_session)
-    records = _capture(design_session)
+    panel = _make_panel(qtbot, headless_session)
+    records = _capture(headless_session)
     row = panel.rows[0]
     assert row.voiceCheckBox.isChecked()
     panel._on_row_button(row)
@@ -95,11 +95,11 @@ def test_missing_voice_skips_straight_to_the_window(
     assert "Biocal: Eyes Open - portcode 110" in messages
 
 
-def test_sequence_runs_skips_and_completes(qtbot, design_session):
-    panel = _make_panel(qtbot, design_session)
+def test_sequence_runs_skips_and_completes(qtbot, headless_session):
+    panel = _make_panel(qtbot, headless_session)
     clock = FakeClock()
     panel._run = biocals.BiocalRun(clock)  # deterministic time
-    records = _capture(design_session)
+    records = _capture(headless_session)
     for row in panel.rows:
         row.seqCheckBox.setChecked(False)
         row.voiceCheckBox.setChecked(False)
@@ -129,9 +129,9 @@ def test_sequence_runs_skips_and_completes(qtbot, design_session):
     assert "Biocal sequence stopped: completed - portcode 106" in messages
 
 
-def test_sequence_button_aborts_the_rest(qtbot, design_session):
-    panel = _make_panel(qtbot, design_session)
-    records = _capture(design_session)
+def test_sequence_button_aborts_the_rest(qtbot, headless_session):
+    panel = _make_panel(qtbot, headless_session)
+    records = _capture(headless_session)
     for row in panel.rows:
         row.voiceCheckBox.setChecked(False)
     panel._on_sequence_button()  # standard rows are checked by default
@@ -143,8 +143,8 @@ def test_sequence_button_aborts_the_rest(qtbot, design_session):
     assert all(not row.button.isChecked() for row in panel.rows)
 
 
-def test_stack_editing_reorders_adds_and_removes(qtbot, design_session):
-    panel = _make_panel(qtbot, design_session)
+def test_stack_editing_reorders_adds_and_removes(qtbot, headless_session):
+    panel = _make_panel(qtbot, headless_session)
     second = panel.rows[1]
     panel._move_row(second, -1)
     assert panel.rows[0] is second
@@ -156,9 +156,9 @@ def test_stack_editing_reorders_adds_and_removes(qtbot, design_session):
     assert len(panel.rows) == 18
 
 
-def test_cleanup_cancels_an_active_run_honestly(qtbot, design_session):
-    panel = _make_panel(qtbot, design_session)
-    records = _capture(design_session)
+def test_cleanup_cancels_an_active_run_honestly(qtbot, headless_session):
+    panel = _make_panel(qtbot, headless_session)
+    records = _capture(headless_session)
     row = panel.rows[0]
     row.voiceCheckBox.setChecked(False)
     panel._on_row_button(row)

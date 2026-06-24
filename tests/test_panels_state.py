@@ -28,8 +28,8 @@ from smacc.panels.volume import VolumeWindow
 # ----- stateful panels -------------------------------------------------------
 
 
-def test_audio_panel_round_trips_cues_and_envelope(qtbot, design_session):
-    panel = AudioCueWindow(design_session)
+def test_audio_panel_round_trips_cues_and_envelope(qtbot, headless_session):
+    panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     state = {
         "cues": [
@@ -51,8 +51,8 @@ def test_audio_panel_round_trips_cues_and_envelope(qtbot, design_session):
     assert got["cues"][1]["loop"] is False
 
 
-def test_audio_panel_ignores_malformed_numeric_settings(qtbot, design_session):
-    panel = AudioCueWindow(design_session)
+def test_audio_panel_ignores_malformed_numeric_settings(qtbot, headless_session):
+    panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     before = panel.gather_state()
     panel.apply_state(
@@ -68,8 +68,8 @@ def test_audio_panel_ignores_malformed_numeric_settings(qtbot, design_session):
     assert got["cues"][0]["volume"] == before["cues"][0]["volume"]
 
 
-def test_noise_panel_round_trips(qtbot, design_session):
-    panel = NoiseWindow(design_session)
+def test_noise_panel_round_trips(qtbot, headless_session):
+    panel = NoiseWindow(headless_session)
     qtbot.addWidget(panel)
     state = {
         "noise_volume": 0.30,
@@ -85,16 +85,16 @@ def test_noise_panel_round_trips(qtbot, design_session):
     assert got["noise_file"] == "loop.wav"
 
 
-def test_noise_panel_ignores_malformed_numeric_settings(qtbot, design_session):
-    panel = NoiseWindow(design_session)
+def test_noise_panel_ignores_malformed_numeric_settings(qtbot, headless_session):
+    panel = NoiseWindow(headless_session)
     qtbot.addWidget(panel)
     before = panel.gather_state()["noise_volume"]
     panel.apply_state({"noise_volume": "loud"})
     assert panel.gather_state()["noise_volume"] == before
 
 
-def test_recording_panel_round_trips_surveys(qtbot, design_session):
-    panel = RecordingWindow(design_session)
+def test_recording_panel_round_trips_surveys(qtbot, headless_session):
+    panel = RecordingWindow(headless_session)
     qtbot.addWidget(panel)
     state = {
         "survey_url": "https://survey.example/post",
@@ -107,10 +107,10 @@ def test_recording_panel_round_trips_surveys(qtbot, design_session):
 
 
 def test_recording_panel_offers_builtin_surveys_without_persisting_them(
-    qtbot, design_session
+    qtbot, headless_session
 ):
     """Built-ins (#114) show in the dropdown and menu but never enter the study."""
-    panel = RecordingWindow(design_session)
+    panel = RecordingWindow(headless_session)
     qtbot.addWidget(panel)
     available = panel.available_surveys()
     assert available.get("DLQ") == "smacc://survey/dlq"
@@ -122,9 +122,9 @@ def test_recording_panel_offers_builtin_surveys_without_persisting_them(
     assert got["survey_options"] == {}
 
 
-def test_chat_panel_round_trips_chat_presets(qtbot, design_session):
+def test_chat_panel_round_trips_chat_presets(qtbot, headless_session):
     # The Chat window persists the shared chat quick-reply presets (#112).
-    panel = ChatWindow(design_session)
+    panel = ChatWindow(headless_session)
     qtbot.addWidget(panel)
     panel.apply_state(
         {
@@ -137,10 +137,10 @@ def test_chat_panel_round_trips_chat_presets(qtbot, design_session):
     assert got["chat_participant_presets"] == ["Yes", "No"]
 
 
-def test_chat_meters_track_each_live_bridge(qtbot, design_session):
+def test_chat_meters_track_each_live_bridge(qtbot, headless_session):
     # Each direction has a level meter fed from its bridge's input callback; an
     # idle direction's meter reads empty, a live one shows the stashed level.
-    panel = ChatWindow(design_session)
+    panel = ChatWindow(headless_session)
     qtbot.addWidget(panel)
     panel._render_levels()
     assert panel.talkMeter.value() == 0  # both idle
@@ -155,8 +155,8 @@ def test_chat_meters_track_each_live_bridge(qtbot, design_session):
     panel._talk._input = None
 
 
-def test_visual_panel_round_trips(qtbot, design_session):
-    panel = VisualWindow(design_session)
+def test_visual_panel_round_trips(qtbot, headless_session):
+    panel = VisualWindow(headless_session)
     qtbot.addWidget(panel)
     panel.apply_state(
         {
@@ -192,8 +192,8 @@ def test_visual_panel_round_trips(qtbot, design_session):
     assert got["visual_release"] == pytest.approx(1.5)
 
 
-def test_visual_panel_ignores_malformed_numeric_settings(qtbot, design_session):
-    panel = VisualWindow(design_session)
+def test_visual_panel_ignores_malformed_numeric_settings(qtbot, headless_session):
+    panel = VisualWindow(headless_session)
     qtbot.addWidget(panel)
     before = panel.gather_state()
     panel.apply_state(
@@ -218,12 +218,12 @@ def test_visual_panel_ignores_malformed_numeric_settings(qtbot, design_session):
     assert got["visual_cues"][0]["length"] == before["visual_cues"][0]["length"]
 
 
-def test_volume_panel_round_trips_cap(qtbot, design_session, monkeypatch):
+def test_volume_panel_round_trips_cap(qtbot, headless_session, monkeypatch):
     # The read-only Windows volume read-out uses COM; stub it so the panel builds
     # deterministically off any audio endpoint.
     monkeypatch.setattr(winvolume, "endpoint_volume", lambda: None)
     monkeypatch.setattr(winvolume, "app_volume", lambda: None)
-    panel = VolumeWindow(design_session)
+    panel = VolumeWindow(headless_session)
     qtbot.addWidget(panel)
     panel.apply_state({"volume_cap": 0.50, "output_latency": "low"})
     assert panel.gather_state() == {
@@ -232,25 +232,25 @@ def test_volume_panel_round_trips_cap(qtbot, design_session, monkeypatch):
     }
     # apply_state also drives the live session state: the cap (read by the audio
     # callbacks) and the latency mode (read when a stimulus stream opens).
-    assert design_session.volume_cap == pytest.approx(0.50)
-    assert design_session.output_latency == "low"
+    assert headless_session.volume_cap == pytest.approx(0.50)
+    assert headless_session.output_latency == "low"
 
 
 def test_volume_panel_ignores_malformed_numeric_settings(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
     monkeypatch.setattr(winvolume, "endpoint_volume", lambda: None)
     monkeypatch.setattr(winvolume, "app_volume", lambda: None)
-    panel = VolumeWindow(design_session)
+    panel = VolumeWindow(headless_session)
     qtbot.addWidget(panel)
     before = panel.gather_state()["volume_cap"]
     panel.apply_state({"volume_cap": "full"})
     assert panel.gather_state()["volume_cap"] == before
-    assert design_session.volume_cap == before
+    assert headless_session.volume_cap == before
 
 
-def test_biocals_panel_round_trips_stack(qtbot, design_session):
-    panel = BiocalsWindow(design_session)
+def test_biocals_panel_round_trips_stack(qtbot, headless_session):
+    panel = BiocalsWindow(headless_session)
     qtbot.addWidget(panel)
     state = {
         "biocals": {
@@ -295,9 +295,9 @@ def test_biocals_panel_round_trips_stack(qtbot, design_session):
     assert got["rows"][1]["duration"] == 20
 
 
-def test_biocals_panel_keeps_default_stack_for_older_studies(qtbot, design_session):
+def test_biocals_panel_keeps_default_stack_for_older_studies(qtbot, headless_session):
     # A pre-v7 state has no biocals block; the default 18-row stack stands.
-    panel = BiocalsWindow(design_session)
+    panel = BiocalsWindow(headless_session)
     qtbot.addWidget(panel)
     panel.apply_state({"noise_volume": 0.3})
     assert len(panel.gather_state()["biocals"]["rows"]) == 18
@@ -326,16 +326,16 @@ def _capture_session_log(session) -> list[logging.LogRecord]:
 
 
 def test_volume_panel_logs_windows_levels_on_refresh(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
     # Each actual read of the Windows volumes is logged for reproducibility — at
     # DEBUG, per the level convention (housekeeping detail: in the file, out of the
     # default preview).
     monkeypatch.setattr(winvolume, "endpoint_volume", lambda: 0.85)
     monkeypatch.setattr(winvolume, "app_volume", lambda: 0.50)
-    panel = VolumeWindow(design_session)  # constructor calls refresh_levels() once
+    panel = VolumeWindow(headless_session)  # constructor calls refresh_levels() once
     qtbot.addWidget(panel)
-    records = _capture_session_log(design_session)
+    records = _capture_session_log(headless_session)
     panel.refresh_levels()
     windows_lines = [
         r for r in records if r.getMessage().startswith("Windows output volume:")
@@ -348,15 +348,15 @@ def test_volume_panel_logs_windows_levels_on_refresh(
 
 
 def test_volume_panel_refresh_reports_unavailable_levels(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
     # When the COM read fails (non-Windows / no endpoint), the log says so rather
     # than crashing on a None percentage.
     monkeypatch.setattr(winvolume, "endpoint_volume", lambda: None)
     monkeypatch.setattr(winvolume, "app_volume", lambda: None)
-    panel = VolumeWindow(design_session)
+    panel = VolumeWindow(headless_session)
     qtbot.addWidget(panel)
-    records = _capture_session_log(design_session)
+    records = _capture_session_log(headless_session)
     panel.refresh_levels()
     messages = [r.getMessage() for r in records]
     assert (
@@ -368,14 +368,14 @@ def test_volume_panel_refresh_reports_unavailable_levels(
 # ----- stateless panels (their config lives at window/session level) ---------
 
 
-def test_events_panel_has_no_persisted_state(qtbot, design_session):
-    panel = EventsWindow(design_session)
+def test_events_panel_has_no_persisted_state(qtbot, headless_session):
+    panel = EventsWindow(headless_session)
     qtbot.addWidget(panel)
     assert panel.gather_state() == {}
 
 
-def test_devices_panel_has_no_persisted_state(qtbot, design_session, mock_devices):
-    panel = DevicesWindow(design_session)
+def test_devices_panel_has_no_persisted_state(qtbot, headless_session, mock_devices):
+    panel = DevicesWindow(headless_session)
     qtbot.addWidget(panel)
     assert panel.gather_state() == {}
 
@@ -383,8 +383,8 @@ def test_devices_panel_has_no_persisted_state(qtbot, design_session, mock_device
 # ----- per-window always-on-top (PanelWindow base) ------------------------
 
 
-def test_tool_window_always_on_top_toggle(qtbot, design_session):
-    panel = NoiseWindow(design_session)
+def test_tool_window_always_on_top_toggle(qtbot, headless_session):
+    panel = NoiseWindow(headless_session)
     qtbot.addWidget(panel)
     assert panel.is_always_on_top() is False  # default off
     # Every window binds the same window-scoped shortcut to its own toggle.
@@ -401,14 +401,14 @@ def test_tool_window_always_on_top_toggle(qtbot, design_session):
     assert not bool(panel.windowFlags() & QtCore.Qt.WindowType.WindowStaysOnTopHint)
 
 
-def test_tool_window_stays_visible_across_always_on_top_toggle(qtbot, design_session):
+def test_tool_window_stays_visible_across_always_on_top_toggle(qtbot, headless_session):
     """Toggling always-on-top must not hide a visible window (regression).
 
     setWindowFlag natively hides the window, so the re-show guard has to read
     visibility before applying the flag — checking after always saw False and the
     window vanished on every toggle.
     """
-    panel = NoiseWindow(design_session)
+    panel = NoiseWindow(headless_session)
     qtbot.addWidget(panel)
     panel.show()
     qtbot.waitExposed(panel)
@@ -422,10 +422,10 @@ def test_tool_window_stays_visible_across_always_on_top_toggle(qtbot, design_ses
     assert not panel.isVisible()
 
 
-def test_tool_window_file_menu_close_hides_the_window(qtbot, design_session):
+def test_tool_window_file_menu_close_hides_the_window(qtbot, headless_session):
     # Every tool window carries File → Close window (Ctrl+W); closing only hides
     # the window (the session keeps running), exactly like the title-bar X.
-    panel = NoiseWindow(design_session)
+    panel = NoiseWindow(headless_session)
     qtbot.addWidget(panel)
     panel.show()
     qtbot.waitExposed(panel)
@@ -445,10 +445,10 @@ def test_tool_window_file_menu_close_hides_the_window(qtbot, design_session):
     assert panel.isVisible()
 
 
-def test_tool_window_has_a_single_file_menu(qtbot, design_session):
+def test_tool_window_has_a_single_file_menu(qtbot, headless_session):
     # One flat File menu carries Close window and Always on top (#185) — the
     # old two one-item menus (File, View) were a lot of chrome for two actions.
-    panel = NoiseWindow(design_session)
+    panel = NoiseWindow(headless_session)
     qtbot.addWidget(panel)
     menus = [a for a in panel.menuBar().actions() if a.menu() is not None]
     assert [m.text() for m in menus] == ["&File"]

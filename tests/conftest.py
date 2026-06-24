@@ -144,9 +144,9 @@ def silence_dialogs(monkeypatch):
 
 
 @pytest.fixture
-def design_session(tmp_path):
+def headless_session(tmp_path):
     """A study-designer session: no run folder, no hardware, no log file."""
-    session = SmaccSession(tmp_path / "study", design=True)
+    session = SmaccSession(tmp_path / "study", headless=True)
     yield session
     session.close()
 
@@ -164,6 +164,6 @@ def live_session(tmp_path, monkeypatch):
         "init_lsl_stream",
         lambda self, *a, **k: setattr(self, "outlet", None),
     )
-    session = SmaccSession(tmp_path / "data", design=False)
+    session = SmaccSession(tmp_path / "data", headless=False)
     yield session
     session.close()

@@ -14,9 +14,9 @@ from smacc.panels.devices import DevicesWindow
 
 
 def test_equipment_combos_populate_from_enumeration(
-    qtbot, design_session, mock_devices
+    qtbot, headless_session, mock_devices
 ):
-    window = DevicesWindow(design_session)
+    window = DevicesWindow(headless_session)
     qtbot.addWidget(window)
     out_combo = window._equipment_combos["bedroom_speaker"]
     # Index 0 is the "(none)" entry, then one row per advertised output.
@@ -30,17 +30,17 @@ def test_equipment_combos_populate_from_enumeration(
     assert blink_combo.itemData(1) == mock_devices["blinksticks"][0][1]
 
 
-def test_reload_from_config_selects_bound_device(qtbot, design_session, mock_devices):
+def test_reload_from_config_selects_bound_device(qtbot, headless_session, mock_devices):
     bound = mock_devices["outputs"][1]
-    design_session.devices.bindings["bedroom_speaker"] = bound
-    window = DevicesWindow(design_session)
+    headless_session.devices.bindings["bedroom_speaker"] = bound
+    window = DevicesWindow(headless_session)
     qtbot.addWidget(window)
     window.reload_from_config()
     assert window._equipment_combos["bedroom_speaker"].currentText() == bound
 
 
-def test_set_binding_writes_to_session(qtbot, design_session, mock_devices):
-    window = DevicesWindow(design_session)
+def test_set_binding_writes_to_session(qtbot, headless_session, mock_devices):
+    window = DevicesWindow(headless_session)
     qtbot.addWidget(window)
     changed = []
     window.changed.connect(lambda: changed.append(True))
@@ -48,29 +48,30 @@ def test_set_binding_writes_to_session(qtbot, design_session, mock_devices):
     # Selecting a real device row binds it to the equipment.
     window._equipment_combos["bedroom_speaker"].setCurrentIndex(1)
     assert (
-        design_session.devices.bindings["bedroom_speaker"] == mock_devices["outputs"][0]
+        headless_session.devices.bindings["bedroom_speaker"]
+        == mock_devices["outputs"][0]
     )
     assert changed  # the changed signal fired
 
     # Returning to the "(none)" entry clears the binding.
     window._equipment_combos["bedroom_speaker"].setCurrentIndex(0)
-    assert "bedroom_speaker" not in design_session.devices.bindings
+    assert "bedroom_speaker" not in headless_session.devices.bindings
 
 
-def test_set_routing_writes_to_session(qtbot, design_session, mock_devices):
-    window = DevicesWindow(design_session)
+def test_set_routing_writes_to_session(qtbot, headless_session, mock_devices):
+    window = DevicesWindow(headless_session)
     qtbot.addWidget(window)
     combo = window._action_combos["play_audio_cue"]
     # Point play_audio_cue at the control-room output equipment instead of its default.
     index = combo.findData("control_speaker")
     assert index >= 0
     combo.setCurrentIndex(index)
-    assert design_session.devices.routing["play_audio_cue"] == "control_speaker"
+    assert headless_session.devices.routing["play_audio_cue"] == "control_speaker"
 
 
-def test_reload_flags_missing_bound_device(qtbot, design_session, mock_devices):
-    design_session.devices.bindings["bedroom_speaker"] = "Unplugged speaker"
-    window = DevicesWindow(design_session)
+def test_reload_flags_missing_bound_device(qtbot, headless_session, mock_devices):
+    headless_session.devices.bindings["bedroom_speaker"] = "Unplugged speaker"
+    window = DevicesWindow(headless_session)
     qtbot.addWidget(window)
     window.reload_from_config()
     # The bound device isn't among the advertised ones, so it's flagged and shown
@@ -78,14 +79,16 @@ def test_reload_flags_missing_bound_device(qtbot, design_session, mock_devices):
     combo = window._equipment_combos["bedroom_speaker"]
     assert combo.currentText() == "Unplugged speaker (not connected)"
     assert combo.currentData() == "Unplugged speaker"
-    assert design_session.devices.bindings["bedroom_speaker"] == "Unplugged speaker"
-    assert any("Unplugged speaker" in entry for entry in design_session.missing_devices)
+    assert headless_session.devices.bindings["bedroom_speaker"] == "Unplugged speaker"
+    assert any(
+        "Unplugged speaker" in entry for entry in headless_session.missing_devices
+    )
 
 
-def test_refresh_button_emits_refresh_requested(qtbot, design_session, mock_devices):
+def test_refresh_button_emits_refresh_requested(qtbot, headless_session, mock_devices):
     # The in-window Refresh button defers to the session window's rescan via this
     # signal (rather than duplicating the PortAudio re-init).
-    window = DevicesWindow(design_session)
+    window = DevicesWindow(headless_session)
     qtbot.addWidget(window)
     button = window.findChild(QtWidgets.QPushButton)
     assert button is not None and button.text() == "Refresh devices (F5)"
@@ -94,13 +97,13 @@ def test_refresh_button_emits_refresh_requested(qtbot, design_session, mock_devi
 
 
 def test_hue_combo_lists_bridge_targets(
-    qtbot, design_session, mock_devices, monkeypatch
+    qtbot, headless_session, mock_devices, monkeypatch
 ):
     from smacc import hue
 
-    design_session.hue_config = hue.HueConfig("192.168.1.50", "key")
+    headless_session.hue_config = hue.HueConfig("192.168.1.50", "key")
     monkeypatch.setattr(hue, "targets", lambda cfg: [("Bed lamp (light 1)", "light:1")])
-    window = DevicesWindow(design_session)
+    window = DevicesWindow(headless_session)
     qtbot.addWidget(window)
     combo = window._equipment_combos["philips_hue_light"]
     assert [combo.itemText(i) for i in range(combo.count())] == [
@@ -108,21 +111,23 @@ def test_hue_combo_lists_bridge_targets(
         "Bed lamp (light 1)",
     ]
     combo.setCurrentIndex(1)  # bind the lamp
-    assert design_session.devices.bindings["philips_hue_light"] == "light:1"
+    assert headless_session.devices.bindings["philips_hue_light"] == "light:1"
 
 
-def test_hue_combo_says_no_bridge_without_one(qtbot, design_session, mock_devices):
-    window = DevicesWindow(design_session)
+def test_hue_combo_says_no_bridge_without_one(qtbot, headless_session, mock_devices):
+    window = DevicesWindow(headless_session)
     qtbot.addWidget(window)
     combo = window._equipment_combos["philips_hue_light"]
     assert [combo.itemText(i) for i in range(combo.count())] == ["No bridge paired"]
 
 
-def test_empty_enumeration_says_no_device_found(qtbot, design_session, mock_no_devices):
+def test_empty_enumeration_says_no_device_found(
+    qtbot, headless_session, mock_no_devices
+):
     # With nothing connected, each combo's sole row says so (#139) instead of an
     # ambiguous "(none)" (or the old "(system default)", which implied an output
     # exists when none does).
-    window = DevicesWindow(design_session)
+    window = DevicesWindow(headless_session)
     qtbot.addWidget(window)
     texts = {
         key: [combo.itemText(i) for i in range(combo.count())]
@@ -137,13 +142,13 @@ def test_empty_enumeration_says_no_device_found(qtbot, design_session, mock_no_d
 
 
 def test_paired_bridge_with_no_targets_says_no_lights(
-    qtbot, design_session, mock_devices, monkeypatch
+    qtbot, headless_session, mock_devices, monkeypatch
 ):
     from smacc import hue
 
-    design_session.hue_config = hue.HueConfig("192.168.1.50", "key")
+    headless_session.hue_config = hue.HueConfig("192.168.1.50", "key")
     monkeypatch.setattr(hue, "targets", lambda cfg: [])
-    window = DevicesWindow(design_session)
+    window = DevicesWindow(headless_session)
     qtbot.addWidget(window)
     combo = window._equipment_combos["philips_hue_light"]
     assert [combo.itemText(i) for i in range(combo.count())] == ["No lights found"]
@@ -171,12 +176,14 @@ def test_autobind_defaults_pins_the_required_equipment(
     assert out_combo.currentData() == mock_devices["default_output"]
 
 
-def test_autobind_defaults_is_a_noop_in_the_editor(qtbot, design_session, mock_devices):
-    window = DevicesWindow(design_session)
+def test_autobind_defaults_is_a_noop_in_the_editor(
+    qtbot, headless_session, mock_devices
+):
+    window = DevicesWindow(headless_session)
     qtbot.addWidget(window)
     window.autobind_defaults()
     # The editor often runs on a non-rig machine; the rig binds its own defaults.
-    assert design_session.devices.bindings == {}
+    assert headless_session.devices.bindings == {}
 
 
 def test_autobind_defaults_keeps_existing_bindings(qtbot, live_session, mock_devices):
@@ -194,10 +201,10 @@ def test_autobind_defaults_keeps_existing_bindings(qtbot, live_session, mock_dev
     assert live_session.devices.bindings["control_mic"] == mock_devices["default_input"]
 
 
-def test_combos_carry_description_tooltips(qtbot, design_session, mock_devices):
+def test_combos_carry_description_tooltips(qtbot, headless_session, mock_devices):
     from smacc import devices
 
-    window = DevicesWindow(design_session)
+    window = DevicesWindow(headless_session)
     qtbot.addWidget(window)
     for equipment in devices.EQUIPMENT:
         assert (
@@ -207,8 +214,10 @@ def test_combos_carry_description_tooltips(qtbot, design_session, mock_devices):
         assert window._action_combos[action.key].toolTip() == action.description
 
 
-def test_route_indicators_show_the_resolved_device(qtbot, design_session, mock_devices):
-    window = DevicesWindow(design_session)
+def test_route_indicators_show_the_resolved_device(
+    qtbot, headless_session, mock_devices
+):
+    window = DevicesWindow(headless_session)
     qtbot.addWidget(window)
     # A default route on an unbound equipment is honest about it...
     cue = window._action_indicators["play_audio_cue"]

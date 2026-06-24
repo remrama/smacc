@@ -426,7 +426,7 @@ class DevicesWindow(PanelWindow):
         nothing. Each fill is logged ungated — which physical device a night
         actually used is provenance, not chatter.
         """
-        if self.session.design:
+        if self.session.headless:
             return
         defaults = {
             kind: default_wasapi_device(kind)

@@ -15,7 +15,7 @@ from smacc.session import SmaccSession
 
 
 def _events_window(tmp_path, qtbot):
-    session = SmaccSession(tmp_path / "s", design=True)
+    session = SmaccSession(tmp_path / "s", headless=True)
     win = EventsWindow(session)
     qtbot.addWidget(win)
     return win, session

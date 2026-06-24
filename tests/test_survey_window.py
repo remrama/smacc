@@ -44,14 +44,14 @@ def test_preview_without_session_disables_submit(qtbot, demo_survey):
     assert not window.submitButton.isEnabled()
 
 
-def test_designer_session_disables_submit(qtbot, demo_survey, design_session):
-    window = SurveyWindow(demo_survey, design_session)
+def test_designer_session_disables_submit(qtbot, demo_survey, headless_session):
+    window = SurveyWindow(demo_survey, headless_session)
     qtbot.addWidget(window)
     assert not window.submitButton.isEnabled()
 
 
-def test_responses_track_radio_state(qtbot, demo_survey, design_session):
-    window = SurveyWindow(demo_survey, design_session)
+def test_responses_track_radio_state(qtbot, demo_survey, headless_session):
+    window = SurveyWindow(demo_survey, headless_session)
     qtbot.addWidget(window)
     assert window.responses() == [None, None]
     _answer(window, 0, 2)
@@ -157,8 +157,8 @@ def _control(window: SurveyWindow, item_type: str):
     return next(c for it, c, _ in window._fields if it.type == item_type)
 
 
-def test_mixed_survey_builds_typed_widgets(qtbot, mixed_survey, design_session):
-    window = SurveyWindow(mixed_survey, design_session)
+def test_mixed_survey_builds_typed_widgets(qtbot, mixed_survey, headless_session):
+    window = SurveyWindow(mixed_survey, headless_session)
     qtbot.addWidget(window)
     kinds = {it.type: type(control) for it, control, _ in window._fields}
     assert kinds["likert"] is QtWidgets.QButtonGroup
@@ -170,8 +170,8 @@ def test_mixed_survey_builds_typed_widgets(qtbot, mixed_survey, design_session):
     assert len(window._fields) == 4
 
 
-def test_mixed_survey_responses_read_each_widget(qtbot, mixed_survey, design_session):
-    window = SurveyWindow(mixed_survey, design_session)
+def test_mixed_survey_responses_read_each_widget(qtbot, mixed_survey, headless_session):
+    window = SurveyWindow(mixed_survey, headless_session)
     qtbot.addWidget(window)
     assert window.responses() == [None, None, None, None]
     window._groups[0].button(2).setChecked(True)
@@ -183,8 +183,8 @@ def test_mixed_survey_responses_read_each_widget(qtbot, mixed_survey, design_ses
     assert window.responses() == [2, 42, "scientist", 1]
 
 
-def test_number_left_blank_is_unanswered(qtbot, mixed_survey, design_session):
-    window = SurveyWindow(mixed_survey, design_session)
+def test_number_left_blank_is_unanswered(qtbot, mixed_survey, headless_session):
+    window = SurveyWindow(mixed_survey, headless_session)
     qtbot.addWidget(window)
     spin = _control(window, "number")
     assert spin.value() == spin.minimum()  # starts on the "—" special-value slot

@@ -16,15 +16,15 @@ from smacc.panels import base
 # ----- describe_action -------------------------------------------------------
 
 
-def _session_with(design_session, bindings, routing=None):
-    design_session.devices = devices.DeviceConfig(
+def _session_with(headless_session, bindings, routing=None):
+    headless_session.devices = devices.DeviceConfig(
         bindings=dict(bindings), routing=dict(routing or {})
     )
-    return design_session
+    return headless_session
 
 
-def test_describe_target_bound_device_reads_role_arrow_device(design_session):
-    session = _session_with(design_session, {"bedroom_speaker": "Speakers (USB)"})
+def test_describe_target_bound_device_reads_role_arrow_device(headless_session):
+    session = _session_with(headless_session, {"bedroom_speaker": "Speakers (USB)"})
     # play_audio_cue defaults to the bedroom_speaker equipment, which is bound above.
     assert (
         base.describe_action(session, "play_audio_cue")
@@ -32,31 +32,31 @@ def test_describe_target_bound_device_reads_role_arrow_device(design_session):
     )
 
 
-def test_describe_target_unbound_audio_reads_not_set(design_session):
+def test_describe_target_unbound_audio_reads_not_set(headless_session):
     # No silent system-default fallback (#139): an unbound equipment reads "(not set)".
-    session = _session_with(design_session, {})
+    session = _session_with(headless_session, {})
     assert (
         base.describe_action(session, "record_dream_report")
         == "Bedroom mic 1 (not set)"
     )
 
 
-def test_describe_target_unbound_visual_reads_not_set(design_session):
-    session = _session_with(design_session, {})
+def test_describe_target_unbound_visual_reads_not_set(headless_session):
+    session = _session_with(headless_session, {})
     assert (
         base.describe_action(session, "play_visual_cue") == "BlinkStick light (not set)"
     )
 
 
-def test_describe_target_off_route_reads_off(design_session):
+def test_describe_target_off_route_reads_off(headless_session):
     # listen_audio_cue is an optional route whose default equipment is "" (off).
-    session = _session_with(design_session, {})
+    session = _session_with(headless_session, {})
     assert base.describe_action(session, "listen_audio_cue") == "off"
 
 
-def test_describe_role_bound_and_unbound(design_session):
+def test_describe_role_bound_and_unbound(headless_session):
     # The Talk/Listen source mics (#160) are described directly, without an action.
-    session = _session_with(design_session, {"control_mic": "Headset Mic"})
+    session = _session_with(headless_session, {"control_mic": "Headset Mic"})
     assert (
         base.describe_equipment(session, devices.TALK_SOURCE)
         == "Control-room mic → Headset Mic"
@@ -77,9 +77,9 @@ def _capture_errors(monkeypatch, session) -> list[tuple]:
 
 
 def test_require_device_unbound_role_pops_error_and_returns_none(
-    design_session, monkeypatch
+    headless_session, monkeypatch
 ):
-    session = _session_with(design_session, {})
+    session = _session_with(headless_session, {})
     errors = _capture_errors(monkeypatch, session)
     got = base.require_device(
         session,
@@ -94,10 +94,10 @@ def test_require_device_unbound_role_pops_error_and_returns_none(
 
 
 def test_require_device_off_route_pops_error_and_returns_none(
-    design_session, monkeypatch
+    headless_session, monkeypatch
 ):
     # listen_audio_cue's default route is off — no equipment to resolve through.
-    session = _session_with(design_session, {})
+    session = _session_with(headless_session, {})
     errors = _capture_errors(monkeypatch, session)
     got = base.require_device(
         session,
@@ -110,10 +110,12 @@ def test_require_device_off_route_pops_error_and_returns_none(
     assert errors and "not routed" in errors[0][1]
 
 
-def test_require_device_bound_role_resolves_without_error(design_session, monkeypatch):
+def test_require_device_bound_role_resolves_without_error(
+    headless_session, monkeypatch
+):
     _patch_sd(monkeypatch)
     session = _session_with(
-        design_session, {"bedroom_speaker": "Speakers (Realtek(R) Audio)"}
+        headless_session, {"bedroom_speaker": "Speakers (Realtek(R) Audio)"}
     )
     errors = _capture_errors(monkeypatch, session)
     got = base.require_device(
@@ -128,9 +130,9 @@ def test_require_device_bound_role_resolves_without_error(design_session, monkey
 
 
 def test_require_role_device_unbound_pops_error_and_returns_none(
-    design_session, monkeypatch
+    headless_session, monkeypatch
 ):
-    session = _session_with(design_session, {})
+    session = _session_with(headless_session, {})
     errors = _capture_errors(monkeypatch, session)
     got = base.require_equipment_device(
         session,

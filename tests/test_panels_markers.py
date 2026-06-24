@@ -21,8 +21,8 @@ def stub_serial_ports(monkeypatch):
 
 
 @pytest.fixture
-def window(qtbot, design_session):
-    win = MarkersWindow(design_session)
+def window(qtbot, headless_session):
+    win = MarkersWindow(headless_session)
     qtbot.addWidget(win)
     return win
 
@@ -45,26 +45,26 @@ def _index_of(win: MarkersWindow, key: str) -> int:
 # ----- registry table ---------------------------------------------------------
 
 
-def test_window_stages_the_whole_registry_grouped(window, design_session):
+def test_window_stages_the_whole_registry_grouped(window, headless_session):
     # Every event is staged (one widget set per event)...
-    assert len(window._events) == len(design_session.events)
+    assert len(window._events) == len(headless_session.events)
     assert all(spin is not None for spin in window._code_spins)
     # ...and the table carries one extra (spanned header) row per category group.
-    categories = {e.category for e in design_session.events.values()}
-    assert window.table.rowCount() == len(design_session.events) + len(categories)
+    categories = {e.category for e in headless_session.events.values()}
+    assert window.table.rowCount() == len(headless_session.events) + len(categories)
     # The header rows are not mapped to events (not editable/selectable rows).
-    assert len(window._row_event) == len(design_session.events)
+    assert len(window._row_event) == len(headless_session.events)
 
 
-def test_apply_commits_staged_edits_and_logs_loudly(window, design_session):
-    records = _capture_session_log(design_session)
+def test_apply_commits_staged_edits_and_logs_loudly(window, headless_session):
+    records = _capture_session_log(headless_session)
     i = _index_of(window, "REMDetected")
     window._code_spins[i].setValue(99)
     window._lsl_boxes[i].setChecked(False)
     window.apply()
-    assert design_session.events["REMDetected"].code == 99
-    assert design_session.events["REMDetected"].lsl is False
-    assert design_session.events["REMDetected"].ttl is True
+    assert headless_session.events["REMDetected"].code == 99
+    assert headless_session.events["REMDetected"].lsl is False
+    assert headless_session.events["REMDetected"].ttl is True
     changed = [
         r for r in records if r.getMessage().startswith("Port code changed: REM")
     ]
@@ -73,7 +73,7 @@ def test_apply_commits_staged_edits_and_logs_loudly(window, design_session):
     assert "LSL off" in changed[0].getMessage()
 
 
-def test_apply_blocks_on_validation_errors(window, design_session, monkeypatch):
+def test_apply_blocks_on_validation_errors(window, headless_session, monkeypatch):
     warned: list[str] = []
     monkeypatch.setattr(
         QtWidgets.QMessageBox,
@@ -84,11 +84,11 @@ def test_apply_blocks_on_validation_errors(window, design_session, monkeypatch):
     window._code_spins[_index_of(window, "REMDetected")].setValue(49)
     window.apply()
     assert warned and "49" in warned[0]
-    assert design_session.events["REMDetected"].code == 41  # unchanged
+    assert headless_session.events["REMDetected"].code == 41  # unchanged
 
 
-def test_safe_max_round_trips_and_logs(window, design_session):
-    records = _capture_session_log(design_session)
+def test_safe_max_round_trips_and_logs(window, headless_session):
+    records = _capture_session_log(headless_session)
     window.safeMaxSpin.setValue(127)
     # 127 would warn on the biocal/dream codes above it; keep them TTL-off so the
     # apply is clean (the point here is the safe-max commit, not the warning).
@@ -96,22 +96,22 @@ def test_safe_max_round_trips_and_logs(window, design_session):
         if event.code > 127:
             window._ttl_boxes[i].setChecked(False)
     window.apply()
-    assert design_session.event_code_safe_max == 127
+    assert headless_session.event_code_safe_max == 127
     assert any("safe max changed" in r.getMessage() for r in records)
 
 
-def test_revert_discards_staged_edits(window, design_session):
+def test_revert_discards_staged_edits(window, headless_session):
     i = _index_of(window, "REMDetected")
     window._code_spins[i].setValue(99)
     window._revert()
     i = _index_of(window, "REMDetected")
     assert window._code_spins[i].value() == 41
-    assert design_session.events["REMDetected"].code == 41
+    assert headless_session.events["REMDetected"].code == 41
 
 
-def test_reload_from_session_picks_up_external_changes(window, design_session):
-    new = events.make_custom_event("Door knock", 150, design_session.events.keys())
-    design_session.events[new.key] = new
+def test_reload_from_session_picks_up_external_changes(window, headless_session):
+    new = events.make_custom_event("Door knock", 150, headless_session.events.keys())
+    headless_session.events[new.key] = new
     window.reload_from_session()
     assert any(e.key == new.key for e in window._events)
 
@@ -134,7 +134,7 @@ def test_add_event_stages_a_custom_event(window, monkeypatch):
     assert any(e.label == "New event" for e in window._events)
 
 
-def test_remove_only_removes_custom_events(window, design_session, monkeypatch):
+def test_remove_only_removes_custom_events(window, headless_session, monkeypatch):
     infos: list[str] = []
     monkeypatch.setattr(
         QtWidgets.QMessageBox,
@@ -149,8 +149,8 @@ def test_remove_only_removes_custom_events(window, design_session, monkeypatch):
     window._remove_selected()
     assert infos and "Built-in" in infos[0]
     # ...while a staged custom event goes away.
-    new = events.make_custom_event("Door knock", 150, design_session.events.keys())
-    design_session.events[new.key] = new
+    new = events.make_custom_event("Door knock", 150, headless_session.events.keys())
+    headless_session.events[new.key] = new
     window.reload_from_session()
     custom_row = next(
         row for row, i in window._row_event.items() if not window._events[i].builtin
@@ -160,7 +160,7 @@ def test_remove_only_removes_custom_events(window, design_session, monkeypatch):
     assert not any(e.key == new.key for e in window._events)
 
 
-def test_show_reloads_but_minimize_restore_keeps_edits(window, design_session, qtbot):
+def test_show_reloads_but_minimize_restore_keeps_edits(window, headless_session, qtbot):
     i = _index_of(window, "REMDetected")
     window._code_spins[i].setValue(99)
     window.hide()
@@ -186,10 +186,10 @@ def test_ttl_column_grays_out_without_a_transport(window):
 
 
 def test_no_serial_ports_shows_the_hint_but_gates_nothing(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
     monkeypatch.setattr(triggers, "list_serial_ports", lambda: [])
-    win = MarkersWindow(design_session)
+    win = MarkersWindow(headless_session)
     qtbot.addWidget(win)
     assert not win.portStatusLabel.isHidden()
     # A hint, not a gate: the per-event TTL routing is untouched (not emptied).
@@ -209,16 +209,16 @@ def test_refresh_updates_the_port_hint(window, monkeypatch):
     assert window.portStatusLabel.isHidden()
 
 
-def test_missing_inpout_driver_shows_the_hint(qtbot, design_session, monkeypatch):
+def test_missing_inpout_driver_shows_the_hint(qtbot, headless_session, monkeypatch):
     monkeypatch.setattr(triggers, "parallel_driver_available", lambda: False)
-    win = MarkersWindow(design_session)
+    win = MarkersWindow(headless_session)
     qtbot.addWidget(win)
     assert not win.driverStatusLabel.isHidden()
 
 
-def test_present_inpout_driver_hides_the_hint(qtbot, design_session, monkeypatch):
+def test_present_inpout_driver_hides_the_hint(qtbot, headless_session, monkeypatch):
     monkeypatch.setattr(triggers, "parallel_driver_available", lambda: True)
-    win = MarkersWindow(design_session)
+    win = MarkersWindow(headless_session)
     qtbot.addWidget(win)
     assert win.driverStatusLabel.isHidden()
 
@@ -239,17 +239,17 @@ def test_transport_config_round_trips(window, stub_serial_ports):
     assert window._gather_trigger_config() == cfg
 
 
-def test_transport_applies_to_the_session(window, design_session, stub_serial_ports):
-    records = _capture_session_log(design_session)
+def test_transport_applies_to_the_session(window, headless_session, stub_serial_ports):
+    records = _capture_session_log(headless_session)
     window.enabledBox.setChecked(True)
     window._select_data(window.transportCombo, "serial")
     window.portCombo.setEditText("COM4")
     window.apply()
-    assert design_session.trigger_config.enabled is True
-    assert design_session.trigger_config.port == "COM4"
+    assert headless_session.trigger_config.enabled is True
+    assert headless_session.trigger_config.port == "COM4"
     assert any("Trigger output changed" in r.getMessage() for r in records)
     # A design session opens no hardware (set_trigger_output is a no-op there).
-    assert design_session.trigger_out is None
+    assert headless_session.trigger_out is None
 
 
 def test_selecting_listed_port_returns_device(window, stub_serial_ports):
@@ -267,11 +267,11 @@ def test_unlisted_saved_port_survives_as_free_text(window, stub_serial_ports):
     assert window._gather_trigger_config().port == "COM9"
 
 
-def test_test_button_reports_result(window, design_session, monkeypatch):
-    monkeypatch.setattr(design_session, "test_trigger", lambda cfg: None)
+def test_test_button_reports_result(window, headless_session, monkeypatch):
+    monkeypatch.setattr(headless_session, "test_trigger", lambda cfg: None)
     window._on_test()
     assert "test pulse" in window.testResult.text()
-    monkeypatch.setattr(design_session, "test_trigger", lambda cfg: "no such port")
+    monkeypatch.setattr(headless_session, "test_trigger", lambda cfg: "no such port")
     window._on_test()
     assert "no such port" in window.testResult.text()
 

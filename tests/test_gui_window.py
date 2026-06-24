@@ -26,9 +26,9 @@ def _stub_winvolume(monkeypatch):
 
 
 def test_window_builds_in_design_mode(
-    qtbot, design_session, mock_devices, silence_dialogs
+    qtbot, headless_session, mock_devices, silence_dialogs
 ):
-    window = SmaccWindow(design_session)
+    window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     assert window.design is True
     state = window.gather_settings()
@@ -136,11 +136,11 @@ def test_is_default_settings_distinguishes_paths(tmp_path):
 
 
 def test_editor_save_of_default_redirects_to_save_as(
-    qtbot, design_session, mock_devices, silence_dialogs, monkeypatch
+    qtbot, headless_session, mock_devices, silence_dialogs, monkeypatch
 ):
     # Editing the seeded default and hitting Save must go to Save-As, never an
     # in-place overwrite of default.smacc (it's SMACC's known-good template).
-    window = SmaccWindow(design_session)
+    window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     window.settings_path = str(paths.DEFAULT_SETTINGS_PATH)
     called: list[bool] = []
@@ -150,10 +150,10 @@ def test_editor_save_of_default_redirects_to_save_as(
 
 
 def test_write_settings_refuses_the_default_path(
-    qtbot, design_session, mock_devices, silence_dialogs
+    qtbot, headless_session, mock_devices, silence_dialogs
 ):
     # Even if default.smacc is hand-picked in the Save-As dialog, writing is refused.
-    window = SmaccWindow(design_session)
+    window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     assert window._write_settings(str(paths.DEFAULT_SETTINGS_PATH)) is False
 
@@ -162,9 +162,9 @@ def test_write_settings_refuses_the_default_path(
 
 
 def test_settings_gather_apply_is_a_fixed_point(
-    qtbot, design_session, mock_devices, silence_dialogs
+    qtbot, headless_session, mock_devices, silence_dialogs
 ):
-    window = SmaccWindow(design_session)
+    window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     first = window.gather_settings()
     window.apply_settings(first)
@@ -173,13 +173,13 @@ def test_settings_gather_apply_is_a_fixed_point(
 
 
 def test_gather_settings_emits_the_study_half(
-    qtbot, design_session, mock_devices, silence_dialogs
+    qtbot, headless_session, mock_devices, silence_dialogs
 ):
     # gather_settings() routes the window state through StudyConfig, which emits the
     # PORTABLE half: routing but not machine-local bindings, trigger behavior but not
     # the port/baud/address, and no Hue credential (all rig-local, #300). Everything
     # else is unchanged from the full window state (_window_settings).
-    window = SmaccWindow(design_session)
+    window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     full = window._window_settings()
     study = window.gather_settings()
@@ -211,7 +211,7 @@ def test_rig_profile_overlays_device_bindings(
         "init_lsl_stream",
         lambda self, *a, **k: setattr(self, "outlet", None),
     )
-    window = SmaccWindow(SmaccSession(tmp_path / "data", design=False))
+    window = SmaccWindow(SmaccSession(tmp_path / "data", headless=False))
     qtbot.addWidget(window)
     window.apply_settings(window.gather_settings())
     assert (
@@ -236,7 +236,7 @@ def test_binding_edit_persists_to_the_rig_profile(
         "init_lsl_stream",
         lambda self, *a, **k: setattr(self, "outlet", None),
     )
-    window = SmaccWindow(SmaccSession(tmp_path / "data", design=False))
+    window = SmaccWindow(SmaccSession(tmp_path / "data", headless=False))
     qtbot.addWidget(window)
     # Simulate binding the control-room speaker: the edit mutates the live config and
     # fires the binding_edited signal (as a real equipment-dropdown edit would).
@@ -248,9 +248,9 @@ def test_binding_edit_persists_to_the_rig_profile(
 
 
 def test_apply_settings_lands_values(
-    qtbot, design_session, mock_devices, silence_dialogs
+    qtbot, headless_session, mock_devices, silence_dialogs
 ):
-    window = SmaccWindow(design_session)
+    window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     settings = window.gather_settings()
     settings["volume_cap"] = 0.5
@@ -281,17 +281,17 @@ def test_apply_settings_lands_values(
         == mock_devices["outputs"][0]
     )
     # The bound devices all match advertised hardware, so none are flagged missing.
-    assert design_session.missing_devices == []
+    assert headless_session.missing_devices == []
 
 
 def test_markers_window_applies_and_persists_trigger_config(
-    qtbot, design_session, mock_devices, silence_dialogs, monkeypatch
+    qtbot, headless_session, mock_devices, silence_dialogs, monkeypatch
 ):
     # The Markers tool window owns the transport config now (no menu dialog).
     monkeypatch.setattr(
         triggers, "list_serial_ports", lambda: [("COM4", "Trigger box")]
     )
-    window = SmaccWindow(design_session)
+    window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     markers = window.panels["markers"]
     markers._load_trigger_config(
@@ -308,11 +308,11 @@ def test_markers_window_applies_and_persists_trigger_config(
 
 
 def test_markers_apply_rebuilds_the_event_grid(
-    qtbot, design_session, mock_devices, silence_dialogs
+    qtbot, headless_session, mock_devices, silence_dialogs
 ):
     # Applying a registry change in the Markers window re-renders the event grid
     # (its buttons' tooltips carry each event's code + routing).
-    window = SmaccWindow(design_session)
+    window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     markers = window.panels["markers"]
     i = next(i for i, e in enumerate(markers._events) if e.key == "REMDetected")
@@ -329,11 +329,11 @@ def test_markers_apply_rebuilds_the_event_grid(
 
 
 def test_grid_add_event_refreshes_the_markers_staging(
-    qtbot, design_session, mock_devices, silence_dialogs, monkeypatch
+    qtbot, headless_session, mock_devices, silence_dialogs, monkeypatch
 ):
     from smacc import dialogs
 
-    window = SmaccWindow(design_session)
+    window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     monkeypatch.setattr(dialogs.AddEventDialog, "exec", lambda self: True)
     monkeypatch.setattr(
@@ -382,7 +382,7 @@ def test_preview_clock_toggle_switches_format_and_persists(
         "init_lsl_stream",
         lambda self, *a, **k: setattr(self, "outlet", None),
     )
-    window = SmaccWindow(SmaccSession(tmp_path / "data", design=False))
+    window = SmaccWindow(SmaccSession(tmp_path / "data", headless=False))
     qtbot.addWidget(window)
 
     # Defaults to 24-hour: the menu item is unchecked and the formatter is 24h.
@@ -457,11 +457,11 @@ def test_interface_choices_round_trip_through_settings(
 
 
 def test_editor_preserves_preview_levels_round_trip(
-    qtbot, design_session, mock_devices, silence_dialogs
+    qtbot, headless_session, mock_devices, silence_dialogs
 ):
     # The editor has no live preview pane, but it must not wipe a study's
     # preview_levels on save — it round-trips the loaded value verbatim.
-    window = SmaccWindow(design_session)
+    window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     state = window.gather_settings()
     state["preview_levels"] = ["DEBUG", "WARNING"]
@@ -488,7 +488,7 @@ def test_tool_window_geometry_persists_and_restores(
         lambda self, *a, **k: setattr(self, "outlet", None),
     )
 
-    first = SmaccWindow(SmaccSession(tmp_path / "data", design=False))
+    first = SmaccWindow(SmaccSession(tmp_path / "data", headless=False))
     qtbot.addWidget(first)
     first._open_panel("volume")  # places + marks it positioned
     first.panels["volume"].move(321, 234)
@@ -496,7 +496,7 @@ def test_tool_window_geometry_persists_and_restores(
     first.session.close()
 
     # A fresh window reads the saved geometry and reopens the tool there.
-    second = SmaccWindow(SmaccSession(tmp_path / "data", design=False))
+    second = SmaccWindow(SmaccSession(tmp_path / "data", headless=False))
     qtbot.addWidget(second)
     second._open_panel("volume")
     assert second.panels["volume"].x() == 321
@@ -506,13 +506,13 @@ def test_tool_window_geometry_persists_and_restores(
 
 
 def test_hue_credential_applies_from_study_but_is_rig_local(
-    qtbot, design_session, mock_devices, silence_dialogs, monkeypatch
+    qtbot, headless_session, mock_devices, silence_dialogs, monkeypatch
 ):
     from smacc import hue
 
     # The post-load device re-enumeration must not hit the network.
     monkeypatch.setattr(hue, "targets", lambda cfg: [])
-    window = SmaccWindow(design_session)
+    window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     # The Hue bridge credential is rig-local (#300): the portable study no longer
     # carries a hue block.
@@ -521,8 +521,8 @@ def test_hue_credential_applies_from_study_but_is_rig_local(
     state = window.gather_settings()
     state["hue"] = {"bridge_ip": "192.168.1.50", "app_key": "k"}
     window.apply_settings(state)
-    assert design_session.hue_config.configured
-    assert design_session.hue_config.bridge_ip == "192.168.1.50"
+    assert headless_session.hue_config.configured
+    assert headless_session.hue_config.bridge_ip == "192.168.1.50"
     # …but it is not written back into the portable study.
     assert "hue" not in window.gather_settings()
 
@@ -543,9 +543,9 @@ def _watch_close_prompt(monkeypatch):
 
 
 def test_editor_close_without_changes_skips_prompt(
-    qtbot, design_session, mock_devices, silence_dialogs, monkeypatch
+    qtbot, headless_session, mock_devices, silence_dialogs, monkeypatch
 ):
-    window = SmaccWindow(design_session)
+    window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     prompts = _watch_close_prompt(monkeypatch)
     assert window.close() is True
@@ -553,9 +553,9 @@ def test_editor_close_without_changes_skips_prompt(
 
 
 def test_editor_close_after_edit_prompts(
-    qtbot, design_session, mock_devices, silence_dialogs, monkeypatch
+    qtbot, headless_session, mock_devices, silence_dialogs, monkeypatch
 ):
-    window = SmaccWindow(design_session)
+    window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     # Session metadata is part of the saved file (File → Session info…).
     window.session.metadata["notes"] = "tweaked"
@@ -565,11 +565,11 @@ def test_editor_close_after_edit_prompts(
 
 
 def test_editor_close_after_undone_edit_skips_prompt(
-    qtbot, design_session, mock_devices, silence_dialogs, monkeypatch
+    qtbot, headless_session, mock_devices, silence_dialogs, monkeypatch
 ):
     # State equality (not an edit-signal flag) is the dirty check, so editing
     # and then undoing back to the original counts as clean.
-    window = SmaccWindow(design_session)
+    window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     original = window.session.metadata.get("notes", "")
     window.session.metadata["notes"] = "tweaked"
@@ -580,9 +580,9 @@ def test_editor_close_after_undone_edit_skips_prompt(
 
 
 def test_editor_save_marks_clean(
-    qtbot, design_session, mock_devices, silence_dialogs, monkeypatch, tmp_path
+    qtbot, headless_session, mock_devices, silence_dialogs, monkeypatch, tmp_path
 ):
-    window = SmaccWindow(design_session)
+    window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     window.session.metadata["notes"] = "tweaked"
     assert window._write_settings(str(tmp_path / "study.smacc")) is True
@@ -611,11 +611,11 @@ def test_live_session_keeps_prompted_metadata_over_file_metadata(
 
 
 def test_editor_adopts_loaded_file_metadata(
-    qtbot, design_session, mock_devices, silence_dialogs
+    qtbot, headless_session, mock_devices, silence_dialogs
 ):
     # The editor has no start prompt; a loaded file's metadata lands so it can
     # be viewed/edited and saved back.
-    window = SmaccWindow(design_session)
+    window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     window._apply_loaded_settings(window.gather_settings(), {"subject": "template"})
-    assert design_session.metadata["subject"] == "template"
+    assert headless_session.metadata["subject"] == "template"

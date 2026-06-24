@@ -74,7 +74,7 @@ class SmaccWindow(ToolWindow):
         # Design mode reuses this window to edit a settings file (no live run): the
         # log preview, lights, and recording are hidden/disabled, and the right
         # column becomes the settings-editor panel. Derived from the session.
-        self.design = session.design
+        self.design = session.headless
         # The .smacc this window loaded/edits (None until saved), so saving can
         # write back to it rather than prompting every time.
         self.settings_path = settings_path

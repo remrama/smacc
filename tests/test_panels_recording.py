@@ -43,8 +43,8 @@ def _stub_recorder(monkeypatch, stream_cls=_FakeInput, rate=8000.0):
     monkeypatch.setattr(recording.sd, "InputStream", stream_cls)
 
 
-def test_designer_disables_the_record_button(qtbot, design_session):
-    window = RecordingWindow(design_session)
+def test_designer_disables_the_record_button(qtbot, headless_session):
+    window = RecordingWindow(headless_session)
     qtbot.addWidget(window)
     assert not window.micrecordButton.isEnabled()
     window.cleanup()
@@ -186,8 +186,8 @@ def test_open_unknown_in_app_survey_shows_error_not_a_window(
     window.cleanup()
 
 
-def test_survey_state_round_trips_web_urls_only(qtbot, design_session):
-    window = RecordingWindow(design_session)
+def test_survey_state_round_trips_web_urls_only(qtbot, headless_session):
+    window = RecordingWindow(headless_session)
     qtbot.addWidget(window)
     options = {"Post survey": "https://example.com/post"}
     window.apply_state(
@@ -199,8 +199,8 @@ def test_survey_state_round_trips_web_urls_only(qtbot, design_session):
     window.cleanup()
 
 
-def test_typed_url_wins_over_blank_preset(qtbot, design_session):
-    window = RecordingWindow(design_session)
+def test_typed_url_wins_over_blank_preset(qtbot, headless_session):
+    window = RecordingWindow(headless_session)
     qtbot.addWidget(window)
     window.surveyComboBox.setEditText("  example.com/typed  ")
     assert window.current_survey_url() == "example.com/typed"

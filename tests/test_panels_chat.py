@@ -67,11 +67,11 @@ def test_sanitize_neutralizes_a_marker_lookalike_tail():
 # ----- the logging contract ---------------------------------------------------
 
 
-def test_chat_message_is_a_debug_line_and_no_marker_by_default(design_session):
-    records = _capture_session_log(design_session)
+def test_chat_message_is_a_debug_line_and_no_marker_by_default(headless_session):
+    records = _capture_session_log(headless_session)
     transcript = ChatTranscript()
     posted = post_chat_message(
-        design_session, transcript, EXPERIMENTER, "  hello\nthere  "
+        headless_session, transcript, EXPERIMENTER, "  hello\nthere  "
     )
     assert posted == "hello there"
     assert transcript.messages == [(EXPERIMENTER, "hello there")]
@@ -81,10 +81,10 @@ def test_chat_message_is_a_debug_line_and_no_marker_by_default(design_session):
     assert not any("portcode" in m for m in messages)  # log-only by default
 
 
-def test_empty_message_posts_nothing(design_session):
-    records = _capture_session_log(design_session)
+def test_empty_message_posts_nothing(headless_session):
+    records = _capture_session_log(headless_session)
     transcript = ChatTranscript()
-    assert post_chat_message(design_session, transcript, PARTICIPANT, "  \n ") is None
+    assert post_chat_message(headless_session, transcript, PARTICIPANT, "  \n ") is None
     assert transcript.messages == []
     assert records == []
 
@@ -112,8 +112,8 @@ def test_flipped_on_trigger_fires_a_bare_marker(live_session):
 # ----- participant window -----------------------------------------------------
 
 
-def test_participant_window_defaults_and_state_round_trip(qtbot, design_session):
-    window = ParticipantChatWindow(design_session)
+def test_participant_window_defaults_and_state_round_trip(qtbot, headless_session):
+    window = ParticipantChatWindow(headless_session)
     qtbot.addWidget(window)
     assert window.gather_state() == {
         "chat_font_size": FONT_DEFAULT,
@@ -124,8 +124,8 @@ def test_participant_window_defaults_and_state_round_trip(qtbot, design_session)
     assert window.view.font().pointSize() == 24
 
 
-def test_participant_window_tolerates_malformed_state(qtbot, design_session):
-    window = ParticipantChatWindow(design_session)
+def test_participant_window_tolerates_malformed_state(qtbot, headless_session):
+    window = ParticipantChatWindow(headless_session)
     qtbot.addWidget(window)
     window.apply_state({"chat_font_size": "huge"})  # hand-edited study: keep default
     assert window.gather_state()["chat_font_size"] == FONT_DEFAULT
@@ -133,8 +133,8 @@ def test_participant_window_tolerates_malformed_state(qtbot, design_session):
     assert window.gather_state()["chat_font_size"] == FONT_MAX
 
 
-def test_participant_window_is_always_dark_and_red_shiftable(qtbot, design_session):
-    window = ParticipantChatWindow(design_session)
+def test_participant_window_is_always_dark_and_red_shiftable(qtbot, headless_session):
+    window = ParticipantChatWindow(headless_session)
     qtbot.addWidget(window)
     assert "#c8c8c8" in window.styleSheet()  # dim neutral gray on near-black
     window._red_action.setChecked(True)
@@ -142,9 +142,9 @@ def test_participant_window_is_always_dark_and_red_shiftable(qtbot, design_sessi
 
 
 def test_participant_window_banner_tracks_keyboard_focus(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
-    window = ParticipantChatWindow(design_session)
+    window = ParticipantChatWindow(headless_session)
     qtbot.addWidget(window)
     monkeypatch.setattr(ParticipantChatWindow, "isActiveWindow", lambda self: True)
     window._refresh_keyboard_banner()
@@ -154,8 +154,8 @@ def test_participant_window_banner_tracks_keyboard_focus(
     assert "not here" in window.keyboardBanner.text()
 
 
-def test_participant_enter_sends_and_clears(qtbot, design_session):
-    window = ParticipantChatWindow(design_session)
+def test_participant_enter_sends_and_clears(qtbot, headless_session):
+    window = ParticipantChatWindow(headless_session)
     qtbot.addWidget(window)
     window.entry.setText("I'm awake")
     qtbot.keyClick(window.entry, QtCore.Qt.Key.Key_Return)
@@ -167,8 +167,8 @@ def test_participant_enter_sends_and_clears(qtbot, design_session):
 # ----- experimenter view (Chat window) + the shared transcript -----------------
 
 
-def test_chat_send_clears_entry_and_renders(qtbot, design_session):
-    panel = ChatWindow(design_session)
+def test_chat_send_clears_entry_and_renders(qtbot, headless_session):
+    panel = ChatWindow(headless_session)
     qtbot.addWidget(panel)
     panel.chatEntry.setText("hello")
     panel.send_chat_message()
@@ -176,8 +176,8 @@ def test_chat_send_clears_entry_and_renders(qtbot, design_session):
     assert "You:  hello" in panel.chatView.toPlainText()
 
 
-def test_chat_pass_keyboard_emits_even_with_empty_entry(qtbot, design_session):
-    panel = ChatWindow(design_session)
+def test_chat_pass_keyboard_emits_even_with_empty_entry(qtbot, headless_session):
+    panel = ChatWindow(headless_session)
     qtbot.addWidget(panel)
     fired: list[bool] = []
     panel.open_participant_chat.connect(lambda: fired.append(True))
@@ -186,10 +186,10 @@ def test_chat_pass_keyboard_emits_even_with_empty_entry(qtbot, design_session):
     assert panel.chatView.toPlainText() == ""
 
 
-def test_transcript_is_shared_between_both_views(qtbot, design_session):
+def test_transcript_is_shared_between_both_views(qtbot, headless_session):
     transcript = ChatTranscript()
-    chat = ChatWindow(design_session, transcript)
-    participant = ParticipantChatWindow(design_session, transcript)
+    chat = ChatWindow(headless_session, transcript)
+    participant = ParticipantChatWindow(headless_session, transcript)
     qtbot.addWidget(chat)
     qtbot.addWidget(participant)
     chat.chatEntry.setText("Are you awake?")
@@ -233,11 +233,11 @@ def test_chat_presets_cap_participant_and_tolerate_garbage():
     assert presets.experimenter == []  # coerced to empty rather than crashing a load
 
 
-def test_chat_preset_button_sends_through_chat_path(design_session):
-    records = _capture_session_log(design_session)
+def test_chat_preset_button_sends_through_chat_path(headless_session):
+    records = _capture_session_log(headless_session)
     presets = ChatPresets()
     presets.set(["Are you awake?"], [])
-    panel = ChatWindow(design_session, presets=presets)
+    panel = ChatWindow(headless_session, presets=presets)
     assert len(panel._preset_buttons) == 1
     panel._preset_buttons[0].click()
     assert "You:  Are you awake?" in panel.chatView.toPlainText()
@@ -246,10 +246,10 @@ def test_chat_preset_button_sends_through_chat_path(design_session):
     assert all(r.levelno == logging.DEBUG for r in records)  # log-only by default
 
 
-def test_participant_number_key_sends_only_when_entry_empty(qtbot, design_session):
+def test_participant_number_key_sends_only_when_entry_empty(qtbot, headless_session):
     presets = ChatPresets()
     presets.set([], ["I'm awake", "Got it"])
-    window = ParticipantChatWindow(design_session, presets=presets)
+    window = ParticipantChatWindow(headless_session, presets=presets)
     qtbot.addWidget(window)
     assert len(window._preset_buttons) == 2
     # Empty entry: a bare number key sends the matching reply (key not typed).
@@ -263,10 +263,10 @@ def test_participant_number_key_sends_only_when_entry_empty(qtbot, design_sessio
     assert window.entry.text() == "31"
 
 
-def test_presets_shared_object_updates_both_views(qtbot, design_session):
+def test_presets_shared_object_updates_both_views(qtbot, headless_session):
     presets = ChatPresets()
-    chat = ChatWindow(design_session, presets=presets)
-    participant = ParticipantChatWindow(design_session, presets=presets)
+    chat = ChatWindow(headless_session, presets=presets)
+    participant = ParticipantChatWindow(headless_session, presets=presets)
     qtbot.addWidget(chat)
     qtbot.addWidget(participant)
     presets.set(["Are you awake?"], ["Yes", "No"])
@@ -280,11 +280,11 @@ def test_presets_shared_object_updates_both_views(qtbot, design_session):
 
 
 def test_window_wires_chat_panel_without_launcher_button(
-    qtbot, design_session, mock_devices, silence_dialogs, monkeypatch
+    qtbot, headless_session, mock_devices, silence_dialogs, monkeypatch
 ):
     monkeypatch.setattr(winvolume, "endpoint_volume", lambda: None)
     monkeypatch.setattr(winvolume, "app_volume", lambda: None)
-    window = SmaccWindow(design_session)
+    window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     # The participant window has no Tools-column button; the Chat window does.
     assert "participant_chat" not in SmaccWindow.PANEL_LABELS

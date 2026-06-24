@@ -54,8 +54,8 @@ class _FakeInput:
         self.closed = True
 
 
-def test_volume_fader_and_spinbox_stay_in_sync(qtbot, design_session):
-    panel = AudioCueWindow(design_session)
+def test_volume_fader_and_spinbox_stay_in_sync(qtbot, headless_session):
+    panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     slot = panel.slots[0]
     # Dragging the fader drives the (precise) spinbox...
@@ -66,8 +66,8 @@ def test_volume_fader_and_spinbox_stay_in_sync(qtbot, design_session):
     assert slot.volumeSlider.value() == 30
 
 
-def test_set_slot_file_labels_button_and_decodes(qtbot, design_session, tmp_path):
-    panel = AudioCueWindow(design_session)
+def test_set_slot_file_labels_button_and_decodes(qtbot, headless_session, tmp_path):
+    panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     slot = panel.slots[0]
     wav = _write_wav(tmp_path / "chime.wav")
@@ -83,8 +83,8 @@ def test_set_slot_file_labels_button_and_decodes(qtbot, design_session, tmp_path
     assert "Choose" in slot.fileButton.text()
 
 
-def test_audio_panel_round_trips_the_file_path(qtbot, design_session, tmp_path):
-    panel = AudioCueWindow(design_session)
+def test_audio_panel_round_trips_the_file_path(qtbot, headless_session, tmp_path):
+    panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     wav = _write_wav(tmp_path / "cue.wav")
     panel.apply_state({"cues": [{"name": "Cue 1", "file": str(wav), "volume": 0.5}]})
@@ -94,9 +94,9 @@ def test_audio_panel_round_trips_the_file_path(qtbot, design_session, tmp_path):
 
 
 def test_loop_button_is_a_checkable_toggle_that_drives_the_loop_flag(
-    qtbot, design_session
+    qtbot, headless_session
 ):
-    panel = AudioCueWindow(design_session)
+    panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     slot = panel.slots[0]
     assert slot.loopButton.isCheckable()
@@ -107,8 +107,8 @@ def test_loop_button_is_a_checkable_toggle_that_drives_the_loop_flag(
     assert panel.gather_state()["cues"][0]["loop"] is True
 
 
-def test_transport_buttons_are_icon_only(qtbot, design_session):
-    panel = AudioCueWindow(design_session)
+def test_transport_buttons_are_icon_only(qtbot, headless_session):
+    panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     slot = panel.slots[0]
     for button in (
@@ -121,19 +121,19 @@ def test_transport_buttons_are_icon_only(qtbot, design_session):
         assert button.text() == ""  # icon-only, no label text
 
 
-def test_every_transport_glyph_is_painted(qtbot, design_session):
+def test_every_transport_glyph_is_painted(qtbot, headless_session):
     # Guards against a key/branch mismatch (#289): a transparent pixmap is not a
     # null icon, so isNull() alone would miss an unpainted glyph.
-    panel = AudioCueWindow(design_session)
+    panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     for kind, icon in panel._transport_icons.items():
         assert _is_painted(icon), f"{kind} icon is blank"
 
 
-def test_transport_icons_repaint_on_theme_change(qtbot, design_session):
+def test_transport_icons_repaint_on_theme_change(qtbot, headless_session):
     # The lights-off dark theme flips the app palette; the painted glyphs must be
     # rebuilt for it (a baked pixmap won't follow the palette on its own) (#289).
-    panel = AudioCueWindow(design_session)
+    panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     before = panel._transport_icons["play"]
     QtCore.QCoreApplication.sendEvent(
@@ -143,8 +143,8 @@ def test_transport_icons_repaint_on_theme_change(qtbot, design_session):
     assert _is_painted(panel.slots[0].playButton.icon())  # button got the fresh glyph
 
 
-def test_transport_buttons_are_stacked_loop_play_stop_remove(qtbot, design_session):
-    panel = AudioCueWindow(design_session)
+def test_transport_buttons_are_stacked_loop_play_stop_remove(qtbot, headless_session):
+    panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     slot = panel.slots[0]
     box = slot.strip.layout()
@@ -157,8 +157,8 @@ def test_transport_buttons_are_stacked_loop_play_stop_remove(qtbot, design_sessi
     assert order == sorted(order)  # loop on top of play, then stop, then remove
 
 
-def test_play_button_depresses_only_the_playing_strip(qtbot, design_session):
-    panel = AudioCueWindow(design_session)
+def test_play_button_depresses_only_the_playing_strip(qtbot, headless_session):
+    panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     assert not hasattr(panel, "nowPlayingLabel")  # the text indicator is gone
     assert panel.slots[0].playButton.isCheckable()
@@ -173,8 +173,8 @@ def test_play_button_depresses_only_the_playing_strip(qtbot, design_session):
     assert not any(s.playButton.isChecked() for s in panel.slots)
 
 
-def test_add_and_remove_strips_keeps_the_lone_strip(qtbot, design_session):
-    panel = AudioCueWindow(design_session)
+def test_add_and_remove_strips_keeps_the_lone_strip(qtbot, headless_session):
+    panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     assert len(panel.slots) == INITIAL_CUE_SLOTS == 2  # a fresh study opens with two
     assert all(s.removeButton.isEnabled() for s in panel.slots)
@@ -188,15 +188,15 @@ def test_add_and_remove_strips_keeps_the_lone_strip(qtbot, design_session):
     assert not panel._addButton.isEnabled()  # capped
 
 
-def test_monitor_device_label_shows_the_room_monitor_route(qtbot, design_session):
-    panel = AudioCueWindow(design_session)
+def test_monitor_device_label_shows_the_room_monitor_route(qtbot, headless_session):
+    panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     # monitor_bedroom_noise defaults to Bedroom mic 1 (reads "(not set)" until bound).
     assert "Bedroom mic 1" in panel.monitorDeviceLabel.text()
 
 
-def test_output_meter_reflects_the_sent_level(qtbot, design_session):
-    panel = AudioCueWindow(design_session)
+def test_output_meter_reflects_the_sent_level(qtbot, headless_session):
+    panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     assert panel.outMeter.value() == 0  # nothing playing yet
     panel._out_level_db = -6.0  # as if the cue callback measured a block
@@ -205,11 +205,11 @@ def test_output_meter_reflects_the_sent_level(qtbot, design_session):
 
 
 def test_room_monitor_toggle_opens_and_closes_and_gates_streaming(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
     monkeypatch.setattr(meter.sd, "InputStream", _FakeInput)
-    design_session.devices.bindings["bedroom_mic_1"] = "Mic (Test)"
-    panel = AudioCueWindow(design_session)
+    headless_session.devices.bindings["bedroom_mic_1"] = "Mic (Test)"
+    panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     assert not panel.is_streaming()
     panel.monitorCheckBox.setChecked(True)  # -> toggle_room_monitor(True)
@@ -221,14 +221,14 @@ def test_room_monitor_toggle_opens_and_closes_and_gates_streaming(
 
 
 def test_room_monitor_start_failure_reverts_the_checkbox(
-    qtbot, design_session, monkeypatch, silence_dialogs
+    qtbot, headless_session, monkeypatch, silence_dialogs
 ):
     def boom(*args, **kwargs):
         raise RuntimeError("no mic")
 
     monkeypatch.setattr(meter.sd, "InputStream", boom)
-    design_session.devices.bindings["bedroom_mic_1"] = "Mic (Test)"
-    panel = AudioCueWindow(design_session)
+    headless_session.devices.bindings["bedroom_mic_1"] = "Mic (Test)"
+    panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     panel.monitorCheckBox.setChecked(True)
     assert not panel.monitorCheckBox.isChecked()  # reverted on failure
@@ -236,16 +236,16 @@ def test_room_monitor_start_failure_reverts_the_checkbox(
 
 
 def test_room_monitor_with_no_bound_mic_errors_and_reverts(
-    qtbot, design_session, monkeypatch
+    qtbot, headless_session, monkeypatch
 ):
     # #139: unbound monitor equipment refuses to open (instead of listening on the
     # system default input) and the checkbox reverts.
     monkeypatch.setattr(meter.sd, "InputStream", _FakeInput)
     errors = []
     monkeypatch.setattr(
-        design_session, "show_error_popup", lambda *a, **k: errors.append(a)
+        headless_session, "show_error_popup", lambda *a, **k: errors.append(a)
     )
-    panel = AudioCueWindow(design_session)
+    panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     panel.monitorCheckBox.setChecked(True)
     assert not panel.monitorCheckBox.isChecked()

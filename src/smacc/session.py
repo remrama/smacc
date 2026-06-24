@@ -69,7 +69,7 @@ class SmaccSession:
     """Shared session context: run folder, optional metadata, logger, LSL outlet.
 
     A live run records to a per-run folder under its study and emits markers on an
-    LSL outlet. ``design=True`` backs the study designer instead: it configures a
+    LSL outlet. ``headless=True`` backs the study designer instead: it configures a
     study without recording a run, so it creates no run folder, log, or outlet and
     emits no markers (cue/noise previews still work). Use :meth:`close` to release a
     live session's log handler and outlet so the launcher can open many in one run.
@@ -80,7 +80,7 @@ class SmaccSession:
         data_dir: str | Path,
         metadata: dict | None = None,
         *,
-        design: bool = False,
+        headless: bool = False,
     ) -> None:
         now = datetime.now()
         # The data directory this session belongs to: where its cue/noise pickers
@@ -88,9 +88,9 @@ class SmaccSession:
         # created. Comes from the loaded settings file (or the default data dir).
         self.data_dir = Path(data_dir)
         self.cues_dir = self.data_dir / "cues"
-        self.design = design
+        self.headless = headless
         # Recording a dream report needs a run folder; the designer has none.
-        self.can_record = not design
+        self.can_record = not headless
         # Subject/session/notes are optional metadata recorded inside the log and
         # exports (blank by default); they no longer drive filenames.
         self.metadata = {
@@ -104,7 +104,7 @@ class SmaccSession:
         # Optional hardware TTL trigger output alongside LSL (#28). ``trigger_config``
         # is the configured intent (persisted with the study, edited in the Trigger
         # output dialog); ``trigger_out`` is the live transport opened from it, or
-        # None when disabled, unconfigured, or in design mode. Each marker fires on
+        # None when disabled, unconfigured, or in headless mode. Each marker fires on
         # both LSL and this transport from the single emit_event path.
         self.trigger_config = triggers.TriggerConfig()
         self.trigger_out: triggers.TriggerOutput | None = None
@@ -144,15 +144,15 @@ class SmaccSession:
         # main window finishes startup, so construction and study loads don't
         # spam the log; the window flips this on afterwards.
         self.log_interactions = False
-        # The file handler this session owns (None in design mode), tracked so
+        # The file handler this session owns (None in headless mode), tracked so
         # close() can detach and close it without disturbing other handlers.
         self._file_handler: logging.FileHandler | None = None
-        if design:
+        if headless:
             # No run artifacts: a logger that records nothing, no folder, no outlet.
             self.session_dir: Path | None = None
             self.log_path: Path | None = None
             self.outlet: StreamOutlet | None = None
-            self.init_design_logger()
+            self.init_headless_logger()
         else:
             session_dir = make_session_dir(self.data_dir, now)
             self.session_dir = session_dir
@@ -184,8 +184,8 @@ class SmaccSession:
         self.logger.addHandler(fh)
         self._file_handler = fh
 
-    def init_design_logger(self) -> None:
-        """Set up a no-output logger for design mode (a study run records nothing)."""
+    def init_headless_logger(self) -> None:
+        """Set up a no-output logger for headless mode (a study run records nothing)."""
         self.logger = logging.getLogger("smacc")
         self.logger.setLevel(logging.DEBUG)
         self.logger.propagate = False
@@ -206,7 +206,7 @@ class SmaccSession:
 
         Lets the launcher run many sessions in one process without leaking open log
         files or marker outlets (the 'smacc' logger is a shared singleton). Safe to
-        call on a design session (it owns neither).
+        call on a headless session (it owns neither).
         """
         if self._file_handler is not None:
             try:
@@ -293,7 +293,7 @@ class SmaccSession:
             )
         label = f"{event.label}: {detail}" if detail else event.label
         line = f"{label} - portcode {code}" if event.triggered else label
-        # In design mode there is no outlet, so triggers are logged but not sent.
+        # In headless mode there is no outlet, so triggers are logged but not sent.
         # LSL and the hardware line are written back-to-back (before any pulse-down
         # sleep) so both edges land as close together as possible. LSL is stamped at
         # the estimated onset (now + onset_offset) so it lines up with the stimulus;
@@ -404,12 +404,12 @@ class SmaccSession:
         Closes any existing transport first, then opens the new one. Returns an
         error message when an *enabled* transport can't be opened (the window shows
         it to the operator), or None on success or when disabled. Never raises: a
-        design session or a disabled config simply ends with no transport.
+        headless session or a disabled config simply ends with no transport.
         """
         if self.trigger_out is not None:
             self.trigger_out.close()
             self.trigger_out = None
-        if self.design or not config.enabled:
+        if self.headless or not config.enabled:
             return None
         try:
             self.trigger_out = triggers.open_trigger(config)
@@ -452,7 +452,7 @@ class SmaccSession:
 
     def _restore_trigger_output(self) -> None:
         """Best-effort reopen of the applied trigger config (used after a test)."""
-        if self.design or not self.trigger_config.enabled:
+        if self.headless or not self.trigger_config.enabled:
             return
         try:
             self.trigger_out = triggers.open_trigger(self.trigger_config)
