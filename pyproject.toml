@@ -84,6 +84,10 @@ dev = [
     "pytest-cov",
     "ruff",
     "mypy",
+    # Enforces the hardware-free boundary of the Study Editor and its model: a
+    # static import-graph contract (see [tool.importlinter]) that fails CI if
+    # smacc.studyconfig ever reaches the session/panels/audio stack (#301).
+    "import-linter",
     "pre-commit",
     "pyinstaller",
     "types-PyYAML",
@@ -129,6 +133,35 @@ quote-style = "double"
 python_version = "3.13"
 ignore_missing_imports = true
 files = ["src"]
+
+# Static import-graph contracts (run by `lint-imports` in CI's quality job).
+# These lock in architectural boundaries that a stray import would otherwise
+# erode silently — caught here, before code review, not at runtime.
+[tool.importlinter]
+root_package = "smacc"
+# Required so the external audio/marker libraries in the contract below
+# (sounddevice, pylsl) are tracked in the graph; without it the contracts would
+# only see smacc's own modules.
+include_external_packages = true
+
+# The Study Editor authors a study by editing the pure StudyConfig model; it must
+# never be able to open an audio stream, meter a mic, or fire an LSL marker. We
+# make that true *by construction* rather than by discipline: forbid the model
+# (and, once it exists, the editor window) from importing the run-time stack at
+# all. With no import path to sounddevice/pylsl/the session, no code path can
+# reach the hardware — the guarantee can't be forgotten in a future edit. The
+# editor module joins source_modules when it lands (#301, step 5).
+[[tool.importlinter.contracts]]
+name = "The Study Editor model never reaches the hardware/run-time stack"
+type = "forbidden"
+source_modules = ["smacc.studyconfig"]
+forbidden_modules = [
+    "smacc.session",
+    "smacc.gui",
+    "smacc.panels",
+    "sounddevice",
+    "pylsl",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
