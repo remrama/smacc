@@ -29,10 +29,17 @@ from . import bids, settings
 from .dialogs import SessionInfoDialog, ask_initial_or_final
 from .paths import DEFAULT_DATA_DIR, LOGO_PATH, is_default_settings
 from .studyconfig import StudyConfig
+from .studyforms import (
+    DataDirectoryForm,
+    InterfaceForm,
+    NoiseForm,
+    SectionForm,
+    section_title,
+)
 from .toolwindow import ToolWindow
 
 # The study sections shown in the navigation tree, in authoring order. Each gets a
-# form page (filled in incrementally — placeholders until then).
+# form page (those without one yet show a placeholder).
 _SECTIONS: tuple[tuple[str, str], ...] = (
     ("data", "Data directory"),
     ("audio", "Audio cues"),
@@ -44,24 +51,16 @@ _SECTIONS: tuple[tuple[str, str], ...] = (
     ("interface", "Interface"),
 )
 
+# The form class for each section that has one (the rest fall back to a placeholder).
+_FORM_TYPES: dict[str, type[SectionForm]] = {
+    "data": DataDirectoryForm,
+    "noise": NoiseForm,
+    "interface": InterfaceForm,
+}
+
 # Study metadata rides at the file envelope, not inside StudyConfig (so one config
 # re-runs under a new subject); the editor edits these three via Session info.
 _METADATA_KEYS = ("subject", "session", "notes")
-
-
-def _section_title(text: str) -> QtWidgets.QLabel:
-    """A centered 18pt header.
-
-    A panel-free copy of :func:`smacc.panels.base.make_section_title`, duplicated
-    rather than imported because ``panels.base`` pulls in ``sounddevice`` — which
-    this module must never reach (see the module docstring and the import contract).
-    """
-    label = QtWidgets.QLabel(text)
-    label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-    font = QtGui.QFont()
-    font.setPointSize(18)
-    label.setFont(font)
-    return label
 
 
 class StudyEditorWindow(ToolWindow):
@@ -75,16 +74,19 @@ class StudyEditorWindow(ToolWindow):
         # Where Save-As defaults and Import dialogs open; updated from a loaded file.
         self.data_dir = Path(DEFAULT_DATA_DIR)
         self._pages: dict[str, QtWidgets.QWidget] = {}
+        self._forms: dict[str, SectionForm] = {}
 
         self.setWindowTitle("SMACC — Editor")
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
         self._build_menu()
-        self.setCentralWidget(self._build_body())
+        self.setCentralWidget(self._build_body())  # populates self._forms
         self.statusBar()
 
         if settings_path:
-            self._load_file(settings_path)
+            self._load_file(settings_path)  # -> _adopt_settings -> _load_forms
+        else:
+            self._load_forms()  # populate the forms from the default config
         # The clean baseline: closing now (or after undoing every edit) prompts for
         # nothing. Compared as serialized bytes, never widget identity (see _snapshot).
         self._saved_snapshot = self._snapshot()
@@ -143,7 +145,13 @@ class StudyEditorWindow(ToolWindow):
             item = QtWidgets.QTreeWidgetItem([label])
             item.setData(0, QtCore.Qt.ItemDataRole.UserRole, key)
             self.tree.addTopLevelItem(item)
-            page = self._placeholder_page(label)
+            form_type = _FORM_TYPES.get(key)
+            if form_type is None:
+                page: QtWidgets.QWidget = self._placeholder_page(label)
+            else:
+                form = form_type()
+                self._forms[key] = form
+                page = form
             self._pages[key] = page
             self.stack.addWidget(page)
         self.tree.currentItemChanged.connect(self._on_section_changed)
@@ -161,7 +169,7 @@ class StudyEditorWindow(ToolWindow):
         """A stand-in page until the section's form lands (#301)."""
         page = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(page)
-        layout.addWidget(_section_title(label))
+        layout.addWidget(section_title(label))
         note = QtWidgets.QLabel(f"The {label} form goes here.")
         note.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(note)
@@ -177,6 +185,21 @@ class StudyEditorWindow(ToolWindow):
             return
         key = current.data(0, QtCore.Qt.ItemDataRole.UserRole)
         self.stack.setCurrentWidget(self._pages[key])
+
+    def _load_forms(self) -> None:
+        """Populate every section form from the current model."""
+        for form in self._forms.values():
+            form.load(self.config)
+
+    def _commit_forms(self) -> None:
+        """Write every section form's widget values back into the model.
+
+        The single sync point between widgets and ``self.config``; the model is the
+        source of truth for save and unsaved-change detection, so this runs before
+        either reads it.
+        """
+        for form in self._forms.values():
+            form.commit(self.config)
 
     # ----- load / import ----------------------------------------------------
 
@@ -206,6 +229,7 @@ class StudyEditorWindow(ToolWindow):
             value = metadata.get(key)
             if value:
                 self.metadata[key] = value
+        self._load_forms()
 
     def import_smacc(self) -> None:
         """Load another .smacc file's settings into the editor as a starting point."""
@@ -287,6 +311,7 @@ class StudyEditorWindow(ToolWindow):
                 "file instead.",
             )
             return False
+        self._commit_forms()  # fold the latest widget edits into the model
         portable = settings.relativize_paths(
             self.config.to_settings_dict(), Path(path).parent
         )
@@ -328,6 +353,7 @@ class StudyEditorWindow(ToolWindow):
         (``biocals.rows``, the chat-preset lists) mean two equal studies can differ
         as objects, so only the bytes that would be written are authoritative (#301).
         """
+        self._commit_forms()  # reflect the live widget state before serializing
         payload = {
             "settings": self.config.to_settings_dict(),
             "metadata": dict(self.metadata),

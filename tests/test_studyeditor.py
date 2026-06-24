@@ -82,13 +82,16 @@ def test_editor_save_round_trips_byte_stable(qtbot, silence_dialogs, tmp_path):
     assert path1.read_text(encoding="utf-8") == path2.read_text(encoding="utf-8")
 
 
-def test_editing_the_model_marks_unsaved_then_save_clears_it(
+def test_editing_an_unformed_section_marks_unsaved_then_save_clears_it(
     qtbot, silence_dialogs, tmp_path
 ):
+    # surveys has no form yet, so a programmatic edit there isn't overwritten by a
+    # form commit — this exercises the snapshot/dirty machinery for sections whose
+    # values round-trip untouched.
     editor = StudyEditorWindow()
     qtbot.addWidget(editor)
     assert not editor.has_unsaved_changes()
-    editor.config.cueing.noise.volume = 0.99  # an edit a form would make
+    editor.config.surveys.url = "smacc://survey/lusk"
     assert editor.has_unsaved_changes()
     assert editor._write(str(tmp_path / "s.smacc")) is True
     assert not editor.has_unsaved_changes()  # saving rebaselines the snapshot
@@ -106,3 +109,40 @@ def test_editor_emits_closed_when_clean(qtbot, silence_dialogs):
     qtbot.addWidget(editor)
     with qtbot.waitSignal(editor.closed, timeout=1000):
         editor.close()
+
+
+# ----- section forms ---------------------------------------------------------
+
+
+def test_forms_reflect_a_loaded_study(qtbot, silence_dialogs, tmp_path):
+    full = _sample_settings(tmp_path)
+    path = tmp_path / "study.smacc"
+    _write_smacc(path, full, {"subject": "", "session": "", "notes": ""}, tmp_path)
+
+    editor = StudyEditorWindow(str(path))
+    qtbot.addWidget(editor)
+    assert editor._forms["data"].edit.text() == str(tmp_path / "data")
+    assert editor._forms["noise"].color.currentText() == "pink"
+    assert editor._forms["noise"].fileRadio.isChecked()  # source == file
+    assert editor._forms["interface"].fontSize.value() == 22
+    assert not editor.has_unsaved_changes()  # load → commit is the identity
+
+
+def test_editing_a_form_widget_round_trips_through_save(
+    qtbot, silence_dialogs, tmp_path
+):
+    editor = StudyEditorWindow()
+    qtbot.addWidget(editor)
+    editor._forms["noise"].volume.setValue(0.55)
+    editor._forms["interface"].redText.setChecked(True)
+    assert editor.has_unsaved_changes()
+
+    path = tmp_path / "edited.smacc"
+    assert editor._write(str(path)) is True
+    assert not editor.has_unsaved_changes()
+
+    reloaded = StudyEditorWindow(str(path))
+    qtbot.addWidget(reloaded)
+    assert reloaded.config.cueing.noise.volume == 0.55
+    assert reloaded.config.interface.chat_red_text is True
+    assert reloaded._forms["noise"].volume.value() == 0.55
