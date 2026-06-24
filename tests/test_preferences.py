@@ -163,3 +163,53 @@ def test_level_name_int_round_trip():
 
 def test_names_to_levels_drops_unknown():
     assert preferences.names_to_levels(["INFO", "BOGUS"]) == {logging.INFO}
+
+
+# ----- rig profile (#300) ----------------------------------------------------
+
+
+def test_rig_profile_defaults_empty():
+    prefs = preferences.default_preferences()
+    assert preferences.rig_profile(prefs) == {"bindings": {}, "trigger": {}, "hue": {}}
+    assert preferences.rig_bindings(prefs) == {}
+    assert preferences.rig_trigger(prefs) == {}
+    assert preferences.rig_hue(prefs) == {}
+
+
+def test_rig_accessors_are_defensive():
+    # A hand-edited or partial rig block must not break the accessors.
+    assert preferences.rig_profile({"rig": "junk"}) == {}
+    assert preferences.rig_bindings({"rig": {"bindings": "x"}}) == {}
+    assert preferences.rig_bindings(
+        {"rig": {"bindings": {"bedroom_speaker": "Spk"}}}
+    ) == {"bedroom_speaker": "Spk"}
+    assert preferences.rig_trigger({"rig": {}}) == {}
+    assert preferences.rig_hue({}) == {}
+
+
+def test_update_rig_merges_without_clobbering(tmp_path):
+    path = tmp_path / "preferences.yaml"
+    preferences.update_preferences(path, {"last_settings": "/x"})
+    preferences.update_rig(path, {"bindings": {"bedroom_speaker": "Speakers (Demo)"}})
+    preferences.update_rig(path, {"hue": {"bridge_ip": "192.168.1.50", "app_key": "k"}})
+    prefs = preferences.load_preferences(path)
+    # Both rig sub-keys persisted, and the unrelated launcher key is untouched.
+    assert preferences.rig_bindings(prefs) == {"bedroom_speaker": "Speakers (Demo)"}
+    assert preferences.rig_hue(prefs) == {"bridge_ip": "192.168.1.50", "app_key": "k"}
+    assert prefs["last_settings"] == "/x"
+
+
+def test_rig_profile_round_trips(tmp_path):
+    path = tmp_path / "preferences.yaml"
+    preferences.update_rig(
+        path,
+        {
+            "bindings": {"bedroom_speaker": "Spk", "philips_hue_light": "light:1"},
+            "trigger": {"port": "COM3", "baud": 115200, "address": "0x378"},
+            "hue": {"bridge_ip": "10.0.0.2", "app_key": "abc"},
+        },
+    )
+    prefs = preferences.load_preferences(path)
+    assert preferences.rig_bindings(prefs)["philips_hue_light"] == "light:1"
+    assert preferences.rig_trigger(prefs)["port"] == "COM3"
+    assert preferences.rig_hue(prefs)["app_key"] == "abc"
