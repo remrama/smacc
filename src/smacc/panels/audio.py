@@ -26,6 +26,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import audio, devices, utils
 from ..session import SmaccSession
+from ..studyconfig import AudioCue, cue_to_dict
 from ..utils import pick_random_demo_cues
 from .base import (
     PanelWindow,
@@ -874,17 +875,21 @@ class AudioCueWindow(PanelWindow):
 
     # ----- settings state ----------------------------------------------------
 
+    def to_cues(self) -> list[AudioCue]:
+        """Read each slot's widgets into an AudioCue (the shared cue model leaf)."""
+        return [
+            AudioCue(
+                name=slot.nameEdit.text(),
+                file=slot.file_path,
+                volume=slot.volumeSpinBox.value(),
+                loop=slot.loopButton.isChecked(),
+            )
+            for slot in self.slots
+        ]
+
     def gather_state(self) -> dict:
         return {
-            "cues": [
-                {
-                    "name": slot.nameEdit.text(),
-                    "file": slot.file_path,
-                    "volume": slot.volumeSpinBox.value(),
-                    "loop": slot.loopButton.isChecked(),
-                }
-                for slot in self.slots
-            ],
+            "cues": [cue_to_dict(cue) for cue in self.to_cues()],
             "cue_attack": self.attackSpinBox.value(),
             "cue_release": self.releaseSpinBox.value(),
         }

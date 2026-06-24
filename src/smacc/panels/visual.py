@@ -27,6 +27,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from .. import hue, lights
 from ..session import SmaccSession
+from ..studyconfig import VisualCue, visual_cue_to_dict
 from .base import (
     PanelWindow,
     describe_action,
@@ -621,20 +622,24 @@ class VisualWindow(PanelWindow):
 
     # ----- settings state ----------------------------------------------------
 
+    def to_cues(self) -> list[VisualCue]:
+        """Read each slot's widgets into a VisualCue (the shared cue model leaf)."""
+        return [
+            VisualCue(
+                name=slot.nameEdit.text(),
+                color=_hexcode(slot.rgb),
+                brightness=slot.brightnessSpinBox.value(),
+                pattern=slot.patternCombo.currentData(),
+                rate=slot.rateSpinBox.value(),
+                length=slot.lengthSpinBox.value(),
+                loop=slot.loopCheckBox.isChecked(),
+            )
+            for slot in self.slots
+        ]
+
     def gather_state(self) -> dict:
         return {
-            "visual_cues": [
-                {
-                    "name": slot.nameEdit.text(),
-                    "color": _hexcode(slot.rgb),
-                    "brightness": slot.brightnessSpinBox.value(),
-                    "pattern": slot.patternCombo.currentData(),
-                    "rate": slot.rateSpinBox.value(),
-                    "length": slot.lengthSpinBox.value(),
-                    "loop": slot.loopCheckBox.isChecked(),
-                }
-                for slot in self.slots
-            ],
+            "visual_cues": [visual_cue_to_dict(cue) for cue in self.to_cues()],
             "visual_attack": self.attackSpinBox.value(),
             "visual_release": self.releaseSpinBox.value(),
         }
