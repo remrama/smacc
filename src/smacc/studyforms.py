@@ -20,14 +20,22 @@ or ``pylsl`` (the import-linter contract proves it transitively via
 
 from __future__ import annotations
 
+from typing import cast
+
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 from . import devices
-from .studyconfig import StudyConfig
+from .studyconfig import AudioCue, StudyConfig, VisualCue
 
 # The spectral colors the built-in noise generator can synthesize (mirrors the
 # live Noise panel's dropdown).
 NOISE_COLORS = ("white", "pink", "brown")
+
+# Visual-cue pattern keys and labels (mirror lights.STEADY/PULSE/FLASH; hardcoded
+# so the editor needs no import of the light-rendering module).
+_VISUAL_PATTERNS = (("steady", "Steady"), ("pulse", "Pulse"), ("flash", "Flash"))
+# UI ceiling for the pulse/flash rate, mirroring the Visual panel (RATE_MAX_HZ).
+_RATE_MAX_HZ = 20.0
 
 # The combo entry for an action routed to nothing (matches the Devices panel).
 _NONE_LABEL = "(none)"
@@ -154,6 +162,244 @@ class RoutingForm(SectionForm):
     def commit(self, config: StudyConfig) -> None:
         for action_key, combo in self._combos.items():
             config.devices.routing[action_key] = combo.currentData() or ""
+
+
+class _ColorButton(QtWidgets.QPushButton):
+    """A table-cell button that shows a cue's color and opens a picker on click."""
+
+    def __init__(self, hex_color: str, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.set_hex(hex_color)
+        self.clicked.connect(self._pick)
+
+    def set_hex(self, hex_color: str) -> None:
+        self.hex = hex_color or "#ff0000"
+        self.setText(self.hex)
+        # A readable label whatever the swatch: contrast the text against the fill.
+        color = QtGui.QColor(self.hex)
+        ink = "#000000" if color.lightnessF() > 0.5 else "#ffffff"
+        self.setStyleSheet(f"background-color: {self.hex}; color: {ink};")
+
+    def _pick(self) -> None:
+        chosen = QtWidgets.QColorDialog.getColor(
+            QtGui.QColor(self.hex), self, "Pick cue color"
+        )
+        if chosen.isValid():
+            self.set_hex(chosen.name())
+
+
+class _CueTableForm(SectionForm):
+    """Shared scaffold for the audio/visual cue tables: a table + add/remove + fades.
+
+    Subclasses define the columns, how a row is built from / read back into a cue,
+    and which cue list and fade fields on the model they own.
+    """
+
+    TITLE = ""
+    COLUMNS: tuple[str, ...] = ()
+    STRETCH_COLUMN = 0  # the column that expands to fill width
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.table = QtWidgets.QTableWidget(0, len(self.COLUMNS), self)
+        self.table.setHorizontalHeaderLabels(list(self.COLUMNS))
+        self.table.setSelectionBehavior(
+            QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        vheader = self.table.verticalHeader()
+        assert vheader is not None
+        vheader.setVisible(False)
+        header = self.table.horizontalHeader()
+        assert header is not None
+        header.setSectionResizeMode(
+            self.STRETCH_COLUMN, QtWidgets.QHeaderView.ResizeMode.Stretch
+        )
+
+        add = QtWidgets.QPushButton("Add cue", self)
+        add.setStatusTip("Add a new cue.")
+        add.clicked.connect(self._add_default_row)
+        self.remove = QtWidgets.QPushButton("Remove selected", self)
+        self.remove.setStatusTip("Remove the selected cue.")
+        self.remove.clicked.connect(self._remove_selected)
+        buttons = QtWidgets.QHBoxLayout()
+        buttons.addWidget(add)
+        buttons.addWidget(self.remove)
+        self._extra_buttons(buttons)
+        buttons.addStretch(1)
+
+        self.attack = self._fade_spin("Fade-in (attack) before each cue, in seconds.")
+        self.release = self._fade_spin("Fade-out (release) after each cue, in seconds.")
+        fades = QtWidgets.QFormLayout()
+        fades.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        fades.addRow("Attack (s):", self.attack)
+        fades.addRow("Release (s):", self.release)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(section_title(self.TITLE))
+        layout.addWidget(self.table, 1)
+        layout.addLayout(buttons)
+        layout.addLayout(fades)
+
+    @staticmethod
+    def _fade_spin(tip: str) -> QtWidgets.QDoubleSpinBox:
+        spin = QtWidgets.QDoubleSpinBox()
+        spin.setRange(0, 10)
+        spin.setSingleStep(0.01)
+        spin.setDecimals(2)
+        spin.setStatusTip(tip)
+        return spin
+
+    @staticmethod
+    def _spin(
+        low: float, high: float, value: float, *, step: float = 0.01, suffix: str = ""
+    ) -> QtWidgets.QDoubleSpinBox:
+        spin = QtWidgets.QDoubleSpinBox()
+        spin.setRange(low, high)
+        spin.setSingleStep(step)
+        spin.setDecimals(2)
+        spin.setSuffix(suffix)
+        spin.setValue(value)
+        return spin
+
+    def _extra_buttons(self, layout: QtWidgets.QHBoxLayout) -> None:
+        """Hook for a subclass to add buttons (e.g. Browse) to the action row."""
+
+    def _add_default_row(self) -> None:
+        raise NotImplementedError
+
+    def _remove_selected(self) -> None:
+        row = self.table.currentRow()
+        if row >= 0:
+            self.table.removeRow(row)
+
+
+class AudioCuesForm(_CueTableForm):
+    """The audio cues a study can play: name, WAV file, volume, loop — plus fades."""
+
+    TITLE = "Audio cues"
+    COLUMNS = ("Name", "File", "Volume", "Loop")
+    STRETCH_COLUMN = 1
+
+    def _extra_buttons(self, layout: QtWidgets.QHBoxLayout) -> None:
+        browse = QtWidgets.QPushButton("Browse file…", self)
+        browse.setStatusTip("Choose the WAV file for the selected cue.")
+        browse.clicked.connect(self._browse_file)
+        layout.addWidget(browse)
+
+    def _add_default_row(self) -> None:
+        self._add_row(AudioCue())
+
+    def _add_row(self, cue: AudioCue) -> None:
+        row = self.table.rowCount()
+        self.table.insertRow(row)
+        self.table.setItem(row, 0, QtWidgets.QTableWidgetItem(cue.name))
+        self.table.setItem(row, 1, QtWidgets.QTableWidgetItem(cue.file))
+        self.table.setCellWidget(row, 2, self._spin(0, 1, cue.volume))
+        loop = QtWidgets.QCheckBox()
+        loop.setChecked(cue.loop)
+        self.table.setCellWidget(row, 3, loop)
+
+    def _browse_file(self) -> None:
+        row = self.table.currentRow()
+        if row < 0:
+            return
+        item = self.table.item(row, 1)
+        chosen, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Choose cue WAV", item.text() if item else "", "WAV file (*.wav)"
+        )
+        if chosen:
+            self.table.setItem(row, 1, QtWidgets.QTableWidgetItem(chosen))
+
+    def load(self, config: StudyConfig) -> None:
+        audio = config.cueing.audio
+        self.table.setRowCount(0)
+        for cue in audio.cues:
+            self._add_row(cue)
+        self.attack.setValue(audio.attack)
+        self.release.setValue(audio.release)
+
+    def commit(self, config: StudyConfig) -> None:
+        cues = []
+        for row in range(self.table.rowCount()):
+            name = self.table.item(row, 0)
+            file = self.table.item(row, 1)
+            volume = cast(QtWidgets.QDoubleSpinBox, self.table.cellWidget(row, 2))
+            loop = cast(QtWidgets.QCheckBox, self.table.cellWidget(row, 3))
+            cues.append(
+                AudioCue(
+                    name=name.text() if name else "",
+                    file=file.text() if file else "",
+                    volume=volume.value(),
+                    loop=loop.isChecked(),
+                )
+            )
+        config.cueing.audio.cues = cues
+        config.cueing.audio.attack = self.attack.value()
+        config.cueing.audio.release = self.release.value()
+
+
+class VisualCuesForm(_CueTableForm):
+    """The visual cues a study can play: color, brightness, pattern, rate, length."""
+
+    TITLE = "Visual cues"
+    COLUMNS = ("Name", "Color", "Brightness", "Pattern", "Rate", "Length", "Loop")
+    STRETCH_COLUMN = 0
+
+    def _add_default_row(self) -> None:
+        self._add_row(VisualCue())
+
+    def _add_row(self, cue: VisualCue) -> None:
+        row = self.table.rowCount()
+        self.table.insertRow(row)
+        self.table.setItem(row, 0, QtWidgets.QTableWidgetItem(cue.name))
+        self.table.setCellWidget(row, 1, _ColorButton(cue.color))
+        self.table.setCellWidget(row, 2, self._spin(0, 1, cue.brightness))
+        pattern = QtWidgets.QComboBox()
+        for key, label in _VISUAL_PATTERNS:
+            pattern.addItem(label, key)
+        index = pattern.findData(cue.pattern)
+        pattern.setCurrentIndex(index if index >= 0 else 0)
+        self.table.setCellWidget(row, 3, pattern)
+        self.table.setCellWidget(
+            row, 4, self._spin(0.1, _RATE_MAX_HZ, cue.rate, step=0.1, suffix=" Hz")
+        )
+        self.table.setCellWidget(row, 5, self._spin(0, 600, cue.length, step=0.1))
+        loop = QtWidgets.QCheckBox()
+        loop.setChecked(cue.loop)
+        self.table.setCellWidget(row, 6, loop)
+
+    def load(self, config: StudyConfig) -> None:
+        visual = config.cueing.visual
+        self.table.setRowCount(0)
+        for cue in visual.cues:
+            self._add_row(cue)
+        self.attack.setValue(visual.attack)
+        self.release.setValue(visual.release)
+
+    def commit(self, config: StudyConfig) -> None:
+        cues = []
+        for row in range(self.table.rowCount()):
+            name = self.table.item(row, 0)
+            color = cast(_ColorButton, self.table.cellWidget(row, 1))
+            brightness = cast(QtWidgets.QDoubleSpinBox, self.table.cellWidget(row, 2))
+            pattern = cast(QtWidgets.QComboBox, self.table.cellWidget(row, 3))
+            rate = cast(QtWidgets.QDoubleSpinBox, self.table.cellWidget(row, 4))
+            length = cast(QtWidgets.QDoubleSpinBox, self.table.cellWidget(row, 5))
+            loop = cast(QtWidgets.QCheckBox, self.table.cellWidget(row, 6))
+            cues.append(
+                VisualCue(
+                    name=name.text() if name else "",
+                    color=color.hex,
+                    brightness=brightness.value(),
+                    pattern=pattern.currentData(),
+                    rate=rate.value(),
+                    length=length.value(),
+                    loop=loop.isChecked(),
+                )
+            )
+        config.cueing.visual.cues = cues
+        config.cueing.visual.attack = self.attack.value()
+        config.cueing.visual.release = self.release.value()
 
 
 class NoiseForm(SectionForm):

@@ -30,11 +30,13 @@ from .dialogs import SessionInfoDialog, ask_initial_or_final
 from .paths import DEFAULT_DATA_DIR, LOGO_PATH, is_default_settings
 from .studyconfig import StudyConfig
 from .studyforms import (
+    AudioCuesForm,
     DataDirectoryForm,
     InterfaceForm,
     NoiseForm,
     RoutingForm,
     SectionForm,
+    VisualCuesForm,
     section_title,
 )
 from .toolwindow import ToolWindow
@@ -57,6 +59,8 @@ _SECTIONS: tuple[tuple[str, str], ...] = (
 _FORM_TYPES: dict[str, type[SectionForm]] = {
     "data": DataDirectoryForm,
     "routing": RoutingForm,
+    "audio": AudioCuesForm,
+    "visual": VisualCuesForm,
     "noise": NoiseForm,
     "interface": InterfaceForm,
 }

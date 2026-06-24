@@ -163,3 +163,59 @@ def test_routing_form_round_trips_an_action_reroute(qtbot, silence_dialogs, tmp_
     assert reloaded.config.devices.equipment_for("play_audio_cue") == "control_speaker"
     # The study carries routing only — never this machine's equipment→device bindings.
     assert "bindings" not in reloaded.config.devices.to_study_dict()
+
+
+def test_audio_cue_table_adds_and_round_trips(qtbot, silence_dialogs, tmp_path):
+    editor = StudyEditorWindow()
+    qtbot.addWidget(editor)
+    form = editor._forms["audio"]
+    form._add_row(studyconfig.AudioCue("Buzz", "cues/buzz.wav", 0.3, loop=True))
+    assert editor.has_unsaved_changes()
+
+    path = tmp_path / "cued.smacc"
+    assert editor._write(str(path)) is True
+    reloaded = StudyEditorWindow(str(path))
+    qtbot.addWidget(reloaded)
+    cues = reloaded.config.cueing.audio.cues
+    assert len(cues) == 1
+    assert (cues[0].name, cues[0].volume, cues[0].loop) == ("Buzz", 0.3, True)
+    # The reloaded table mirrors the saved cue.
+    assert reloaded._forms["audio"].table.item(0, 0).text() == "Buzz"
+
+
+def test_visual_cue_table_round_trips_color_and_pattern(
+    qtbot, silence_dialogs, tmp_path
+):
+    editor = StudyEditorWindow()
+    qtbot.addWidget(editor)
+    form = editor._forms["visual"]
+    form._add_row(
+        studyconfig.VisualCue("Glow", "#00ff00", 0.8, "pulse", 2.0, 1.5, loop=True)
+    )
+    path = tmp_path / "glow.smacc"
+    assert editor._write(str(path)) is True
+
+    reloaded = StudyEditorWindow(str(path))
+    qtbot.addWidget(reloaded)
+    cues = reloaded.config.cueing.visual.cues
+    assert len(cues) == 1
+    assert cues[0].color == "#00ff00"
+    assert cues[0].pattern == "pulse"
+    assert cues[0].rate == 2.0
+    assert not reloaded.has_unsaved_changes()  # reload is clean
+
+
+def test_removing_a_cue_marks_unsaved(qtbot, silence_dialogs, tmp_path):
+    full = _sample_settings(tmp_path)  # carries one audio cue
+    path = tmp_path / "study.smacc"
+    _write_smacc(path, full, {"subject": "", "session": "", "notes": ""}, tmp_path)
+    editor = StudyEditorWindow(str(path))
+    qtbot.addWidget(editor)
+    assert editor._forms["audio"].table.rowCount() == 1
+    assert not editor.has_unsaved_changes()
+
+    editor._forms["audio"].table.setCurrentCell(0, 0)
+    editor._forms["audio"]._remove_selected()
+    assert editor.has_unsaved_changes()
+    editor._commit_forms()
+    assert editor.config.cueing.audio.cues == []
