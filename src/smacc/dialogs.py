@@ -1,5 +1,6 @@
 """Dialogs shown by SMACC outside the main window."""
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
@@ -552,6 +553,7 @@ class ManageSurveysDialog(QtWidgets.QDialog):
         options: dict[str, str],
         builtin_dir=None,
         user_dir=None,
+        preview_builtin: Callable[[surveys.SurveyDef], None] | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -563,7 +565,10 @@ class ManageSurveysDialog(QtWidgets.QDialog):
         self._builtin_dir = builtin_dir
         self._user_dir = user_dir
         self.files_changed = False  # any custom-survey file built/edited/removed
-        self._previews: list[QtWidgets.QDialog] = []  # keep built-in views alive
+        # Previewing a built-in survey opens the real (panel) survey window; the
+        # caller injects that capability so this module imports no panels — the
+        # Study Editor reuses this dialog and stays hardware-free by design (#301).
+        self._preview_builtin = preview_builtin
 
         hint = QtWidgets.QLabel(
             "Built-in surveys ship with SMACC and open in a SMACC window; build "
@@ -724,12 +729,16 @@ class ManageSurveysDialog(QtWidgets.QDialog):
             buildDialog = BuildSurveyDialog(survey, existing_keys=existing, parent=self)
             if buildDialog.exec():
                 self._save_custom(buildDialog.get_survey())
-        else:  # builtin: read-only preview of the real window, no session attached
-            from .panels.survey import SurveyWindow  # deferred: dialogs stay Qt-light
-
-            preview = SurveyWindow(survey, None, parent=self)
-            self._previews.append(preview)
-            preview.show()
+        else:  # builtin: preview the real survey window via the injected capability
+            if self._preview_builtin is not None:
+                self._preview_builtin(survey)
+            else:  # no previewer (the editor): point at where preview lives
+                QtWidgets.QMessageBox.information(
+                    self,
+                    "Manage surveys",
+                    "Previewing a built-in survey opens it in a SMACC window, "
+                    "available from a session.",
+                )
 
     def _remove_selected(self) -> None:
         selected = self._selected()

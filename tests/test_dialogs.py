@@ -209,6 +209,42 @@ def test_manage_surveys_lists_files_and_persists_urls_only(qtbot, tmp_path):
     assert dialog.files_changed is False
 
 
+def test_manage_surveys_previews_builtin_via_injected_capability(qtbot, tmp_path):
+    # A built-in survey is previewed by opening the real (panel) survey window.
+    # The dialog imports no panels — the caller injects that capability — so this
+    # asserts View/Edit hands the selected survey to the injected previewer (and
+    # opens nothing itself). This seam keeps the dialog reusable by the
+    # hardware-free Study Editor (#301).
+    builtin_dir = tmp_path / "builtin"
+    surveys.save_survey(_demo_survey(), builtin_dir)
+    previewed = []
+    dialog = dialogs.ManageSurveysDialog(
+        {}, builtin_dir, tmp_path / "user", preview_builtin=previewed.append
+    )
+    qtbot.addWidget(dialog)
+    dialog.listWidget.setCurrentRow(0)
+    dialog._view_or_edit_selected()
+    assert len(previewed) == 1 and previewed[0].key == "demo"
+
+
+def test_manage_surveys_without_previewer_points_at_a_session(
+    qtbot, tmp_path, monkeypatch
+):
+    # With no previewer injected (the editor's case), View/Edit on a built-in
+    # explains where preview lives rather than importing a panel survey window.
+    builtin_dir = tmp_path / "builtin"
+    surveys.save_survey(_demo_survey(), builtin_dir)
+    informed = []
+    monkeypatch.setattr(
+        QtWidgets.QMessageBox, "information", lambda *a, **k: informed.append(a)
+    )
+    dialog = dialogs.ManageSurveysDialog({}, builtin_dir, tmp_path / "user")
+    qtbot.addWidget(dialog)
+    dialog.listWidget.setCurrentRow(0)
+    dialog._view_or_edit_selected()
+    assert informed
+
+
 def test_manage_surveys_builtin_cannot_be_removed(qtbot, tmp_path, monkeypatch):
     builtin_dir = tmp_path / "builtin"
     path = surveys.save_survey(_demo_survey(), builtin_dir)
