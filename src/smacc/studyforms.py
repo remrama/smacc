@@ -24,7 +24,9 @@ from typing import cast
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from . import biocals, devices
+from . import biocals, devices, surveys
+from .dialogs import ManageSurveysDialog
+from .paths import BUNDLED_SURVEYS_DIR, SURVEYS_DIR
 from .studyconfig import AudioCue, StudyConfig, VisualCue
 
 # The spectral colors the built-in noise generator can synthesize (mirrors the
@@ -558,6 +560,87 @@ class BiocalsForm(SectionForm):
         bio = config.cueing.biocals
         bio.voice_volume = self.voiceVolume.value()
         bio.rows = self._read_rows() if self.customize.isChecked() else None
+
+
+class SurveysForm(SectionForm):
+    """The study's surveys: the default survey to open plus the web-URL presets.
+
+    Web-survey URL presets (name→URL) travel with the study (``survey_options``);
+    in-app surveys come from files and are managed through the Manage dialog. The
+    default survey (``survey_url``) is chosen from the available surveys or typed.
+
+    The Manage dialog is opened with *no* built-in previewer, so the editor never
+    imports a panel survey window — keeping it hardware-free (see Slice A / #301).
+    """
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._options: dict[str, str] = {}
+
+        self.defaultCombo = QtWidgets.QComboBox(self)
+        self.defaultCombo.setEditable(True)
+        self.defaultCombo.setStatusTip(
+            "The survey opened with each dream report (pick one, or type a URL)."
+        )
+        manage = QtWidgets.QPushButton("Manage surveys…", self)
+        manage.setStatusTip("Add or edit web-survey URLs and build in-app surveys.")
+        manage.clicked.connect(self._manage)
+
+        form = QtWidgets.QFormLayout()
+        form.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        form.addRow("Default survey:", self.defaultCombo)
+
+        hint = QtWidgets.QLabel(
+            "Web-survey URLs added here travel with the study; in-app surveys are "
+            "files, managed in the dialog. The default survey opens with each report."
+        )
+        hint.setWordWrap(True)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(section_title("Surveys"))
+        layout.addLayout(form)
+        layout.addWidget(manage, 0, QtCore.Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(hint)
+        layout.addStretch(1)
+
+    def _rebuild_combo(self, url: str) -> None:
+        """List every available survey (in-app + web presets); select ``url``."""
+        self.defaultCombo.clear()
+        registry, _problems = surveys.all_surveys(BUNDLED_SURVEYS_DIR, SURVEYS_DIR)
+        for survey in registry.values():
+            self.defaultCombo.addItem(survey.name, survey.url)
+        for name, opt_url in self._options.items():
+            self.defaultCombo.addItem(name, opt_url)
+        index = self.defaultCombo.findData(url)
+        if index >= 0:
+            self.defaultCombo.setCurrentIndex(index)
+        else:  # an empty or unlisted URL: show it as typed text, no selection
+            self.defaultCombo.setCurrentIndex(-1)
+            self.defaultCombo.setEditText(url)
+
+    def _current_url(self) -> str:
+        data = self.defaultCombo.currentData()
+        if data:
+            return str(data)
+        return self.defaultCombo.currentText().strip()
+
+    def _manage(self) -> None:
+        dialog = ManageSurveysDialog(
+            self._options, BUNDLED_SURVEYS_DIR, SURVEYS_DIR, parent=self
+        )
+        accepted = dialog.exec()
+        if accepted:
+            self._options = dialog.get_options()
+        if accepted or dialog.files_changed:  # custom-survey files may have changed
+            self._rebuild_combo(self._current_url())
+
+    def load(self, config: StudyConfig) -> None:
+        self._options = dict(config.surveys.options)
+        self._rebuild_combo(config.surveys.url)
+
+    def commit(self, config: StudyConfig) -> None:
+        config.surveys.options = dict(self._options)
+        config.surveys.url = self._current_url()
 
 
 class NoiseForm(SectionForm):

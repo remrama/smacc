@@ -85,13 +85,13 @@ def test_editor_save_round_trips_byte_stable(qtbot, silence_dialogs, tmp_path):
 def test_editing_an_unformed_section_marks_unsaved_then_save_clears_it(
     qtbot, silence_dialogs, tmp_path
 ):
-    # surveys has no form yet, so a programmatic edit there isn't overwritten by a
+    # markers has no form yet, so a programmatic edit there isn't overwritten by a
     # form commit — this exercises the snapshot/dirty machinery for sections whose
     # values round-trip untouched.
     editor = StudyEditorWindow()
     qtbot.addWidget(editor)
     assert not editor.has_unsaved_changes()
-    editor.config.surveys.url = "smacc://survey/lusk"
+    editor.config.markers.event_code_safe_max = 200
     assert editor.has_unsaved_changes()
     assert editor._write(str(tmp_path / "s.smacc")) is True
     assert not editor.has_unsaved_changes()  # saving rebaselines the snapshot
@@ -252,3 +252,29 @@ def test_biocals_customizing_writes_an_explicit_stack(qtbot, silence_dialogs, tm
     assert reloaded.config.cueing.biocals.rows is not None  # now explicit
     assert reloaded.config.cueing.biocals.voice_volume == 0.4
     assert reloaded._forms["biocals"].customize.isChecked() is True
+
+
+def test_surveys_form_round_trips_url_and_options(qtbot, silence_dialogs, tmp_path):
+    raw = {
+        "survey_url": "https://example.com/post",
+        "survey_options": {"Post survey": "https://example.com/post"},
+    }
+    full = StudyConfig.from_settings_dict(raw).to_settings_dict()
+    path = tmp_path / "surv.smacc"
+    _write_smacc(path, full, {"subject": "", "session": "", "notes": ""}, tmp_path)
+
+    editor = StudyEditorWindow(str(path))
+    qtbot.addWidget(editor)
+    form = editor._forms["surveys"]
+    assert form._current_url() == "https://example.com/post"
+    assert form._options == {"Post survey": "https://example.com/post"}
+    assert not editor.has_unsaved_changes()
+
+    path2 = tmp_path / "surv2.smacc"
+    assert editor._write(str(path2)) is True
+    reloaded = StudyEditorWindow(str(path2))
+    qtbot.addWidget(reloaded)
+    assert reloaded.config.surveys.url == "https://example.com/post"
+    assert reloaded.config.surveys.options == {
+        "Post survey": "https://example.com/post"
+    }

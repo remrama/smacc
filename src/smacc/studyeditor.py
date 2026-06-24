@@ -37,6 +37,7 @@ from .studyforms import (
     NoiseForm,
     RoutingForm,
     SectionForm,
+    SurveysForm,
     VisualCuesForm,
     section_title,
 )
@@ -64,6 +65,7 @@ _FORM_TYPES: dict[str, type[SectionForm]] = {
     "visual": VisualCuesForm,
     "noise": NoiseForm,
     "biocals": BiocalsForm,
+    "surveys": SurveysForm,
     "interface": InterfaceForm,
 }
 
