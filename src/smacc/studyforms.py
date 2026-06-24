@@ -22,11 +22,15 @@ from __future__ import annotations
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
+from . import devices
 from .studyconfig import StudyConfig
 
 # The spectral colors the built-in noise generator can synthesize (mirrors the
 # live Noise panel's dropdown).
 NOISE_COLORS = ("white", "pink", "brown")
+
+# The combo entry for an action routed to nothing (matches the Devices panel).
+_NONE_LABEL = "(none)"
 
 
 def section_title(text: str) -> QtWidgets.QLabel:
@@ -99,6 +103,57 @@ class DataDirectoryForm(SectionForm):
         )
         if chosen:
             self.edit.setText(chosen)
+
+
+class RoutingForm(SectionForm):
+    """Route each action to a piece of equipment — the portable device config.
+
+    This is the *study* half of the device split (#300): which equipment each action
+    uses (the bedroom speaker, a mic, a light). It never enumerates this machine's
+    real devices — equipment→device binding is the rig's job (the Rig setup tool) —
+    so the editor authoring routing stays hardware-free. Mirrors the routing column
+    of the live Devices window: one combo per action, offering the equipment of the
+    matching kind, plus ``(none)`` for the optional (monitoring) routes.
+    """
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._combos: dict[str, QtWidgets.QComboBox] = {}
+        form = QtWidgets.QFormLayout()
+        form.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        for action in devices.ACTIONS:
+            combo = QtWidgets.QComboBox(self)
+            if action.optional:
+                combo.addItem(_NONE_LABEL, "")
+            for equipment in devices.EQUIPMENT:
+                if equipment.kind == action.kind:
+                    combo.addItem(equipment.label, equipment.key)
+            combo.setStatusTip(action.description)
+            self._combos[action.key] = combo
+            form.addRow(f"{action.label} using:", combo)
+
+        hint = QtWidgets.QLabel(
+            "Route each action to a piece of equipment. This routing travels with the "
+            "study; which real device each piece of equipment is depends on the "
+            "machine and is set once in Rig setup."
+        )
+        hint.setWordWrap(True)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(section_title("Routing"))
+        layout.addWidget(hint)
+        layout.addLayout(form)
+        layout.addStretch(1)
+
+    def load(self, config: StudyConfig) -> None:
+        cfg = config.devices
+        for action_key, combo in self._combos.items():
+            index = combo.findData(cfg.equipment_for(action_key))
+            combo.setCurrentIndex(index if index >= 0 else 0)
+
+    def commit(self, config: StudyConfig) -> None:
+        for action_key, combo in self._combos.items():
+            config.devices.routing[action_key] = combo.currentData() or ""
 
 
 class NoiseForm(SectionForm):

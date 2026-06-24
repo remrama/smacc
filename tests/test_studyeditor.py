@@ -146,3 +146,20 @@ def test_editing_a_form_widget_round_trips_through_save(
     assert reloaded.config.cueing.noise.volume == 0.55
     assert reloaded.config.interface.chat_red_text is True
     assert reloaded._forms["noise"].volume.value() == 0.55
+
+
+def test_routing_form_round_trips_an_action_reroute(qtbot, silence_dialogs, tmp_path):
+    editor = StudyEditorWindow()
+    qtbot.addWidget(editor)
+    # Reroute "play audio cue" from the bedroom speaker to the control-room speaker.
+    combo = editor._forms["routing"]._combos["play_audio_cue"]
+    combo.setCurrentIndex(combo.findData("control_speaker"))
+    assert editor.has_unsaved_changes()
+
+    path = tmp_path / "routed.smacc"
+    assert editor._write(str(path)) is True
+    reloaded = StudyEditorWindow(str(path))
+    qtbot.addWidget(reloaded)
+    assert reloaded.config.devices.equipment_for("play_audio_cue") == "control_speaker"
+    # The study carries routing only — never this machine's equipment→device bindings.
+    assert "bindings" not in reloaded.config.devices.to_study_dict()

@@ -33,6 +33,7 @@ from .studyforms import (
     DataDirectoryForm,
     InterfaceForm,
     NoiseForm,
+    RoutingForm,
     SectionForm,
     section_title,
 )
@@ -42,6 +43,7 @@ from .toolwindow import ToolWindow
 # form page (those without one yet show a placeholder).
 _SECTIONS: tuple[tuple[str, str], ...] = (
     ("data", "Data directory"),
+    ("routing", "Routing"),
     ("audio", "Audio cues"),
     ("visual", "Visual cues"),
     ("noise", "Noise"),
@@ -54,6 +56,7 @@ _SECTIONS: tuple[tuple[str, str], ...] = (
 # The form class for each section that has one (the rest fall back to a placeholder).
 _FORM_TYPES: dict[str, type[SectionForm]] = {
     "data": DataDirectoryForm,
+    "routing": RoutingForm,
     "noise": NoiseForm,
     "interface": InterfaceForm,
 }
