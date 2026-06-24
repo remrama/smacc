@@ -185,6 +185,36 @@ def test_gather_settings_routes_through_the_model_unchanged(
     assert window.gather_settings() == window._window_settings()
 
 
+def test_rig_profile_overlays_device_bindings(
+    qtbot, tmp_path, monkeypatch, mock_devices, silence_dialogs
+):
+    # The machine-local rig profile (preferences) supplies device bindings a portable
+    # study no longer carries (#300). A binding in the rig is applied to the session
+    # even when the study provides none. control_speaker is optional, so autobind
+    # never touches it — the rig profile is its only source.
+    prefs_path = tmp_path / "preferences.yaml"
+    preferences.update_rig(
+        prefs_path, {"bindings": {"control_speaker": "Rig Control Speaker"}}
+    )
+    monkeypatch.setattr(gui, "preferences_path", prefs_path)
+
+    from smacc.session import SmaccSession
+
+    monkeypatch.setattr(
+        SmaccSession,
+        "init_lsl_stream",
+        lambda self, *a, **k: setattr(self, "outlet", None),
+    )
+    window = SmaccWindow(SmaccSession(tmp_path / "data", design=False))
+    qtbot.addWidget(window)
+    window.apply_settings(window.gather_settings())
+    assert (
+        window.session.devices.device_for_equipment("control_speaker")
+        == "Rig Control Speaker"
+    )
+    window.session.close()
+
+
 def test_apply_settings_lands_values(
     qtbot, design_session, mock_devices, silence_dialogs
 ):

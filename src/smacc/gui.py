@@ -806,8 +806,15 @@ class SmaccWindow(ToolWindow):
         was_logging = self.session.log_interactions
         self.session.log_interactions = False
         self.session.missing_devices = []  # filled by the Devices reload below
-        # Device equipment/routing first, so panels resolve their device against it.
-        self.session.devices = devices.load(state)
+        # The rig profile (machine-local, in preferences) supplies the physical half
+        # of the device setup — equipment->device bindings, the trigger port, and the
+        # Hue credential — that a portable study no longer carries (#300). Empty out of
+        # the box, so this is a no-op until a rig is bound.
+        rig = self._prefs
+        # Device routing (study) + bindings (rig) first, so panels resolve against it.
+        self.session.devices = devices.from_study_and_rig(
+            state, preferences.rig_bindings(rig)
+        )
         trigger_error: str | None = None
         try:
             for panel in self.panels.values():
@@ -819,11 +826,16 @@ class SmaccWindow(ToolWindow):
             )
             # Optional hardware-trigger config (disabled when the study omits it).
             # Open the transport now so a bad port/driver is reported at load.
-            self.session.trigger_config = triggers.load(state)
+            self.session.trigger_config = triggers.from_study_and_rig(
+                state, preferences.rig_trigger(rig)
+            )
             trigger_error = self.session.set_trigger_output(self.session.trigger_config)
             # Hue bridge config before the Devices reload: the Hue equipment dropdown
-            # enumerates from the (newly loaded) bridge, so a bound light matches.
-            self.session.hue_config = hue.load(state)
+            # enumerates from the (newly loaded) bridge, so a bound light matches. The
+            # bridge credential is rig-local (#300); a study value is a legacy fallback.
+            self.session.hue_config = hue.from_dict(
+                {**(state.get("hue") or {}), **preferences.rig_hue(rig)}
+            )
             self.devices_window.refresh_device_lists()
             # A study with unbound required equipment (e.g. one authored in the
             # editor on another machine) gets *this* rig's current defaults
