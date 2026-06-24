@@ -56,7 +56,13 @@ class QtLogHandler(logging.Handler):
         self._signaller.message.emit(msg)
 
     def _append(self, msg: str) -> None:
-        self._list.addItem(msg)
-        while self._list.count() > self.max_lines:
-            self._list.takeItem(0)
-        self._list.scrollToBottom()
+        try:
+            self._list.addItem(msg)
+            while self._list.count() > self.max_lines:
+                self._list.takeItem(0)
+            self._list.scrollToBottom()
+        except RuntimeError:
+            # The preview list was destroyed (its window closed or was GC'd) while
+            # this handler still lingered on the shared 'smacc' logger. Drop the
+            # line rather than crash on the dead C++ object.
+            pass
