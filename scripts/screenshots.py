@@ -178,25 +178,25 @@ def main(out_dir: Path = ASSETS) -> None:
 
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         root = Path(tmp)
-        design = SmaccSession(root / "study", design=True)
-        live = SmaccSession(root / "data", design=False)
-        _bind_devices(design)
+        headless = SmaccSession(root / "study", headless=True)
+        live = SmaccSession(root / "data", headless=False)
+        _bind_devices(headless)
 
         print("Capturing light-theme windows:")
         _capture(app, LauncherWindow(), "launcher")
         _capture(app, SmaccWindow(live), "session", size=(1000, 680))
 
-        editor = SmaccWindow(design)
+        editor = SmaccWindow(headless)
         editor.dataDirLabel.setText(DOC_DATA_DIR)  # don't leak the temp path
         _capture(app, editor, "editor", size=(1000, 680))
-        _capture(app, DevicesWindow(design), "devices")
-        _capture(app, BiocalsWindow(design), "biocals")
-        _capture(app, AudioCueWindow(design), "audio-cue")
-        _capture(app, VisualWindow(design), "visual")
-        _capture(app, ChatWindow(design), "intercom")
-        _capture(app, ParticipantChatWindow(design), "chat")
-        _capture(app, VolumeWindow(design), "volume")
-        _capture(app, RecordingWindow(design), "recording")
+        _capture(app, DevicesWindow(headless), "devices")
+        _capture(app, BiocalsWindow(headless), "biocals")
+        _capture(app, AudioCueWindow(headless), "audio-cue")
+        _capture(app, VisualWindow(headless), "visual")
+        _capture(app, ChatWindow(headless), "intercom")
+        _capture(app, ParticipantChatWindow(headless), "chat")
+        _capture(app, VolumeWindow(headless), "volume")
+        _capture(app, RecordingWindow(headless), "recording")
         _capture(app, CueDesignerWindow(), "cue-designer")
 
         live.close()
@@ -204,14 +204,14 @@ def main(out_dir: Path = ASSETS) -> None:
         # The one dark shot: drive the lights-off toggle to document night mode. A
         # fresh session — the one above was closed by its window's "end session" path.
         print("Capturing the dark (lights-off) session:")
-        night = SmaccSession(root / "night", design=False)
+        night = SmaccSession(root / "night", headless=False)
         dark = SmaccWindow(night)
         dark.set_lights(False)
         app.processEvents()
         _capture(app, dark, "session-dark", size=(1000, 680))
         QtGui.QGuiApplication.styleHints().setColorScheme(QtCore.Qt.ColorScheme.Light)
 
-        design.close()
+        headless.close()
         night.close()
 
 
