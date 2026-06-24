@@ -40,6 +40,13 @@ DEFAULTS: dict[str, Any] = {
     # the last one opened, so the launcher can preselect it and offer quick switching.
     "recent_settings": [],
     "last_settings": None,
+    # Rig profile (#300): the physical, this-machine half of a device setup — which
+    # actual device each piece of equipment binds to, plus the hardware trigger's
+    # port/baud/address and the Hue bridge credential. Bound once per rig (in the Rig
+    # setup tool, or auto-bound at session start) and reused by every study on this
+    # machine, so a portable study carries only the logical routing, never a
+    # machine-specific device name. Empty out of the box.
+    "rig": {"bindings": {}, "trigger": {}, "hue": {}},
     # How many lines the Session window's live log preview keeps (oldest dropped
     # first; the log file always keeps everything). Large values cost GUI memory
     # and repaint time over an overnight session.
@@ -167,6 +174,53 @@ def update_window_geometry(
         windows = {}
     windows[window_id] = geometry
     update_preferences(path, {"windows": windows})
+
+
+def rig_profile(prefs: dict[str, Any]) -> dict[str, Any]:
+    """Return the machine's rig profile block (``{}`` if absent or malformed).
+
+    The rig profile is the physical half of a device setup that stays on this machine
+    (see :data:`DEFAULTS` ``rig``): equipment->device bindings, the hardware trigger's
+    port/baud/address, and the Hue bridge credential. A small accessor so callers
+    don't reach into the shape themselves; the sub-accessors below read its parts.
+    """
+    rig = prefs.get("rig")
+    return rig if isinstance(rig, dict) else {}
+
+
+def rig_bindings(prefs: dict[str, Any]) -> dict[str, str]:
+    """Return the rig's equipment->device name bindings (``{}`` if none)."""
+    bindings = rig_profile(prefs).get("bindings")
+    if not isinstance(bindings, dict):
+        return {}
+    return {str(key): str(device) for key, device in bindings.items()}
+
+
+def rig_trigger(prefs: dict[str, Any]) -> dict[str, Any]:
+    """Return the rig's hardware-trigger machine fields (port/baud/address; ``{}`` if none)."""
+    trigger = rig_profile(prefs).get("trigger")
+    return trigger if isinstance(trigger, dict) else {}
+
+
+def rig_hue(prefs: dict[str, Any]) -> dict[str, Any]:
+    """Return the rig's Hue bridge credential (bridge_ip/app_key; ``{}`` if none)."""
+    hue_credential = rig_profile(prefs).get("hue")
+    return hue_credential if isinstance(hue_credential, dict) else {}
+
+
+def update_rig(path: str | Path, changes: dict[str, Any]) -> None:
+    """Merge ``changes`` into the on-disk rig profile (load -> merge -> save).
+
+    Like :func:`update_window_geometry`, this replaces only the named rig sub-keys
+    (``bindings``/``trigger``/``hue``) it is given, leaving the rest of the rig block
+    and the rest of the file untouched. Best-effort: it never raises.
+    """
+    prefs = load_preferences(path)
+    rig = prefs.get("rig")
+    if not isinstance(rig, dict):
+        rig = {}
+    rig.update(changes)
+    update_preferences(path, {"rig": rig})
 
 
 def log_preview_max_lines(prefs: dict[str, Any]) -> int:
