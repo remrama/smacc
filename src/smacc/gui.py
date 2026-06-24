@@ -53,6 +53,7 @@ from .paths import (
 )
 from .qtlog import QtLogHandler
 from .session import SmaccSession
+from .studyconfig import StudyConfig
 from .toolwindow import ToolWindow
 
 # The live log preview's record format; the time field's strftime (24h/12h) comes
@@ -736,6 +737,20 @@ class SmaccWindow(ToolWindow):
     ############################################################################
 
     def gather_settings(self) -> dict:
+        """Collect the window's settings, routed through the StudyConfig model.
+
+        :class:`~smacc.studyconfig.StudyConfig` is the canonical (de)serializer for a
+        ``.smacc``: gathering the flat window state and round-tripping it through the
+        model is an identity for complete live state (proven in tests) and makes any
+        future panel/model drift a test failure rather than a silent mis-save. Loading
+        still applies the *raw* mapping to the panels (see :meth:`apply_settings`), so a
+        partial study keeps its "absent key leaves the current value" semantics.
+        """
+        return StudyConfig.from_settings_dict(
+            self._window_settings()
+        ).to_settings_dict()
+
+    def _window_settings(self) -> dict:
         """Collect each panel's parameters into one serializable settings dict.
 
         Device equipment + routing travel with the settings in a ``devices`` block (see

@@ -172,6 +172,19 @@ def test_settings_gather_apply_is_a_fixed_point(
     assert second == first
 
 
+def test_gather_settings_routes_through_the_model_unchanged(
+    qtbot, design_session, mock_devices, silence_dialogs
+):
+    # gather_settings() round-trips the window state through StudyConfig; for complete
+    # live state that round-trip is an identity, so routing through the model must
+    # change nothing — the public gather equals the raw window union. This is also a
+    # drift guard: a future gather_state key the model doesn't know would be dropped
+    # here and fail this assertion.
+    window = SmaccWindow(design_session)
+    qtbot.addWidget(window)
+    assert window.gather_settings() == window._window_settings()
+
+
 def test_apply_settings_lands_values(
     qtbot, design_session, mock_devices, silence_dialogs
 ):
