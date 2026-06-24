@@ -165,14 +165,9 @@ def test_open_editor_new_opens_a_blank_editor(qtbot, tmp_path, monkeypatch):
     _patch_prefs(monkeypatch, tmp_path)
     captured = {}
     monkeypatch.setattr(
-        launcher, "SmaccSession", lambda data_dir, headless=False: object()
-    )
-    monkeypatch.setattr(
         launcher,
-        "SmaccWindow",
-        lambda session, settings_path=None: (
-            captured.update(path=settings_path) or ToolWindow()
-        ),
+        "StudyEditorWindow",
+        lambda settings_path=None: captured.update(path=settings_path) or ToolWindow(),
     )
     monkeypatch.setattr(dialogs.EditorFileDialog, "exec", lambda self: True)
     monkeypatch.setattr(dialogs.EditorFileDialog, "is_new", lambda self: True)
@@ -191,14 +186,9 @@ def test_open_editor_existing_opens_that_file(qtbot, tmp_path, monkeypatch):
     settings.save_settings(good, {}, {})
     captured = {}
     monkeypatch.setattr(
-        launcher, "SmaccSession", lambda data_dir, headless=False: object()
-    )
-    monkeypatch.setattr(
         launcher,
-        "SmaccWindow",
-        lambda session, settings_path=None: (
-            captured.update(path=settings_path) or ToolWindow()
-        ),
+        "StudyEditorWindow",
+        lambda settings_path=None: captured.update(path=settings_path) or ToolWindow(),
     )
     monkeypatch.setattr(dialogs.EditorFileDialog, "exec", lambda self: True)
     monkeypatch.setattr(dialogs.EditorFileDialog, "is_new", lambda self: False)
@@ -207,6 +197,32 @@ def test_open_editor_existing_opens_that_file(qtbot, tmp_path, monkeypatch):
     qtbot.addWidget(win)
     win._open_editor()
     assert captured["path"] == str(good)
+
+
+def test_editor_close_remembers_the_saved_file(
+    qtbot, tmp_path, monkeypatch, silence_dialogs
+):
+    # Closing an editor that has a settings file returns to the launcher and
+    # remembers that file (recents + last_settings) for the next Session…/Editor….
+    from smacc import dialogs, preferences, settings
+    from smacc.studyeditor import StudyEditorWindow
+
+    prefs_path = _patch_prefs(monkeypatch, tmp_path)
+    saved = tmp_path / "study.smacc"
+    settings.save_settings(saved, {}, {})
+    remembered: list[str] = []
+    monkeypatch.setattr(dialogs, "remember_settings", remembered.append)
+
+    win = LauncherWindow()
+    qtbot.addWidget(win)
+    editor = StudyEditorWindow(settings_path=str(saved))
+    qtbot.addWidget(editor)
+    win._tool = editor
+    win._on_tool_closed()
+
+    assert remembered == [str(saved)]
+    assert preferences.load_preferences(prefs_path).get("last_settings") == str(saved)
+    assert win.isVisible()  # the launcher came back (not quit, as a session would)
 
 
 # ----- Rig setup: a standalone launcher tool (#300) ---------------------------
