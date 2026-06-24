@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 from PyQt6 import QtWidgets
 
-from smacc import gui, paths, preferences, triggers, winvolume
+from smacc import gui, paths, preferences, settings, triggers, winvolume
 from smacc.gui import SmaccWindow
 
 
@@ -25,12 +25,14 @@ def _stub_winvolume(monkeypatch):
 # ----- construction ----------------------------------------------------------
 
 
-def test_window_builds_in_design_mode(
-    qtbot, headless_session, mock_devices, silence_dialogs
+def test_window_builds_and_gathers_settings(
+    qtbot, live_session, mock_devices, silence_dialogs
 ):
-    window = SmaccWindow(headless_session)
+    window = SmaccWindow(live_session)
     qtbot.addWidget(window)
-    assert window.design is True
+    # The session window has the lightswitch and the live log preview.
+    assert hasattr(window, "lightswitchButton")
+    assert hasattr(window, "preview_handler")
     state = window.gather_settings()
     # A representative spread of the keys the settings file persists.
     for key in (
@@ -44,16 +46,6 @@ def test_window_builds_in_design_mode(
         "cues",
     ):
         assert key in state
-
-
-def test_window_builds_in_session_mode(
-    qtbot, live_session, mock_devices, silence_dialogs
-):
-    window = SmaccWindow(live_session)
-    qtbot.addWidget(window)
-    assert window.design is False
-    # The session window has the lightswitch (the designer hides it).
-    assert hasattr(window, "lightswitchButton")
 
 
 def test_session_file_menu_offers_save_as(
@@ -133,20 +125,6 @@ def test_is_default_settings_distinguishes_paths(tmp_path):
     assert paths.is_default_settings(paths.DEFAULT_SETTINGS_PATH)
     assert paths.is_default_settings(str(paths.DEFAULT_SETTINGS_PATH))
     assert not paths.is_default_settings(tmp_path / "mine.smacc")
-
-
-def test_editor_save_of_default_redirects_to_save_as(
-    qtbot, headless_session, mock_devices, silence_dialogs, monkeypatch
-):
-    # Editing the seeded default and hitting Save must go to Save-As, never an
-    # in-place overwrite of default.smacc (it's SMACC's known-good template).
-    window = SmaccWindow(headless_session)
-    qtbot.addWidget(window)
-    window.settings_path = str(paths.DEFAULT_SETTINGS_PATH)
-    called: list[bool] = []
-    monkeypatch.setattr(window, "export_settings", lambda: called.append(True) or True)
-    assert window.save_settings_in_place() is True
-    assert called == [True]
 
 
 def test_write_settings_refuses_the_default_path(
@@ -529,95 +507,21 @@ def test_hue_credential_applies_from_study_but_is_rig_local(
     assert "hue" not in window.gather_settings()
 
 
-# ----- editor close prompts only when there are unsaved changes (#183) --------
-
-
-def _watch_close_prompt(monkeypatch):
-    """Record the editor's "save before closing?" prompt instead of blocking."""
-    prompts: list[str] = []
-
-    def fake_exec(self):
-        prompts.append(self.text())
-        return QtWidgets.QMessageBox.StandardButton.Discard
-
-    monkeypatch.setattr(QtWidgets.QMessageBox, "exec", fake_exec)
-    return prompts
-
-
-def test_editor_close_without_changes_skips_prompt(
-    qtbot, headless_session, mock_devices, silence_dialogs, monkeypatch
-):
-    window = SmaccWindow(headless_session)
-    qtbot.addWidget(window)
-    prompts = _watch_close_prompt(monkeypatch)
-    assert window.close() is True
-    assert prompts == []
-
-
-def test_editor_close_after_edit_prompts(
-    qtbot, headless_session, mock_devices, silence_dialogs, monkeypatch
-):
-    window = SmaccWindow(headless_session)
-    qtbot.addWidget(window)
-    # Session metadata is part of the saved file (File → Session info…).
-    window.session.metadata["notes"] = "tweaked"
-    prompts = _watch_close_prompt(monkeypatch)
-    assert window.close() is True  # Discard → still closes
-    assert len(prompts) == 1
-
-
-def test_editor_close_after_undone_edit_skips_prompt(
-    qtbot, headless_session, mock_devices, silence_dialogs, monkeypatch
-):
-    # State equality (not an edit-signal flag) is the dirty check, so editing
-    # and then undoing back to the original counts as clean.
-    window = SmaccWindow(headless_session)
-    qtbot.addWidget(window)
-    original = window.session.metadata.get("notes", "")
-    window.session.metadata["notes"] = "tweaked"
-    window.session.metadata["notes"] = original
-    prompts = _watch_close_prompt(monkeypatch)
-    assert window.close() is True
-    assert prompts == []
-
-
-def test_editor_save_marks_clean(
-    qtbot, headless_session, mock_devices, silence_dialogs, monkeypatch, tmp_path
-):
-    window = SmaccWindow(headless_session)
-    qtbot.addWidget(window)
-    window.session.metadata["notes"] = "tweaked"
-    assert window._write_settings(str(tmp_path / "study.smacc")) is True
-    prompts = _watch_close_prompt(monkeypatch)
-    assert window.close() is True
-    assert prompts == []
-
-
 # ----- metadata precedence: the start-of-session prompt wins (#184) -----------
 
 
-def test_live_session_keeps_prompted_metadata_over_file_metadata(
-    qtbot, live_session, mock_devices, silence_dialogs
+def test_live_session_load_keeps_prompted_metadata_over_file_metadata(
+    qtbot, live_session, mock_devices, silence_dialogs, tmp_path
 ):
     # The start-of-session prompt (already prefilled from the file) owns the
-    # metadata; loading the file must not overwrite or restore values, or a
-    # field the operator edited/cleared in the prompt would silently revert.
-    live_session.metadata.update({"subject": "tonight", "session": ""})
-    window = SmaccWindow(live_session)
-    qtbot.addWidget(window)
-    window._apply_loaded_settings(
-        window.gather_settings(), {"subject": "template", "session": "ses-9"}
+    # metadata; loading the file at startup must not overwrite or restore values,
+    # or a field the operator edited/cleared in the prompt would silently revert.
+    file_path = tmp_path / "study.smacc"
+    settings.save_settings(
+        str(file_path), {}, {"subject": "template", "session": "ses-9"}
     )
+    live_session.metadata.update({"subject": "tonight", "session": ""})
+    window = SmaccWindow(live_session, settings_path=str(file_path))
+    qtbot.addWidget(window)
     assert live_session.metadata["subject"] == "tonight"
     assert live_session.metadata["session"] == ""
-
-
-def test_editor_adopts_loaded_file_metadata(
-    qtbot, headless_session, mock_devices, silence_dialogs
-):
-    # The editor has no start prompt; a loaded file's metadata lands so it can
-    # be viewed/edited and saved back.
-    window = SmaccWindow(headless_session)
-    qtbot.addWidget(window)
-    window._apply_loaded_settings(window.gather_settings(), {"subject": "template"})
-    assert headless_session.metadata["subject"] == "template"

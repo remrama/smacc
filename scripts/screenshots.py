@@ -35,6 +35,7 @@ import sys
 if "--headless" in sys.argv:
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
+import gc
 import tempfile
 from pathlib import Path
 
@@ -54,6 +55,7 @@ from smacc.panels.recording import RecordingWindow
 from smacc.panels.visual import VisualWindow
 from smacc.panels.volume import VolumeWindow
 from smacc.session import SmaccSession
+from smacc.studyeditor import StudyEditorWindow
 
 ASSETS = Path(__file__).resolve().parent.parent / "docs" / "assets"
 OUT_DIR = ASSETS  # where PNGs land; overridden by --out (the CI smoke uses a temp dir)
@@ -81,11 +83,6 @@ def _patch_hardware() -> None:
     winvolume.app_volume = lambda: 1.0
     # The marker outlet would open a network stream in a live session.
     SmaccSession.init_lsl_stream = lambda self, *a, **k: setattr(self, "outlet", None)
-
-
-# A clean, representative data directory for the Editor shot (the real one is a
-# throwaway temp path that would leak a username and never reproduce).
-DOC_DATA_DIR = r"C:\Users\you\Documents\SMACC\my-study"
 
 
 def _bind_devices(session: SmaccSession) -> None:
@@ -164,8 +161,17 @@ def _capture(app, widget, name, size=None):
     path = OUT_DIR / f"screenshot-{name}.png"
     widget.grab().save(str(path))
     print(f"  wrote {path.name}  ({widget.width()}x{widget.height()})")
+    # Tear the window down deterministically at this quiet point rather than at an
+    # unpredictable GC later. processEvents() never services DeferredDelete, so a
+    # closed/hidden window's C++ side would otherwise die mid-event-dispatch in a
+    # later capture — a native access violation in the offscreen plugin (the same
+    # trap tests/conftest.py guards). Mirror that flush here.
     widget.close()
+    widget.deleteLater()
     app.processEvents()
+    app.sendPostedEvents(None, QtCore.QEvent.Type.DeferredDelete)
+    app.processEvents()
+    gc.collect()
 
 
 def main(out_dir: Path = ASSETS) -> None:
@@ -186,9 +192,7 @@ def main(out_dir: Path = ASSETS) -> None:
         _capture(app, LauncherWindow(), "launcher")
         _capture(app, SmaccWindow(live), "session", size=(1000, 680))
 
-        editor = SmaccWindow(headless)
-        editor.dataDirLabel.setText(DOC_DATA_DIR)  # don't leak the temp path
-        _capture(app, editor, "editor", size=(1000, 680))
+        _capture(app, StudyEditorWindow(), "editor", size=(1000, 680))
         _capture(app, DevicesWindow(headless), "devices")
         _capture(app, BiocalsWindow(headless), "biocals")
         _capture(app, AudioCueWindow(headless), "audio-cue")

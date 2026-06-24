@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 import logging
 from functools import partial
 from pathlib import Path
@@ -13,7 +12,6 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtMultimedia import QMediaDevices
 
 from smacc import (
-    bids,
     biocals,
     devices,
     hue,
@@ -25,7 +23,6 @@ from smacc import (
 
 from .dialogs import (
     SessionInfoDialog,
-    ask_initial_or_final,
 )
 from .fonts import mono_font
 from .panels.audio import AudioCueWindow
@@ -71,14 +68,14 @@ class SmaccWindow(ToolWindow):
     def __init__(self, session: SmaccSession, settings_path: str | None = None) -> None:
         super().__init__()
         self.session = session
-        # Design mode reuses this window to edit a settings file (no live run): the
-        # log preview, lights, and recording are hidden/disabled, and the right
-        # column becomes the settings-editor panel. Derived from the session.
-        self.design = session.headless
-        # The .smacc this window loaded/edits (None until saved), so saving can
-        # write back to it rather than prompting every time.
+        # A window built over a headless session (tests, screenshots) records no run:
+        # it skips the log header, geometry/rig persistence, and the close prompt, but
+        # is otherwise an ordinary session window. Authoring a study is the Study
+        # Editor's job now (smacc.studyeditor), not a mode of this window.
+        # The .smacc this window loaded (None until Save-As), so a save can write
+        # back to it rather than prompting every time.
         self.settings_path = settings_path
-        # The data directory recorded in the settings (the editor can change it).
+        # The data directory recorded in the settings (where this session's runs go).
         self.data_dir = session.data_dir
         # Machine-local preferences (per-window geometry + launcher state); the
         # interface choices that used to live here now travel with the study. Loading
@@ -90,10 +87,6 @@ class SmaccWindow(ToolWindow):
         # Tool windows are positioned (cascading, right of this window) the first
         # time each is opened; reopening leaves them where the operator put them.
         self._positioned_panels: set[str] = set()
-        # The preview-levels setting last loaded/saved with the study. In a session
-        # the live checkboxes are the source of truth; the editor has no preview
-        # pane, so it preserves this value verbatim instead of clobbering it.
-        self._preview_levels: list[str] = ["INFO", "WARNING", "ERROR", "CRITICAL"]
 
         # Tool windows, constructed up front (hidden) and opened on demand from
         # the launcher buttons. The Devices window owns all device selection; the
@@ -161,8 +154,8 @@ class SmaccWindow(ToolWindow):
         self._media_devices.audioInputsChanged.connect(self._hotplug_timer.start)
         # Pin any unbound required equipment to the current Windows default,
         # by name (#139), so a session always knows which physical device it will
-        # use. No-op in the editor; a study loaded below re-runs it on its own
-        # (freshly loaded) config via apply_settings.
+        # use. Skipped for a headless session; a study loaded below re-runs it on
+        # its own (freshly loaded) config via apply_settings.
         self.devices_window.autobind_defaults()
 
         self.init_main_window()  # builds the menu + log handler (does not show yet)
@@ -170,15 +163,11 @@ class SmaccWindow(ToolWindow):
         # A study file passed on launch becomes this session's initial setup.
         if settings_path:
             self._load_initial_settings(settings_path)
-        if self.design:
-            # Baseline for the close-time unsaved-changes check (#183): what the
-            # editor would save right now. Re-captured on every successful save.
-            self._saved_snapshot = self._design_snapshot()
         self.show()  # single show, after window flags + geometry are applied
 
-        # The designer records no run, so it skips the log header and
-        # interaction logging — it only edits config.
-        if not self.design:
+        # A headless session records no run, so it skips the log header and
+        # interaction logging.
+        if not self.session.headless:
             # Panels (and any launch-file overrides) are in place, so capture the
             # initial state into the log header (also emits the "Opened SMACC" line).
             self.session.begin_log(self._window_settings())
@@ -192,9 +181,6 @@ class SmaccWindow(ToolWindow):
 
     def _update_preview_levels(self) -> None:
         """Sync the preview handler's visible levels to the level checkboxes."""
-        # The designer has no log viewer (and no preview handler) to sync.
-        if self.design:
-            return
         self.preview_handler.enabled_levels = {
             level for level, box in self._preview_level_boxes.items() if box.isChecked()
         }
@@ -204,31 +190,20 @@ class SmaccWindow(ToolWindow):
         self._build_menu_bar()
         self.statusBar().showMessage("Ready")
 
-        # Two columns: the tools column (with the lights toggle pinned to the
-        # bottom) and a right column — the live log preview in a session, or the
-        # save panel in the editor. The editor also gets a banner spanning the top
-        # so it's obvious nothing is being recorded. The menu is built first so the
+        # Two columns: the tools column (with the lights toggle pinned to the bottom)
+        # and the live log preview on the right. The menu is built first so the
         # preview-level checkbox dict it seeds is ready when the preview is built.
         central_layout = QtWidgets.QGridLayout()
-        content_row = 0
-        if self.design:
-            central_layout.addWidget(self._build_editor_banner(), 0, 0, 1, 2)
-            content_row = 1
-        central_layout.addLayout(self._build_launcher_buttons(), content_row, 0)
-        right_column = (
-            self._build_editor_section()
-            if self.design
-            else self._build_log_viewer_section()
-        )
-        central_layout.addLayout(right_column, content_row, 1)
+        central_layout.addLayout(self._build_launcher_buttons(), 0, 0)
+        central_layout.addLayout(self._build_log_viewer_section(), 0, 1)
         central_layout.setColumnStretch(1, 1)  # the right column takes the extra width
-        central_layout.setRowStretch(content_row, 1)  # content fills height, not banner
+        central_layout.setRowStretch(0, 1)
         central_widget = QtWidgets.QWidget()
         central_widget.setContentsMargins(5, 5, 5, 5)
         central_widget.setLayout(central_layout)
         self.setCentralWidget(central_widget)
 
-        self.setWindowTitle("SMACC Editor" if self.design else "SMACC Session")
+        self.setWindowTitle("SMACC Session")
         if LOGO_PATH.is_file():
             windowIcon = QtGui.QIcon(str(LOGO_PATH))
         else:
@@ -327,12 +302,7 @@ class SmaccWindow(ToolWindow):
         self.lightswitchButton.setChecked(True)
         self._refresh_lightswitch_label()
         self.lightswitchButton.toggled.connect(self.on_lightswitch_toggled)
-        # Lights are a live-session concept. The editor hides the toggle (still
-        # built, so preference application stays uniform); the stretch above
-        # already pushes the tool buttons to the top in that mode.
-        self.lightswitchButton.setVisible(not self.design)
-        if not self.design:
-            layout.addWidget(self.lightswitchButton)
+        layout.addWidget(self.lightswitchButton)
         return layout
 
     def _open_panel(self, key: str) -> None:
@@ -340,12 +310,13 @@ class SmaccWindow(ToolWindow):
 
         On a tool's first open this session, restore the position/size it was last
         left at (machine-local, per window); with none saved (or off-screen now) it
-        cascades to the right of the session window as before. The editor reuses these
-        windows to author settings and always cascades (it persists no geometry).
+        cascades to the right of the session window as before. A headless window
+        (tests, screenshots) persists no geometry, so it always cascades.
         """
         window = self.panels[key]
         if key not in self._positioned_panels:
-            if not (not self.design and self._restore_panel_geometry(window, key)):
+            headless = self.session.headless
+            if not (not headless and self._restore_panel_geometry(window, key)):
                 self._position_panel(window, key)
             self._positioned_panels.add(key)
         window.show()
@@ -398,15 +369,11 @@ class SmaccWindow(ToolWindow):
         assert style is not None
         quitAction = QtGui.QAction(
             style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_BrowserStop),
-            "Close &editor" if self.design else "End sessio&n",
+            "End sessio&n",
             self,
         )
         quitAction.setShortcut("Ctrl+Q")
-        quitAction.setStatusTip(
-            "Close the editor and return to the SMACC Launcher"
-            if self.design
-            else "End this session and quit SMACC"
-        )
+        quitAction.setStatusTip("End this session and quit SMACC")
         quitAction.triggered.connect(self.close)  # close goes to closeEvent
 
         sessionInfoAction = QtGui.QAction("Session &info…", self)
@@ -459,12 +426,7 @@ class SmaccWindow(ToolWindow):
         # _build_log_viewer_section), not in this menu. Initialized empty here so
         # _apply_preferences can iterate it uniformly in both modes.
         self._preview_level_boxes: dict[int, QtWidgets.QCheckBox] = {}
-        if self.design:
-            self._build_editor_file_menu(fileMenu, sessionInfoAction)
-        else:
-            self._build_session_file_menu(
-                fileMenu, sessionInfoAction, alwaysOnTopAction
-            )
+        self._build_session_file_menu(fileMenu, sessionInfoAction, alwaysOnTopAction)
         fileMenu.addSeparator()
         fileMenu.addAction(quitAction)
 
@@ -473,33 +435,6 @@ class SmaccWindow(ToolWindow):
         surveysMenu = fileMenu.addMenu("Sur&veys")
         assert surveysMenu is not None
         surveysMenu.aboutToShow.connect(lambda: self._rebuild_surveys_menu(surveysMenu))
-
-    def _build_editor_file_menu(self, fileMenu, sessionInfoAction):
-        """Editor File menu: save/import settings + the config editors (no live run)."""
-        saveAction = QtGui.QAction("&Save SMACC file", self)
-        saveAction.setShortcut("Ctrl+S")
-        saveAction.setStatusTip(
-            "Save to the current SMACC file (or choose a name if new)."
-        )
-        saveAction.triggered.connect(self.save_settings_in_place)
-        saveAsAction = QtGui.QAction("Save SMACC file &as…", self)
-        saveAsAction.setStatusTip("Save these settings to a new SMACC file.")
-        saveAsAction.triggered.connect(self.export_settings)
-        importAction = QtGui.QAction("&Import SMACC file…", self)
-        importAction.setStatusTip(
-            "Load another SMACC file's settings into the editor as a starting point."
-        )
-        importAction.triggered.connect(self.load_settings)
-        importLogAction = QtGui.QAction("Import settings from &log…", self)
-        importLogAction.setStatusTip(
-            "Load the settings recorded in a SMACC .log into the editor."
-        )
-        importLogAction.triggered.connect(self.load_settings_from_log)
-        for action in (saveAction, saveAsAction, importAction, importLogAction):
-            fileMenu.addAction(action)
-        fileMenu.addSeparator()
-        fileMenu.addAction(sessionInfoAction)
-        self._add_surveys_menu(fileMenu)
 
     def _build_session_file_menu(self, fileMenu, sessionInfoAction, alwaysOnTopAction):
         """Session File menu: run-only. Author settings in the editor; analyze past
@@ -565,7 +500,20 @@ class SmaccWindow(ToolWindow):
                 datefmt=preferences.preview_time_format(self._prefs),
             )
         )
-        self.session.logger.addHandler(self.preview_handler)
+        # Only a live session routes its log to the preview. A headless window
+        # records nothing, and attaching this handler to the shared 'smacc' logger
+        # would outlive the (offscreen, soon-GC'd) list widget and fire into a
+        # deleted object from a later test/run.
+        if not self.session.headless:
+            self.session.logger.addHandler(self.preview_handler)
+            # Detach the handler when this window is destroyed — even without a
+            # clean close (a test that declines the end-session prompt, the
+            # screenshot harness) — so a GC'd window never leaves a handler on the
+            # shared logger firing into its deleted list widget. Captures the logger
+            # and handler by value, not via self, which is mid-teardown by then.
+            logger = self.session.logger
+            handler = self.preview_handler
+            self.destroyed.connect(lambda: logger.removeHandler(handler))
 
         # Level toggles in a single row between the header and the list, so a
         # level (e.g. DEBUG) can be flipped on the fly without a menu. The log
@@ -595,70 +543,6 @@ class SmaccWindow(ToolWindow):
         logviewLayout.addLayout(levelRow)
         logviewLayout.addWidget(logviewList, 1)
         return logviewLayout
-
-    def _build_editor_banner(self) -> QtWidgets.QLabel:
-        """A prominent bar making clear the editor is configuring, not recording."""
-        banner = QtWidgets.QLabel(
-            "✎  Editing a SMACC file — no session is being recorded.", self
-        )
-        banner.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        banner.setStyleSheet(
-            "background-color: #f0d000; color: black; font: bold 11pt;"
-            " padding: 6px; border-radius: 4px;"
-        )
-        return banner
-
-    def _build_editor_section(self) -> QtWidgets.QLayout:
-        """Build the settings-editor right column: data directory + save actions.
-
-        Replaces the live log viewer when this window is the settings editor. The
-        tools column at the left configures the settings; here you pick the data
-        directory (where runs go) and save it all to a ``.smacc`` file.
-        """
-        layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(self._make_section_title("Editor"))
-        info = QtWidgets.QLabel(
-            "Configure each tool on the left (cues, noise, visual, events, …), set "
-            "the data directory, then save to a <b>SMACC file</b> (.smacc). Open it "
-            "from the Launcher to run a session with it."
-        )
-        info.setWordWrap(True)
-        layout.addWidget(info)
-        layout.addSpacing(8)
-
-        # Data directory: where sessions started from these settings are written.
-        layout.addWidget(QtWidgets.QLabel("Data directory:", self))
-        self.dataDirLabel = QtWidgets.QLabel(str(self.data_dir), self)
-        self.dataDirLabel.setWordWrap(True)
-        self.dataDirLabel.setStyleSheet("font-style: italic;")
-        layout.addWidget(self.dataDirLabel)
-        changeDirButton = QtWidgets.QPushButton("Change data directory…", self)
-        changeDirButton.setStatusTip("Choose where sessions using these settings save.")
-        changeDirButton.clicked.connect(self.change_data_dir)
-        layout.addWidget(changeDirButton)
-        layout.addSpacing(8)
-
-        saveButton = QtWidgets.QPushButton("Save SMACC file", self)
-        saveButton.setStatusTip(
-            "Save to the current SMACC file (or choose a name if new)."
-        )
-        saveButton.clicked.connect(self.save_settings_in_place)
-        saveAsButton = QtWidgets.QPushButton("Save SMACC file as…", self)
-        saveAsButton.setStatusTip("Save these settings to a new SMACC file.")
-        saveAsButton.clicked.connect(self.export_settings)
-        layout.addWidget(saveButton)
-        layout.addWidget(saveAsButton)
-        layout.addStretch(1)
-        return layout
-
-    def change_data_dir(self) -> None:
-        """Pick the data directory recorded in these settings (editor only)."""
-        path = QtWidgets.QFileDialog.getExistingDirectory(
-            self, "Choose data directory", str(self.data_dir)
-        )
-        if path:
-            self.data_dir = Path(path)
-            self.dataDirLabel.setText(str(self.data_dir))
 
     def toggle_always_on_top(self, enabled: bool) -> None:
         """Toggle the main window's always-on-top hint (from its File menu)."""
@@ -776,8 +660,7 @@ class SmaccWindow(ToolWindow):
         # Philips Hue bridge config (#53): rig state that travels with the study,
         # like the device bindings. The app key is a local-network credential.
         state["hue"] = self.session.hue_config.to_dict()
-        # The data directory (where runs are written) travels with the settings;
-        # the editor can repoint it, so read the window's copy, not the session's.
+        # The data directory (where runs are written) travels with the settings.
         state["data_directory"] = str(self.data_dir)
         # Interface choices that travel with the study: the live-preview levels and
         # the main window's always-on-top, plus a per-tool always-on-top map keyed by
@@ -790,14 +673,7 @@ class SmaccWindow(ToolWindow):
         return state
 
     def _gather_preview_levels(self) -> list[str]:
-        """The enabled preview levels as level-name strings (for the settings file).
-
-        In a session the live checkboxes are authoritative; the editor has no preview
-        pane, so it returns the value last loaded/saved (preserved verbatim) rather
-        than an empty list that would silently wipe a study's preview-level choice.
-        """
-        if self.design:
-            return list(self._preview_levels)
+        """The enabled preview levels as level-name strings (for the settings file)."""
         checked = {
             level for level, box in self._preview_level_boxes.items() if box.isChecked()
         }
@@ -865,13 +741,10 @@ class SmaccWindow(ToolWindow):
 
         Absent (the study omits the key) leaves the current selection — which the
         window seeded to the default set — untouched, so the defaults apply.
-        The value is also remembered so the editor (which has no preview pane) can
-        round-trip it on save instead of clobbering it.
         """
         if "preview_levels" not in state:
             return
         names = state.get("preview_levels") or []
-        self._preview_levels = list(names)
         wanted = preferences.names_to_levels(names)
         for level, box in self._preview_level_boxes.items():
             box.blockSignals(True)
@@ -944,11 +817,10 @@ class SmaccWindow(ToolWindow):
     def _notify_missing_devices(self) -> None:
         """Surface, once, any saved devices that weren't connected when settings loaded.
 
-        Skipped in the designer, where a study is often built on a different machine
-        than the rig, so missing devices there are expected and not worth a popup.
+        Skipped for a headless window (tests, screenshots), which opens no popups.
         """
         missing = self.session.missing_devices
-        if not missing or self.design:
+        if not missing or self.session.headless:
             return
         items = "\n".join(f"  • {entry}" for entry in missing)
         self.session.show_info_popup(
@@ -963,8 +835,8 @@ class SmaccWindow(ToolWindow):
     def _notify_missing_biocal_voices(self) -> None:
         """Warn once, at session start, about absent biocal voice recordings (#78).
 
-        Sessions only — the files are machine-level (seeded under the SMACC
-        root), so the designer, often run on a different machine than the rig,
+        Live sessions only — the files are machine-level (seeded under the SMACC
+        root), so a headless window (e.g. built on a different machine than the rig)
         would warn spuriously. A biocal with a missing voice still runs, just
         unvoiced, so this is a heads-up rather than a blocker.
         """
@@ -1032,9 +904,9 @@ class SmaccWindow(ToolWindow):
         self.lightswitchButton.blockSignals(False)
         self.set_lights(True, send_marker=False)
 
-        # The editor doesn't persist its own geometry; give it a compact default
-        # rather than inheriting the (larger) saved session window size.
-        if self.design:
+        # A headless window persists no geometry; give it a compact default rather
+        # than inheriting (or later writing) the saved session window size.
+        if self.session.headless:
             self.resize(640, 460)
         else:
             geometry = preferences.window_geometry(prefs, preferences.MAIN_WINDOW_ID)
@@ -1045,9 +917,9 @@ class SmaccWindow(ToolWindow):
 
         # Reflect the saved live-preview clock choice in its menu toggle. The
         # preview formatter was already built from this preference; this only syncs
-        # the checkmark (signals blocked so the handler doesn't re-persist). The
-        # editor has no preview pane and no such menu item.
-        if not self.design:
+        # the checkmark (signals blocked so the handler doesn't re-persist). Skipped
+        # for a headless window, which touches no machine preferences.
+        if not self.session.headless:
             self._preview_clock_action.blockSignals(True)
             self._preview_clock_action.setChecked(
                 preferences.log_preview_clock(prefs) == "12h"
@@ -1071,9 +943,9 @@ class SmaccWindow(ToolWindow):
         """Persist this window's position/size under the main-window id (best-effort).
 
         Merged into the on-disk per-window map so it doesn't clobber the launcher's
-        recents or any other window's geometry. The editor doesn't persist geometry.
+        recents or any other window's geometry. A headless window persists nothing.
         """
-        if self.design:
+        if self.session.headless:
             return
         preferences.update_window_geometry(
             preferences_path, preferences.MAIN_WINDOW_ID, windowstate.geometry_of(self)
@@ -1082,24 +954,15 @@ class SmaccWindow(ToolWindow):
     def _load_initial_settings(self, settings_path: str) -> None:
         """Load a settings file given on launch and apply it as the initial setup."""
         try:
-            state, metadata = settings.load_settings(settings_path)
+            state, _metadata = settings.load_settings(settings_path)
             state = settings.resolve_paths(state, Path(settings_path).parent)
         except (OSError, ValueError) as exc:
             self.show_error_popup("Could not open settings file.", str(exc))
             return
-        self._apply_loaded_settings(state, metadata)
+        # A live session's metadata comes from the start-of-session prompt (#184),
+        # already prefilled from this file, so the loaded metadata is not re-merged.
+        self.apply_settings(state)
         self.session.log_debug_msg(f"Loaded settings from {settings_path}")
-
-    def save_settings_in_place(self) -> bool:
-        """Save to the current .smacc without prompting; fall back to Save-As if new.
-
-        Returns True if the settings were written, False if cancelled. SMACC's seeded
-        ``default.smacc`` is treated as a read-only template: saving it redirects to
-        Save-As so the default stays a known-good starting point.
-        """
-        if self.settings_path and not is_default_settings(self.settings_path):
-            return self._write_settings(self.settings_path)
-        return self.export_settings()
 
     def export_settings(self) -> bool:
         """Prompt for a path (Save-As) and write the settings there. Returns success."""
@@ -1137,14 +1000,11 @@ class SmaccWindow(ToolWindow):
             return False
         self.settings_path = path  # subsequent saves update this file
         # The physical half of the device setup is machine-local, so persist it to the
-        # rig profile (preferences), not the portable study (#300). Sessions only — the
-        # editor authors a study, not this machine's rig.
-        if not self.design:
+        # rig profile (preferences), not the portable study (#300). A headless window
+        # records nothing and touches no machine state.
+        if not self.session.headless:
             self._persist_rig_profile()
-        if self.design:
-            self._saved_snapshot = self._design_snapshot()  # editor is clean again
         self.session.log_debug_msg(f"Saved settings to {path}")
-        # Status-bar confirmation: the editor has no log viewer to show the line.
         status_bar = self.statusBar()
         assert status_bar is not None
         status_bar.showMessage(f"Saved settings to {Path(path).name}", 5000)
@@ -1173,86 +1033,13 @@ class SmaccWindow(ToolWindow):
         session is reused by every later study on this machine, without needing a Save.
         Writes only the ``bindings`` sub-key (leaving the rig's trigger/hue intact) and
         keeps the in-memory prefs in sync so a later load reads the new binding.
-        Sessions only — the editor authors a study, not this machine's rig.
+        A headless window records nothing and touches no machine state.
         """
-        if self.design:
+        if self.session.headless:
             return
         bindings = dict(self.session.devices.bindings)
         preferences.update_rig(preferences_path, {"bindings": bindings})
         self._prefs.setdefault("rig", {})["bindings"] = bindings
-
-    def load_settings(self) -> None:
-        """Prompt for a .smacc settings file and apply it."""
-        path, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self,
-            "Open SMACC file",
-            str(self.session.data_dir),
-            "SMACC file (*.smacc)",
-        )
-        if not path:
-            return
-        try:
-            state, metadata = settings.load_settings(path)
-            state = settings.resolve_paths(state, Path(path).parent)
-        except (OSError, ValueError) as exc:
-            self.show_error_popup("Could not open settings.", str(exc))
-            return
-        self._apply_loaded_settings(state, metadata)
-        self.session.log_debug_msg(f"Loaded settings from {path}")
-
-    def load_settings_from_log(self) -> None:
-        """Load the initial or final settings recorded in a SMACC .log file."""
-        path, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self,
-            "Load settings from log",
-            str(self.session.data_dir),
-            "SMACC log (*.log)",
-        )
-        if not path:
-            return
-        which = self._ask_initial_or_final()
-        if which is None:
-            return
-        try:
-            log_text = Path(path).read_text(encoding="utf-8")
-        except OSError as exc:
-            self.show_error_popup("Could not read log.", str(exc))
-            return
-        payload = bids.extract_settings_from_log(log_text, which)
-        if payload is None:
-            self.show_error_popup(
-                f"No {which} settings found in that log.",
-                "The log may predate settings recording, or the session may have "
-                "ended before its final settings were written.",
-            )
-            return
-        try:
-            state, metadata = settings.parse_settings_mapping(payload)
-        except ValueError as exc:
-            self.show_error_popup("Could not load settings from log.", str(exc))
-            return
-        self._apply_loaded_settings(state, metadata)
-        self.session.log_debug_msg(f"Loaded {which} settings from {path}")
-
-    def _ask_initial_or_final(self) -> str | None:
-        """Ask whether to load the initial or final settings block (None on cancel)."""
-        return ask_initial_or_final(self, title="Load settings from log")
-
-    def _apply_loaded_settings(self, state: dict, metadata: dict) -> None:
-        """Apply panel state; in the editor, also adopt the file's metadata.
-
-        A live session's metadata comes from the start-of-session prompt (#184),
-        which was already prefilled from the file — re-merging the file's values
-        here would silently undo whatever the operator edited or cleared in that
-        prompt. The editor has no prompt, so it adopts the loaded file's values.
-        """
-        self.apply_settings(state)
-        if not self.design:
-            return
-        for key in ("subject", "session", "notes"):
-            value = metadata.get(key)
-            if value:
-                self.session.metadata[key] = value
 
     def session_info(self) -> None:
         """Edit the session's optional subject/session/notes metadata."""
@@ -1276,11 +1063,11 @@ class SmaccWindow(ToolWindow):
         """Stop and close every tool window (called when this window closes).
 
         Each panel that the operator opened this session records its geometry under
-        its panel key, so it reopens where it was left next time. The editor reuses
-        these windows to author settings and deliberately doesn't persist geometry.
+        its panel key, so it reopens where it was left next time. A headless window
+        persists no geometry.
         """
         for key, panel in self.panels.items():
-            if not self.design and key in self._positioned_panels:
+            if not self.session.headless and key in self._positioned_panels:
                 preferences.update_window_geometry(
                     preferences_path, key, windowstate.geometry_of(panel)
                 )
@@ -1288,49 +1075,14 @@ class SmaccWindow(ToolWindow):
             panel.cleanup()
             panel.close()
 
-    def _design_snapshot(self) -> dict:
-        """A deep copy of the savable editor state (settings + metadata).
-
-        Compared against the post-load/post-save baseline to decide whether the
-        editor has unsaved changes; state-equality also treats "edited, then
-        undone back to the original" as clean (#183).
-        """
-        return copy.deepcopy(
-            {"settings": self.gather_settings(), "metadata": self.session.metadata}
-        )
-
     def closeEvent(self, event):
-        """End the session (or close the designer) and emit ``closed``.
+        """End the session and emit ``closed`` (the launcher then quits SMACC).
 
-        closeEvent is a default method used in pyqt to close, so this overrides it.
-        The launcher decides what follows: the editor's close brings the launcher
-        back, while ending a live session quits SMACC outright (see
-        ``LauncherWindow._on_tool_closed``).
+        Overrides Qt's closeEvent. A headless window (tests, screenshots) records no
+        run, so it tears down cleanly — no end-session prompt and no preference
+        writes — and the launcher brings itself back rather than quitting.
         """
-        if self.design:
-            # Only prompt when the editor differs from what was last loaded or
-            # saved; an untouched editor closes silently (#183).
-            if self._design_snapshot() != self._saved_snapshot:
-                box = QtWidgets.QMessageBox(self)
-                box.setWindowTitle("Close editor")
-                box.setText("Save changes to the SMACC file before closing?")
-                box.setStandardButtons(
-                    QtWidgets.QMessageBox.StandardButton.Save
-                    | QtWidgets.QMessageBox.StandardButton.Discard
-                    | QtWidgets.QMessageBox.StandardButton.Cancel
-                )
-                box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.Save)
-                choice = box.exec()
-                if choice == QtWidgets.QMessageBox.StandardButton.Cancel:
-                    event.ignore()
-                    return
-                if (
-                    choice == QtWidgets.QMessageBox.StandardButton.Save
-                    and not self.save_settings_in_place()
-                ):
-                    event.ignore()  # save was cancelled/failed → keep the editor open
-                    return
-            # No run to finalize and no operator prefs to write from the editor.
+        if self.session.headless:
             self._teardown_panels()
             self.session.close()
             event.accept()

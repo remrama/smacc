@@ -8,6 +8,8 @@ and refuse to clobber the bundled template.
 
 from __future__ import annotations
 
+import dataclasses
+
 from smacc import settings, studyconfig
 from smacc.paths import DEFAULT_SETTINGS_PATH
 from smacc.studyconfig import StudyConfig
@@ -315,3 +317,101 @@ def test_markers_trigger_behavior_round_trips_without_machine_fields(
     # The saved study carries trigger behavior only — never machine port/baud/address.
     study_trigger = reloaded.config.to_settings_dict()["trigger_output"]
     assert not {"port", "baud", "address"} & set(study_trigger)
+
+
+# ----- leaf coverage: every model field is bound or explicitly excluded -------
+
+
+def _model_leaves(obj, prefix=""):
+    """Yield the dotted path of every leaf in the StudyConfig domain tree.
+
+    Recurses only into the editor's own domain dataclasses (smacc.studyconfig);
+    the reused sub-models DeviceConfig and TriggerConfig are opaque leaves edited
+    as a unit by the routing / markers forms.
+    """
+    for field in dataclasses.fields(obj):
+        value = getattr(obj, field.name)
+        path = f"{prefix}{field.name}"
+        if dataclasses.is_dataclass(value) and type(value).__module__ == (
+            StudyConfig.__module__
+        ):
+            yield from _model_leaves(value, f"{path}.")
+        else:
+            yield path
+
+
+# Fields a Study Editor form lets the author edit (grouped by their form).
+_BOUND_FIELDS = {
+    "data_directory",  # DataDirectoryForm
+    "devices",  # RoutingForm (the study's action->equipment routing)
+    "cueing.audio.cues",
+    "cueing.audio.attack",
+    "cueing.audio.release",  # AudioCuesForm
+    "cueing.visual.cues",
+    "cueing.visual.attack",
+    "cueing.visual.release",  # VisualCuesForm
+    "cueing.noise.volume",
+    "cueing.noise.color",
+    "cueing.noise.source",
+    "cueing.noise.file",  # NoiseForm
+    "cueing.biocals.voice_volume",
+    "cueing.biocals.rows",  # BiocalsForm
+    "markers.event_codes",
+    "markers.event_code_safe_max",
+    "markers.trigger",  # MarkersForm (trigger = behavior only; rig owns port/baud/addr)
+    "surveys.url",
+    "surveys.options",  # SurveysForm
+    "interface.chat_font_size",
+    "interface.chat_red_text",
+    "interface.volume_cap",
+    "interface.output_latency",  # InterfaceForm
+}
+
+# Fields deliberately NOT surfaced in the editor: runtime/interface preferences that
+# travel with the study but are set live in a session, and round-trip untouched.
+_EXCLUDED_FIELDS = {
+    "interface.chat_experimenter_presets",
+    "interface.chat_participant_presets",
+    "interface.preview_levels",
+    "interface.always_on_top",
+    "interface.tool_always_on_top",
+}
+
+
+def test_every_study_field_is_bound_or_explicitly_excluded():
+    # A guard against silent divergence between the model and the editor: a field
+    # added to StudyConfig must be given a form control (add to _BOUND_FIELDS) or
+    # explicitly declared an un-authored runtime pref (add to _EXCLUDED_FIELDS).
+    leaves = set(_model_leaves(StudyConfig()))
+    assert leaves == _BOUND_FIELDS | _EXCLUDED_FIELDS
+
+
+def test_excluded_interface_fields_round_trip_untouched(
+    qtbot, silence_dialogs, tmp_path
+):
+    # The fields the editor doesn't surface must still survive a load -> save, or the
+    # editor would silently wipe a study's chat presets / preview levels / pin state.
+    raw = {
+        "chat_experimenter_presets": ["How asleep were you?"],
+        "chat_participant_presets": ["1", "2"],
+        "preview_levels": ["DEBUG", "INFO"],
+        "always_on_top": True,
+        "tool_always_on_top": {"events": True},
+    }
+    full = StudyConfig.from_settings_dict(raw).to_settings_dict()
+    path = tmp_path / "iface.smacc"
+    _write_smacc(path, full, {"subject": "", "session": "", "notes": ""}, tmp_path)
+
+    editor = StudyEditorWindow(str(path))
+    qtbot.addWidget(editor)
+    assert not editor.has_unsaved_changes()  # untouched fields don't read as dirty
+    path2 = tmp_path / "iface2.smacc"
+    assert editor._write(str(path2)) is True
+
+    reloaded = StudyEditorWindow(str(path2))
+    qtbot.addWidget(reloaded)
+    ui = reloaded.config.interface
+    assert ui.chat_experimenter_presets == ["How asleep were you?"]
+    assert ui.preview_levels == ["DEBUG", "INFO"]
+    assert ui.always_on_top is True
+    assert ui.tool_always_on_top == {"events": True}
