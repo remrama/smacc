@@ -175,7 +175,7 @@ class SmaccWindow(ToolWindow):
         if not self.design:
             # Panels (and any launch-file overrides) are in place, so capture the
             # initial state into the log header (also emits the "Opened SMACC" line).
-            self.session.begin_log(self.gather_settings())
+            self.session.begin_log(self._window_settings())
             self._notify_missing_biocal_voices()
             # Startup widget setup is done; from here on, log soft interactions.
             self.session.log_interactions = True
@@ -1130,6 +1130,11 @@ class SmaccWindow(ToolWindow):
             self.show_error_popup("Could not save settings.", str(exc))
             return False
         self.settings_path = path  # subsequent saves update this file
+        # The physical half of the device setup is machine-local, so persist it to the
+        # rig profile (preferences), not the portable study (#300). Sessions only — the
+        # editor authors a study, not this machine's rig.
+        if not self.design:
+            self._persist_rig_profile()
         if self.design:
             self._saved_snapshot = self._design_snapshot()  # editor is clean again
         self.session.log_debug_msg(f"Saved settings to {path}")
@@ -1138,6 +1143,22 @@ class SmaccWindow(ToolWindow):
         assert status_bar is not None
         status_bar.showMessage(f"Saved settings to {Path(path).name}", 5000)
         return True
+
+    def _persist_rig_profile(self) -> None:
+        """Persist this machine's physical device setup to the rig profile (#300).
+
+        The equipment->device bindings, the hardware trigger's port/baud/address, and
+        the Hue bridge credential are machine-local: they belong in ``preferences.yaml``,
+        not the portable study. Saving a session captures the current rig so the next
+        study on this machine reuses it (the Rig setup tool will be the dedicated path).
+        """
+        rig = {
+            "bindings": dict(self.session.devices.bindings),
+            "trigger": self.session.trigger_config.to_rig_dict(),
+            "hue": self.session.hue_config.to_dict(),
+        }
+        preferences.update_rig(preferences_path, rig)
+        self._prefs["rig"] = rig
 
     def load_settings(self) -> None:
         """Prompt for a .smacc settings file and apply it."""
@@ -1303,7 +1324,7 @@ class SmaccWindow(ToolWindow):
             self._teardown_panels()
             self.session.log_info_msg("Session ended")
             # Record the final settings (incl. any mid-session edits) as the tail.
-            self.session.end_log(self.gather_settings())
+            self.session.end_log(self._window_settings())
             # Detach this window's preview handler and release the session's log
             # handler + outlet so the next session in this process starts clean.
             self.session.logger.removeHandler(self.preview_handler)
