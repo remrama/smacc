@@ -26,6 +26,10 @@ dependencies = [
     # BlinkStick LED device (visual cues). Its backend, pywinusb, is Windows-only,
     # so scope to win32 to keep the cross-platform lock resolving everywhere.
     "blinkstick; sys_platform == 'win32'",
+    # Validates a .smacc against the model-derived JSON Schema in `SMACC validate`
+    # (#302). Imported lazily and optionally — the command degrades to the model's
+    # own validators if it (or its rpds-py backend) isn't available in a build.
+    "jsonschema>=4.26.0",
     "numpy",
     # Read-only view of the Windows volume mixer (Core Audio COM); Windows-only, so
     # scope to win32 like blinkstick. Pulls in comtypes.

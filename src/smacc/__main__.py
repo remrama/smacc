@@ -239,6 +239,12 @@ def main() -> None:
         if sys.stdout is not None:  # absent in a --noconsole build
             print(f"SMACC {display_version()}")
         return
+    if sys.argv[1:2] == ["validate"]:
+        # Headless `SMACC validate <file>`: check a .smacc and exit with its code,
+        # opening no window. Imported here so the GUI path never pays for it.
+        from smacc.validate import main as validate_main
+
+        sys.exit(validate_main(sys.argv[2:]))
     # Crash capture first, before any Qt: a native crash during Qt startup is
     # exactly what the persistent crash log exists to record (#149). The
     # excepthook's dialog arms itself once the QApplication below exists.

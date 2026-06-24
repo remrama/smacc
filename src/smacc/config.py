@@ -7,6 +7,16 @@ from smacc import __version__
 
 VERSION = __version__
 
+# Public URL of the .smacc JSON Schema (#302), served as the committed file on the
+# default branch. The settings header's yaml-language-server modeline and the
+# schema's own $id both point here, so an editor fetches the schema for autocomplete
+# and validation. Defined here (the lowest-level module) so settings.py and
+# schema.py can share it without an import cycle.
+SCHEMA_URL = (
+    "https://raw.githubusercontent.com/remrama/smacc/main/"
+    "src/smacc/assets/smacc-schema.json"
+)
+
 # A rolling `dev` build (#251) is stamped with the git commit it was built from:
 # the release workflow writes smacc._build on main-push builds only. It is absent
 # in a tagged release, a PR build, or a source checkout — then BUILD is None and
