@@ -506,6 +506,14 @@ class SmaccWindow(ToolWindow):
         # deleted object from a later test/run.
         if not self.session.headless:
             self.session.logger.addHandler(self.preview_handler)
+            # Detach the handler when this window is destroyed — even without a
+            # clean close (a test that declines the end-session prompt, the
+            # screenshot harness) — so a GC'd window never leaves a handler on the
+            # shared logger firing into its deleted list widget. Captures the logger
+            # and handler by value, not via self, which is mid-teardown by then.
+            logger = self.session.logger
+            handler = self.preview_handler
+            self.destroyed.connect(lambda: logger.removeHandler(handler))
 
         # Level toggles in a single row between the header and the list, so a
         # level (e.g. DEBUG) can be flipped on the fly without a menu. The log

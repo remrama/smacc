@@ -35,6 +35,7 @@ import sys
 if "--headless" in sys.argv:
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
+import gc
 import tempfile
 from pathlib import Path
 
@@ -160,8 +161,17 @@ def _capture(app, widget, name, size=None):
     path = OUT_DIR / f"screenshot-{name}.png"
     widget.grab().save(str(path))
     print(f"  wrote {path.name}  ({widget.width()}x{widget.height()})")
+    # Tear the window down deterministically at this quiet point rather than at an
+    # unpredictable GC later. processEvents() never services DeferredDelete, so a
+    # closed/hidden window's C++ side would otherwise die mid-event-dispatch in a
+    # later capture — a native access violation in the offscreen plugin (the same
+    # trap tests/conftest.py guards). Mirror that flush here.
     widget.close()
+    widget.deleteLater()
     app.processEvents()
+    app.sendPostedEvents(None, QtCore.QEvent.Type.DeferredDelete)
+    app.processEvents()
+    gc.collect()
 
 
 def main(out_dir: Path = ASSETS) -> None:
