@@ -175,7 +175,7 @@ class SmaccWindow(ToolWindow):
         if not self.design:
             # Panels (and any launch-file overrides) are in place, so capture the
             # initial state into the log header (also emits the "Opened SMACC" line).
-            self.session.begin_log(self.gather_settings())
+            self.session.begin_log(self._window_settings())
             self._notify_missing_biocal_voices()
             # Startup widget setup is done; from here on, log soft interactions.
             self.session.log_interactions = True
@@ -806,8 +806,15 @@ class SmaccWindow(ToolWindow):
         was_logging = self.session.log_interactions
         self.session.log_interactions = False
         self.session.missing_devices = []  # filled by the Devices reload below
-        # Device equipment/routing first, so panels resolve their device against it.
-        self.session.devices = devices.load(state)
+        # The rig profile (machine-local, in preferences) supplies the physical half
+        # of the device setup — equipment->device bindings, the trigger port, and the
+        # Hue credential — that a portable study no longer carries (#300). Empty out of
+        # the box, so this is a no-op until a rig is bound.
+        rig = self._prefs
+        # Device routing (study) + bindings (rig) first, so panels resolve against it.
+        self.session.devices = devices.from_study_and_rig(
+            state, preferences.rig_bindings(rig)
+        )
         trigger_error: str | None = None
         try:
             for panel in self.panels.values():
@@ -819,11 +826,16 @@ class SmaccWindow(ToolWindow):
             )
             # Optional hardware-trigger config (disabled when the study omits it).
             # Open the transport now so a bad port/driver is reported at load.
-            self.session.trigger_config = triggers.load(state)
+            self.session.trigger_config = triggers.from_study_and_rig(
+                state, preferences.rig_trigger(rig)
+            )
             trigger_error = self.session.set_trigger_output(self.session.trigger_config)
             # Hue bridge config before the Devices reload: the Hue equipment dropdown
-            # enumerates from the (newly loaded) bridge, so a bound light matches.
-            self.session.hue_config = hue.load(state)
+            # enumerates from the (newly loaded) bridge, so a bound light matches. The
+            # bridge credential is rig-local (#300); a study value is a legacy fallback.
+            self.session.hue_config = hue.from_dict(
+                {**(state.get("hue") or {}), **preferences.rig_hue(rig)}
+            )
             self.devices_window.refresh_device_lists()
             # A study with unbound required equipment (e.g. one authored in the
             # editor on another machine) gets *this* rig's current defaults
@@ -1118,6 +1130,11 @@ class SmaccWindow(ToolWindow):
             self.show_error_popup("Could not save settings.", str(exc))
             return False
         self.settings_path = path  # subsequent saves update this file
+        # The physical half of the device setup is machine-local, so persist it to the
+        # rig profile (preferences), not the portable study (#300). Sessions only — the
+        # editor authors a study, not this machine's rig.
+        if not self.design:
+            self._persist_rig_profile()
         if self.design:
             self._saved_snapshot = self._design_snapshot()  # editor is clean again
         self.session.log_debug_msg(f"Saved settings to {path}")
@@ -1126,6 +1143,22 @@ class SmaccWindow(ToolWindow):
         assert status_bar is not None
         status_bar.showMessage(f"Saved settings to {Path(path).name}", 5000)
         return True
+
+    def _persist_rig_profile(self) -> None:
+        """Persist this machine's physical device setup to the rig profile (#300).
+
+        The equipment->device bindings, the hardware trigger's port/baud/address, and
+        the Hue bridge credential are machine-local: they belong in ``preferences.yaml``,
+        not the portable study. Saving a session captures the current rig so the next
+        study on this machine reuses it (the Rig setup tool will be the dedicated path).
+        """
+        rig = {
+            "bindings": dict(self.session.devices.bindings),
+            "trigger": self.session.trigger_config.to_rig_dict(),
+            "hue": self.session.hue_config.to_dict(),
+        }
+        preferences.update_rig(preferences_path, rig)
+        self._prefs["rig"] = rig
 
     def load_settings(self) -> None:
         """Prompt for a .smacc settings file and apply it."""
@@ -1291,7 +1324,7 @@ class SmaccWindow(ToolWindow):
             self._teardown_panels()
             self.session.log_info_msg("Session ended")
             # Record the final settings (incl. any mid-session edits) as the tail.
-            self.session.end_log(self.gather_settings())
+            self.session.end_log(self._window_settings())
             # Detach this window's preview handler and release the session's log
             # handler + outlet so the next session in this process starts clean.
             self.session.logger.removeHandler(self.preview_handler)

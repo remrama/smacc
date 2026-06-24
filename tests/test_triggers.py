@@ -175,3 +175,53 @@ def test_parallel_driver_available_reflects_dll_load(monkeypatch):
     assert triggers.parallel_driver_available() is False
     monkeypatch.setattr(triggers, "_load_inpout", lambda: object())
     assert triggers.parallel_driver_available() is True
+
+
+# ----- study/rig split (#300) ------------------------------------------------
+
+
+def test_to_study_dict_omits_machine_fields():
+    cfg = triggers.TriggerConfig(
+        enabled=True, transport="serial", port="COM3", baud=9600, address="0x278"
+    )
+    study = cfg.to_study_dict()
+    assert study == {
+        "enabled": True,
+        "transport": "serial",
+        "mode": "pulsed",
+        "pulse_ms": 10,
+    }
+    assert not {"port", "baud", "address"} & set(study)  # machine fields omitted
+
+
+def test_to_rig_dict_is_machine_fields_only():
+    cfg = triggers.TriggerConfig(port="COM3", baud=9600, address="0x278")
+    assert cfg.to_rig_dict() == {"port": "COM3", "baud": 9600, "address": "0x278"}
+
+
+def test_from_study_and_rig_combines_behavior_and_machine():
+    study = {
+        "trigger_output": {
+            "enabled": True,
+            "transport": "serial",
+            "mode": "pulsed",
+            "pulse_ms": 5,
+        }
+    }
+    cfg = triggers.from_study_and_rig(
+        study, {"port": "COM7", "baud": 9600, "address": "0x3F8"}
+    )
+    assert cfg.enabled is True
+    assert cfg.transport == "serial"
+    assert cfg.pulse_ms == 5
+    assert cfg.port == "COM7"
+    assert cfg.baud == 9600
+    assert cfg.address == "0x3F8"
+
+
+def test_from_study_and_rig_empty_rig_leaves_study_values():
+    study = {"trigger_output": {"enabled": True, "port": "COM1"}}
+    cfg = triggers.from_study_and_rig(study, {})
+    # No rig machine fields → keep whatever from_dict produced (defaults / legacy).
+    assert cfg.port == "COM1"  # a legacy study port survives when the rig has none
+    assert cfg.baud == triggers.DEFAULT_BAUD

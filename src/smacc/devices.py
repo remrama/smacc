@@ -261,6 +261,16 @@ class DeviceConfig:
         """Serialize to the persisted ``devices`` mapping."""
         return {"bindings": dict(self.bindings), "routing": dict(self.routing)}
 
+    def to_study_dict(self) -> dict:
+        """Serialize the *portable* half: action->equipment routing only.
+
+        The equipment->device bindings are machine-specific and live in the rig
+        profile (preferences), not the portable study, so they are omitted here
+        (#300). :func:`from_study_and_rig` recombines this routing with the rig's
+        bindings to rebuild the live config.
+        """
+        return {"routing": dict(self.routing)}
+
 
 def default_config() -> DeviceConfig:
     """A config with each action on its default equipment and no devices bound yet."""
@@ -296,6 +306,22 @@ def load(settings: dict) -> DeviceConfig:
     block the same way.
     """
     return from_dict(settings.get("devices"))
+
+
+def from_study_and_rig(settings: dict, rig_bindings: dict[str, str]) -> DeviceConfig:
+    """Build the live device config from a study's routing + the rig's bindings (#300).
+
+    Routing travels with the portable study; the equipment->device bindings are
+    machine-local (the rig profile in :mod:`smacc.preferences`). A rig binding wins
+    over any a legacy study still carries, so the machine's actual devices are
+    authoritative. Unknown equipment keys are dropped, like :func:`from_dict`.
+    """
+    cfg = from_dict(settings.get("devices"))
+    if isinstance(rig_bindings, dict):
+        for equipment_key, device in rig_bindings.items():
+            if equipment_key in EQUIPMENT_BY_KEY and isinstance(device, str):
+                cfg.bindings[equipment_key] = device
+    return cfg
 
 
 def autobind(

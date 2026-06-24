@@ -89,6 +89,23 @@ class TriggerConfig:
         """Serialize to the plain mapping persisted in a study file."""
         return {f.name: getattr(self, f.name) for f in fields(self)}
 
+    def to_study_dict(self) -> dict[str, Any]:
+        """The *portable* trigger fields: enabled plus the behavior (transport/mode/pulse).
+
+        The machine-specific port/baud/address live in the rig profile, not the
+        portable study (#300); :func:`from_study_and_rig` recombines the two.
+        """
+        return {
+            "enabled": self.enabled,
+            "transport": self.transport,
+            "mode": self.mode,
+            "pulse_ms": self.pulse_ms,
+        }
+
+    def to_rig_dict(self) -> dict[str, Any]:
+        """The machine-specific trigger fields for the rig profile (#300)."""
+        return {"port": self.port, "baud": self.baud, "address": self.address}
+
     def summary(self) -> str:
         """A one-line human description for logs and the dialog (e.g. on a change)."""
         if not self.enabled:
@@ -133,6 +150,24 @@ def from_dict(data: object) -> TriggerConfig:
     if data.get("mode") in MODES:
         cfg.mode = data["mode"]
     cfg.pulse_ms = max(1, _coerce_int(data.get("pulse_ms"), DEFAULT_PULSE_MS))
+    return cfg
+
+
+def from_study_and_rig(settings: dict, rig_trigger: dict) -> TriggerConfig:
+    """Build the live trigger config from a study's behavior fields + the rig's machine fields.
+
+    The study carries enabled/transport/mode/pulse_ms; the machine-specific
+    port/baud/address come from the rig profile (#300). A rig field overrides the
+    study's; an absent rig field leaves the value from :func:`from_dict` in place.
+    """
+    cfg = from_dict(settings.get("trigger_output"))
+    if not isinstance(rig_trigger, dict):
+        return cfg
+    if rig_trigger.get("port") is not None:
+        cfg.port = str(rig_trigger.get("port") or "")
+    cfg.baud = _coerce_int(rig_trigger.get("baud"), cfg.baud)
+    if rig_trigger.get("address"):
+        cfg.address = str(rig_trigger["address"])
     return cfg
 
 

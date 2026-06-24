@@ -172,17 +172,53 @@ def test_settings_gather_apply_is_a_fixed_point(
     assert second == first
 
 
-def test_gather_settings_routes_through_the_model_unchanged(
+def test_gather_settings_emits_the_study_half(
     qtbot, design_session, mock_devices, silence_dialogs
 ):
-    # gather_settings() round-trips the window state through StudyConfig; for complete
-    # live state that round-trip is an identity, so routing through the model must
-    # change nothing — the public gather equals the raw window union. This is also a
-    # drift guard: a future gather_state key the model doesn't know would be dropped
-    # here and fail this assertion.
+    # gather_settings() routes the window state through StudyConfig, which emits the
+    # PORTABLE half: routing but not machine-local bindings, trigger behavior but not
+    # the port/baud/address, and no Hue credential (all rig-local, #300). Everything
+    # else is unchanged from the full window state (_window_settings).
     window = SmaccWindow(design_session)
     qtbot.addWidget(window)
-    assert window.gather_settings() == window._window_settings()
+    full = window._window_settings()
+    study = window.gather_settings()
+    assert "bindings" not in study["devices"]
+    assert study["devices"]["routing"] == full["devices"]["routing"]
+    assert set(study["trigger_output"]) == {"enabled", "transport", "mode", "pulse_ms"}
+    assert "hue" not in study
+    for key in ("cues", "visual_cues", "event_codes", "volume_cap", "preview_levels"):
+        assert study[key] == full[key]
+
+
+def test_rig_profile_overlays_device_bindings(
+    qtbot, tmp_path, monkeypatch, mock_devices, silence_dialogs
+):
+    # The machine-local rig profile (preferences) supplies device bindings a portable
+    # study no longer carries (#300). A binding in the rig is applied to the session
+    # even when the study provides none. control_speaker is optional, so autobind
+    # never touches it — the rig profile is its only source.
+    prefs_path = tmp_path / "preferences.yaml"
+    preferences.update_rig(
+        prefs_path, {"bindings": {"control_speaker": "Rig Control Speaker"}}
+    )
+    monkeypatch.setattr(gui, "preferences_path", prefs_path)
+
+    from smacc.session import SmaccSession
+
+    monkeypatch.setattr(
+        SmaccSession,
+        "init_lsl_stream",
+        lambda self, *a, **k: setattr(self, "outlet", None),
+    )
+    window = SmaccWindow(SmaccSession(tmp_path / "data", design=False))
+    qtbot.addWidget(window)
+    window.apply_settings(window.gather_settings())
+    assert (
+        window.session.devices.device_for_equipment("control_speaker")
+        == "Rig Control Speaker"
+    )
+    window.session.close()
 
 
 def test_apply_settings_lands_values(
@@ -211,7 +247,13 @@ def test_apply_settings_lands_values(
     assert got["visual_cues"][0]["name"] == "Glow"
     assert got["visual_cues"][0]["color"] == "#abcdef"
     assert got["cues"][0]["name"] == "Buzz"
-    assert got["devices"]["bindings"]["bedroom_speaker"] == mock_devices["outputs"][0]
+    # Bindings are rig-local now (#300), so they no longer ride in the gathered study;
+    # the applied study bindings land on the live session config instead.
+    assert "bindings" not in got["devices"]
+    assert (
+        window.session.devices.device_for_equipment("bedroom_speaker")
+        == mock_devices["outputs"][0]
+    )
     # The bound devices all match advertised hardware, so none are flagged missing.
     assert design_session.missing_devices == []
 
@@ -232,8 +274,11 @@ def test_markers_window_applies_and_persists_trigger_config(
     markers.apply()
     assert window.session.trigger_config.enabled is True
     assert window.session.trigger_config.port == "COM4"
-    # The chosen config travels with the rest of the settings.
-    assert window.gather_settings()["trigger_output"]["port"] == "COM4"
+    # The trigger behavior travels with the study; the machine port is rig-local (#300).
+    study_trigger = window.gather_settings()["trigger_output"]
+    assert study_trigger["enabled"] is True
+    assert "port" not in study_trigger
+    assert window.session.trigger_config.to_rig_dict()["port"] == "COM4"
 
 
 def test_markers_apply_rebuilds_the_event_grid(
@@ -434,7 +479,7 @@ def test_tool_window_geometry_persists_and_restores(
     second.session.close()
 
 
-def test_hue_config_round_trips_through_settings(
+def test_hue_credential_applies_from_study_but_is_rig_local(
     qtbot, design_session, mock_devices, silence_dialogs, monkeypatch
 ):
     from smacc import hue
@@ -443,12 +488,17 @@ def test_hue_config_round_trips_through_settings(
     monkeypatch.setattr(hue, "targets", lambda cfg: [])
     window = SmaccWindow(design_session)
     qtbot.addWidget(window)
+    # The Hue bridge credential is rig-local (#300): the portable study no longer
+    # carries a hue block.
+    assert "hue" not in window.gather_settings()
+    # A (legacy) study hue block is still applied to the live session…
     state = window.gather_settings()
-    assert state["hue"] == {"bridge_ip": "", "app_key": ""}
     state["hue"] = {"bridge_ip": "192.168.1.50", "app_key": "k"}
     window.apply_settings(state)
-    assert window.gather_settings()["hue"]["bridge_ip"] == "192.168.1.50"
     assert design_session.hue_config.configured
+    assert design_session.hue_config.bridge_ip == "192.168.1.50"
+    # …but it is not written back into the portable study.
+    assert "hue" not in window.gather_settings()
 
 
 # ----- editor close prompts only when there are unsaved changes (#183) --------

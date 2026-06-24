@@ -187,3 +187,39 @@ def test_every_equipment_and_action_carries_a_description():
     # the window's self-documentation.
     assert all(equipment.description for equipment in devices.EQUIPMENT)
     assert all(action.description for action in devices.ACTIONS)
+
+
+# ----- study/rig split (#300) ------------------------------------------------
+
+
+def test_to_study_dict_omits_bindings():
+    cfg = devices.default_config()
+    cfg.bindings["bedroom_speaker"] = "Speakers (Demo)"
+    study = cfg.to_study_dict()
+    assert "bindings" not in study  # bindings are rig-local
+    assert study["routing"]["play_audio_cue"] == "bedroom_speaker"
+
+
+def test_from_study_and_rig_overlays_rig_bindings():
+    study = {"devices": {"routing": {"play_audio_cue": "control_speaker"}}}
+    cfg = devices.from_study_and_rig(
+        study, {"control_speaker": "Rig Speaker", "bogus_equipment": "x"}
+    )
+    # Routing comes from the study; the binding comes from the rig profile.
+    assert cfg.equipment_for("play_audio_cue") == "control_speaker"
+    assert cfg.device_for_equipment("control_speaker") == "Rig Speaker"
+    assert "bogus_equipment" not in cfg.bindings  # unknown equipment dropped
+
+
+def test_from_study_and_rig_empty_rig_equals_from_dict():
+    study = {"devices": {"bindings": {"bedroom_speaker": "Legacy"}, "routing": {}}}
+    assert (
+        devices.from_study_and_rig(study, {}).bindings
+        == devices.from_dict(study["devices"]).bindings
+    )
+
+
+def test_from_study_and_rig_rig_wins_over_legacy_study_binding():
+    study = {"devices": {"bindings": {"bedroom_speaker": "Legacy"}, "routing": {}}}
+    cfg = devices.from_study_and_rig(study, {"bedroom_speaker": "Rig"})
+    assert cfg.device_for_equipment("bedroom_speaker") == "Rig"

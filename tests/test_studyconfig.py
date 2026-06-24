@@ -23,7 +23,7 @@ from pathlib import Path
 import yaml
 
 import smacc
-from smacc import biocals, devices, events, hue, settings, studyconfig, triggers
+from smacc import biocals, devices, events, settings, studyconfig, triggers
 from smacc.studyconfig import StudyConfig
 
 DEFAULT_SMACC = Path(smacc.__file__).parent / "assets" / "default.smacc"
@@ -53,7 +53,6 @@ EXPECTED_ORDER = [
     "event_codes",
     "event_code_safe_max",
     "trigger_output",
-    "hue",
     "data_directory",
     "preview_levels",
     "always_on_top",
@@ -69,8 +68,6 @@ def _full_settings() -> dict:
     a round-trip is expected to reproduce it byte-for-byte.
     """
     dev = devices.default_config()  # complete routing, so from_dict round-trips
-    dev.bindings["bedroom_speaker"] = "Speakers (Demo)"
-    dev.bindings["bedroom_mic_1"] = "Microphone (Demo)"
     custom = events.EventDef(
         key="DoorKnock",
         label="Door knock",
@@ -109,11 +106,12 @@ def _full_settings() -> dict:
         "chat_red_text": True,
         "volume_cap": 0.8,
         "output_latency": "low",
-        "devices": dev.to_dict(),
+        "devices": dev.to_study_dict(),  # routing only; bindings are rig-local (#300)
         "event_codes": events.events_to_list([*events.default_events(), custom]),
         "event_code_safe_max": 200,
-        "trigger_output": triggers.TriggerConfig(enabled=True, port="COM3").to_dict(),
-        "hue": hue.HueConfig(bridge_ip="192.168.1.50", app_key="abc123").to_dict(),
+        "trigger_output": triggers.TriggerConfig(
+            enabled=True, mode="hold", pulse_ms=5
+        ).to_study_dict(),  # behavior only; port/baud/address are rig-local
         "data_directory": "data",
         "preview_levels": ["DEBUG", "INFO"],
         "always_on_top": True,
@@ -148,10 +146,12 @@ def test_fresh_config_serializes_to_documented_defaults():
     assert out["preview_levels"] == ["INFO", "WARNING", "ERROR", "CRITICAL"]
     assert out["always_on_top"] is False
     assert out["tool_always_on_top"] == {}
-    # Reused sub-models serialize exactly like their own emitters.
-    assert out["devices"] == devices.default_config().to_dict()
-    assert out["trigger_output"] == triggers.TriggerConfig().to_dict()
-    assert out["hue"] == {"bridge_ip": "", "app_key": ""}
+    # The study carries only the portable half of devices/trigger; bindings, the
+    # trigger port, and the Hue credential are rig-local (#300).
+    assert out["devices"] == devices.default_config().to_study_dict()
+    assert "bindings" not in out["devices"]
+    assert out["trigger_output"] == triggers.TriggerConfig().to_study_dict()
+    assert "hue" not in out
     assert out["event_codes"] == events.events_to_list(events.default_events())
 
 
@@ -209,12 +209,13 @@ def test_default_smacc_loads_and_is_idempotent():
         "output_latency",
         "devices",
         "trigger_output",
-        "hue",
         "preview_levels",
         "always_on_top",
         "tool_always_on_top",
     ):
         assert key in out1
+    assert "hue" not in out1  # the Hue credential is rig-local now (#300)
+    assert "bindings" not in out1["devices"]  # bindings are rig-local
 
 
 # ----- leniency (mirrors each panel's apply_state tolerance) -----------------

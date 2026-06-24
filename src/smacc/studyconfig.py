@@ -33,7 +33,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import biocals, devices, events, hue, triggers
+from . import biocals, devices, events, triggers
 
 # ---------------------------------------------------------------------------
 # Lenient coercion helpers (mirror each panel's apply_state tolerance)
@@ -255,10 +255,11 @@ class StudyConfig:
     markers: MarkersConfig = field(default_factory=MarkersConfig)
     surveys: SurveysConfig = field(default_factory=SurveysConfig)
     interface: InterfaceConfig = field(default_factory=InterfaceConfig)
-    # Reused pure sub-models at the root (their rig-local fields stay isolated
-    # inside them for the study/rig carve in #300).
+    # The reused device model. Only its routing is portable; the equipment->device
+    # bindings are machine-local (the rig profile, #300) and dropped on emit. The
+    # Hue credential and the trigger's port/baud/address are rig-local too — Hue has
+    # no portable half, so it is not a study field at all.
     devices: devices.DeviceConfig = field(default_factory=devices.default_config)
-    hue: hue.HueConfig = field(default_factory=hue.HueConfig)
     data_directory: str = "data"  # path-bearing, str
 
     def to_settings_dict(self) -> dict[str, Any]:
@@ -313,11 +314,13 @@ class StudyConfig:
         out["output_latency"] = self.interface.output_latency
 
         # --- window-level blocks, in gather_settings order ---
-        out["devices"] = self.devices.to_dict()
+        # Devices: routing only (bindings are rig-local, #300). Trigger: behavior
+        # only (port/baud/address are rig-local). No hue block — the bridge
+        # credential is entirely rig-local.
+        out["devices"] = self.devices.to_study_dict()
         out["event_codes"] = events.events_to_list(self.markers.event_codes)
         out["event_code_safe_max"] = self.markers.event_code_safe_max
-        out["trigger_output"] = self.markers.trigger.to_dict()
-        out["hue"] = self.hue.to_dict()
+        out["trigger_output"] = self.markers.trigger.to_study_dict()
         out["data_directory"] = self.data_directory
         out["preview_levels"] = list(self.interface.preview_levels)
         out["always_on_top"] = self.interface.always_on_top
@@ -420,6 +423,5 @@ class StudyConfig:
             surveys=surveys,
             interface=interface,
             devices=devices.from_dict(s.get("devices")),
-            hue=hue.from_dict(s.get("hue")),
             data_directory=str(s.get("data_directory") or "data"),
         )
