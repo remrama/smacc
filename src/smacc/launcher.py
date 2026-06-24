@@ -27,6 +27,7 @@ from .gui import SmaccWindow
 from .paths import DEFAULT_DATA_DIR, DEFAULT_SETTINGS_PATH, LOGO_PATH, preferences_path
 from .rigsetup import RigSetupWindow
 from .session import SmaccSession
+from .studyeditor import StudyEditorWindow
 from .toolwindow import ToolWindow
 
 # Stable id for the launcher's geometry entry in the per-window preferences map.
@@ -254,18 +255,16 @@ class LauncherWindow(QtWidgets.QMainWindow):
         self._open_tool(window)
 
     def _open_editor(self) -> None:
-        """Open the Editor on a new SMACC file or an existing one (from "Editor…")."""
+        """Open the Study Editor on a new SMACC file or an existing one (from "Editor…").
+
+        The editor is hardware-free (#301): it edits a StudyConfig directly and never
+        opens a session, so — unlike a live run — it needs no data directory or rig.
+        """
         dialog = dialogs.EditorFileDialog(parent=self)
         if not dialog.exec():
             return
         path = None if dialog.is_new() else dialog.chosen_path()
-        data_dir = (
-            settings.load_data_directory(path, DEFAULT_DATA_DIR)
-            if path
-            else DEFAULT_DATA_DIR
-        )
-        session = SmaccSession(data_dir, headless=True)
-        self._open_tool(SmaccWindow(session, settings_path=path))
+        self._open_tool(StudyEditorWindow(settings_path=path))
 
     def design_cues(self) -> None:
         """Open the standalone Audio Cue Designer (exports WAVs to the cues folder)."""
@@ -388,10 +387,10 @@ class LauncherWindow(QtWidgets.QMainWindow):
         dialog offers and preselects it.
         """
         tool = self._tool
-        if isinstance(tool, SmaccWindow) and not tool.design:
-            self.close()  # persists launcher geometry, then quits the app
+        if isinstance(tool, SmaccWindow):
+            self.close()  # a live session ended: persist geometry, then quit the app
             return
-        if isinstance(tool, SmaccWindow) and tool.settings_path:
+        if isinstance(tool, StudyEditorWindow) and tool.settings_path:
             dialogs.remember_settings(tool.settings_path)
             preferences.update_preferences(
                 preferences_path, {"last_settings": tool.settings_path}

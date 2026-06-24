@@ -146,15 +146,14 @@ include_external_packages = true
 
 # The Study Editor authors a study by editing the pure StudyConfig model; it must
 # never be able to open an audio stream, meter a mic, or fire an LSL marker. We
-# make that true *by construction* rather than by discipline: forbid the model
-# (and, once it exists, the editor window) from importing the run-time stack at
-# all. With no import path to sounddevice/pylsl/the session, no code path can
-# reach the hardware — the guarantee can't be forgotten in a future edit. The
-# editor module joins source_modules when it lands (#301, step 5).
+# make that true *by construction* rather than by discipline: forbid both the model
+# and the editor window from importing the run-time stack at all. With no import
+# path to sounddevice/pylsl/the session, no code path can reach the hardware — the
+# guarantee can't be forgotten in a future edit.
 [[tool.importlinter.contracts]]
-name = "The Study Editor model never reaches the hardware/run-time stack"
+name = "The Study Editor never reaches the hardware/run-time stack"
 type = "forbidden"
-source_modules = ["smacc.studyconfig"]
+source_modules = ["smacc.studyconfig", "smacc.studyeditor"]
 forbidden_modules = [
     "smacc.session",
     "smacc.gui",

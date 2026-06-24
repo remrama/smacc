@@ -315,8 +315,10 @@ def test_markers_apply_rebuilds_the_event_grid(
     window = SmaccWindow(headless_session)
     qtbot.addWidget(window)
     markers = window.panels["markers"]
-    i = next(i for i, e in enumerate(markers._events) if e.key == "REMDetected")
-    markers._code_spins[i].setValue(99)
+    i = next(
+        i for i, e in enumerate(markers.registry._events) if e.key == "REMDetected"
+    )
+    markers.registry._code_spins[i].setValue(99)
     markers.apply()
     grid = window.panels["events"]
     # findChildren still sees the replaced button (deleteLater is only serviced
@@ -343,7 +345,7 @@ def test_grid_add_event_refreshes_the_markers_staging(
     )
     window.panels["events"].add_custom_event()
     markers = window.panels["markers"]
-    assert any(e.label == "Door knock" for e in markers._events)
+    assert any(e.label == "Door knock" for e in markers.registry._events)
 
 
 # ----- theme / lights and owned preferences ----------------------------------

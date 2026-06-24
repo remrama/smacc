@@ -359,6 +359,18 @@ class RecordingWindow(PanelWindow):
         out.update(self._current_survey_options())
         return out
 
+    def _preview_builtin_survey(self, survey: surveys.SurveyDef) -> None:
+        """Open a built-in survey read-only (no session) — the previewer the
+        Manage-surveys dialog calls back into.
+
+        Lives here, on a panel, so :mod:`smacc.dialogs` imports no ``panels`` and
+        stays safe for the hardware-free Study Editor to reuse (#301). Kept alive
+        in ``_survey_windows`` alongside the operator-opened survey windows.
+        """
+        preview = SurveyWindow(survey, None, parent=self)
+        self._survey_windows.append(preview)
+        preview.show()
+
     def manage_surveys(self) -> None:
         """View/build/remove surveys and URLs, then rebuild the dropdown in place.
 
@@ -369,6 +381,7 @@ class RecordingWindow(PanelWindow):
             self._current_survey_options(),
             builtin_dir=BUNDLED_SURVEYS_DIR,
             user_dir=SURVEYS_DIR,
+            preview_builtin=self._preview_builtin_survey,
             parent=self,
         )
         accepted = dialog.exec()
