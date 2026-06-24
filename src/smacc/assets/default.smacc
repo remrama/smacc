@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/remrama/smacc/main/src/smacc/assets/smacc-schema.json
 # SMACC settings — YAML (.smacc). Edit with care.
 kind: smacc/settings
 schema_version: 1

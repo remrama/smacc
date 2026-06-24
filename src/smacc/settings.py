@@ -38,15 +38,20 @@ from typing import Any
 
 import yaml
 
-from .config import VERSION
+from .config import SCHEMA_URL, VERSION
 
 # The discriminator written at the top of every settings file. A loaded mapping
 # is rejected when it carries a different ``kind``.
 KIND = "smacc/settings"
 
 # Prepended to every saved file so it self-identifies even before parsing (YAML
-# ignores ``#`` comments, so this round-trips cleanly through ``safe_load``).
-_FILE_HEADER = "# SMACC settings — YAML (.smacc). Edit with care.\n"
+# ignores ``#`` comments, so this round-trips cleanly through ``safe_load``). The
+# first line is a yaml-language-server modeline (#302): an editor that supports it
+# fetches the JSON Schema for autocomplete and validation while hand-editing.
+_FILE_HEADER = (
+    f"# yaml-language-server: $schema={SCHEMA_URL}\n"
+    "# SMACC settings — YAML (.smacc). Edit with care.\n"
+)
 
 # v1 is the v0.0.9 baseline (pre-release schemas were retired without migration).
 # Bump this when the layout changes incompatibly — and when you do, update the

@@ -23,6 +23,10 @@ BUNDLED_BIOCALS_DIR = _asset_dir / "biocals"
 # Shipped example/default settings, copied to the SMACC root on first run so the
 # defaults live in a readable .smacc file (not in Python) — see smacc.settings.
 BUNDLED_DEFAULT_SETTINGS = _asset_dir / "default.smacc"
+# The JSON Schema for a .smacc file (#302), generated from the StudyConfig model
+# (see smacc.schema). Committed here so the template's modeline can point at it and
+# CI can check it hasn't drifted; packaged so the validate CLI can read it frozen.
+BUNDLED_SCHEMA_PATH = _asset_dir / "smacc-schema.json"
 # Built-in survey definitions shipped with SMACC (#114); loaded straight from the
 # bundle (never copied out), so updates reach every install.
 BUNDLED_SURVEYS_DIR = _asset_dir / "surveys"

@@ -1,0 +1,323 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/remrama/smacc/main/src/smacc/assets/smacc-schema.json",
+  "title": "SMACC settings file",
+  "description": "A SMACC study configuration (.smacc). Generated from the StudyConfig model; edit the model, not this file.",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "const": "smacc/settings"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "smacc_version": {
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "subject": {
+          "type": "string"
+        },
+        "session": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "biocals": {
+          "type": "object",
+          "properties": {
+            "voice_volume": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "rows": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "biocal": {
+                    "type": "string"
+                  },
+                  "sequence": {
+                    "type": "boolean"
+                  },
+                  "voice": {
+                    "type": "boolean"
+                  },
+                  "duration": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 600
+                  }
+                },
+                "required": [
+                  "biocal"
+                ]
+              }
+            }
+          }
+        },
+        "visual_cues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "color": {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              },
+              "brightness": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "pattern": {
+                "enum": [
+                  "steady",
+                  "pulse",
+                  "flash"
+                ]
+              },
+              "rate": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "length": {
+                "type": "number",
+                "minimum": 0
+              },
+              "loop": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "visual_attack": {
+          "type": "number",
+          "minimum": 0
+        },
+        "visual_release": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "file": {
+                "type": "string"
+              },
+              "volume": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "loop": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "cue_attack": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cue_release": {
+          "type": "number",
+          "minimum": 0
+        },
+        "noise_volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "noise_color": {
+          "type": "string",
+          "enum": [
+            "white",
+            "pink",
+            "brown"
+          ]
+        },
+        "noise_source": {
+          "type": "string",
+          "enum": [
+            "builtin",
+            "file"
+          ]
+        },
+        "noise_file": {
+          "type": "string"
+        },
+        "survey_url": {
+          "type": "string"
+        },
+        "survey_options": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "chat_experimenter_presets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "chat_participant_presets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "chat_font_size": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 72
+        },
+        "chat_red_text": {
+          "type": "boolean"
+        },
+        "volume_cap": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "output_latency": {
+          "type": "string",
+          "enum": [
+            "high",
+            "low"
+          ]
+        },
+        "devices": {
+          "type": "object",
+          "properties": {
+            "routing": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "event_codes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "code": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 255
+              },
+              "lsl": {
+                "type": "boolean"
+              },
+              "ttl": {
+                "type": "boolean"
+              },
+              "preview": {
+                "type": "boolean"
+              },
+              "increment": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "key",
+              "code"
+            ]
+          }
+        },
+        "event_code_safe_max": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 255
+        },
+        "trigger_output": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "transport": {
+              "enum": [
+                "serial",
+                "parallel"
+              ]
+            },
+            "mode": {
+              "enum": [
+                "pulsed",
+                "hold"
+              ]
+            },
+            "pulse_ms": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "port": {
+              "type": "string"
+            },
+            "baud": {
+              "type": "integer"
+            },
+            "address": {
+              "type": "string"
+            }
+          }
+        },
+        "data_directory": {
+          "type": "string"
+        },
+        "preview_levels": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "DEBUG",
+              "INFO",
+              "WARNING",
+              "ERROR",
+              "CRITICAL"
+            ]
+          }
+        },
+        "always_on_top": {
+          "type": "boolean"
+        },
+        "tool_always_on_top": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "settings"
+  ]
+}
