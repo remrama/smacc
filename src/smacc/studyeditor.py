@@ -31,6 +31,7 @@ from .paths import DEFAULT_DATA_DIR, LOGO_PATH, is_default_settings
 from .studyconfig import StudyConfig
 from .studyforms import (
     AudioCuesForm,
+    BiocalsForm,
     DataDirectoryForm,
     InterfaceForm,
     NoiseForm,
@@ -62,6 +63,7 @@ _FORM_TYPES: dict[str, type[SectionForm]] = {
     "audio": AudioCuesForm,
     "visual": VisualCuesForm,
     "noise": NoiseForm,
+    "biocals": BiocalsForm,
     "interface": InterfaceForm,
 }
 

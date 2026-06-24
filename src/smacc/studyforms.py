@@ -24,7 +24,7 @@ from typing import cast
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from . import devices
+from . import biocals, devices
 from .studyconfig import AudioCue, StudyConfig, VisualCue
 
 # The spectral colors the built-in noise generator can synthesize (mirrors the
@@ -400,6 +400,164 @@ class VisualCuesForm(_CueTableForm):
         config.cueing.visual.cues = cues
         config.cueing.visual.attack = self.attack.value()
         config.cueing.visual.release = self.release.value()
+
+
+class BiocalsForm(SectionForm):
+    """The study's biocalibration stack: voice volume plus the per-row table.
+
+    The stack uses the model's ``None`` sentinel: a study that doesn't customize it
+    keeps the app default at runtime. The "Customize the stack" toggle preserves
+    that — left off, the study omits the stack (``rows`` stays ``None``) and
+    round-trips untouched; turned on, the table's rows are written explicitly (an
+    empty table is a deliberate empty stack).
+    """
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.voiceVolume = QtWidgets.QDoubleSpinBox(self)
+        self.voiceVolume.setRange(0, 1)
+        self.voiceVolume.setSingleStep(0.01)
+        self.voiceVolume.setDecimals(2)
+        self.voiceVolume.setStatusTip("Volume of the spoken biocal instructions (0-1).")
+        form = QtWidgets.QFormLayout()
+        form.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+        form.addRow("Voice volume:", self.voiceVolume)
+
+        self.customize = QtWidgets.QCheckBox("Customize the biocal stack", self)
+        self.customize.setStatusTip(
+            "Off: use SMACC's default stack at runtime. On: author the stack here."
+        )
+        self.customize.toggled.connect(self._sync_enabled)
+
+        self.table = QtWidgets.QTableWidget(0, 4, self)
+        self.table.setHorizontalHeaderLabels(
+            ["Biocal", "In sequence", "Voice", "Duration (s)"]
+        )
+        self.table.setSelectionBehavior(
+            QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        vheader = self.table.verticalHeader()
+        assert vheader is not None
+        vheader.setVisible(False)
+        header = self.table.horizontalHeader()
+        assert header is not None
+        header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Stretch)
+
+        self.picker = QtWidgets.QComboBox(self)
+        for b in biocals.default_biocals():
+            self.picker.addItem(b.label, b.key)
+        self.picker.setStatusTip("Choose a biocal to add as a row.")
+        add = QtWidgets.QPushButton("Add", self)
+        add.setStatusTip("Add the chosen biocal to the stack.")
+        add.clicked.connect(self._add_selected_biocal)
+        remove = QtWidgets.QPushButton("Remove", self)
+        remove.setStatusTip("Remove the selected row.")
+        remove.clicked.connect(self._remove_selected)
+        up = QtWidgets.QPushButton("Move up", self)
+        up.clicked.connect(lambda: self._move(-1))
+        down = QtWidgets.QPushButton("Move down", self)
+        down.clicked.connect(lambda: self._move(1))
+        self._row_controls = [self.table, self.picker, add, remove, up, down]
+        buttons = QtWidgets.QHBoxLayout()
+        for widget in (self.picker, add, remove, up, down):
+            buttons.addWidget(widget)
+        buttons.addStretch(1)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(section_title("Biocals"))
+        layout.addLayout(form)
+        layout.addWidget(self.customize)
+        layout.addWidget(self.table, 1)
+        layout.addLayout(buttons)
+
+    def _add_row(self, row: biocals.BiocalRow) -> None:
+        b = biocals.BIOCALS_BY_KEY.get(row.key)
+        r = self.table.rowCount()
+        self.table.insertRow(r)
+        item = QtWidgets.QTableWidgetItem(b.label if b else row.key)
+        item.setData(QtCore.Qt.ItemDataRole.UserRole, row.key)
+        item.setFlags(item.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable)
+        self.table.setItem(r, 0, item)
+        sequence = QtWidgets.QCheckBox()
+        sequence.setChecked(row.sequence)
+        self.table.setCellWidget(r, 1, sequence)
+        voice = QtWidgets.QCheckBox()
+        voice.setChecked(row.voice)
+        self.table.setCellWidget(r, 2, voice)
+        duration = QtWidgets.QSpinBox()
+        duration.setRange(biocals.MIN_DURATION_S, biocals.MAX_DURATION_S)
+        duration.setValue(row.duration_s)
+        self.table.setCellWidget(r, 3, duration)
+
+    def _add_selected_biocal(self) -> None:
+        key = self.picker.currentData()
+        b = biocals.BIOCALS_BY_KEY[key]
+        self._add_row(
+            biocals.BiocalRow(
+                key, sequence=b.standard, voice=True, duration_s=b.duration_s
+            )
+        )
+
+    def _read_rows(self) -> list[biocals.BiocalRow]:
+        rows = []
+        for r in range(self.table.rowCount()):
+            item = self.table.item(r, 0)
+            key = item.data(QtCore.Qt.ItemDataRole.UserRole) if item else ""
+            sequence = cast(QtWidgets.QCheckBox, self.table.cellWidget(r, 1))
+            voice = cast(QtWidgets.QCheckBox, self.table.cellWidget(r, 2))
+            duration = cast(QtWidgets.QSpinBox, self.table.cellWidget(r, 3))
+            rows.append(
+                biocals.BiocalRow(
+                    key,
+                    sequence=sequence.isChecked(),
+                    voice=voice.isChecked(),
+                    duration_s=duration.value(),
+                )
+            )
+        return rows
+
+    def _set_rows(self, rows: list[biocals.BiocalRow]) -> None:
+        self.table.setRowCount(0)
+        for row in rows:
+            self._add_row(row)
+
+    def _remove_selected(self) -> None:
+        row = self.table.currentRow()
+        if row >= 0:
+            self.table.removeRow(row)
+
+    def _move(self, delta: int) -> None:
+        row = self.table.currentRow()
+        if row < 0:
+            return
+        rows = self._read_rows()
+        target = row + delta
+        if not 0 <= target < len(rows):
+            return
+        rows[row], rows[target] = rows[target], rows[row]
+        self._set_rows(rows)
+        self.table.setCurrentCell(target, 0)
+
+    def _sync_enabled(self) -> None:
+        on = self.customize.isChecked()
+        for widget in self._row_controls:
+            widget.setEnabled(on)
+
+    def load(self, config: StudyConfig) -> None:
+        bio = config.cueing.biocals
+        self.voiceVolume.setValue(bio.voice_volume)
+        if bio.rows is None:
+            self.customize.setChecked(False)
+            self._set_rows(biocals.default_rows())  # a starting point if customized
+        else:
+            self.customize.setChecked(True)
+            self._set_rows(bio.rows)
+        self._sync_enabled()
+
+    def commit(self, config: StudyConfig) -> None:
+        bio = config.cueing.biocals
+        bio.voice_volume = self.voiceVolume.value()
+        bio.rows = self._read_rows() if self.customize.isChecked() else None
 
 
 class NoiseForm(SectionForm):

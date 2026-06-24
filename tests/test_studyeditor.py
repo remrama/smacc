@@ -219,3 +219,36 @@ def test_removing_a_cue_marks_unsaved(qtbot, silence_dialogs, tmp_path):
     assert editor.has_unsaved_changes()
     editor._commit_forms()
     assert editor.config.cueing.audio.cues == []
+
+
+def test_biocals_default_stack_stays_unspecified(qtbot, silence_dialogs, tmp_path):
+    # A fresh study leaves the stack at the None sentinel (use the app default); the
+    # editor must not materialize it, or every saved study would carry the full
+    # default stack and read dirty on open.
+    editor = StudyEditorWindow()
+    qtbot.addWidget(editor)
+    assert editor._forms["biocals"].customize.isChecked() is False
+    assert not editor.has_unsaved_changes()
+    path = tmp_path / "bio.smacc"
+    assert editor._write(str(path)) is True
+
+    reloaded = StudyEditorWindow(str(path))
+    qtbot.addWidget(reloaded)
+    assert reloaded.config.cueing.biocals.rows is None
+    assert "rows" not in reloaded.config.to_settings_dict()["biocals"]
+
+
+def test_biocals_customizing_writes_an_explicit_stack(qtbot, silence_dialogs, tmp_path):
+    editor = StudyEditorWindow()
+    qtbot.addWidget(editor)
+    editor._forms["biocals"].customize.setChecked(True)
+    editor._forms["biocals"].voiceVolume.setValue(0.4)
+    assert editor.has_unsaved_changes()
+    path = tmp_path / "bio2.smacc"
+    assert editor._write(str(path)) is True
+
+    reloaded = StudyEditorWindow(str(path))
+    qtbot.addWidget(reloaded)
+    assert reloaded.config.cueing.biocals.rows is not None  # now explicit
+    assert reloaded.config.cueing.biocals.voice_volume == 0.4
+    assert reloaded._forms["biocals"].customize.isChecked() is True
