@@ -25,6 +25,7 @@ from .config import display_version
 from .cuedesigner import CueDesignerWindow
 from .gui import SmaccWindow
 from .paths import DEFAULT_DATA_DIR, DEFAULT_SETTINGS_PATH, LOGO_PATH, preferences_path
+from .rigsetup import RigSetupWindow
 from .session import SmaccSession
 from .toolwindow import ToolWindow
 
@@ -116,6 +117,11 @@ class LauncherWindow(QtWidgets.QMainWindow):
             "Audio Cue Designer",
             "Create a tone cue and export it as a WAV file.",
             self.design_cues,
+        )
+        tool_button(
+            "Rig setup",
+            "Bind this machine's equipment to devices (the rig profile); no study needed.",
+            self.setup_rig,
         )
         # The EEG Annotator (#136) opens in its own process so it can outlive a
         # session (see review_eeg). MNE ships inside the one SMACC binary, so the
@@ -264,6 +270,10 @@ class LauncherWindow(QtWidgets.QMainWindow):
     def design_cues(self) -> None:
         """Open the standalone Audio Cue Designer (exports WAVs to the cues folder)."""
         self._open_tool(CueDesignerWindow(DEFAULT_DATA_DIR / "cues"))
+
+    def setup_rig(self) -> None:
+        """Open the standalone Rig setup tool (edits this machine's rig profile, #300)."""
+        self._open_tool(RigSetupWindow())
 
     def analyze_session(self) -> None:
         """Open the Analyzer over the default data directory."""

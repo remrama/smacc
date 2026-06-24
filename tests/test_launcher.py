@@ -207,3 +207,26 @@ def test_open_editor_existing_opens_that_file(qtbot, tmp_path, monkeypatch):
     qtbot.addWidget(win)
     win._open_editor()
     assert captured["path"] == str(good)
+
+
+# ----- Rig setup: a standalone launcher tool (#300) ---------------------------
+
+
+def test_setup_rig_button_opens_the_rig_setup_tool(
+    qtbot, tmp_path, monkeypatch, mock_devices
+):
+    from smacc import hue, rigsetup
+    from smacc.rigsetup import RigSetupWindow
+
+    _patch_prefs(monkeypatch, tmp_path)
+    monkeypatch.setattr(rigsetup, "preferences_path", tmp_path / "preferences.yaml")
+    monkeypatch.setattr(hue, "targets", lambda cfg: [])  # no Hue network in tests
+    win = LauncherWindow()
+    qtbot.addWidget(win)
+    win.show()
+    win.setup_rig()
+    assert isinstance(win._tool, RigSetupWindow)
+    assert win._tool.isVisible()  # the tool shows itself
+    assert not win.isVisible()  # and the launcher hides until it closes
+    win._tool.close()  # returns control to the launcher (it reappears)
+    assert win.isVisible()

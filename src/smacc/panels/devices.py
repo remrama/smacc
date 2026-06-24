@@ -120,6 +120,58 @@ def hue_devices(cfg: hue.HueConfig) -> list[tuple[str, str]]:
         return []
 
 
+def _select_equipment_row(combo: QtWidgets.QComboBox, key: str) -> bool:
+    """Select the row for device ``key`` in ``combo``; index 0 (placeholder) when blank.
+
+    A bound device with no row (not currently connected) is added as an explicit
+    "(not connected)" row carrying ``key`` and selected, so the combo shows the truth
+    rather than the placeholder while the binding — kept, not swapped — still points at
+    the missing device. Returns False in exactly that case so the caller can flag it.
+    """
+    if not key:
+        combo.setCurrentIndex(0)
+        return True
+    if select_saved_device(combo, key):
+        return not combo.itemData(combo.currentIndex(), _MISSING_ROLE)
+    combo.addItem(f"{key} (not connected)", key)
+    index = combo.count() - 1
+    combo.setItemData(index, True, _MISSING_ROLE)
+    combo.setCurrentIndex(index)
+    return False
+
+
+def populate_equipment_combo(
+    combo: QtWidgets.QComboBox,
+    equipment: devices.Equipment,
+    hue_config: hue.HueConfig,
+    bound: str,
+) -> bool:
+    """(Re)fill one equipment dropdown from a fresh enumeration and select ``bound``.
+
+    Shared by the in-session Devices panel and the standalone Rig setup tool (#300).
+    Index 0 reads "(none)" when devices are available and a kind-specific "No … found"
+    when none are. Returns False iff ``bound`` is set but the device isn't currently
+    connected (a "(not connected)" row is shown), so a caller can flag the miss.
+    """
+    combo.blockSignals(True)
+    combo.clear()
+    if equipment.key == "philips_hue_light":
+        entries = hue_devices(hue_config)
+        empty = _NO_LIGHTS_LABEL if hue_config.configured else _NO_BRIDGE_LABEL
+    elif equipment.kind == devices.VISUAL:
+        entries = blinkstick_devices()
+        empty = _EMPTY_LABELS[devices.VISUAL]
+    else:
+        entries = [(name, name) for name in wasapi_devices(equipment.kind)]
+        empty = _EMPTY_LABELS[equipment.kind]
+    combo.addItem(_NONE_LABEL if entries else empty, "")
+    for label, key in entries:
+        combo.addItem(label, key)
+    connected = _select_equipment_row(combo, bound)
+    combo.blockSignals(False)
+    return connected
+
+
 class DevicesWindow(PanelWindow):
     """Bind devices to equipment and route actions to equipment (edits session.devices)."""
 
@@ -270,49 +322,16 @@ class DevicesWindow(PanelWindow):
         kind-specific "No … found" when there are none (#139).
         """
         for equipment in devices.EQUIPMENT:
-            combo = self._equipment_combos[equipment.key]
-            combo.blockSignals(True)
-            combo.clear()
-            if equipment.key == "philips_hue_light":
-                entries = hue_devices(self.session.hue_config)
-                empty = (
-                    _NO_LIGHTS_LABEL
-                    if self.session.hue_config.configured
-                    else _NO_BRIDGE_LABEL
-                )
-            elif equipment.kind == devices.VISUAL:
-                entries = blinkstick_devices()
-                empty = _EMPTY_LABELS[devices.VISUAL]
-            else:
-                entries = [(name, name) for name in wasapi_devices(equipment.kind)]
-                empty = _EMPTY_LABELS[equipment.kind]
-            combo.addItem(_NONE_LABEL if entries else empty, "")
-            for label, key in entries:
-                combo.addItem(label, key)
-            bound = self.session.devices.device_for_equipment(equipment.key)
-            self._select_device_row(combo, bound)
-            combo.blockSignals(False)
+            populate_equipment_combo(
+                self._equipment_combos[equipment.key],
+                equipment,
+                self.session.hue_config,
+                self.session.devices.device_for_equipment(equipment.key),
+            )
 
     def _select_device_row(self, combo: QtWidgets.QComboBox, key: str) -> bool:
-        """Select the row for device ``key``; index 0 (the placeholder) when blank.
-
-        A bound device with no row (not currently connected) is added as an
-        explicit "(not connected)" row carrying ``key`` as its data and selected,
-        so the combo shows the truth instead of displaying the placeholder while
-        the binding — which is kept (flag, don't swap) — still points at the
-        missing device. Returns False in exactly that case so
-        :meth:`reload_from_config` can flag it. A rescan rebuilds the list, so
-        the row disappears once the device is back (or another is picked).
-        """
-        if not key:
-            combo.setCurrentIndex(0)
-            return True
-        if select_saved_device(combo, key):
-            return not combo.itemData(combo.currentIndex(), _MISSING_ROLE)
-        combo.addItem(f"{key} (not connected)", key)
-        index = combo.count() - 1
-        combo.setItemData(index, True, _MISSING_ROLE)
-        combo.setCurrentIndex(index)
+        """Select the row for device ``key`` (see :func:`_select_equipment_row`)."""
+        return _select_equipment_row(combo, key)
         return False
 
     # ----- editing -> session.devices ----------------------------------------
