@@ -32,6 +32,12 @@ jobs:
       # dependencies); ignore_missing_imports covers them either way.
       - name: Type check
         run: uv run --extra dev mypy
+      # Architectural boundary check (see [tool.importlinter] in pyproject.toml):
+      # the Study Editor model must never import the session/panels/audio stack,
+      # so the hardware-free guarantee holds by construction rather than by review
+      # discipline (#301). Static graph analysis — does not import or run Qt.
+      - name: Import boundaries
+        run: uv run --extra dev lint-imports
 
   test:
     # windows-2022 mirrors the release build (release.yml) — same OS, Python
