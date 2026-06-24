@@ -82,16 +82,15 @@ def test_editor_save_round_trips_byte_stable(qtbot, silence_dialogs, tmp_path):
     assert path1.read_text(encoding="utf-8") == path2.read_text(encoding="utf-8")
 
 
-def test_editing_an_unformed_section_marks_unsaved_then_save_clears_it(
+def test_editing_metadata_marks_unsaved_then_save_clears_it(
     qtbot, silence_dialogs, tmp_path
 ):
-    # markers has no form yet, so a programmatic edit there isn't overwritten by a
-    # form commit — this exercises the snapshot/dirty machinery for sections whose
-    # values round-trip untouched.
+    # Metadata rides outside the forms (it's edited via Session info), so the
+    # snapshot must fold it in — editing it marks the study unsaved.
     editor = StudyEditorWindow()
     qtbot.addWidget(editor)
     assert not editor.has_unsaved_changes()
-    editor.config.markers.event_code_safe_max = 200
+    editor.metadata["subject"] = "p01"
     assert editor.has_unsaved_changes()
     assert editor._write(str(tmp_path / "s.smacc")) is True
     assert not editor.has_unsaved_changes()  # saving rebaselines the snapshot
@@ -278,3 +277,41 @@ def test_surveys_form_round_trips_url_and_options(qtbot, silence_dialogs, tmp_pa
     assert reloaded.config.surveys.options == {
         "Post survey": "https://example.com/post"
     }
+
+
+def test_markers_form_round_trips_a_code_edit(qtbot, silence_dialogs, tmp_path):
+    editor = StudyEditorWindow()
+    qtbot.addWidget(editor)
+    registry = editor._forms["markers"].registry
+    registry._code_spins[0].setValue(77)  # retune the first event's port code
+    target_key = registry._events[0].key
+    assert editor.has_unsaved_changes()
+
+    path = tmp_path / "m.smacc"
+    assert editor._write(str(path)) is True
+    reloaded = StudyEditorWindow(str(path))
+    qtbot.addWidget(reloaded)
+    code = {e.key: e.code for e in reloaded.config.markers.event_codes}[target_key]
+    assert code == 77
+
+
+def test_markers_trigger_behavior_round_trips_without_machine_fields(
+    qtbot, silence_dialogs, tmp_path
+):
+    editor = StudyEditorWindow()
+    qtbot.addWidget(editor)
+    form = editor._forms["markers"]
+    form.enabled.setChecked(True)
+    form._select(form.mode, "hold")
+    assert editor.has_unsaved_changes()
+
+    path = tmp_path / "trig.smacc"
+    assert editor._write(str(path)) is True
+    reloaded = StudyEditorWindow(str(path))
+    qtbot.addWidget(reloaded)
+    trigger = reloaded.config.markers.trigger
+    assert trigger.enabled is True
+    assert trigger.mode == "hold"
+    # The saved study carries trigger behavior only — never machine port/baud/address.
+    study_trigger = reloaded.config.to_settings_dict()["trigger_output"]
+    assert not {"port", "baud", "address"} & set(study_trigger)

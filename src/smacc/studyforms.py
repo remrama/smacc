@@ -20,12 +20,14 @@ or ``pylsl`` (the import-linter contract proves it transitively via
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import cast
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 from . import biocals, devices, surveys
 from .dialogs import ManageSurveysDialog
+from .eventregistry import EventRegistryTable
 from .paths import BUNDLED_SURVEYS_DIR, SURVEYS_DIR
 from .studyconfig import AudioCue, StudyConfig, VisualCue
 
@@ -560,6 +562,99 @@ class BiocalsForm(SectionForm):
         bio = config.cueing.biocals
         bio.voice_volume = self.voiceVolume.value()
         bio.rows = self._read_rows() if self.customize.isChecked() else None
+
+
+class MarkersForm(SectionForm):
+    """The event-code registry plus the portable hardware-trigger behavior.
+
+    The registry is the shared :class:`~smacc.eventregistry.EventRegistryTable` — the
+    same widget the live Markers window uses. The trigger sub-form edits only the
+    portable behavior (enabled / transport / mode / pulse width); the machine-local
+    port, baud, and address are set per machine in Rig setup (#300), never here, and
+    there is no Test button — firing a pulse is a hardware action, absent here by
+    construction.
+    """
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.registry = EventRegistryTable(self)
+
+        self.enabled = QtWidgets.QCheckBox("Enable hardware trigger output", self)
+        self.enabled.setStatusTip(
+            "Also drive a physical TTL trigger (the LSL stream is independent)."
+        )
+        self.enabled.toggled.connect(self.registry.set_ttl_enabled)
+        self.enabled.toggled.connect(self._sync_enabled)
+
+        self.transport = QtWidgets.QComboBox(self)
+        self.transport.addItem("Serial (USB trigger box)", "serial")
+        self.transport.addItem("Parallel port (LPT)", "parallel")
+        self.mode = QtWidgets.QComboBox(self)
+        self.mode.addItem("Pulsed (SMACC times the pulse)", "pulsed")
+        self.mode.addItem("Set-and-hold (until next event)", "hold")
+        self.mode.currentIndexChanged.connect(self._sync_pulse)
+        self.pulse = QtWidgets.QSpinBox(self)
+        self.pulse.setRange(1, 1000)
+        self.pulse.setSuffix(" ms")
+
+        self._trigger_form = QtWidgets.QWidget(self)
+        trigger_form = QtWidgets.QFormLayout(self._trigger_form)
+        trigger_form.setContentsMargins(0, 0, 0, 0)
+        trigger_form.addRow("Transport", self.transport)
+        trigger_form.addRow("Mode", self.mode)
+        trigger_form.addRow("Pulse width", self.pulse)
+
+        note = QtWidgets.QLabel(
+            "The port / baud / address for this machine are set in Rig setup, not here."
+        )
+        note.setWordWrap(True)
+        trigger_box = QtWidgets.QGroupBox("Hardware TTL transport", self)
+        box_layout = QtWidgets.QVBoxLayout(trigger_box)
+        box_layout.addWidget(self.enabled)
+        box_layout.addWidget(self._trigger_form)
+        box_layout.addWidget(note)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(section_title("Markers"))
+        layout.addWidget(self.registry, 1)
+        layout.addWidget(trigger_box)
+
+    @staticmethod
+    def _select(combo: QtWidgets.QComboBox, value: str) -> None:
+        index = combo.findData(value)
+        if index >= 0:
+            combo.setCurrentIndex(index)
+
+    def _sync_enabled(self) -> None:
+        self._trigger_form.setEnabled(self.enabled.isChecked())
+
+    def _sync_pulse(self) -> None:
+        self.pulse.setEnabled(self.mode.currentData() == "pulsed")
+
+    def load(self, config: StudyConfig) -> None:
+        markers = config.markers
+        self.registry.load(markers.event_codes, markers.event_code_safe_max)
+        trigger = markers.trigger
+        self.enabled.setChecked(trigger.enabled)
+        self._select(self.transport, trigger.transport)
+        self._select(self.mode, trigger.mode)
+        self.pulse.setValue(trigger.pulse_ms)
+        self.registry.set_ttl_enabled(trigger.enabled)
+        self._sync_enabled()
+        self._sync_pulse()
+
+    def commit(self, config: StudyConfig) -> None:
+        markers = config.markers
+        markers.event_codes = self.registry.current_events()
+        markers.event_code_safe_max = self.registry.current_safe_max()
+        # Preserve the (rig-local, non-serialized) port/baud/address; edit behavior.
+        markers.trigger = replace(
+            markers.trigger,
+            enabled=self.enabled.isChecked(),
+            transport=self.transport.currentData(),
+            mode=self.mode.currentData(),
+            pulse_ms=self.pulse.value(),
+        )
 
 
 class SurveysForm(SectionForm):

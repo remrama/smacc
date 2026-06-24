@@ -7,8 +7,7 @@ import logging
 import pytest
 from PyQt6 import QtWidgets
 
-from smacc import events, triggers
-from smacc.panels import markers as markers_module
+from smacc import eventregistry, events, triggers
 from smacc.panels.markers import MarkersWindow
 
 
@@ -39,7 +38,7 @@ def _capture_session_log(session) -> list[logging.LogRecord]:
 
 
 def _index_of(win: MarkersWindow, key: str) -> int:
-    return next(i for i, e in enumerate(win._events) if e.key == key)
+    return next(i for i, e in enumerate(win.registry._events) if e.key == key)
 
 
 # ----- registry table ---------------------------------------------------------
@@ -47,20 +46,22 @@ def _index_of(win: MarkersWindow, key: str) -> int:
 
 def test_window_stages_the_whole_registry_grouped(window, headless_session):
     # Every event is staged (one widget set per event)...
-    assert len(window._events) == len(headless_session.events)
-    assert all(spin is not None for spin in window._code_spins)
+    assert len(window.registry._events) == len(headless_session.events)
+    assert all(spin is not None for spin in window.registry._code_spins)
     # ...and the table carries one extra (spanned header) row per category group.
     categories = {e.category for e in headless_session.events.values()}
-    assert window.table.rowCount() == len(headless_session.events) + len(categories)
+    assert window.registry.table.rowCount() == len(headless_session.events) + len(
+        categories
+    )
     # The header rows are not mapped to events (not editable/selectable rows).
-    assert len(window._row_event) == len(headless_session.events)
+    assert len(window.registry._row_event) == len(headless_session.events)
 
 
 def test_apply_commits_staged_edits_and_logs_loudly(window, headless_session):
     records = _capture_session_log(headless_session)
     i = _index_of(window, "REMDetected")
-    window._code_spins[i].setValue(99)
-    window._lsl_boxes[i].setChecked(False)
+    window.registry._code_spins[i].setValue(99)
+    window.registry._lsl_boxes[i].setChecked(False)
     window.apply()
     assert headless_session.events["REMDetected"].code == 99
     assert headless_session.events["REMDetected"].lsl is False
@@ -81,7 +82,7 @@ def test_apply_blocks_on_validation_errors(window, headless_session, monkeypatch
         lambda *a, **k: warned.append(a[2]) or QtWidgets.QMessageBox.StandardButton.Ok,
     )
     # Stage a duplicate routed code: REMDetected takes Clapper's 49.
-    window._code_spins[_index_of(window, "REMDetected")].setValue(49)
+    window.registry._code_spins[_index_of(window, "REMDetected")].setValue(49)
     window.apply()
     assert warned and "49" in warned[0]
     assert headless_session.events["REMDetected"].code == 41  # unchanged
@@ -89,12 +90,12 @@ def test_apply_blocks_on_validation_errors(window, headless_session, monkeypatch
 
 def test_safe_max_round_trips_and_logs(window, headless_session):
     records = _capture_session_log(headless_session)
-    window.safeMaxSpin.setValue(127)
+    window.registry.safeMaxSpin.setValue(127)
     # 127 would warn on the biocal/dream codes above it; keep them TTL-off so the
     # apply is clean (the point here is the safe-max commit, not the warning).
-    for i, event in enumerate(window._events):
+    for i, event in enumerate(window.registry._events):
         if event.code > 127:
-            window._ttl_boxes[i].setChecked(False)
+            window.registry._ttl_boxes[i].setChecked(False)
     window.apply()
     assert headless_session.event_code_safe_max == 127
     assert any("safe max changed" in r.getMessage() for r in records)
@@ -102,10 +103,10 @@ def test_safe_max_round_trips_and_logs(window, headless_session):
 
 def test_revert_discards_staged_edits(window, headless_session):
     i = _index_of(window, "REMDetected")
-    window._code_spins[i].setValue(99)
+    window.registry._code_spins[i].setValue(99)
     window._revert()
     i = _index_of(window, "REMDetected")
-    assert window._code_spins[i].value() == 41
+    assert window.registry._code_spins[i].value() == 41
     assert headless_session.events["REMDetected"].code == 41
 
 
@@ -113,7 +114,7 @@ def test_reload_from_session_picks_up_external_changes(window, headless_session)
     new = events.make_custom_event("Door knock", 150, headless_session.events.keys())
     headless_session.events[new.key] = new
     window.reload_from_session()
-    assert any(e.key == new.key for e in window._events)
+    assert any(e.key == new.key for e in window.registry._events)
 
 
 def test_add_event_stages_a_custom_event(window, monkeypatch):
@@ -127,11 +128,11 @@ def test_add_event_stages_a_custom_event(window, monkeypatch):
         def get_inputs(self):
             return ("New event", 199, "tip", False)
 
-    monkeypatch.setattr(markers_module, "AddEventDialog", _StubAddDialog)
-    before = len(window._events)
-    window._add_event()
-    assert len(window._events) == before + 1
-    assert any(e.label == "New event" for e in window._events)
+    monkeypatch.setattr(eventregistry, "AddEventDialog", _StubAddDialog)
+    before = len(window.registry._events)
+    window.registry._add_event()
+    assert len(window.registry._events) == before + 1
+    assert any(e.label == "New event" for e in window.registry._events)
 
 
 def test_remove_only_removes_custom_events(window, headless_session, monkeypatch):
@@ -143,29 +144,33 @@ def test_remove_only_removes_custom_events(window, headless_session, monkeypatch
     )
     # A built-in row refuses removal...
     builtin_row = next(
-        row for row, i in window._row_event.items() if window._events[i].builtin
+        row
+        for row, i in window.registry._row_event.items()
+        if window.registry._events[i].builtin
     )
-    window.table.selectRow(builtin_row)
-    window._remove_selected()
+    window.registry.table.selectRow(builtin_row)
+    window.registry._remove_selected()
     assert infos and "Built-in" in infos[0]
     # ...while a staged custom event goes away.
     new = events.make_custom_event("Door knock", 150, headless_session.events.keys())
     headless_session.events[new.key] = new
     window.reload_from_session()
     custom_row = next(
-        row for row, i in window._row_event.items() if not window._events[i].builtin
+        row
+        for row, i in window.registry._row_event.items()
+        if not window.registry._events[i].builtin
     )
-    window.table.selectRow(custom_row)
-    window._remove_selected()
-    assert not any(e.key == new.key for e in window._events)
+    window.registry.table.selectRow(custom_row)
+    window.registry._remove_selected()
+    assert not any(e.key == new.key for e in window.registry._events)
 
 
 def test_show_reloads_but_minimize_restore_keeps_edits(window, headless_session, qtbot):
     i = _index_of(window, "REMDetected")
-    window._code_spins[i].setValue(99)
+    window.registry._code_spins[i].setValue(99)
     window.hide()
     window.show()  # programmatic (re)open -> reload from the session
-    assert window._code_spins[_index_of(window, "REMDetected")].value() == 41
+    assert window.registry._code_spins[_index_of(window, "REMDetected")].value() == 41
 
 
 # ----- TTL column gating --------------------------------------------------------
@@ -173,13 +178,13 @@ def test_show_reloads_but_minimize_restore_keeps_edits(window, headless_session,
 
 def test_ttl_column_grays_out_without_a_transport(window):
     assert window.enabledBox.isChecked() is False
-    assert all(not box.isEnabled() for box in window._ttl_boxes)
+    assert all(not box.isEnabled() for box in window.registry._ttl_boxes)
     # The values are kept (they persist and re-arm with a transport)...
     i = _index_of(window, "REMDetected")
-    assert window._ttl_boxes[i].isChecked() is True
+    assert window.registry._ttl_boxes[i].isChecked() is True
     # ...and enabling the transport re-arms the column.
     window.enabledBox.setChecked(True)
-    assert all(box.isEnabled() for box in window._ttl_boxes)
+    assert all(box.isEnabled() for box in window.registry._ttl_boxes)
 
 
 # ----- hardware detection hints ---------------------------------------------------
@@ -193,7 +198,7 @@ def test_no_serial_ports_shows_the_hint_but_gates_nothing(
     qtbot.addWidget(win)
     assert not win.portStatusLabel.isHidden()
     # A hint, not a gate: the per-event TTL routing is untouched (not emptied).
-    assert win._ttl_boxes[_index_of(win, "REMDetected")].isChecked() is True
+    assert win.registry._ttl_boxes[_index_of(win, "REMDetected")].isChecked() is True
 
 
 def test_attached_serial_ports_hide_the_hint(stub_serial_ports, window):
