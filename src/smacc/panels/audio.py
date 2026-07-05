@@ -223,7 +223,7 @@ class AudioCueWindow(PanelWindow):
         # strip row and add button to work with.
         self.slots: list[CueSlot] = []
         # One coherent flat icon set, shared by every strip; repainted on a theme
-        # change so it stays legible when the lights-off dark scheme toggles (#289).
+        # change so it stays legible when the dark color scheme is active (#289).
         self._transport_icons: dict[str, QtGui.QIcon] = {}
         self._rebuild_transport_icons()
         self.setCentralWidget(self._build())
@@ -324,9 +324,9 @@ class AudioCueWindow(PanelWindow):
     def _rebuild_transport_icons(self) -> None:
         """(Re)paint the transport glyphs for the current palette and apply them.
 
-        Painted pixmaps don't follow a palette change on their own, so the
-        lights-off dark theme would otherwise leave them low-contrast; this reruns
-        on every palette change (see :meth:`changeEvent`).
+        Painted pixmaps don't follow a palette change on their own, so the dark
+        theme would otherwise leave them low-contrast; this reruns on every palette
+        change (see :meth:`changeEvent`).
         """
         self._transport_icons = {
             kind: self._transport_icon(kind)

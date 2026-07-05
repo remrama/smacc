@@ -1,8 +1,8 @@
 """Event-logging window: the manual event-marker buttons (built-in + custom).
 
-The lights toggle stays on the main window (it also drives the dark theme); every
-other manual event button lives here so a study's custom buttons can be added or
-removed (via the Markers window) and the grid resized to fit. The grid is rebuilt
+The lights toggle stays on the main window; every other manual event button lives
+here so a study's custom buttons can be added or removed (via the Markers window)
+and the grid resized to fit. The grid is rebuilt
 whenever the registry changes, and each button's tooltip carries its event's
 code + routing so what a press sends is visible right where it's pressed.
 """

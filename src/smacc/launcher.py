@@ -19,7 +19,7 @@ from pathlib import Path
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from . import dialogs, eeg, preferences, settings, updates, winassoc, windowstate
+from . import dialogs, eeg, preferences, settings, theme, updates, winassoc, windowstate
 from .analyze import AnalyzeWindow
 from .config import display_version
 from .cuedesigner import CueDesignerWindow
@@ -208,6 +208,14 @@ class LauncherWindow(QtWidgets.QMainWindow):
         assert aboutAction is not None
         aboutAction.setStatusTip("About SMACC (version and links).")
         aboutAction.triggered.connect(self.show_about_popup)
+        # Color theme (light / dark / match-system): a machine preference (#315),
+        # reachable here so it can be set outside a running session too.
+        themeMenu = fileMenu.addMenu("&Theme")
+        assert themeMenu is not None
+        current = preferences.theme(preferences.load_preferences(preferences_path))
+        self._theme_group = theme.build_menu(
+            self, themeMenu, current, self._on_theme_selected
+        )
         quitAction = fileMenu.addAction(
             style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DialogCloseButton),
             "&Quit",
@@ -369,6 +377,11 @@ class LauncherWindow(QtWidgets.QMainWindow):
         )
         box.exec()
 
+    def _on_theme_selected(self, token: str) -> None:
+        """Apply a chosen color theme and persist it as a machine preference (#315)."""
+        theme.apply(token)
+        preferences.update_preferences(preferences_path, {"theme": token})
+
     # ----- tool-window lifecycle -------------------------------------------
 
     def _open_tool(self, window: ToolWindow) -> None:
@@ -395,11 +408,8 @@ class LauncherWindow(QtWidgets.QMainWindow):
             preferences.update_preferences(
                 preferences_path, {"last_settings": tool.settings_path}
             )
-        # The dark theme is a per-session "lights off" state; a session that ended
-        # dark shouldn't leave the launcher dark, so reset to light on return.
-        hints = QtGui.QGuiApplication.styleHints()
-        assert hints is not None
-        hints.setColorScheme(QtCore.Qt.ColorScheme.Light)
+        # The theme is an app-wide machine preference now (#315), no longer a
+        # per-session "lights off" state, so a closing tool leaves it untouched.
         self.show()
         self.raise_()
         self.activateWindow()

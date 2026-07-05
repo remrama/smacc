@@ -1728,7 +1728,7 @@ requires-dist = [
     { name = "pyinstaller", marker = "extra == 'dev'" },
     { name = "pylsl" },
     { name = "pypdf", marker = "extra == 'docs'" },
-    { name = "pyqt6" },
+    { name = "pyqt6", specifier = ">=6.8" },
     { name = "pyqtgraph", specifier = ">=0.13" },
     { name = "pyserial" },
     { name = "pytest", marker = "extra == 'dev'" },

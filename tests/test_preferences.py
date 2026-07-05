@@ -79,6 +79,24 @@ def test_preview_time_format_maps_token_to_strftime():
     assert preferences.preview_time_format({}) == "%H:%M:%S"  # default token
 
 
+def test_theme_reads_a_known_token():
+    assert preferences.theme({"theme": "light"}) == "light"
+    assert preferences.theme({"theme": "dark"}) == "dark"
+    assert preferences.theme({"theme": "system"}) == "system"
+
+
+def test_theme_falls_back_on_garbage():
+    default = preferences.DEFAULTS["theme"]
+    for bad in (
+        {},
+        {"theme": "midnight"},
+        {"theme": ""},
+        {"theme": True},
+        {"theme": {}},  # unhashable: the str guard must not raise
+    ):
+        assert preferences.theme(bad) == default
+
+
 def test_round_trip(tmp_path):
     path = tmp_path / "preferences.yaml"
     custom = preferences.default_preferences()
