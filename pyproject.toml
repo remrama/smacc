@@ -42,8 +42,9 @@ dependencies = [
     "pyyaml",
     # Qt 6 GUI toolkit. Qt 6 requires Windows 10+, which is why SMACC's floor is
     # Windows 10 (Qt5/PyQt5 was the last line that still ran on Windows 8.1). PyQt6
-    # pulls in PyQt6-Qt6 (the Qt libraries, incl. QtMultimedia) and PyQt6-sip.
-    "PyQt6",
+    # pulls in PyQt6-Qt6 (the Qt libraries, incl. QtMultimedia) and PyQt6-sip. The
+    # >=6.8 floor is for QStyleHints.unsetColorScheme (the "match system" theme, #315).
+    "PyQt6>=6.8",
     "scipy",
     "sounddevice",
     "soundfile>=0.12",

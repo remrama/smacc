@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 from PyQt6 import QtWidgets
 
-from smacc import gui, paths, preferences, settings, triggers, winvolume
+from smacc import gui, paths, preferences, settings, theme, triggers, winvolume
 from smacc.gui import SmaccWindow
 
 
@@ -329,22 +329,87 @@ def test_grid_add_event_refreshes_the_markers_staging(
 # ----- theme / lights and owned preferences ----------------------------------
 
 
-def test_set_lights_toggles_state_and_label(
-    qtbot, live_session, mock_devices, silence_dialogs
+def test_set_lights_toggles_state_label_and_title(
+    qtbot, live_session, mock_devices, silence_dialogs, monkeypatch
 ):
-    # set_lights drives the lights state, the switch label, and the theme. The
-    # offscreen platform doesn't reflect QStyleHints.colorScheme() back, so assert
-    # the observable state + label (which only update via the apply_theme path).
+    # set_lights drives the lights state, the switch label, and the window-title
+    # tag — the indicators that replaced the old theme-flip (#315). It must NOT
+    # touch the app color theme anymore: lights and theme are independent now.
+    # (The offscreen platform never reflects QStyleHints.colorScheme() back, so we
+    # spy on theme.apply rather than reading the scheme.)
+    applied: list[str] = []
+    monkeypatch.setattr(theme, "apply", lambda token: applied.append(token))
+
     window = SmaccWindow(live_session)
     qtbot.addWidget(window)
 
     window.set_lights(False)
     assert window.lights_on is False
     assert "OFF" in window.lightswitchButton.text()
+    assert window.windowTitle().endswith("Lights off")
 
     window.set_lights(True)
     assert window.lights_on is True
     assert "ON" in window.lightswitchButton.text()
+    assert window.windowTitle().endswith("Lights on")
+
+    assert applied == []  # toggling the lights never applies a theme
+
+
+def test_mark_lights_earlier_syncs_state_and_notes_the_time(
+    qtbot, live_session, mock_devices, silence_dialogs, monkeypatch
+):
+    # "Mark at earlier time…" fires the lights marker now, tagged with the estimated
+    # time, and syncs the switch/indicators to the corrected state — without a second
+    # marker from the switch move (#315).
+    window = SmaccWindow(live_session)
+    qtbot.addWidget(window)
+    assert window.lights_on is True
+
+    monkeypatch.setattr(gui.EarlierLightsDialog, "exec", lambda self: 1)  # accepted
+    monkeypatch.setattr(
+        gui.EarlierLightsDialog, "get_inputs", lambda self: (False, "23:40")
+    )
+    emitted: list[tuple[str, str | None]] = []
+    monkeypatch.setattr(
+        window.session,
+        "emit_event",
+        lambda key, detail=None, **k: emitted.append((key, detail)),
+    )
+
+    window.mark_lights_earlier()
+
+    assert emitted == [("LightsOff", "estimated 23:40")]  # one marker, with the note
+    assert window.lights_on is False
+    assert window.lightswitchButton.isChecked() is False
+    assert window.windowTitle().endswith("Lights off")
+
+
+def test_theme_menu_applies_and_persists(
+    qtbot, tmp_path, monkeypatch, mock_devices, silence_dialogs
+):
+    # The Theme menu is a machine preference: choosing one applies it app-wide and
+    # writes preferences.yaml (not the .smacc study file), independent of the lights.
+    prefs_path = tmp_path / "preferences.yaml"
+    monkeypatch.setattr(gui, "preferences_path", prefs_path)
+
+    from smacc.session import SmaccSession
+
+    applied: list[str] = []
+    monkeypatch.setattr(theme, "apply", lambda token: applied.append(token))
+    monkeypatch.setattr(
+        SmaccSession,
+        "init_lsl_stream",
+        lambda self, *a, **k: setattr(self, "outlet", None),
+    )
+    window = SmaccWindow(SmaccSession(tmp_path / "data", headless=False))
+    qtbot.addWidget(window)
+
+    window._on_theme_selected("dark")
+    assert applied == ["dark"]  # applied app-wide for this process
+    assert preferences.theme(preferences.load_preferences(prefs_path)) == "dark"
+
+    window.session.close()
 
 
 def test_preview_clock_toggle_switches_format_and_persists(

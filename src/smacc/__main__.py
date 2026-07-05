@@ -10,11 +10,11 @@ import traceback
 from pathlib import Path
 from types import TracebackType
 
-from PyQt6.QtCore import Qt, QTimer, QUrl
+from PyQt6.QtCore import QTimer, QUrl
 from PyQt6.QtGui import QDesktopServices, QIcon
 from PyQt6.QtWidgets import QApplication, QMessageBox, QPushButton
 
-from . import crashlog
+from . import crashlog, preferences, theme
 from .config import display_version, set_taskbar_app_id
 from .fonts import apply_app_font
 from .launcher import LauncherWindow
@@ -25,6 +25,7 @@ from .paths import (
     DEFAULT_DATA_DIR,
     DEFAULT_SETTINGS_PATH,
     LOGO_PATH,
+    preferences_path,
 )
 from .utils import seed_default_settings, seed_demo_cues
 
@@ -255,14 +256,12 @@ def main() -> None:
     set_taskbar_app_id()  # group with the EEG Annotator under one taskbar app
     app = QApplication(sys.argv)
     # Fusion honors the full QPalette consistently across platforms, which the
-    # native Windows style does not — required for the lights-off dark theme.
+    # native Windows style does not — required for a faithful dark theme.
     app.setStyle("Fusion")
-    # Always open in light mode. Qt 6's Fusion follows the OS color scheme, so on
-    # a dark-mode OS SMACC would otherwise open dark even with the lights "on";
-    # the lightswitch flips to the dark scheme on demand (see SmaccWindow).
-    style_hints = app.styleHints()
-    assert style_hints is not None
-    style_hints.setColorScheme(Qt.ColorScheme.Light)
+    # Apply the saved color theme: "system" follows the OS scheme, else pinned
+    # light/dark. This is a machine preference now, independent of the lights on/off
+    # state (#315) — the lightswitch no longer drives the palette.
+    theme.apply(preferences.theme(preferences.load_preferences(preferences_path)))
     # Register the bundled B612 cockpit font and set it as the base UI font (#279),
     # so SMACC looks identical on every rig rather than inheriting a system font.
     apply_app_font(app)

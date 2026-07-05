@@ -56,6 +56,11 @@ DEFAULTS: dict[str, Any] = {
     # ISO timestamps with a UTC offset; this changes only the on-screen preview.
     # See CLOCK_FORMATS and log_preview_clock().
     "log_preview_clock": "24h",
+    # App-wide color theme: "system" (follow the OS scheme, tracking a live change),
+    # "light", or "dark". A machine/operator preference, independent of the lights
+    # on/off state and of the portable study (#315); applied at startup and from the
+    # Theme menu. See THEMES, theme(), and smacc.theme.
+    "theme": "system",
     # EEG Annotator (#136): recently used annotation labels (most-recent
     # first, seeding the label dialog's dropdown) and the last folder a
     # recording was opened from. Note loading only round-trips keys present
@@ -257,6 +262,24 @@ def log_preview_clock(prefs: dict[str, Any]) -> str:
 def preview_time_format(prefs: dict[str, Any]) -> str:
     """Return the ``strftime`` time format for the live preview (per :func:`log_preview_clock`)."""
     return CLOCK_FORMATS[log_preview_clock(prefs)]
+
+
+# The valid app-wide theme tokens (see :mod:`smacc.theme`). Kept here — beside the
+# accessor and the DEFAULTS entry — so this module stays import-light (no Qt); the
+# Qt-side theme module reuses these names for its menu.
+THEMES: tuple[str, ...] = ("system", "light", "dark")
+
+
+def theme(prefs: dict[str, Any]) -> str:
+    """Return the saved theme token (``"system"``/``"light"``/``"dark"``), else the default.
+
+    A hand-edited ``preferences.yaml`` may carry anything here; an unknown value
+    falls back to the default rather than leaving the app in an undefined scheme.
+    """
+    value = prefs.get("theme")
+    if isinstance(value, str) and value in THEMES:
+        return value
+    return str(DEFAULTS["theme"])
 
 
 def levels_to_names(levels: set[int]) -> list[str]:

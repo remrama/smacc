@@ -990,6 +990,69 @@ class AddEventDialog(QtWidgets.QDialog):
         )
 
 
+class EarlierLightsDialog(QtWidgets.QDialog):
+    """Mark a lights off/on change at a corrected earlier clock time (#315).
+
+    For the common "oh — I forgot to mark lights off ten minutes ago" case. The
+    marker still fires (and is logged/stamped) *now*; this dialog only captures the
+    operator's estimate of when it actually happened, which rides along as a note on
+    the marker — the log reads e.g. ``Lights off: estimated 23:40 - portcode 47``.
+    The event is deliberately not retro-stamped: a marker placed hours in the past
+    would break the log's time order and the EEG log overlay, so the estimate is
+    metadata for the analyst, not a rewritten timestamp.
+    """
+
+    def __init__(self, lights_on: bool, now: QtCore.QTime, parent=None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Mark lights at an earlier time")
+        self.setWindowFlags(
+            self.windowFlags() ^ QtCore.Qt.WindowType.WindowContextHelpButtonHint
+        )
+        hint = QtWidgets.QLabel(
+            "Record a lights change you forgot to mark. It is logged now, noted "
+            "with the earlier time you give.",
+            self,
+        )
+        hint.setWordWrap(True)
+
+        self.offRadio = QtWidgets.QRadioButton("Lights off", self)
+        self.onRadio = QtWidgets.QRadioButton("Lights on", self)
+        # Default to the opposite of the current state — the common case is
+        # correcting a change you meant to make (you're still showing "lights on",
+        # so the one you forgot to mark is "off").
+        self.offRadio.setChecked(lights_on)
+        self.onRadio.setChecked(not lights_on)
+        stateGroup = QtWidgets.QButtonGroup(self)
+        stateGroup.addButton(self.offRadio)
+        stateGroup.addButton(self.onRadio)
+        stateRow = QtWidgets.QHBoxLayout()
+        stateRow.addWidget(self.offRadio)
+        stateRow.addWidget(self.onRadio)
+        stateRow.addStretch(1)
+
+        self.timeEdit = QtWidgets.QTimeEdit(now, self)
+        self.timeEdit.setDisplayFormat("HH:mm")
+        self.timeEdit.setStatusTip("The clock time the lights actually changed.")
+
+        buttonBox = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            self,
+        )
+        buttonBox.accepted.connect(self.accept)
+        buttonBox.rejected.connect(self.reject)
+
+        form = QtWidgets.QFormLayout(self)
+        form.addRow(hint)
+        form.addRow("Lights", stateRow)
+        form.addRow("Time", self.timeEdit)
+        form.addWidget(buttonBox)
+
+    def get_inputs(self) -> tuple[bool, str]:
+        """Return ``(lights_on, "HH:MM")``: the chosen new state and estimated time."""
+        return self.onRadio.isChecked(), self.timeEdit.time().toString("HH:mm")
+
+
 class HueBridgeDialog(QtWidgets.QDialog):
     """Find and pair with a Philips Hue bridge (#53).
 

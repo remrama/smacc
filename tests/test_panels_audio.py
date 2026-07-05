@@ -131,8 +131,8 @@ def test_every_transport_glyph_is_painted(qtbot, headless_session):
 
 
 def test_transport_icons_repaint_on_theme_change(qtbot, headless_session):
-    # The lights-off dark theme flips the app palette; the painted glyphs must be
-    # rebuilt for it (a baked pixmap won't follow the palette on its own) (#289).
+    # The dark theme flips the app palette; the painted glyphs must be rebuilt for
+    # it (a baked pixmap won't follow the palette on its own) (#289).
     panel = AudioCueWindow(headless_session)
     qtbot.addWidget(panel)
     before = panel._transport_icons["play"]

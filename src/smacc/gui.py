@@ -17,11 +17,13 @@ from smacc import (
     hue,
     preferences,
     settings,
+    theme,
     triggers,
     windowstate,
 )
 
 from .dialogs import (
+    EarlierLightsDialog,
     SessionInfoDialog,
 )
 from .fonts import mono_font
@@ -82,7 +84,8 @@ class SmaccWindow(ToolWindow):
         # never raises. Read once at construction; each window saves its own geometry.
         self._prefs = preferences.load_preferences(preferences_path)
 
-        # Lights state drives the dark theme; sessions start with lights on.
+        # Lights state is shown by the switch and a window-title tag, not the app
+        # theme (#315); sessions start with lights on.
         self.lights_on = True
         # Tool windows are positioned (cascading, right of this window) the first
         # time each is opened; reopening leaves them where the operator put them.
@@ -203,7 +206,7 @@ class SmaccWindow(ToolWindow):
         central_widget.setLayout(central_layout)
         self.setCentralWidget(central_widget)
 
-        self.setWindowTitle("SMACC Session")
+        self._refresh_window_title()  # "SMACC Session — Lights on/off"
         if LOGO_PATH.is_file():
             windowIcon = QtGui.QIcon(str(LOGO_PATH))
         else:
@@ -220,7 +223,7 @@ class SmaccWindow(ToolWindow):
         """Build a centered 18pt section header.
 
         Uses a QFont (not a stylesheet) so the text color follows the palette
-        and stays legible when the dark theme toggles.
+        and stays legible in either color theme.
         """
         label = QtWidgets.QLabel(text)
         label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
@@ -268,7 +271,9 @@ class SmaccWindow(ToolWindow):
         The lights toggle is pinned to the bottom of the column at a fixed,
         reasonable size (the stretch above absorbs extra height), so enlarging
         the window for a bigger log preview no longer stretches the toggle; it
-        sends the lights event marker and flips the dark theme.
+        sends the lights event marker and updates the lights indicator (the
+        switch label and the window-title tag). Below it sits a quieter button to
+        mark a lights change at a corrected earlier time (#315).
         """
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self._make_section_title("Panels"))
@@ -297,12 +302,23 @@ class SmaccWindow(ToolWindow):
         )
         self.lightswitchButton.setFixedHeight(96)
         self.lightswitchButton.setStatusTip(
-            "Toggle lights off/on (sends the lights event marker and switches theme)"
+            "Toggle lights off/on and send the lights event marker "
+            "(the app color theme is set separately, in File → Theme)"
         )
         self.lightswitchButton.setChecked(True)
         self._refresh_lightswitch_label()
         self.lightswitchButton.toggled.connect(self.on_lightswitch_toggled)
         layout.addWidget(self.lightswitchButton)
+
+        # A quieter affordance for the "I forgot to mark it" case: log a lights
+        # change at a corrected earlier time (#315). The marker still fires now; the
+        # earlier time rides along as a note.
+        self.earlierLightsButton = QtWidgets.QPushButton("Mark at earlier time…", self)
+        self.earlierLightsButton.setStatusTip(
+            "Log a lights off/on you forgot to mark, noting the time it changed."
+        )
+        self.earlierLightsButton.clicked.connect(self.mark_lights_earlier)
+        layout.addWidget(self.earlierLightsButton)
         return layout
 
     def _open_panel(self, key: str) -> None:
@@ -455,6 +471,13 @@ class SmaccWindow(ToolWindow):
         fileMenu.addSeparator()
         fileMenu.addAction(alwaysOnTopAction)
         fileMenu.addAction(self._preview_clock_action)
+        # Color theme (light / dark / match-system): a machine preference (#315),
+        # in the File menu so it's reachable mid-session while the launcher is hidden.
+        themeMenu = fileMenu.addMenu("&Theme")
+        assert themeMenu is not None
+        self._theme_group = theme.build_menu(
+            self, themeMenu, preferences.theme(self._prefs), self._on_theme_selected
+        )
 
     def _rebuild_surveys_menu(self, menu: QtWidgets.QMenu) -> None:
         """Fill File → Surveys with each available survey (open standalone).
@@ -577,17 +600,55 @@ class SmaccWindow(ToolWindow):
         """Handle a user toggle of the lightswitch (``checked`` == lights on)."""
         self.set_lights(checked, send_marker=True)
 
-    def set_lights(self, lights_on: bool, send_marker: bool = False) -> None:
-        """Update lights state, refresh the switch, and apply the theme.
+    def mark_lights_earlier(self) -> None:
+        """Mark a lights change at a corrected earlier time (#315).
 
-        ``send_marker`` stays False during setup so the event marker only fires
-        on real user interaction.
+        For the "I forgot to mark it" case. Opens the estimate dialog, syncs the
+        switch and indicators to the chosen state *without* re-emitting, then fires
+        the lights marker with the estimated time as a note. The marker is logged at
+        *now*; the note records the operator's estimate of when it truly changed —
+        the log line reads e.g. ``Lights off: estimated 23:40 - portcode 47``. The
+        timestamp is not rewound (see :class:`~smacc.dialogs.EarlierLightsDialog`).
+        """
+        dialog = EarlierLightsDialog(
+            self.lights_on, QtCore.QTime.currentTime(), parent=self
+        )
+        if not dialog.exec():
+            return
+        lights_on, estimated = dialog.get_inputs()
+        # Sync the switch to the corrected state with no second marker (the emit
+        # below is the single marker); set_lights refreshes the label and title tag.
+        self.lightswitchButton.blockSignals(True)
+        self.lightswitchButton.setChecked(lights_on)
+        self.lightswitchButton.blockSignals(False)
+        self.set_lights(lights_on, send_marker=False)
+        self.session.emit_event(
+            "LightsOn" if lights_on else "LightsOff", detail=f"estimated {estimated}"
+        )
+
+    def set_lights(self, lights_on: bool, send_marker: bool = False) -> None:
+        """Update lights state and its indicators, then optionally emit the marker.
+
+        ``send_marker`` stays False during setup so the event marker only fires on
+        real user interaction. The app color theme is independent of this now (#315):
+        the switch label and the window-title tag are the lights indicator, not the
+        palette.
         """
         self.lights_on = lights_on
         self._refresh_lightswitch_label()
-        self.apply_theme(dark=not lights_on)
+        self._refresh_window_title()
         if send_marker:
             self.session.emit_event("LightsOn" if lights_on else "LightsOff")
+
+    def _refresh_window_title(self) -> None:
+        """Tag the window title (and its taskbar entry) with the lights state.
+
+        The app theme no longer signals lights on/off (#315), so the title carries
+        it where it stays visible even when the session window is buried under tool
+        windows — a glanceable "did I remember to mark lights off?" check.
+        """
+        state = "Lights on" if self.lights_on else "Lights off"
+        self.setWindowTitle(f"SMACC Session — {state}")
 
     def _refresh_lightswitch_label(self) -> None:
         """Sync the lightswitch text/style to the current state.
@@ -608,19 +669,17 @@ class SmaccWindow(ToolWindow):
                 "font: bold 13pt; padding: 8px; background-color: #303030; color: #dddddd;"
             )
 
-    def apply_theme(self, dark: bool) -> None:
-        """Switch the whole app between Qt's light and dark color schemes.
+    def _on_theme_selected(self, token: str) -> None:
+        """Apply a chosen color theme and persist it as a machine preference (#315).
 
-        Qt 6's Fusion style renders a polished palette for either scheme, so the
-        lightswitch just asks for one — no hand-rolled palette needed. The app is
-        forced to Light at startup (see ``__main__``); this only diverges from
-        that when the operator turns the lights off.
+        A headless window (tests, screenshots) touches no machine preferences, so it
+        applies the theme for the current process but writes nothing to disk.
         """
-        hints = QtGui.QGuiApplication.styleHints()
-        assert hints is not None
-        hints.setColorScheme(
-            QtCore.Qt.ColorScheme.Dark if dark else QtCore.Qt.ColorScheme.Light
-        )
+        theme.apply(token)
+        self._prefs["theme"] = token
+        if not self.session.headless:
+            preferences.update_preferences(preferences_path, {"theme": token})
+        self.session.log_debug_msg(f"Theme set to {token}")
 
     ############################################################################
     # Settings export/import (.smacc)
@@ -897,8 +956,8 @@ class SmaccWindow(ToolWindow):
         file loads): off, and the default INFO+ levels seeded in init_main_window.
         Signals are blocked while setting checked states so the handlers don't fire.
         """
-        # Lights always start ON each launch — the dark theme is per-session
-        # state, not a saved preference. Keep the switch in sync, fire no marker.
+        # Lights always start ON each launch — the lights state is session state,
+        # not a saved preference. Keep the switch in sync, fire no marker.
         self.lightswitchButton.blockSignals(True)
         self.lightswitchButton.setChecked(True)
         self.lightswitchButton.blockSignals(False)
