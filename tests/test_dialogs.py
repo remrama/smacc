@@ -10,7 +10,7 @@ exercised with that static call monkeypatched.
 from __future__ import annotations
 
 import pytest
-from PyQt6 import QtWidgets
+from PyQt6 import QtCore, QtWidgets
 
 from smacc import config, dialogs, settings, surveys
 
@@ -449,3 +449,28 @@ def test_add_event_dialog_rejects_blank_label(qtbot, monkeypatch):
     dialog._on_accept()
     assert warned  # the warning fired
     assert dialog.result() != QtWidgets.QDialog.DialogCode.Accepted
+
+
+# ----- EarlierLightsDialog ---------------------------------------------------
+
+
+def test_earlier_lights_dialog_defaults_to_opposite_state(qtbot):
+    # Lights currently on → the change you forgot is "off", so Off is preselected.
+    on = dialogs.EarlierLightsDialog(True, QtCore.QTime(23, 40))
+    qtbot.addWidget(on)
+    assert on.offRadio.isChecked() and not on.onRadio.isChecked()
+    assert on.get_inputs() == (False, "23:40")
+
+    # Lights currently off → On is preselected.
+    off = dialogs.EarlierLightsDialog(False, QtCore.QTime(6, 5))
+    qtbot.addWidget(off)
+    assert off.onRadio.isChecked() and not off.offRadio.isChecked()
+    assert off.get_inputs() == (True, "06:05")
+
+
+def test_earlier_lights_dialog_reads_edited_state_and_time(qtbot):
+    dialog = dialogs.EarlierLightsDialog(True, QtCore.QTime(23, 40))
+    qtbot.addWidget(dialog)
+    dialog.onRadio.setChecked(True)  # correct the state as well as the time
+    dialog.timeEdit.setTime(QtCore.QTime(1, 15))
+    assert dialog.get_inputs() == (True, "01:15")

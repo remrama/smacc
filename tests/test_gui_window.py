@@ -356,6 +356,35 @@ def test_set_lights_toggles_state_label_and_title(
     assert applied == []  # toggling the lights never applies a theme
 
 
+def test_mark_lights_earlier_syncs_state_and_notes_the_time(
+    qtbot, live_session, mock_devices, silence_dialogs, monkeypatch
+):
+    # "Mark at earlier time…" fires the lights marker now, tagged with the estimated
+    # time, and syncs the switch/indicators to the corrected state — without a second
+    # marker from the switch move (#315).
+    window = SmaccWindow(live_session)
+    qtbot.addWidget(window)
+    assert window.lights_on is True
+
+    monkeypatch.setattr(gui.EarlierLightsDialog, "exec", lambda self: 1)  # accepted
+    monkeypatch.setattr(
+        gui.EarlierLightsDialog, "get_inputs", lambda self: (False, "23:40")
+    )
+    emitted: list[tuple[str, str | None]] = []
+    monkeypatch.setattr(
+        window.session,
+        "emit_event",
+        lambda key, detail=None, **k: emitted.append((key, detail)),
+    )
+
+    window.mark_lights_earlier()
+
+    assert emitted == [("LightsOff", "estimated 23:40")]  # one marker, with the note
+    assert window.lights_on is False
+    assert window.lightswitchButton.isChecked() is False
+    assert window.windowTitle().endswith("Lights off")
+
+
 def test_theme_menu_applies_and_persists(
     qtbot, tmp_path, monkeypatch, mock_devices, silence_dialogs
 ):

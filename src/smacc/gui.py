@@ -23,6 +23,7 @@ from smacc import (
 )
 
 from .dialogs import (
+    EarlierLightsDialog,
     SessionInfoDialog,
 )
 from .fonts import mono_font
@@ -271,7 +272,8 @@ class SmaccWindow(ToolWindow):
         reasonable size (the stretch above absorbs extra height), so enlarging
         the window for a bigger log preview no longer stretches the toggle; it
         sends the lights event marker and updates the lights indicator (the
-        switch label and the window-title tag).
+        switch label and the window-title tag). Below it sits a quieter button to
+        mark a lights change at a corrected earlier time (#315).
         """
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self._make_section_title("Panels"))
@@ -307,6 +309,16 @@ class SmaccWindow(ToolWindow):
         self._refresh_lightswitch_label()
         self.lightswitchButton.toggled.connect(self.on_lightswitch_toggled)
         layout.addWidget(self.lightswitchButton)
+
+        # A quieter affordance for the "I forgot to mark it" case: log a lights
+        # change at a corrected earlier time (#315). The marker still fires now; the
+        # earlier time rides along as a note.
+        self.earlierLightsButton = QtWidgets.QPushButton("Mark at earlier time…", self)
+        self.earlierLightsButton.setStatusTip(
+            "Log a lights off/on you forgot to mark, noting the time it changed."
+        )
+        self.earlierLightsButton.clicked.connect(self.mark_lights_earlier)
+        layout.addWidget(self.earlierLightsButton)
         return layout
 
     def _open_panel(self, key: str) -> None:
@@ -587,6 +599,32 @@ class SmaccWindow(ToolWindow):
     def on_lightswitch_toggled(self, checked: bool) -> None:
         """Handle a user toggle of the lightswitch (``checked`` == lights on)."""
         self.set_lights(checked, send_marker=True)
+
+    def mark_lights_earlier(self) -> None:
+        """Mark a lights change at a corrected earlier time (#315).
+
+        For the "I forgot to mark it" case. Opens the estimate dialog, syncs the
+        switch and indicators to the chosen state *without* re-emitting, then fires
+        the lights marker with the estimated time as a note. The marker is logged at
+        *now*; the note records the operator's estimate of when it truly changed —
+        the log line reads e.g. ``Lights off: estimated 23:40 - portcode 47``. The
+        timestamp is not rewound (see :class:`~smacc.dialogs.EarlierLightsDialog`).
+        """
+        dialog = EarlierLightsDialog(
+            self.lights_on, QtCore.QTime.currentTime(), parent=self
+        )
+        if not dialog.exec():
+            return
+        lights_on, estimated = dialog.get_inputs()
+        # Sync the switch to the corrected state with no second marker (the emit
+        # below is the single marker); set_lights refreshes the label and title tag.
+        self.lightswitchButton.blockSignals(True)
+        self.lightswitchButton.setChecked(lights_on)
+        self.lightswitchButton.blockSignals(False)
+        self.set_lights(lights_on, send_marker=False)
+        self.session.emit_event(
+            "LightsOn" if lights_on else "LightsOff", detail=f"estimated {estimated}"
+        )
 
     def set_lights(self, lights_on: bool, send_marker: bool = False) -> None:
         """Update lights state and its indicators, then optionally emit the marker.
