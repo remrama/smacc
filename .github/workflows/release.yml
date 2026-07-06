@@ -61,9 +61,13 @@ jobs:
         with:
           enable-cache: true
       # The EEG stack (mne/matplotlib/pyqtgraph) is a core dependency now — the
-      # Annotator ships inside the one SMACC binary — so --extra dev is all the
-      # build needs.
-      - run: uv sync --extra dev
+      # Annotator ships inside the one SMACC binary — so --extra dev covers it.
+      # --extra yasa adds the optional automated-staging stack (#226): it is kept
+      # out of core deps so a source checkout stays lean, but the frozen binary
+      # bundles it, so the build env must have it (and the PyInstaller step below
+      # collects its data + native libs). The `--eeg --selftest` smoke runs a real
+      # YASA prediction, so a broken yasa freeze fails this job, not a user.
+      - run: uv sync --extra dev --extra yasa
       # The installer is stamped with smacc.__version__ on every run; a
       # dispatch/PR verification run builds whatever version is checked out.
       - name: Read smacc.__version__
@@ -114,10 +118,33 @@ jobs:
       # export (#180) writes PDF/SVG, whose matplotlib backends are imported by
       # name at savefig time — collect matplotlib.backends too (without it PDF/SVG
       # export raises ModuleNotFoundError; PNG/Agg is pulled in via the explicit
-      # canvas import). The `--eeg --selftest` smoke below proves all of this end
-      # to end.
+      # canvas import).
+      #
+      # Automated staging (#226) adds YASA to the bundle, and it trips freeze traps
+      # PyInstaller's static scan misses — each only surfaces when the model RUNS,
+      # so the `--eeg --selftest` smoke below runs a real YASA prediction to prove
+      # them end to end:
+      #   * --collect-data yasa: the pretrained .joblib classifiers are package DATA
+      #     loaded lazily via joblib.load at predict time, invisible to the import
+      #     scan (the same lazy-data trap MNE hit).
+      #   * --collect-all lightgbm: YASA never does `import lightgbm` — the .joblib
+      #     files UNPICKLE into LGBMClassifier objects, so lightgbm's Python modules
+      #     (lightgbm.basic/.sklearn) AND its lib_lightgbm.dll only materialize at
+      #     joblib.load and are wholly invisible to the static scan. --collect-data
+      #     or --collect-dynamic-libs alone would miss the Python modules and the
+      #     frozen predict() would die with ModuleNotFoundError: lightgbm.
+      #   * --collect-binaries llvmlite / --collect-submodules numba: numba +
+      #     llvmlite (pulled in transitively via antropy) on Python 3.13 have hit
+      #     ModuleNotFoundError for internal submodules and a missing LLVM .dll in
+      #     frozen builds; collect them explicitly rather than trusting the bundled
+      #     hooks blindly. (--collect-binaries is the CLI flag for native libs;
+      #     --collect-dynamic-libs is the hook-API name, not a CLI flag.)
+      #   * --collect-data lspopt: `import yasa` unconditionally imports lspopt (a
+      #     multitaper-spectrogram helper), which loads two small .npy lookup
+      #     tables (data/c.npy, data/weights.npy) at IMPORT time, not lazily — a
+      #     frozen build without this flag fails on the very first `import yasa`.
       - name: Build SMACC (onedir)
-        run: uv run pyinstaller entry.py --name SMACC --onedir --noconsole --icon src/smacc/assets/icon.ico --version-file version_info.txt --add-data "src/smacc/assets/icon.png;smacc/assets" --add-data "src/smacc/assets/default.smacc;smacc/assets" --add-data "src/smacc/assets/cues;smacc/assets/cues" --add-data "src/smacc/assets/biocals;smacc/assets/biocals" --add-data "src/smacc/assets/surveys;smacc/assets/surveys" --add-data "src/smacc/assets/fonts;smacc/assets/fonts" --collect-submodules mne --collect-data mne --collect-submodules matplotlib.backends
+        run: uv run pyinstaller entry.py --name SMACC --onedir --noconsole --icon src/smacc/assets/icon.ico --version-file version_info.txt --add-data "src/smacc/assets/icon.png;smacc/assets" --add-data "src/smacc/assets/default.smacc;smacc/assets" --add-data "src/smacc/assets/cues;smacc/assets/cues" --add-data "src/smacc/assets/biocals;smacc/assets/biocals" --add-data "src/smacc/assets/surveys;smacc/assets/surveys" --add-data "src/smacc/assets/fonts;smacc/assets/fonts" --collect-submodules mne --collect-data mne --collect-submodules matplotlib.backends --collect-data yasa --collect-submodules yasa --collect-all lightgbm --collect-binaries llvmlite --collect-submodules numba --collect-data lspopt
       # A broken bundle (missing data file, import error) otherwise ships silently:
       # the exe is windowed (--noconsole), so PowerShell won't wait for it on its
       # own and there is no stdout — Start-Process + the exit code is the test.
@@ -137,7 +164,14 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "SMACC.exe --version exited with code $($p.ExitCode)" }
           $p = Start-Process -FilePath $exe -ArgumentList '--eeg','--selftest' -PassThru
           if (-not $p.WaitForExit(300000)) { $p.Kill(); throw "SMACC.exe --eeg --selftest did not exit within 300s" }
-          if ($p.ExitCode -ne 0) { throw "SMACC.exe --eeg --selftest exited with code $($p.ExitCode)" }
+          if ($p.ExitCode -ne 0) {
+            # The windowed exe has no stdout; selftest() drops its traceback to
+            # this file so a frozen-bundle failure (a missing yasa/MNE submodule
+            # or data file) is diagnosable instead of a blind exit code.
+            $errlog = Join-Path $env:TEMP 'smacc-selftest-error.log'
+            if (Test-Path $errlog) { Write-Host '--- selftest traceback ---'; Get-Content $errlog }
+            throw "SMACC.exe --eeg --selftest exited with code $($p.ExitCode)"
+          }
       # The crash-log pipeline (#149) matters most in exactly this windowed build,
       # where nothing else can capture a crash — and it's the one build the test
       # suite can't cover. Crash the exe on purpose (the hidden --crash-test flag,

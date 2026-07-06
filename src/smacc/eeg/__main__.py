@@ -173,6 +173,51 @@ def selftest() -> int:
             rater_id="selftest",
         )
         assert staging.read_stages_tsv(stages_tsv) == epochs
+        # Automated staging (#226): if YASA is bundled, run a REAL prediction so
+        # the frozen build proves the pretrained .joblib classifiers, the native
+        # lightgbm/llvmlite libs, and the numba jit all resolve — a missed piece
+        # surfaces only when the model actually runs (a bare import would pass).
+        # Guarded on yasa being importable, so a source-only fallback build (yasa
+        # never bundled) still exits 0.
+        from importlib.util import find_spec
+
+        if find_spec("yasa") is not None:
+            from . import yasa_staging
+
+            # Six minutes of synthetic EEG/EOG/EMG at 100 Hz — comfortably past
+            # YASA's 5-minute "insufficient data" warning threshold (a warning, not
+            # a raise, but no reason to sit on the boundary). The prediction is
+            # meaningless on noise; we assert only that the stack ran and produced
+            # valid AASM tokens.
+            yasa_rng = np.random.default_rng(0)
+            yasa_info = mne.create_info(
+                ["C4", "EOG", "EMG"],
+                sfreq=100.0,
+                ch_types=["eeg", "eog", "emg"],
+                verbose="error",
+            )
+            yasa_raw = mne.io.RawArray(
+                yasa_rng.standard_normal((3, 100 * 360)) * 1e-5,
+                yasa_info,
+                verbose="error",
+            )
+            yasa_fif = Path(tmp) / "selftest_yasa_raw.fif"
+            yasa_raw.save(yasa_fif, verbose="error")
+            yasa_recording = open_recording(yasa_fif)
+            hypno = yasa_staging.run_yasa_staging(
+                yasa_recording, eeg="C4", eog="EOG", emg="EMG"
+            )
+            assert hypno.epochs, "YASA returned no epochs"
+            assert all(e.stage in yasa_staging.AASM_STAGES for e in hypno.epochs), hypno
+            ats_tsv, ats_json = yasa_staging.autostage_sidecar_paths(yasa_fif)
+            yasa_staging.write_autostage_tsv(hypno.epochs, ats_tsv)
+            yasa_staging.write_autostage_json(
+                ats_json,
+                hypno,
+                source_name=yasa_fif.name,
+                meas_date=yasa_recording.meas_date,
+            )
+            assert yasa_staging.read_autostage_json(ats_json).epochs == hypno.epochs
         # Figure export (#180): prove matplotlib's PNG/PDF/SVG backends are bundled
         # — a missed backend only surfaces when one actually writes a file.
         from .export import ExportOptions, render
@@ -242,6 +287,18 @@ def main() -> None:
             sys.exit(selftest())
         except Exception:
             traceback.print_exc()
+            # A --noconsole build has no stdout, so the traceback above goes
+            # nowhere and a frozen-bundle failure is a blind exit code. Also drop
+            # it to a file the release smoke test can surface (best-effort).
+            try:
+                import tempfile
+                from pathlib import Path
+
+                Path(tempfile.gettempdir(), "smacc-selftest-error.log").write_text(
+                    traceback.format_exc(), encoding="utf-8"
+                )
+            except Exception:
+                pass
             sys.exit(1)
     set_taskbar_app_id()  # share SMACC's taskbar identity (one app, not two)
     app = QApplication(sys.argv)

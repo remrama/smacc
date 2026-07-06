@@ -98,6 +98,19 @@ dev = [
     "types-PyYAML",
 ]
 
+# Optional automated sleep staging in the EEG Annotator (#226): YASA scores the
+# night and SMACC shows it as a read-only overlay beside the manual hypnogram.
+# Deliberately its OWN extra — NOT in core `dependencies`, NOT in `dev` — because
+# YASA's tree is heavy and PyInstaller-hostile (lightgbm's compiled lib, numba +
+# llvmlite's bundled LLVM ~120 MB, scikit-learn, pandas, plus ~35 MB of pretrained
+# .joblib classifiers). A plain `uv sync` and a source checkout stay lean; only the
+# frozen release build opts in (release.yml syncs `--extra yasa` and PyInstaller
+# collects yasa's data + the lightgbm/llvmlite native libs). smacc.eeg.yasa_staging
+# imports it lazily, so the Annotator hides the feature when it is absent. YASA
+# pulls mne/numpy/scipy/matplotlib, which SMACC already bundles, so only the ML
+# stack is marginal weight.
+yasa = ["yasa"]
+
 # A GUI launcher (no console window): exposes a `smacc` command after install.
 # `python -m smacc` runs the same main(); see src/smacc/__main__.py.
 [project.gui-scripts]
