@@ -66,10 +66,18 @@ from .staging import (
 from .view import (
     DEFAULT_EPOCH_SECONDS,
     OVERLAY_COLORS,
+    HypnodensityStrip,
     HypnogramStrip,
     LogMark,
     RaterOverlay,
     TraceView,
+)
+from .yasa_staging import (
+    AASM_STAGES,
+    AutoStageHypnogram,
+    autostage_sidecar_paths,
+    epoch_at,
+    read_autostage_json,
 )
 
 if TYPE_CHECKING:  # matplotlib is heavy: import the export module only on demand
@@ -706,6 +714,11 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
         self._stage_dirty = False
         self._owns_stage_sidecar = False
         self._recovery_stages: list[StageEpoch] | None = None
+        # Automated staging (#226): YASA's read-only hypnodensity overlay, loaded
+        # from a `.autostage.json` sidecar if one sits beside the recording. It is
+        # never edited here and never touches the manual hypnogram above, so it
+        # carries no dirty/owns/autosave state — just the loaded result, or None.
+        self._autostage: AutoStageHypnogram | None = None
         self.setWindowTitle("SMACC EEG Annotator")
         if LOGO_PATH.is_file():
             self.setWindowIcon(QtGui.QIcon(str(LOGO_PATH)))
@@ -901,6 +914,13 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
         self.hypnogramStrip.seekRequested.connect(self._on_strip_seek)
         self.hypnogramStrip.setVisible(False)
         viewColumn.addWidget(self.hypnogramStrip)
+        # Hypnodensity overview strip (#226): YASA's automated staging, stacked
+        # below the manual one and pixel-aligned to it (same seconds→pixel mapping).
+        # Shown only when a `.autostage` sidecar is loaded; click to jump.
+        self.hypnodensityStrip = HypnodensityStrip()
+        self.hypnodensityStrip.seekRequested.connect(self._on_strip_seek)
+        self.hypnodensityStrip.setVisible(False)
+        viewColumn.addWidget(self.hypnodensityStrip)
         body.addLayout(viewColumn, 1)
         body.addLayout(self._build_annotation_panel())
         layout.addLayout(body, 1)
@@ -1196,6 +1216,18 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
         self.stageReadout.setMinimumWidth(150)
         self.stageReadout.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         row.addWidget(self.stageReadout)
+
+        # YASA's call for the same epoch (#226): a quiet second opinion beside the
+        # manual readout — its stage and confidence, or blank when no overlay is
+        # loaded. Advisory only; the manual readout stays authoritative.
+        self.autoStageReadout = QtWidgets.QLabel("", self)
+        self.autoStageReadout.setStatusTip(
+            "YASA's automated stage and confidence for the epoch at the left edge."
+        )
+        self.autoStageReadout.setEnabled(False)  # renders dimmed — it's advisory
+        self.autoStageReadout.setMinimumWidth(110)
+        self.autoStageReadout.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        row.addWidget(self.autoStageReadout)
 
         row.addStretch(1)
         self.stageProgressLabel = QtWidgets.QLabel("", self)
@@ -1584,6 +1616,16 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
         self.hypnogramStrip.setVisible(
             self._recording is not None and (self._staging or bool(self._stage_epochs))
         )
+        # YASA's hypnodensity overlay (#226): always the AASM palette (YASA is
+        # AASM-only), independent of the manual vocabulary, so it renders the same
+        # even while the rater scores in R&K. Shown whenever an overlay is loaded.
+        autostage_epochs = list(self._autostage.epochs) if self._autostage else []
+        self.hypnodensityStrip.set_data(
+            duration, autostage_epochs, staging.AASM.colors, AASM_STAGES
+        )
+        self.hypnodensityStrip.setVisible(
+            self._recording is not None and self._autostage is not None
+        )
 
     def _on_strip_seek(self, seconds: float) -> None:
         """Jump the view so the clicked epoch is framed at the left edge."""
@@ -1682,6 +1724,26 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
                 "and will not overwrite it without confirmation.",
             )
             return [], False
+
+    def _load_autostage(self, source: str | Path) -> AutoStageHypnogram | None:
+        """Load YASA's `.autostage.json` overlay for a recording, or ``None`` (#226).
+
+        Absent → ``None`` (the overlay simply hides). A corrupt sidecar is not
+        fatal to the open — it is a regenerable, advisory artifact, so it is
+        surfaced as an error and dropped rather than aborting the recording.
+        """
+        _, json_path = autostage_sidecar_paths(source)
+        if not json_path.is_file():
+            return None
+        try:
+            return read_autostage_json(json_path)
+        except (OSError, ValueError) as exc:
+            self._error(
+                "Could not read the automated-staging sidecar.",
+                f"{json_path.name}: {exc}\n\nThe YASA overlay is hidden; "
+                "re-generate it or fix the file.",
+            )
+            return None
 
     def _apply_stage_provenance(self, json_path: Path) -> None:
         """Adopt the manual + epoch grid a resumed hypnogram was scored on (#182).
@@ -2474,6 +2536,10 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
         stage_tsv, stage_json = self._stage_sidecar_for(path)
         self._stage_epochs, self._owns_stage_sidecar = self._load_stages(stage_tsv)
         self._stage_dirty = False
+        # YASA's automated overlay (#226), if one was generated for this recording.
+        # It is not rater-keyed (one machine hypnogram per recording) and never
+        # blinded; a missing or corrupt sidecar is non-fatal to the open.
+        self._autostage = self._load_autostage(path)
         # A fresh recording uses the preference vocabulary; a resumed hypnogram
         # adopts the manual + epoch grid it was scored on (applied after
         # set_provider, which resets the anchor), so the keyboard map, the band
@@ -2930,9 +2996,13 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
         # The overview strip's window marker tracks every scroll (wheel/scrollbar/
         # jump all route through here), cheaply — it only repaints the strip.
         self.hypnogramStrip.set_window(self.view.window_start, self.view.window_seconds)
+        self.hypnodensityStrip.set_window(
+            self.view.window_start, self.view.window_seconds
+        )
         if not self.view.has_provider:
             self.epochLabel.clear()
             self.stageReadout.clear()
+            self.autoStageReadout.clear()
             return
         number = (
             math.floor(
@@ -2960,6 +3030,29 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
                 )
             else:
                 self.stageReadout.setStyleSheet("")
+        self._update_autostage_readout()
+
+    def _update_autostage_readout(self) -> None:
+        """Show YASA's stage + confidence for the epoch at the left edge (#226).
+
+        Resolved by absolute time (not the manual epoch index), so it names the
+        YASA epoch actually under the cursor even when the manual grid is
+        re-anchored or uses a different epoch length. Blank when no overlay is
+        loaded — it is advisory context, not always present.
+        """
+        if self._recording is None or self._autostage is None:
+            self.autoStageReadout.clear()
+            return
+        epoch = epoch_at(self._autostage.epochs, self.view.window_start)
+        if epoch is None:
+            # An overlay is loaded but this time is off YASA's 30-s grid (a
+            # trailing fragment): show a dash — the same "no value here" mark the
+            # manual readout uses — not a blank that looks like "no overlay".
+            self.autoStageReadout.setText("YASA —")
+        else:
+            self.autoStageReadout.setText(
+                f"YASA {epoch.stage} · {epoch.confidence * 100:.0f}%"
+            )
 
     def eventFilter(
         self, obj: QtCore.QObject | None, event: QtCore.QEvent | None

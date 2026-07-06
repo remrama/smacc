@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import csv
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from importlib.util import find_spec
@@ -253,7 +254,7 @@ def _epochs_from(proba: Any) -> list[AutoStageEpoch]:
     return epochs
 
 
-def epoch_at(epochs: list[AutoStageEpoch], seconds: float) -> AutoStageEpoch | None:
+def epoch_at(epochs: Iterable[AutoStageEpoch], seconds: float) -> AutoStageEpoch | None:
     """The automated epoch covering ``seconds`` (end-exclusive), or ``None``.
 
     Resolved by absolute time so the per-epoch readout stays correct even when the
