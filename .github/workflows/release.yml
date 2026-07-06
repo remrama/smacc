@@ -133,12 +133,14 @@ jobs:
       #     joblib.load and are wholly invisible to the static scan. --collect-data
       #     or --collect-dynamic-libs alone would miss the Python modules and the
       #     frozen predict() would die with ModuleNotFoundError: lightgbm.
-      #   * --collect-dynamic-libs llvmlite / --collect-submodules numba: numba +
+      #   * --collect-binaries llvmlite / --collect-submodules numba: numba +
       #     llvmlite (pulled in transitively via antropy) on Python 3.13 have hit
-      #     ModuleNotFoundError for internal submodules in frozen builds; collect
-      #     them explicitly rather than trusting the bundled hooks blindly.
+      #     ModuleNotFoundError for internal submodules and a missing LLVM .dll in
+      #     frozen builds; collect them explicitly rather than trusting the bundled
+      #     hooks blindly. (--collect-binaries is the CLI flag for native libs;
+      #     --collect-dynamic-libs is the hook-API name, not a CLI flag.)
       - name: Build SMACC (onedir)
-        run: uv run pyinstaller entry.py --name SMACC --onedir --noconsole --icon src/smacc/assets/icon.ico --version-file version_info.txt --add-data "src/smacc/assets/icon.png;smacc/assets" --add-data "src/smacc/assets/default.smacc;smacc/assets" --add-data "src/smacc/assets/cues;smacc/assets/cues" --add-data "src/smacc/assets/biocals;smacc/assets/biocals" --add-data "src/smacc/assets/surveys;smacc/assets/surveys" --add-data "src/smacc/assets/fonts;smacc/assets/fonts" --collect-submodules mne --collect-data mne --collect-submodules matplotlib.backends --collect-data yasa --collect-submodules yasa --collect-all lightgbm --collect-dynamic-libs llvmlite --collect-submodules numba
+        run: uv run pyinstaller entry.py --name SMACC --onedir --noconsole --icon src/smacc/assets/icon.ico --version-file version_info.txt --add-data "src/smacc/assets/icon.png;smacc/assets" --add-data "src/smacc/assets/default.smacc;smacc/assets" --add-data "src/smacc/assets/cues;smacc/assets/cues" --add-data "src/smacc/assets/biocals;smacc/assets/biocals" --add-data "src/smacc/assets/surveys;smacc/assets/surveys" --add-data "src/smacc/assets/fonts;smacc/assets/fonts" --collect-submodules mne --collect-data mne --collect-submodules matplotlib.backends --collect-data yasa --collect-submodules yasa --collect-all lightgbm --collect-binaries llvmlite --collect-submodules numba
       # A broken bundle (missing data file, import error) otherwise ships silently:
       # the exe is windowed (--noconsole), so PowerShell won't wait for it on its
       # own and there is no stdout — Start-Process + the exit code is the test.
