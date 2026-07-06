@@ -287,6 +287,18 @@ def main() -> None:
             sys.exit(selftest())
         except Exception:
             traceback.print_exc()
+            # A --noconsole build has no stdout, so the traceback above goes
+            # nowhere and a frozen-bundle failure is a blind exit code. Also drop
+            # it to a file the release smoke test can surface (best-effort).
+            try:
+                import tempfile
+                from pathlib import Path
+
+                Path(tempfile.gettempdir(), "smacc-selftest-error.log").write_text(
+                    traceback.format_exc(), encoding="utf-8"
+                )
+            except Exception:
+                pass
             sys.exit(1)
     set_taskbar_app_id()  # share SMACC's taskbar identity (one app, not two)
     app = QApplication(sys.argv)

@@ -160,7 +160,14 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "SMACC.exe --version exited with code $($p.ExitCode)" }
           $p = Start-Process -FilePath $exe -ArgumentList '--eeg','--selftest' -PassThru
           if (-not $p.WaitForExit(300000)) { $p.Kill(); throw "SMACC.exe --eeg --selftest did not exit within 300s" }
-          if ($p.ExitCode -ne 0) { throw "SMACC.exe --eeg --selftest exited with code $($p.ExitCode)" }
+          if ($p.ExitCode -ne 0) {
+            # The windowed exe has no stdout; selftest() drops its traceback to
+            # this file so a frozen-bundle failure (a missing yasa/MNE submodule
+            # or data file) is diagnosable instead of a blind exit code.
+            $errlog = Join-Path $env:TEMP 'smacc-selftest-error.log'
+            if (Test-Path $errlog) { Write-Host '--- selftest traceback ---'; Get-Content $errlog }
+            throw "SMACC.exe --eeg --selftest exited with code $($p.ExitCode)"
+          }
       # The crash-log pipeline (#149) matters most in exactly this windowed build,
       # where nothing else can capture a crash — and it's the one build the test
       # suite can't cover. Crash the exe on purpose (the hidden --crash-test flag,
