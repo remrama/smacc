@@ -133,12 +133,13 @@ on a system-installed typeface.
 The **release** build also bundles the optional automated-staging stack (YASA,
 #226), which the command above leaves out so an everyday local build stays lean.
 To match the shipped binary, first `uv sync --extra dev --extra yasa`, then append
-to the command: `--collect-data yasa --collect-submodules yasa --collect-all lightgbm --collect-binaries llvmlite --collect-submodules numba`. YASA's
-classifiers are lazy-loaded package data, and it never `import`s lightgbm — the
-classifiers unpickle into LightGBM objects, so lightgbm's Python modules and its
-native lib only appear at load time (hence `--collect-all lightgbm`, not just its
-DLL). Without these flags a plain build freezes fine and then fails only when
-someone runs auto-staging.
+to the command: `--collect-data yasa --collect-submodules yasa --collect-all lightgbm --collect-binaries llvmlite --collect-submodules numba --collect-data lspopt`. YASA's classifiers are lazy-loaded package data, and it never `import`s
+lightgbm — the classifiers unpickle into LightGBM objects, so lightgbm's Python
+modules and its native lib only appear at load time (hence `--collect-all lightgbm`, not just its DLL). `lspopt` is different: `import yasa` imports it
+unconditionally, and it loads two small `.npy` lookup tables at import time, so
+missing `--collect-data lspopt` breaks on the very first `import yasa`, not just
+when staging runs. Without these flags a plain build freezes fine and then fails
+only when someone runs auto-staging.
 
 The EEG Annotator (#136) is a mode of this same binary — `SMACC.exe --eeg`,
 re-exec'd as its own process (see `smacc.eeg.launch`) — so it is built in, not a
