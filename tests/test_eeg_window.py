@@ -51,6 +51,13 @@ from smacc.eeg.staging import (
     write_stages_tsv,
 )
 from smacc.eeg.window import SEED_LABELS, EegAnnotatorWindow, LabelDialog
+from smacc.eeg.yasa_staging import (
+    AutoStageEpoch,
+    AutoStageHypnogram,
+    ChannelRoles,
+    autostage_sidecar_paths,
+    write_autostage_json,
+)
 
 SFREQ = 100.0
 DURATION = 600.0
@@ -1011,11 +1018,14 @@ def test_eeg_window_never_imports_the_live_session_stack():
     # The Annotator runs as its own process (SMACC.exe --eeg). It must not pull
     # in the live-session stack — importing it here (e.g. panels.base, which
     # imports sounddevice and SmaccSession at module scope) would break the
-    # documented process isolation and bloat the Annotator process.
+    # documented process isolation and bloat the Annotator process. It also must
+    # not pull in the heavy YASA/ML stack (#226): the window imports
+    # smacc.eeg.yasa_staging for the overlay model, which must stay lazy so a
+    # frozen session build never loads yasa/lightgbm/numba.
     code = (
         "import sys; import smacc.eeg.window; "
         "leaks = [m for m in ('sounddevice', 'smacc.session', 'smacc.devices', "
-        "'smacc.panels.base') if m in sys.modules]; "
+        "'smacc.panels.base', 'yasa', 'lightgbm', 'numba') if m in sys.modules]; "
         "sys.exit('leaked: ' + ', '.join(leaks) if leaks else 0)"
     )
     proc = subprocess.run(
@@ -2246,3 +2256,76 @@ def test_strip_tracks_the_window_on_scroll(stage_window):
     stage_window._score_current_epoch("N2")  # reveal the strip
     stage_window._jump_to(120.0)
     assert stage_window.hypnogramStrip._window_start == pytest.approx(120.0)
+
+
+# ----- automated staging overlay (#226) ------------------------------------------
+
+
+def _write_autostage(path: Path, epochs: list[AutoStageEpoch]) -> None:
+    hypnogram = AutoStageHypnogram(
+        epochs=tuple(epochs),
+        channels=ChannelRoles("C4", "EOG", "EMG"),
+        yasa_version="0.7.0",
+        source_sfreq=SFREQ,
+        source_duration=DURATION,
+    )
+    _, json_path = autostage_sidecar_paths(path)
+    write_autostage_json(
+        json_path, hypnogram, source_name=path.name, meas_date=MEAS_DATE
+    )
+
+
+def test_autostage_sidecar_loads_and_shows_the_hypnodensity_strip(
+    window, recording_path
+):
+    _write_autostage(
+        recording_path,
+        [
+            AutoStageEpoch(0.0, 30.0, "W", (0.9, 0.05, 0.02, 0.0, 0.03)),
+            AutoStageEpoch(30.0, 30.0, "N2", (0.1, 0.1, 0.7, 0.05, 0.05)),
+        ],
+    )
+    window._load(recording_path)
+    assert window._autostage is not None
+    assert len(window._autostage.epochs) == 2
+    assert not window.hypnodensityStrip.isHidden()
+
+
+def test_no_autostage_sidecar_hides_the_strip(window, recording_path):
+    window._load(recording_path)  # no .autostage.json beside the recording
+    assert window._autostage is None
+    assert window.hypnodensityStrip.isHidden()
+
+
+def test_autostage_readout_resolves_the_yasa_stage_by_absolute_time(
+    window, recording_path
+):
+    _write_autostage(
+        recording_path,
+        [
+            AutoStageEpoch(0.0, 30.0, "W", (0.9, 0.05, 0.02, 0.0, 0.03)),
+            AutoStageEpoch(30.0, 30.0, "R", (0.05, 0.0, 0.03, 0.02, 0.9)),
+        ],
+    )
+    window._load(recording_path)
+    # A non-zero manual anchor shifts the manual epoch grid but must NOT shift the
+    # YASA readout, which is keyed on absolute time, not the manual epoch index.
+    window.view.set_epoch_anchor(5.0)
+    window.view.set_window_start(0.0)
+    window._update_epoch_readout()
+    assert "YASA W" in window.autoStageReadout.text()
+    window.view.set_window_start(30.0)  # into YASA's [30, 60) = R epoch
+    window._update_epoch_readout()
+    assert "YASA R" in window.autoStageReadout.text()
+
+
+def test_corrupt_autostage_sidecar_is_non_fatal(window, recording_path, monkeypatch):
+    _, json_path = autostage_sidecar_paths(recording_path)
+    json_path.write_text("{ not valid json", encoding="utf-8")
+    errors: list[tuple] = []
+    monkeypatch.setattr(window, "_error", lambda *a, **k: errors.append(a))
+    window._load(recording_path)
+    assert errors  # the reviewer was told
+    assert window._recording is not None  # but the recording still opened
+    assert window._autostage is None
+    assert window.hypnodensityStrip.isHidden()

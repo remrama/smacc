@@ -14,16 +14,18 @@ import pyqtgraph as pg
 import pytest
 from PyQt6 import QtCore, QtGui
 
-from smacc.eeg import dsp
+from smacc.eeg import dsp, staging
 from smacc.eeg.annotations import Annotation
 from smacc.eeg.staging import StageEpoch
 from smacc.eeg.view import (
     DEFAULT_TYPE_SCALES,
+    HypnodensityStrip,
     HypnogramStrip,
     RaterOverlay,
     TimeAxis,
     TraceView,
 )
+from smacc.eeg.yasa_staging import AASM_STAGES, AutoStageEpoch
 
 SFREQ = 100.0
 DURATION = 60.0
@@ -892,3 +894,60 @@ def test_strip_paints_without_crashing(qtbot):
     strip.set_data(600.0, [StageEpoch(0.0, 30.0, "N2")], {"N2": (74, 144, 200)})
     strip.set_window(30.0, 30.0)
     strip.repaint()  # exercise paintEvent (cells + window marker)
+
+
+# ----- hypnodensity overview strip (#226) ------------------------------------
+
+
+def _autostage_epoch(onset: float, proba: tuple[float, ...]) -> AutoStageEpoch:
+    return AutoStageEpoch(onset, 30.0, AASM_STAGES[proba.index(max(proba))], proba)
+
+
+def test_hypnodensity_click_emits_a_seek_at_the_clicked_time(qtbot):
+    # Click-to-navigate is inherited from the shared overview base; prove it
+    # reaches the hypnodensity subclass too.
+    strip = HypnodensityStrip()
+    qtbot.addWidget(strip)
+    strip.resize(600, 44)
+    strip.set_data(600.0, [], staging.AASM.colors, AASM_STAGES)
+    captured: list[float] = []
+    strip.seekRequested.connect(captured.append)
+    strip.mousePressEvent(_press(300.0))  # half width → half the recording
+    assert captured == [pytest.approx(300.0)]
+
+
+def test_hypnodensity_ignores_clicks_with_no_recording(qtbot):
+    strip = HypnodensityStrip()
+    qtbot.addWidget(strip)
+    strip.resize(600, 44)
+    captured: list[float] = []
+    strip.seekRequested.connect(captured.append)
+    strip.mousePressEvent(_press(300.0))  # duration is 0 → no seek
+    assert captured == []
+
+
+def test_hypnodensity_paints_a_stacked_band_without_crashing(qtbot):
+    strip = HypnodensityStrip()
+    qtbot.addWidget(strip)
+    strip.resize(600, 44)
+    epochs = [
+        _autostage_epoch(0.0, (0.8, 0.1, 0.05, 0.0, 0.05)),  # confident W
+        _autostage_epoch(30.0, (0.2, 0.2, 0.2, 0.2, 0.2)),  # low-confidence smear
+    ]
+    strip.set_data(600.0, epochs, staging.AASM.colors, AASM_STAGES)
+    strip.set_window(30.0, 30.0)
+    strip.repaint()  # exercise the stacked-band paintEvent + window marker
+
+
+def test_hypnodensity_skips_a_zero_probability_row(qtbot):
+    # A degenerate all-zero row must not divide by zero or draw a partial column.
+    strip = HypnodensityStrip()
+    qtbot.addWidget(strip)
+    strip.resize(600, 44)
+    strip.set_data(
+        600.0,
+        [AutoStageEpoch(0.0, 30.0, "W", (0.0, 0.0, 0.0, 0.0, 0.0))],
+        staging.AASM.colors,
+        AASM_STAGES,
+    )
+    strip.repaint()  # no crash

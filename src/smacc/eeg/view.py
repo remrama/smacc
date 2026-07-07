@@ -26,7 +26,7 @@ from __future__ import annotations
 import bisect
 import math
 from datetime import datetime, timedelta
-from typing import Any, NamedTuple, Protocol
+from typing import TYPE_CHECKING, Any, NamedTuple, Protocol
 
 import numpy as np
 import pyqtgraph as pg
@@ -36,6 +36,12 @@ from . import dsp
 from .annotations import Annotation
 from .snapshot import Snapshot, SnapshotEpoch, SnapshotMark, SnapshotTrace
 from .staging import StageEpoch
+
+if TYPE_CHECKING:
+    # Only for the HypnodensityStrip type hints; the strip duck-types the epoch
+    # (onset/duration/proba), so there is no runtime dependency on yasa_staging —
+    # and this module stays free of anything that could pull in the yasa stack.
+    from .yasa_staging import AutoStageEpoch
 
 # Bioelectric channels are recorded in volts and displayed in microvolts.
 # Other kinds (stim/misc/…) carry arbitrary units — a trigger channel holds
@@ -1176,13 +1182,62 @@ class TraceView(pg.PlotWidget):
         ]
 
 
-# Hypnogram overview strip (#182c): the height of the whole-night staircase and
-# the accent used for the current-window marker (the teal of the focus bracket).
-_STRIP_HEIGHT = 30
+# Whole-night overview strips (#182c hypnogram, #226 hypnodensity): the strip
+# heights and the accent used for the current-window marker (the teal of the focus
+# bracket). The hypnodensity band is taller so its five stacked classes stay
+# legible; both strips share the seconds→pixel mapping so they line up.
+_HYPNOGRAM_HEIGHT = 30
+_HYPNODENSITY_HEIGHT = 44
 _STRIP_MARKER_PEN = pg.mkPen((0, 150, 136), width=2)
 
 
-class HypnogramStrip(QtWidgets.QWidget):
+class _OverviewStrip(QtWidgets.QWidget):
+    """Shared geometry for the whole-night overview strips under the trace view.
+
+    Maps the full recording to the widget width, tracks where the trace window
+    sits, and turns a click into a ``seekRequested`` at that time — so a subclass
+    only supplies the content it paints over this common mapping (a hypnogram
+    staircase, a hypnodensity band). Because both strips share ``_x`` and the same
+    parent column, they stack pixel-aligned. Pure ``QPainter``, no pyqtgraph: a few
+    hundred filled rects redraw far faster than that many scene items.
+    """
+
+    seekRequested = QtCore.pyqtSignal(float)  # data seconds to centre the view on
+
+    def __init__(self, height: int) -> None:
+        super().__init__()
+        self.setFixedHeight(height)
+        self._duration = 0.0
+        self._window_start = 0.0
+        self._window_seconds = 30.0
+
+    def set_window(self, start: float, seconds: float) -> None:
+        """Move the current-window marker to ``[start, start + seconds)``."""
+        self._window_start = start
+        self._window_seconds = seconds
+        self.update()
+
+    def _x(self, seconds: float) -> float:
+        # Callers guard _duration > 0 before painting, so this never divides by 0.
+        return seconds / self._duration * self.width()
+
+    def _paint_window_marker(self, painter: QtGui.QPainter) -> None:
+        """Draw the current trace window as a bracket the eye tracks while paging."""
+        left = self._x(self._window_start)
+        width = max(2.0, self._x(self._window_start + self._window_seconds) - left)
+        painter.setPen(_STRIP_MARKER_PEN)
+        painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
+        painter.drawRect(QtCore.QRectF(left, 1.0, width, float(self.height() - 2)))
+
+    def mousePressEvent(self, event: QtGui.QMouseEvent | None) -> None:
+        if event is None or self._duration <= 0 or self.width() <= 0:
+            return
+        fraction = event.position().x() / self.width()
+        seconds = max(0.0, min(self._duration, fraction * self._duration))
+        self.seekRequested.emit(seconds)
+
+
+class HypnogramStrip(_OverviewStrip):
     """A whole-night hypnogram overview the operator scans and clicks to navigate.
 
     A thin strip under the trace view: the full recording mapped to its width,
@@ -1190,21 +1245,14 @@ class HypnogramStrip(QtWidgets.QWidget):
     bracket marking where the trace window currently sits. Clicking jumps the view
     there. It is the at-a-glance map of a night's scoring — where the unscored gap
     starts, where the REM bouts are — that scoring a long recording needs and the
-    per-window bands alone can't give. Pure ``QPainter``, no pyqtgraph: a few
-    hundred filled rects redraw far faster than that many scene items.
+    per-window bands alone can't give.
     """
 
-    seekRequested = QtCore.pyqtSignal(float)  # data seconds to centre the view on
-
     def __init__(self) -> None:
-        super().__init__()
-        self.setFixedHeight(_STRIP_HEIGHT)
+        super().__init__(_HYPNOGRAM_HEIGHT)
         self.setStatusTip("Hypnogram overview — click to jump the view there.")
-        self._duration = 0.0
         self._epochs: list[StageEpoch] = []
         self._colors: dict[str, tuple[int, int, int]] = {}
-        self._window_start = 0.0
-        self._window_seconds = 30.0
 
     def set_data(
         self,
@@ -1217,15 +1265,6 @@ class HypnogramStrip(QtWidgets.QWidget):
         self._epochs = list(epochs)
         self._colors = dict(colors)
         self.update()
-
-    def set_window(self, start: float, seconds: float) -> None:
-        """Move the current-window marker to ``[start, start + seconds)``."""
-        self._window_start = start
-        self._window_seconds = seconds
-        self.update()
-
-    def _x(self, seconds: float) -> float:
-        return seconds / self._duration * self.width()
 
     def paintEvent(self, event: QtGui.QPaintEvent | None) -> None:
         painter = QtGui.QPainter(self)
@@ -1245,16 +1284,77 @@ class HypnogramStrip(QtWidgets.QWidget):
                 QtCore.QRectF(left, 0.0, width, float(height)),
                 QtGui.QColor(red, green, blue),
             )
-        # The current trace window, as a bracket the eye tracks while paging.
-        left = self._x(self._window_start)
-        width = max(2.0, self._x(self._window_start + self._window_seconds) - left)
-        painter.setPen(_STRIP_MARKER_PEN)
-        painter.setBrush(QtCore.Qt.BrushStyle.NoBrush)
-        painter.drawRect(QtCore.QRectF(left, 1.0, width, float(height - 2)))
+        self._paint_window_marker(painter)
 
-    def mousePressEvent(self, event: QtGui.QMouseEvent | None) -> None:
-        if event is None or self._duration <= 0 or self.width() <= 0:
+
+class HypnodensityStrip(_OverviewStrip):
+    """A whole-night *hypnodensity* overview of YASA's automated staging (#226).
+
+    Where the hypnogram draws one colour per epoch, this draws all five class
+    probabilities per epoch as a stacked band filling the full height (W at the
+    bottom up through REM), the way YASA's own ``plot_predict_proba`` does. A
+    confident epoch reads as one dominant colour; a low-confidence one as a smeared
+    stack of several — so "epochs worth a second look" are visible at a glance with
+    no probability threshold to tune. Read-only advisory context that sits beside
+    the manual hypnogram; it never edits it.
+
+    ``stages`` is the class order the ``proba`` tuples are aligned to (YASA is
+    AASM-only), and ``colors`` is fed the AASM palette explicitly so the band
+    renders the same regardless of which manual the rater scores in.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(_HYPNODENSITY_HEIGHT)
+        self.setStatusTip(
+            "Automated staging (YASA) class probabilities — click to jump there."
+        )
+        self._epochs: list[AutoStageEpoch] = []
+        self._colors: dict[str, tuple[int, int, int]] = {}
+        self._stages: tuple[str, ...] = ()
+
+    def set_data(
+        self,
+        duration: float,
+        epochs: list[AutoStageEpoch],
+        colors: dict[str, tuple[int, int, int]],
+        stages: tuple[str, ...],
+    ) -> None:
+        """Replace the recording length, per-epoch probabilities, palette, and order."""
+        self._duration = max(0.0, duration)
+        self._epochs = list(epochs)
+        self._colors = dict(colors)
+        self._stages = tuple(stages)
+        self.update()
+
+    def paintEvent(self, event: QtGui.QPaintEvent | None) -> None:
+        painter = QtGui.QPainter(self)
+        base = self.palette().color(QtGui.QPalette.ColorRole.Base)
+        painter.fillRect(self.rect(), base)
+        if self._duration <= 0 or self.width() <= 0 or not self._stages:
             return
-        fraction = event.position().x() / self.width()
-        seconds = max(0.0, min(self._duration, fraction * self._duration))
-        self.seekRequested.emit(seconds)
+        height = float(self.height())
+        for epoch in self._epochs:
+            proba = epoch.proba
+            total = sum(proba)
+            if len(proba) != len(self._stages) or total <= 0:
+                continue  # a malformed row draws nothing rather than a wrong stack
+            left = self._x(epoch.onset)
+            width = max(1.0, self._x(epoch.onset + epoch.duration) - left)
+            # Stack bottom-up (W at the bottom → REM at the top). Size each band
+            # from the CUMULATIVE probability mapped to pixels — not summed per-band
+            # heights — so float rounding never opens a seam or overshoots the top.
+            cumulative = 0.0
+            for stage, value in zip(self._stages, proba, strict=True):
+                lower = cumulative
+                cumulative += value / total
+                color = self._colors.get(stage)
+                if color is None:  # a token with no colour draws nothing
+                    continue
+                red, green, blue = color
+                top = height * (1.0 - cumulative)
+                bottom = height * (1.0 - lower)
+                painter.fillRect(
+                    QtCore.QRectF(left, top, width, bottom - top),
+                    QtGui.QColor(red, green, blue),
+                )
+        self._paint_window_marker(painter)
