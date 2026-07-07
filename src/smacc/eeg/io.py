@@ -110,6 +110,18 @@ class Recording:
         data, times = self._raw.get_data(start=start, stop=stop, return_times=True)
         return times, data
 
+    def copy(self) -> Recording:
+        """Return a Recording over a deep copy of the underlying raw.
+
+        Hands a background thread its *own* object (#226): YASA staging runs on a
+        worker thread that deep-copies and preloads the raw, and doing that on the
+        live recording would race the GUI thread reading slices from the same
+        object via :meth:`get_slice`. Copying on the GUI thread first isolates the
+        two — the copy is cheap here because the raw is not preloaded (metadata
+        only; the worker's ``load_data`` reads the file with its own handle).
+        """
+        return Recording(self._raw.copy(), self.path)
+
 
 def open_recording(path: str | Path) -> Recording:
     """Open ``path`` (dispatched on suffix) without preloading its data.

@@ -57,6 +57,7 @@ from smacc.eeg.yasa_staging import (
     ChannelRoles,
     autostage_sidecar_paths,
     write_autostage_json,
+    yasa_available,
 )
 
 SFREQ = 100.0
@@ -75,6 +76,10 @@ class FakeRecording:
 
     def __init__(self, path: Path) -> None:
         self.path = Path(path)
+
+    def copy(self) -> FakeRecording:
+        # Mirrors io.Recording.copy: the worker runs on an isolated copy (#226).
+        return FakeRecording(self.path)
 
     def get_slice(self, start_s: float, stop_s: float):
         start = max(0, int(round(max(0.0, start_s) * SFREQ)))
@@ -2329,3 +2334,163 @@ def test_corrupt_autostage_sidecar_is_non_fatal(window, recording_path, monkeypa
     assert window._recording is not None  # but the recording still opened
     assert window._autostage is None
     assert window.hypnodensityStrip.isHidden()
+
+
+# ----- automated staging generation (#226) ---------------------------------------
+
+
+def _autostage_result(channels: ChannelRoles) -> AutoStageHypnogram:
+    return AutoStageHypnogram(
+        epochs=(AutoStageEpoch(0.0, 30.0, "N2", (0.1, 0.1, 0.7, 0.05, 0.05)),),
+        channels=channels,
+        yasa_version="0.7.0",
+        source_sfreq=SFREQ,
+        source_duration=DURATION,
+    )
+
+
+def test_autostage_dialog_autodetects_roles_from_channel_types(qtbot):
+    dialog = window_mod.AutoStageDialog(
+        None, ["C3", "C4", "EOG", "EMG"], ["eeg", "eeg", "eog", "emg"], None
+    )
+    qtbot.addWidget(dialog)
+    assert dialog.result_roles() == ("C3", "EOG", "EMG")  # first of each type
+
+
+def test_autostage_dialog_prefills_from_a_prior_run_including_none(qtbot):
+    current = ChannelRoles("C4", None, "EMG")  # prior run used no EOG
+    dialog = window_mod.AutoStageDialog(
+        None, ["C3", "C4", "EOG", "EMG"], ["eeg", "eeg", "eog", "emg"], current
+    )
+    qtbot.addWidget(dialog)
+    # The prior explicit "no EOG" is honoured, not re-guessed to the EOG channel.
+    assert dialog.result_roles() == ("C4", None, "EMG")
+
+
+def test_autostage_dialog_get_roles_builds_channel_roles(monkeypatch):
+    monkeypatch.setattr(
+        window_mod.AutoStageDialog,
+        "exec",
+        lambda self: QtWidgets.QDialog.DialogCode.Accepted,
+    )
+    roles = window_mod.AutoStageDialog.get_roles(
+        None, ["C3", "EOG", "EMG"], ["eeg", "eog", "emg"], None
+    )
+    assert roles == ChannelRoles("C3", "EOG", "EMG")
+
+
+def test_autostage_dialog_cancel_returns_none(monkeypatch):
+    monkeypatch.setattr(
+        window_mod.AutoStageDialog,
+        "exec",
+        lambda self: QtWidgets.QDialog.DialogCode.Rejected,
+    )
+    assert window_mod.AutoStageDialog.get_roles(None, ["C3"], ["eeg"], None) is None
+
+
+def test_autostage_button_visibility_tracks_yasa_available(window):
+    # The generator button is shown iff yasa is importable; in the CI dev env
+    # (no yasa extra) it is hidden, so the display-only path advertises nothing
+    # it can't run.
+    assert window.autoStageButton.isHidden() == (not yasa_available())
+
+
+def test_autostage_generation_writes_sidecar_and_shows_the_strip(
+    window, recording_path
+):
+    window._load(recording_path)
+    result = _autostage_result(ChannelRoles("C4", "EOG", "EMG"))
+    window._autostage_path = recording_path  # as _run_autostage would have set it
+    window._on_autostage_finished(result)
+    assert window._autostage is result
+    assert not window.hypnodensityStrip.isHidden()
+    _, json_path = autostage_sidecar_paths(recording_path)
+    assert json_path.is_file()  # written beside the recording
+
+
+def test_autostage_stale_result_for_another_recording_is_discarded(
+    window, recording_path, tmp_path
+):
+    window._load(recording_path)
+    result = _autostage_result(ChannelRoles("C4", None, None))
+    window._autostage_path = tmp_path / "other.edf"  # a different file
+    window._on_autostage_finished(result)
+    assert window._autostage is None  # not applied to the open recording
+    _, json_path = autostage_sidecar_paths(recording_path)
+    assert not json_path.is_file()  # and nothing written for it
+
+
+def test_autostage_failure_is_reported_not_raised(window, recording_path, monkeypatch):
+    window._load(recording_path)
+    errors: list[tuple] = []
+    monkeypatch.setattr(window, "_error", lambda *a, **k: errors.append(a))
+    window._autostage_path = recording_path
+    window._on_autostage_finished(RuntimeError("numba failed to load"))
+    assert errors  # the reviewer is told
+    assert window._autostage is None
+
+
+def test_run_autostage_runs_off_thread_end_to_end(
+    window, recording_path, qtbot, monkeypatch
+):
+    # The full flow with yasa mocked: dialog -> worker thread -> finished slot
+    # writes the sidecar and shows the strip. Exercises the real threading and
+    # cross-thread signal delivery, no yasa installed.
+    window._load(recording_path)
+    result = _autostage_result(ChannelRoles("C4", "EOG", "EMG"))
+    monkeypatch.setattr(window_mod, "yasa_available", lambda: True)
+    monkeypatch.setattr(
+        window_mod,
+        "run_yasa_staging",
+        lambda rec, *, eeg, eog, emg: result,
+    )
+    monkeypatch.setattr(
+        window_mod.AutoStageDialog,
+        "get_roles",
+        staticmethod(lambda *a, **k: ChannelRoles("C4", "EOG", "EMG")),
+    )
+    window._run_autostage()
+    qtbot.waitUntil(lambda: window._autostage is result, timeout=5000)
+    assert not window.hypnodensityStrip.isHidden()
+    assert window._autostage_worker is None  # cleared when finished
+    _, json_path = autostage_sidecar_paths(recording_path)
+    assert json_path.is_file()
+
+
+def test_autostage_dialog_falls_back_when_prior_eeg_is_absent(qtbot):
+    # A prior run (or a sidecar from a different montage) named an EEG channel
+    # this recording lacks: fall back to a detected EEG, never an arbitrary
+    # index-0 channel (which here is an EMG).
+    current = ChannelRoles("Cz-gone", None, None)
+    dialog = window_mod.AutoStageDialog(
+        None, ["EMG", "C3", "C4", "EOG"], ["emg", "eeg", "eeg", "eog"], current
+    )
+    qtbot.addWidget(dialog)
+    eeg, eog, emg = dialog.result_roles()
+    assert eeg == "C3"  # the detected EEG, not the index-0 "EMG"
+    assert eog is None and emg is None
+
+
+def test_autostage_run_abandoned_when_a_new_recording_opens(
+    window, recording_path, tmp_path
+):
+    window._load(recording_path)
+    # Wire up an in-flight run without starting the real thread.
+    worker = window_mod._YasaStagingWorker(
+        window._recording, ChannelRoles("C4", None, None)
+    )
+    worker.finished.connect(window._on_autostage_finished)
+    window._autostage_worker = worker
+    window._autostage_path = recording_path
+    window.autoStageButton.setEnabled(False)
+    window.autoStageButton.setText("Staging…")
+    # Opening a different recording abandons the run: state cleared, button freed.
+    other = tmp_path / "other.edf"
+    other.write_bytes(b"")
+    window._load(other)
+    assert window._autostage_worker is None
+    assert window.autoStageButton.text() == "Auto-stage (YASA)…"
+    # A late result from the abandoned worker is dropped (its signal is severed),
+    # so it never lands on the newly-opened recording.
+    worker.finished.emit(_autostage_result(ChannelRoles("C4", None, None)))
+    assert window._autostage is None
