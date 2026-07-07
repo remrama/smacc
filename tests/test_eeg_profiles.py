@@ -55,6 +55,31 @@ def test_reading_a_foreign_json_is_rejected(tmp_path):
         read_view_profile(path)
 
 
+def test_yasa_channel_roles_round_trip(tmp_path):
+    # The auto-staging roles (#226) ride along in the montage; a "no EOG" (None)
+    # survives distinctly from a named channel.
+    path = tmp_path / "rig.smacc-view.json"
+    profile = ViewProfile(eeg_role="C4", eog_role=None, emg_role="EMG-chin")
+    write_view_profile(profile, path)
+    reloaded = read_view_profile(path)
+    assert reloaded.eeg_role == "C4"
+    assert reloaded.eog_role is None
+    assert reloaded.emg_role == "EMG-chin"
+
+
+def test_profile_without_role_keys_reads_as_no_roles(tmp_path):
+    # A profile written before #226 has no *_role keys; they default to None.
+    path = tmp_path / "old.smacc-view.json"
+    write_view_profile(ViewProfile(channels=("C3",)), path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    del payload["eeg_role"], payload["eog_role"], payload["emg_role"]
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    reloaded = read_view_profile(path)
+    assert reloaded.eeg_role is None
+    assert reloaded.eog_role is None
+    assert reloaded.emg_role is None
+
+
 def test_reading_non_json_is_rejected(tmp_path):
     path = tmp_path / "junk.json"
     path.write_text("not json at all", encoding="utf-8")

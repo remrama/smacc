@@ -2494,3 +2494,94 @@ def test_autostage_run_abandoned_when_a_new_recording_opens(
     # so it never lands on the newly-opened recording.
     worker.finished.emit(_autostage_result(ChannelRoles("C4", None, None)))
     assert window._autostage is None
+
+
+# ----- automated staging: profile roles + staleness (#226) -----------------------
+
+
+def test_loading_a_sidecar_seeds_the_autostage_roles(window, recording_path):
+    _write_autostage(
+        recording_path, [AutoStageEpoch(0.0, 30.0, "N2", (0.1, 0.1, 0.7, 0.05, 0.05))]
+    )
+    window._load(recording_path)
+    # _write_autostage records ChannelRoles("C4", "EOG", "EMG"); the picker will
+    # pre-fill from that on the next run.
+    assert window._autostage_roles == ChannelRoles("C4", "EOG", "EMG")
+
+
+def test_applying_a_profile_seeds_the_autostage_roles(window, recording_path):
+    from smacc.eeg.profiles import ViewProfile
+
+    window._load(recording_path)
+    window._apply_profile(ViewProfile(eeg_role="C4", eog_role="EOG", emg_role=None))
+    assert window._autostage_roles == ChannelRoles("C4", "EOG", None)
+
+
+def test_current_profile_captures_the_autostage_roles(window, recording_path):
+    window._load(recording_path)
+    window._autostage_roles = ChannelRoles("C4", "EOG", "EMG")
+    profile = window._current_profile()
+    assert (profile.eeg_role, profile.eog_role, profile.emg_role) == (
+        "C4",
+        "EOG",
+        "EMG",
+    )
+
+
+def test_a_matching_overlay_is_not_flagged_stale(window, recording_path):
+    _write_autostage(
+        recording_path, [AutoStageEpoch(0.0, 30.0, "N2", (0.1, 0.1, 0.7, 0.05, 0.05))]
+    )
+    window._load(recording_path)
+    assert window._autostage_staleness() is None
+    assert window.hypnodensityStrip.toolTip() == ""
+    window.view.set_window_start(0.0)
+    window._update_epoch_readout()
+    assert "⚠" not in window.autoStageReadout.text()
+
+
+def _write_autostage_hypnogram(
+    path, channels: ChannelRoles, *, sfreq: float, duration: float
+) -> None:
+    hypnogram = AutoStageHypnogram(
+        epochs=(AutoStageEpoch(0.0, 30.0, "N2", (0.1, 0.1, 0.7, 0.05, 0.05)),),
+        channels=channels,
+        yasa_version="0.7.0",
+        source_sfreq=sfreq,
+        source_duration=duration,
+    )
+    _, json_path = autostage_sidecar_paths(path)
+    write_autostage_json(
+        json_path, hypnogram, source_name=path.name, meas_date=MEAS_DATE
+    )
+
+
+def test_an_overlay_from_a_different_recording_is_flagged_stale(window, recording_path):
+    # The EEG channel it was made from isn't in this file (a wrong/renamed file).
+    _write_autostage_hypnogram(
+        recording_path,
+        ChannelRoles("Cz-gone", None, None),
+        sfreq=SFREQ,
+        duration=DURATION,
+    )
+    window._load(recording_path)
+    message = window._autostage_staleness()
+    assert message is not None and "Cz-gone" in message
+    assert window.hypnodensityStrip.toolTip() == message
+    window.view.set_window_start(0.0)
+    window._update_epoch_readout()
+    assert window.autoStageReadout.text().startswith("⚠")
+
+
+def test_an_overlay_with_a_different_sample_rate_is_flagged_stale(
+    window, recording_path
+):
+    _write_autostage_hypnogram(
+        recording_path,
+        ChannelRoles("C4", "EOG", "EMG"),
+        sfreq=SFREQ * 2,
+        duration=DURATION,
+    )
+    window._load(recording_path)
+    message = window._autostage_staleness()
+    assert message is not None and "sample rate" in message

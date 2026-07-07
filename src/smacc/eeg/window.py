@@ -890,6 +890,10 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
         # opened a different file is discarded rather than mis-applied.
         self._autostage_worker: _YasaStagingWorker | None = None
         self._autostage_path: Path | None = None
+        # The channels the auto-stage picker pre-fills with (#226): seeded from a
+        # loaded overlay or an applied view profile, updated after a run, and
+        # persisted into a saved profile so a rig's role assignment rides along.
+        self._autostage_roles: ChannelRoles | None = None
         # Set once the window is closing, so a generation result that emitted just
         # before closeEvent's disconnect can't touch a tearing-down window (#226).
         self._closing = False
@@ -1813,6 +1817,8 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
         self.hypnodensityStrip.setVisible(
             self._recording is not None and self._autostage is not None
         )
+        # Flag on hover if the overlay no longer matches the recording (#226).
+        self.hypnodensityStrip.setToolTip(self._autostage_staleness() or "")
 
     def _on_strip_seek(self, seconds: float) -> None:
         """Jump the view so the clicked epoch is framed at the left edge."""
@@ -1943,9 +1949,11 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
             return
         if self._autostage_worker is not None:
             return  # one run at a time; the button is disabled while it runs
-        current = self._autostage.channels if self._autostage else None
         roles = AutoStageDialog.get_roles(
-            self, self._recording.ch_names, self._recording.ch_types, current
+            self,
+            self._recording.ch_names,
+            self._recording.ch_types,
+            self._autostage_roles,
         )
         if roles is None:
             return
@@ -2007,9 +2015,46 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
             self._error("Could not write the automated-staging sidecar.", str(exc))
             return
         self._autostage = result
+        self._autostage_roles = result.channels  # remember for the next picker/profile
         self._refresh_strip()
         self._update_epoch_readout()
         self._status(f"Automated staging complete — {len(result.epochs)} epochs.")
+
+    def _autostage_staleness(self) -> str | None:
+        """A warning if the loaded overlay no longer matches the recording (#226).
+
+        The sidecar records which channels, sample rate, and duration produced it;
+        if any no longer fit the open file — a role channel is gone, the rate or
+        length differs — the overlay was likely made from a different (or since
+        re-exported) recording and shouldn't be read at face value. Returns the
+        reason to show on hover, or ``None`` when the overlay still fits.
+        """
+        if self._recording is None or self._autostage is None:
+            return None
+        reasons: list[str] = []
+        roles = self._autostage.channels
+        gone = [
+            name
+            for name in (roles.eeg, roles.eog, roles.emg)
+            if name and name not in self._recording.ch_names
+        ]
+        if gone:
+            reasons.append(f"channels missing from this recording ({', '.join(gone)})")
+        source_sfreq = self._autostage.source_sfreq
+        if source_sfreq and not math.isclose(
+            source_sfreq, self._recording.sfreq, rel_tol=1e-3
+        ):
+            reasons.append(
+                f"sample rate differs ({source_sfreq:g} vs {self._recording.sfreq:g} Hz)"
+            )
+        source_duration = self._autostage.source_duration
+        if source_duration and not math.isclose(
+            source_duration, self._recording.duration, rel_tol=1e-3
+        ):
+            reasons.append("duration differs")
+        if not reasons:
+            return None
+        return "This YASA overlay may be stale — " + "; ".join(reasons) + "."
 
     def _status(self, message: str, timeout: int = 5000) -> None:
         """Show a transient status-bar message (``timeout`` 0 = until replaced)."""
@@ -2815,6 +2860,11 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
         # It is not rater-keyed (one machine hypnogram per recording) and never
         # blinded; a missing or corrupt sidecar is non-fatal to the open.
         self._autostage = self._load_autostage(path)
+        # A prior run for THIS recording is the most specific role hint; otherwise
+        # keep whatever a loaded profile set, so a rig's roles carry to the next
+        # night that has no sidecar of its own.
+        if self._autostage is not None:
+            self._autostage_roles = self._autostage.channels
         # A fresh recording uses the preference vocabulary; a resumed hypnogram
         # adopts the manual + epoch grid it was scored on (applied after
         # set_provider, which resets the anchor), so the keyboard map, the band
@@ -3317,16 +3367,22 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
         """
         if self._recording is None or self._autostage is None:
             self.autoStageReadout.clear()
+            self.autoStageReadout.setToolTip("")
             return
+        # A stale overlay gets a warning glyph and the reason on hover, so the
+        # readout can't be trusted at face value without a visible cue.
+        stale = self._autostage_staleness()
+        prefix = "⚠ " if stale else ""
+        self.autoStageReadout.setToolTip(stale or "")
         epoch = epoch_at(self._autostage.epochs, self.view.window_start)
         if epoch is None:
             # An overlay is loaded but this time is off YASA's 30-s grid (a
             # trailing fragment): show a dash — the same "no value here" mark the
             # manual readout uses — not a blank that looks like "no overlay".
-            self.autoStageReadout.setText("YASA —")
+            self.autoStageReadout.setText(f"{prefix}YASA —")
         else:
             self.autoStageReadout.setText(
-                f"YASA {epoch.stage} · {epoch.confidence * 100:.0f}%"
+                f"{prefix}YASA {epoch.stage} · {epoch.confidence * 100:.0f}%"
             )
 
     def eventFilter(
@@ -3589,6 +3645,7 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
 
     def _current_profile(self) -> ViewProfile:
         """Capture the current montage as a profile."""
+        roles = self._autostage_roles
         return ViewProfile(
             channels=tuple(self.view.visible_channels),
             base_scale_uv=self.view.scale_uv,
@@ -3597,6 +3654,9 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
             type_filters=self.view.type_specs(),
             window_seconds=self.view.window_seconds,
             epoch_seconds=self.view.epoch_seconds,
+            eeg_role=roles.eeg if roles else None,
+            eog_role=roles.eog if roles else None,
+            emg_role=roles.emg if roles else None,
         )
 
     def _apply_profile(self, profile: ViewProfile) -> None:
@@ -3612,6 +3672,13 @@ class EegAnnotatorWindow(QtWidgets.QMainWindow):
         self.view.set_type_scales(profile.type_scales)
         self.view.set_spec(profile.base_filter)
         self.view.set_type_specs(profile.type_filters)
+        # Adopt the profile's YASA channel roles (#226) so the auto-stage picker
+        # pre-fills with the rig's assignment; a profile without roles leaves the
+        # current hint untouched.
+        if profile.eeg_role:
+            self._autostage_roles = ChannelRoles(
+                profile.eeg_role, profile.eog_role, profile.emg_role
+            )
         self._select_window_seconds(profile.window_seconds)
         self.epochSpin.setValue(int(profile.epoch_seconds))  # drives the view
         self._populate_scope_combo()
