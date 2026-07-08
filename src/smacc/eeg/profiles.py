@@ -43,6 +43,13 @@ class ViewProfile:
     "show all channels in file order". ``base_*`` apply to any channel type
     without an entry in the ``type_*`` overrides; ``type_*`` are keyed by MNE
     channel type ("eeg", "eog", "emg", …).
+
+    ``*_role`` name the channels YASA automated staging (#226) should use — a
+    channel *name* each (``None`` = unset), resolved against the open file like
+    ``channels``, so a rig's role assignment rides along in the shared montage and
+    pre-fills the auto-stage picker across nights. All three default to ``None``,
+    so a profile written before #226 (or one saved without running YASA) reads
+    back with no roles rather than failing.
     """
 
     channels: tuple[str, ...] = ()
@@ -52,6 +59,9 @@ class ViewProfile:
     type_filters: dict[str, FilterSpec] = field(default_factory=dict)
     window_seconds: float = 30.0
     epoch_seconds: float = 30.0
+    eeg_role: str | None = None
+    eog_role: str | None = None
+    emg_role: str | None = None
 
 
 def _spec_to_dict(spec: FilterSpec) -> dict[str, float | None]:
@@ -86,6 +96,9 @@ def profile_payload(profile: ViewProfile) -> dict[str, Any]:
         },
         "window_seconds": profile.window_seconds,
         "epoch_seconds": profile.epoch_seconds,
+        "eeg_role": profile.eeg_role,
+        "eog_role": profile.eog_role,
+        "emg_role": profile.emg_role,
         "generated_by": {"name": "SMACC", "version": VERSION},
     }
 
@@ -131,4 +144,12 @@ def read_view_profile(path: str | Path) -> ViewProfile:
         type_filters={k: _spec_from_dict(v) for k, v in type_filters_raw.items()},
         window_seconds=float(payload.get("window_seconds", base.window_seconds)),
         epoch_seconds=float(payload.get("epoch_seconds", base.epoch_seconds)),
+        eeg_role=_role_or_none(payload.get("eeg_role")),
+        eog_role=_role_or_none(payload.get("eog_role")),
+        emg_role=_role_or_none(payload.get("emg_role")),
     )
+
+
+def _role_or_none(value: Any) -> str | None:
+    """A channel-role name from the payload, or ``None`` (absent, null, or blank)."""
+    return value if isinstance(value, str) and value else None
