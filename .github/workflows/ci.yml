@@ -69,9 +69,24 @@ jobs:
       # fails CI instead of silently rotting the committed images. Offscreen
       # (QT_QPA_PLATFORM above) into a temp dir, in the base env that mirrors the
       # shipped exe; regenerate the real shots locally on the native platform.
+      #
+      # Retry once on failure: Qt's offscreen plugin can rarely hit a native access
+      # violation while a window's C++ side is torn down mid-dispatch (documented in
+      # scripts/screenshots.py's _capture and tests/conftest.py). That crash leaves
+      # no Python traceback and clears on a re-run with no code change, so a lone
+      # failure is almost always this teardown flake, not a rotted screenshot. A
+      # real "window no longer constructs" bug fails BOTH attempts and still reds
+      # the build. `python -u` keeps stdout unbuffered so a genuine failure shows
+      # which window it died on instead of losing buffered output to the crash.
       - name: Smoke-test the screenshot harness
         if: matrix.os == 'windows-2022'
-        run: uv run python scripts/screenshots.py --headless --out ${{ runner.temp }}/shots
+        run: |
+          $shots = "${{ runner.temp }}/shots"
+          uv run python -u scripts/screenshots.py --headless --out $shots
+          if ($LASTEXITCODE -eq 0) { exit 0 }
+          Write-Host "::warning::Screenshot harness exited $LASTEXITCODE; retrying once (offscreen teardown can flake)."
+          uv run python -u scripts/screenshots.py --headless --out $shots
+          if ($LASTEXITCODE -ne 0) { throw "Screenshot harness failed twice (last exit $LASTEXITCODE)." }
       - name: Upload coverage to Codecov
         # Upload only from the release-mirror runner, and only when the tests passed
         # (`success()` — an explicit `if:` otherwise overrides the implicit
